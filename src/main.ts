@@ -18,6 +18,7 @@ import { DroneSynthDSP } from './audio/DroneSynthDSP';
 import { EcologyAudioEngine } from './audio/EcologyAudioEngine';
 import { Missions } from './game/Missions';
 import { TouchControls, isTouchDevice } from './ui/TouchControls';
+import { SettingsMenu } from './ui/SettingsMenu';
 import { initPWA } from './pwa';
 import { qrot, qeuler, qmul, qaxis, qslerp, clamp, smoothstep, DEG, V3 } from './util/math';
 
@@ -73,6 +74,13 @@ async function boot() {
   const quad = new Quadcopter6DOF(af); const fc = new FlightController(af, quad); const gimbal = new Gimbal();
   const wind = new WindField((x, z) => terrain.height(x, z)); wind.addObstacles(foliage.windObstacles());
   const home = new THREE.Vector3(WORLD.home.x, 0, WORLD.home.z); home.y = terrain.height(home.x, home.z);
+  // MENU button / Esc: wind speed, gusts, wind direction and time of day. Saved on the device; applied after any preset above.
+  const menu = new SettingsMenu(w => {
+    WORLD.windRefSpeed = w.windMs; WORLD.windDirDeg = w.windFromDeg;
+    const from = w.windFromDeg * DEG; wind.dirX = -Math.sin(from); wind.dirZ = Math.cos(from);
+    wind.uStar = (Math.max(w.windMs, 0.05) * wind.kappa) / Math.log(WORLD.windRefHeight / wind.z0); wind.gustiness = w.gust;
+    atmo.setSun(atmo.azimuth, w.sunEl); atmo.refreshMaterials();
+  }); void menu;
   const windVec: V3 = [0, 0, 0]; const push = [0, 0, 0];
   const env = {
     wind: windVec, groundH: (x: number, z: number) => terrain.height(x, z), groundN: (x: number, z: number, o: number[]) => terrain.normal(x, z, o),
