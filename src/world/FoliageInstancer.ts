@@ -86,6 +86,7 @@ export class FoliageInstancer {
       const h = T.height(x, z), k = this.pickKind(x, z, h, rng, 0.0);
       const conifer = k.conifer; const s = conifer ? 0.7 + rng() * 0.75 : 0.75 + rng() * 0.6;
       const H = (conifer ? 21 : 13) * s, crownR = (conifer ? 4.4 : 5.8) * s * 0.9;
+      if (Math.hypot(x - WORLD.home.x, z - WORLD.home.z) < WORLD.home.clearR + crownR) return false;
       for (const t of this.trees) { if (minSep && Math.abs(t.x - x) < minSep && Math.abs(t.z - z) < minSep && Math.hypot(t.x - x, t.z - z) < minSep) return false; }
       this.trees.push({ x, y: h - 0.15, z, rot: rng() * 6.283, s, sw: 0.85 + rng() * 0.3, variant: k.variant, tint: 0.85 + rng() * 0.3, conifer, H, crownR });
       return true;
@@ -202,7 +203,7 @@ export class GrassLayer {
     const mat = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: o.mode === 0 ? 0.62 : 0.8, metalness: 0 });
     this.u = {
       uCam: { value: new THREE.Vector3() }, uPatch: { value: o.patch }, uBH: { value: new THREE.Vector2(o.h[0], o.h[1]) }, uWidth: { value: o.width },
-      uHT: { value: terrain.heightTex }, uCV: { value: terrain.coverTex }, uPT: { value: terrain.pathTex }, uExcl: { value: Array.from({ length: 12 }, () => new THREE.Vector4(1e9, 1e9, 1e9, 1e9)) },
+      uHT: { value: terrain.heightTex }, uCV: { value: terrain.coverTex }, uPT: { value: terrain.pathTex }, uExcl: { value: Array.from({ length: 16 }, () => new THREE.Vector4(1e9, 1e9, 1e9, 1e9)) },
     };
     (this as any).exclusions = this.u.uExcl.value;
     mat.onBeforeCompile = (sh) => {
@@ -210,7 +211,7 @@ export class GrassLayer {
       const LIT = o.mode === 1 ? '#define LITTER 1\n' : '';
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', `${LIT}#include <common>
-attribute vec4 aSeed; uniform vec3 uCam, uWind; uniform float uPatch, uWidth, uTime, uWash; uniform vec2 uBH; uniform vec4 uDrone; uniform sampler2D uHT, uCV, uPT; uniform vec4 uExcl[12];
+attribute vec4 aSeed; uniform vec3 uCam, uWind; uniform float uPatch, uWidth, uTime, uWash; uniform vec2 uBH; uniform vec4 uDrone; uniform sampler2D uHT, uCV, uPT; uniform vec4 uExcl[16];
 varying vec3 vGrassCol;
 ${GROUND_GLSL}
 float hsh(float x){ return fract(sin(x*127.1)*43758.5453); }`)
@@ -230,7 +231,7 @@ vec3 cv = texture2D(uCV, (wxz + 2000.0)/4000.0).rgb;
 vec2 puv = (wxz - vec2(-256.0))/512.0; float pd = 99.0;
 if (puv.x>0.001 && puv.y>0.001 && puv.x<0.999 && puv.y<0.999) pd = texture2D(uPT, puv).r*8.0;
 float keep = smoothstep(1.55, 1.9, pd);
-for (int i=0;i<12;i++){ vec4 e = uExcl[i]; if (wxz.x>e.x && wxz.y>e.y && wxz.x<e.z && wxz.y<e.w) keep = 0.0; }
+for (int i=0;i<16;i++){ vec4 e = uExcl[i]; if (wxz.x>e.x && wxz.y>e.y && wxz.x<e.z && wxz.y<e.w) keep = 0.0; }
 float dens = mix(1.0, 0.18, cv.r);
 keep *= step(fract(aSeed.z*37.7), dens);
 float hv = aSeed.w;
@@ -270,7 +271,7 @@ vGrassCol = lc * (0.7 + 0.5*hsh(aSeed.w*3.1));
     };
     this.mesh = new THREE.Mesh(g, mat); this.mesh.frustumCulled = false; this.mesh.receiveShadow = true; this.mesh.castShadow = false;
   }
-  setExclusions(rects: [number, number, number, number][]) { rects.slice(0, 12).forEach((r, i) => this.u.uExcl.value[i].set(r[0], r[1], r[2], r[3])); }
+  setExclusions(rects: [number, number, number, number][]) { rects.slice(0, 16).forEach((r, i) => this.u.uExcl.value[i].set(r[0], r[1], r[2], r[3])); }
   update(cam: THREE.Vector3): void { this.u.uCam.value.copy(cam); }
 }
 void WORLD;

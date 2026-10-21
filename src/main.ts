@@ -55,7 +55,7 @@ async function boot() {
   scene.add(foliage.group);
   setMsg('carving granite monuments, chapel, lamps…', 0.65); await tick();
   const park = new MemorialParkAssets(terrain, colliders);
-  scene.add(park.group); foliage.grass.forEach(g => g.setExclusions(park.exclusions));
+  scene.add(park.group); foliage.grass.forEach(g => g.setExclusions([[WORLD.home.x - WORLD.home.clearR, WORLD.home.z - WORLD.home.clearR, WORLD.home.x + WORLD.home.clearR, WORLD.home.z + WORLD.home.clearR], ...park.exclusions]));
   const missions = new Missions(terrain, park.monumentPos.clone().setY(terrain.height(park.monumentPos.x, park.monumentPos.z)));
   scene.add(missions.group);
   // shadows + CSM wiring for every lit material (preserve our own onBeforeCompile patches)
@@ -72,7 +72,7 @@ async function boot() {
   let af: Airframe = AIRFRAMES[(params.get('airframe') as 'mini' | 'freestyle') || 'mini'];
   const quad = new Quadcopter6DOF(af); const fc = new FlightController(af, quad); const gimbal = new Gimbal();
   const wind = new WindField((x, z) => terrain.height(x, z)); wind.addObstacles(foliage.windObstacles());
-  const home = new THREE.Vector3(-18, 0, 36); home.y = terrain.height(home.x, home.z);
+  const home = new THREE.Vector3(WORLD.home.x, 0, WORLD.home.z); home.y = terrain.height(home.x, home.z);
   const windVec: V3 = [0, 0, 0]; const push = [0, 0, 0];
   const env = {
     wind: windVec, groundH: (x: number, z: number) => terrain.height(x, z), groundN: (x: number, z: number, o: number[]) => terrain.normal(x, z, o),
@@ -203,7 +203,7 @@ async function boot() {
     // foliage / grass uniforms
     const agl = quad.s[1] - terrain.height(quad.s[0], quad.s[2]);
     FoliageUniforms.uDrone.value.set(bodyPose.pos.x, bodyPose.pos.y, bodyPose.pos.z, 3.5);
-    FoliageUniforms.uWash.value = clamp(fc.thrustFraction * 1.8, 0, 1) * (1 - smoothstep(4, 14, agl)) * (quad.armed ? 1 : 0);
+    FoliageUniforms.uWash.value = clamp(fc.thrustFraction * 1.8, 0, 1) * 0.55 * (1 - smoothstep(2.5, 8, agl)) * (quad.armed ? 1 : 0);
     const cw: V3 = [0, 0, 0]; wind.canopyWind(quad.s[0], quad.s[2], simT, cw); FoliageUniforms.uWind.value.set(cw[0], cw[1], cw[2]);
     foliage.update(camera.position, now / 1000);
     missions.update(dtF, camera.position, missionsAirborne());

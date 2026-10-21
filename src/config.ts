@@ -50,6 +50,7 @@ export const WORLD = {
   size: 4000,             // metres, centred on origin
   heightRes: 2048,        // baked heightmap resolution
   homeEast: -20, homeSouth: 40,
+  home: { x: -18, z: 36, clearR: 12 },  // take-off pad: no trees, grass or clutter within clearR so the drone can climb straight up
   sunAzimuthDeg: 238, sunElevationDeg: 14,  // grazing late-afternoon sun
   windRefSpeed: 6.5, windRefHeight: 30, windDirDeg: 250, // wind blowing FROM
 };
