@@ -3,7 +3,7 @@ import { DEG } from '../util/math';
 export interface Telemetry {
   mode: 'N' | 'S' | 'M'; sats: number; rfDbm: number; rfBars: number; battPct: number; cellV: number; battA: number; iso: number; shutter: number; ev: number;
   pitch: number; roll: number; heading: number; velWorld: [number, number, number]; velBody: [number, number, number]; aglM: number; mslM: number; gs: number; vs: number; homeDist: number; gimbalDeg: number;
-  histogram: Float32Array; lensName: string; airframe: string; audio: string; fps: number; crashed: string; armed: boolean; mission: string[]; windMs: number; homeBearing: number; droneBearing: number; sunVis: number; stopHit: number; eco: string;
+  histogram: Float32Array; lensName: string; airframe: string; audio: string; fps: number; crashed: string; armed: boolean; touch?: boolean; mission: string[]; windMs: number; homeBearing: number; droneBearing: number; sunVis: number; stopHit: number; eco: string;
 }
 
 /** Crisp vector OSD drawn on a 2D canvas over the video feed. */
@@ -64,7 +64,7 @@ export class TelemetryOSD {
     F(12); const info = [t.lensName, t.airframe, `AUDIO: ${t.audio}`, `${t.fps.toFixed(0)} fps sensor`]; info.forEach((s, i) => text(s, m, 62 * u + i * 16 * u, 'left', 'rgba(255,255,255,0.85)'));
     if (t.mission.length) { F(13, true); t.mission.forEach((s, i) => text(s, m, 62 * u + 84 * u + i * 17 * u, 'left', i === 0 ? '#ffe14d' : '#fff')); }
     if (t.eco) { F(12); text(t.eco, m, h - 70 * u, 'left', '#9f9'); }
-    if (t.crashed) { F(30, true); text(t.crashed.toUpperCase(), cx, cy - 60 * u, 'center', '#ff5555'); F(15); text('PRESS R TO RESET', cx, cy - 34 * u, 'center'); }
+    if (t.crashed) { F(30, true); text(t.crashed.toUpperCase(), cx, cy - 60 * u, 'center', '#ff5555'); F(15); text(t.touch ? 'TAP RESET' : 'PRESS R TO RESET', cx, cy - 34 * u, 'center'); }
     if (t.rfDbm < -85) { F(16, true); text('VIDEO LINK WEAK', cx, 70 * u, 'center', '#ff7766'); }
     if (t.battPct < 15) { F(16, true); text('LOW BATTERY — LAND NOW', cx, 92 * u, 'center', '#ff7766'); }
     c.restore();

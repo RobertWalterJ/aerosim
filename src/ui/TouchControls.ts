@@ -28,7 +28,7 @@ export class TouchControls {
   private root: HTMLDivElement;
   private sticks = new Map<number, { side: 'L' | 'R'; ox: number; oy: number; base: HTMLDivElement; knob: HTMLDivElement }>();
   private gimbalEl!: HTMLDivElement; private gimbalKnob!: HTMLDivElement; private gimbalPointer = -1;
-  private modeBtn!: HTMLButtonElement; private installBtn?: HTMLButtonElement;
+  private modeBtn!: HTMLButtonElement; private installBtn?: HTMLButtonElement; private crashBtn!: HTMLButtonElement;
   private radius = 62;
 
   constructor(private actions: TouchActions) {
@@ -46,6 +46,8 @@ export class TouchControls {
       #touch .gimbal .gl{position:absolute;left:0;right:0;text-align:center;font:9px ui-monospace,monospace;color:#dfe;opacity:.6;pointer-events:none}
       #touch .row{position:absolute;top:32px;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:auto;flex-wrap:wrap;justify-content:center;max-width:92vw;gap:4px}
       #touch button{font:600 10px ui-monospace,Menlo,Consolas,monospace;letter-spacing:.04em;color:#dfe;background:rgba(10,20,24,.55);border:1px solid rgba(220,255,240,.4);border-radius:7px;padding:7px 8px;min-width:0;touch-action:manipulation}
+      #touch .crashreset{position:absolute;left:50%;top:58%;transform:translateX(-50%);display:none;pointer-events:auto;font-size:18px;padding:16px 34px;border-radius:14px;color:#fff;background:rgba(200,40,40,.85);border:2px solid #fff;letter-spacing:.1em}
+      #touch .crashreset.show{display:block}
       #touch button:active{background:rgba(120,230,255,.35)}
     `;
     document.head.appendChild(css);
@@ -59,6 +61,8 @@ export class TouchControls {
     this.gimbalEl = root.querySelector('.gimbal') as HTMLDivElement; this.gimbalKnob = root.querySelector('.gk') as HTMLDivElement;
     const row = root.querySelector('.row') as HTMLDivElement;
     const btn = (label: string, fn: () => void) => { const b = document.createElement('button'); b.textContent = label; b.addEventListener('click', e => { e.stopPropagation(); fn(); }); b.addEventListener('pointerdown', e => e.stopPropagation()); row.appendChild(b); return b; };
+    const cr = this.crashBtn = document.createElement('button'); cr.className = 'crashreset'; cr.textContent = 'RESET';
+    cr.addEventListener('click', e => { e.stopPropagation(); actions.reset(); }); cr.addEventListener('pointerdown', e => e.stopPropagation()); root.appendChild(cr);
     this.modeBtn = btn('MODE ' + actions.mode(), () => { actions.cycleMode(); this.modeBtn.textContent = 'MODE ' + actions.mode(); });
     btn('CAM', actions.chase); btn('PHOTO', actions.photo); btn('LENS', actions.lens); btn('RESET', actions.reset);
     btn('OSD', actions.osd); btn('SOUND', actions.audio); btn('FPS', actions.fps); btn('FULL', actions.fullscreen);
@@ -81,6 +85,8 @@ export class TouchControls {
 
   /** Show the install button once the browser says the app can be installed. */
   setInstallAvailable(on: boolean) { if (this.installBtn) this.installBtn.style.display = on ? '' : 'none'; }
+  /** Show the large RESET button while the drone is crashed or disarmed. */
+  setCrashed(on: boolean) { this.crashBtn.classList.toggle('show', on); }
   refreshMode() { this.modeBtn.textContent = 'MODE ' + this.actions.mode(); }
   syncGimbal(cmd: number) { const f = (GIMBAL_MAX - cmd) / (GIMBAL_MAX - GIMBAL_MIN); this.gimbalKnob.style.top = (f * 100).toFixed(1) + '%'; }
   /** Called each frame: returns a new gimbal command once when the slider moved, else null. */

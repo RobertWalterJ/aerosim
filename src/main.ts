@@ -183,6 +183,7 @@ async function boot() {
     const sticks = input.poll(dtF); void sticks;
     const alpha = sim.advance(dtF, physStep);
     if (quad.crashed && !(quad as any)._counted) { (quad as any)._counted = true; missions.crashes++; } if (!quad.crashed) (quad as any)._counted = false;
+    touch?.setCrashed(quad.crashed || !quad.armed);
     // interpolated body pose
     bodyPose.pos.set(quad.prevPos[0] + (quad.s[0] - quad.prevPos[0]) * alpha, quad.prevPos[1] + (quad.s[1] - quad.prevPos[1]) * alpha, quad.prevPos[2] + (quad.s[2] - quad.prevPos[2]) * alpha);
     qslerp(Array.from(quad.prevQuat), [quad.s[6], quad.s[7], quad.s[8], quad.s[9]], alpha, bodyPose.quat);
@@ -239,7 +240,7 @@ async function boot() {
       mode: fc.mode, sats: rfState.sats, rfDbm: rfState.dbm, rfBars: clamp(Math.round((rfState.dbm + 100) / 12), 0, 5), battPct: quad.battery.soc * 100, cellV: quad.battery.cellV, battA: quad.battery.current,
       iso: pipeline.isoShown, shutter: pipeline.shutterShown, ev: pipeline.evComp, pitch: camE.x, roll: camE.z, heading: heading, velWorld: [quad.s[3], quad.s[4], quad.s[5]], velBody: [vb.x, vb.y, vb.z],
       aglM: agl, mslM: quad.s[1], gs: Math.hypot(quad.s[3], quad.s[5]), vs: quad.s[4], homeDist: Math.hypot(quad.s[0] - home.x, quad.s[2] - home.z), gimbalDeg: (af.hasGimbal ? gimbal.pitch : af.camTilt) / DEG,
-      histogram: pipeline.histogram, lensName, airframe: af.name + (chase ? '  [CHASE]' : ''), audio: audio ? audio.perspective : 'click to enable', fps: Math.min(fps, fpsSmooth), crashed: quad.crashed || !quad.armed ? quad.crashReason : '', armed: quad.armed, mission: missions.lines(), windMs: Math.hypot(windVec[0], windVec[2]), homeBearing: hb, droneBearing: 0, sunVis: 0, stopHit: gimbal.stopHit, eco: eco ? `birds flushed: ${eco.flushes}` : '',
+      histogram: pipeline.histogram, lensName, airframe: af.name + (chase ? '  [CHASE]' : ''), audio: audio ? audio.perspective : 'click to enable', fps: Math.min(fps, fpsSmooth), crashed: quad.crashed || !quad.armed ? quad.crashReason : '', armed: quad.armed, touch: touchMode, mission: missions.lines(), windMs: Math.hypot(windVec[0], windVec[2]), homeBearing: hb, droneBearing: 0, sunVis: 0, stopHit: gimbal.stopHit, eco: eco ? `birds flushed: ${eco.flushes}` : '',
     };
     osd.draw(tel, { x: (s.x - fw) / 2, y: (s.y - fh) / 2, w: fw, h: fh });
     requestAnimationFrame(loop);
