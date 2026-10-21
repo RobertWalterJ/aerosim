@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>AeroSim Desktop Edition, Spec v2</title>
+<style>body{font:13px/1.5 Helvetica,Arial,sans-serif;max-width:760px;margin:30px auto;color:#222}h1{font-size:24px}h2{font-size:17px;border-bottom:1px solid #ccc;padding-bottom:3px;margin-top:26px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:4px 7px;text-align:left;vertical-align:top}code{background:#f2f2f2;padding:1px 3px}</style>
+<h1>AeroSim Desktop Edition: Technical Specification v2</h1>
+<p>Supersedes the Gemini draft. Changes are driven by a critique of feasibility, physical correctness and what can be verified in a browser build.</p>
+<h2>1. Critique summary and resulting changes</h2>
+<table><tr><th>Original item</th><th>Issue</th><th>v2 decision</th></tr>
+<tr><td>Compute-style GPU chains</td><td>WebGL2 has no compute shaders</td><td>Fragment-shader reduce and ping-pong chains; WebGPU port is Phase 2</td></tr>
+<tr><td>Physics rate unspecified relative to render</td><td>Sensor effects need stable cadence</td><td>1 kHz fixed-step RK4 physics; render interpolation; sensor pipeline at 60 or 30 fps</td></tr>
+<tr><td>Generic thrust model</td><td>No translational lift, ground effect or vortex ring state</td><td>Blade-element plus Glauert momentum rotor model, Cheeseman-Bennett ground effect, stochastic VRS thrust loss</td></tr>
+<tr><td>Hand-waved flight modes</td><td>Needs cascaded loops</td><td>Velocity 100 Hz, attitude 250 Hz, rate PID 1 kHz, mixer with airmode; N, S and M modes</td></tr>
+<tr><td>"Photoreal" assets</td><td>No asset budget</td><td>Procedural, deterministic assets (no external downloads): terrain bake, instanced foliage, canvas PBR textures</td></tr>
+<tr><td>Wind</td><td>Uniform wind unrealistic</td><td>Log-profile shear, gusts, curl-noise eddies behind trees and monuments</td></tr>
+<tr><td>Audio</td><td>Underspecified</td><td>Per-motor harmonic synthesis with Doppler, three listener perspectives, bird state machine</td></tr>
+<tr><td>Testing</td><td>None</td><td>Headless physics tests and headless Chromium render captures</td></tr></table>
+<h2>2. Architecture</h2>
+<p>Three.js 0.170 with TypeScript and Vite on WebGL2. Layout: <code>src/core, physics, world, rendering, audio, ui, game, util</code>.</p>
+<h2>3. Physics</h2>
+<p>17-state quaternion rigid body, RK4. Four rotors with asymmetric motor lag and gyroscopic terms. LiPo battery with open-circuit voltage and internal-resistance sag. Eight penalty-spring contact points. Airframes: MINI (249 g, 3S, gimbal) and FREESTYLE (750 g, 4S, 25 degree fixed tilt). Headless tests cover static thrust, ground effect, translational lift, VRS, hover, braking, wind hold, acro rate and battery.</p>
+<h2>4. Environment</h2>
+<p>Victorian memorial park and valley: 4 km world, 2049 squared baked heightmap, land-cover and exact path distance textures, two terrain LODs plus an analytic backdrop ridge. Granite obelisks, headstones with engraved normal maps, lamps, benches, chapel with bell tower. Procedural spruce and broadleaf trees with hierarchical wind, rotor-downwash displacement and backlit translucency; GPU grass and leaf litter.</p>
+<h2>5. Lighting</h2>
+<p>Analytic sky, 4000 K sun, PMREM skylight, cascaded shadow maps, exponential height fog with forward scatter toward the sun.</p>
+<h2>6. Sensor pipeline (7 stages)</h2>
+<p>Metering and auto-exposure with 0.35 s lag; dual-filter bloom; rolling shutter (12 ms) and jello; Brown-Conrady distortion with chromatic aberration; sun streak, ghost orb, veiling glare, vignette and ISO noise; 10-stop S-curve; ISP sharpening halos; H.264-style macroblock artifacts driven by an RF link model.</p>
+<h2>7. Audio and ecology</h2>
+<p>Four motors with five harmonics each, vortex slap, wind buffet, slapback. Chickadee, robin, blue jay and nuthatch follow calm, alert and flush states. Perspectives: Ground Binaural, Onboard Mic, Cinematic Hybrid.</p>
+<h2>8. Controls and OSD</h2>
+<p>Keyboard, mouse and gamepad or USB-HID transmitter. OSD shows mode, GPS, RF, battery, ISO and shutter, altitude, speeds, wind, gimbal and a minimap.</p>
+<h2>9. Status and Phase 2</h2>
+<p>Status: complete pipeline builds and renders; first-light captures verified headlessly. Calibration of sky, foliage and exposure is ongoing. Phase 2: soft shadows (PCSS), octahedral impostors, fences and hedges, WebGPU port, optional Unreal Engine port for true photogrammetry-grade assets.</p>

@@ -1,0 +1,18 @@
+import { chromium } from 'playwright-core'; import fs from 'fs';
+const exe = fs.readdirSync('/opt/pw-browsers').filter(d=>d.startsWith('chromium-'))[0];
+const b = await chromium.launch({ executablePath:`/opt/pw-browsers/${exe}/chrome-linux/chrome`, args:['--use-angle=swiftshader','--use-gl=angle','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox'] });
+const ctx = await b.newContext({ viewport:{width:844,height:390}, hasTouch:true, isMobile:true, deviceScaleFactor:1 });
+const p = await ctx.newPage();
+p.on('console', m => { if (m.type()==='error') console.log('[err]', m.text().slice(0,300)); }); p.on('pageerror', e => console.log('[pageerror]', String(e).slice(0,300)));
+await p.goto('http://127.0.0.1:4173/?capture=1&teleport=0,160,60,150,-15');
+await p.waitForFunction(()=>window.__aerosim,null,{timeout:200000}); await p.waitForTimeout(8000);
+console.log('touch overlay:', await p.evaluate(()=>!!document.getElementById('touch')), 'sw:', await p.evaluate(async()=>{const r=await navigator.serviceWorker?.getRegistrations(); return r?.length}));
+console.log('manifest ok:', await p.evaluate(()=>fetch('manifest.webmanifest').then(r=>r.ok)));
+const cdp = await ctx.newCDPSession(p);
+const y0 = await p.evaluate(()=>window.__aerosim.state?.().alt ?? null).catch(()=>null);
+await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:150,y:260,id:1}]});
+await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:150,y:200,id:1}]});
+await p.waitForTimeout(500);
+await p.screenshot({path:'tests/out/touch.png'});
+await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+await b.close();

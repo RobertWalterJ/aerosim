@@ -1,0 +1,23 @@
+{
+  "name": "aerosim-desktop",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:physics": "tsx tests/physics.test.ts"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/three": "^0.170.0",
+    "playwright-core": "*",
+    "tsx": "*",
+    "typescript": "*",
+    "vite": "*"
+  }
+}

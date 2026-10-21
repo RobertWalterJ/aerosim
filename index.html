@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#06090c"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="AeroSim">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./icons/icon-192.png"><link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<title>AeroSim Desktop</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;overscroll-behavior:none;touch-action:none;font-family:ui-monospace,Menlo,Consolas,monospace;color:#dfe}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #osd{pointer-events:none}
+  #loading{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#16222c,#06090c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:5;transition:opacity .8s}
+  #loading h1{font-weight:300;letter-spacing:.35em;font-size:28px;margin:0}
+  #bar{width:min(420px,70vw);height:3px;background:#223;overflow:hidden}#bar>i{display:block;height:100%;width:0;background:#7ef;transition:width .2s}
+  #msg{font-size:12px;opacity:.7}
+  #help{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(4,8,12,.78);padding:16px 22px;border:1px solid #3a5;font-size:12px;line-height:1.7;z-index:4;transition:opacity .6s;white-space:pre}
+</style></head>
+<body>
+<canvas id="gl"></canvas><canvas id="osd"></canvas>
+<div id="loading"><h1>AEROSIM</h1><div id="bar"><i></i></div><div id="msg">starting…</div></div>
+<div id="help" style="display:none">W/S throttle   A/D yaw   Arrows or mouse-drag: pitch/roll   Q/E or wheel: gimbal
+1/2/3  N / S / M(acro) mode     V audio perspective     L lens 150°/84°
+H OSD   C chase cam   F airframe   R reset   P photo   G 30/60 fps   B bloom
+[ ]  sun elevation   - =  exposure comp   Gamepad / RC transmitter supported
+click anywhere to enable audio</div>
+<script type="module" src="./src/main.ts"></script>
+</body></html>
