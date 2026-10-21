@@ -64,8 +64,7 @@ export class TouchControls {
     const cr = this.crashBtn = document.createElement('button'); cr.className = 'crashreset'; cr.textContent = 'RESET';
     cr.addEventListener('click', e => { e.stopPropagation(); actions.reset(); }); cr.addEventListener('pointerdown', e => e.stopPropagation()); root.appendChild(cr);
     this.modeBtn = btn('MODE ' + actions.mode(), () => { actions.cycleMode(); this.modeBtn.textContent = 'MODE ' + actions.mode(); });
-    btn('CAM', actions.chase); btn('PHOTO', actions.photo); btn('LENS', actions.lens); btn('RESET', actions.reset);
-    btn('OSD', actions.osd); btn('SOUND', actions.audio); btn('FPS', actions.fps); btn('FULL', actions.fullscreen);
+    btn('CAM', actions.chase); btn('PHOTO', actions.photo); // lens, reset, display, sound, frame rate and full screen live in the pause window
     if (actions.install) { this.installBtn = btn('INSTALL', actions.install); this.installBtn.style.display = 'none'; }
 
     for (const side of ['L', 'R'] as const) {

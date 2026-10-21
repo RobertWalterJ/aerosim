@@ -6,15 +6,15 @@ const get = (): string | null => { try { return localStorage.getItem(KEY); } cat
 const set = (v: string) => { try { localStorage.setItem(KEY, v); } catch { /* ignore */ } };
 
 export function initPWA() {
-  let deferred: BIPEvent | null = null; let listener: ((ok: boolean) => void) | null = null;
+  let deferred: BIPEvent | null = null; const listeners: ((ok: boolean) => void)[] = []; const listener = (ok: boolean) => listeners.forEach(f => f(ok));
   const standalone = matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || (navigator as any).standalone === true;
 
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
     const reg = () => navigator.serviceWorker.register('./sw.js').catch(e => console.warn('sw failed', e));
     if (document.readyState === 'complete') reg(); else addEventListener('load', reg);
   }
-  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e as BIPEvent; listener?.(true); });
-  addEventListener('appinstalled', () => { deferred = null; listener?.(false); set('installed'); banner?.remove(); });
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e as BIPEvent; listener(true); });
+  addEventListener('appinstalled', () => { deferred = null; listener(false); set('installed'); banner?.remove(); });
 
   let banner: HTMLDivElement | null = null;
   const show = (html: string, withButton: boolean) => {
@@ -26,8 +26,8 @@ export function initPWA() {
     document.body.appendChild(b); setTimeout(() => b.remove(), 20000);
   };
   const api = {
-    onInstallable(fn: (ok: boolean) => void) { listener = fn; if (deferred) fn(true); },
-    async promptInstall() { if (!deferred) return; const d = deferred; await d.prompt(); const r = await d.userChoice; if (r.outcome === 'accepted') { deferred = null; listener?.(false); banner?.remove(); } },
+    onInstallable(fn: (ok: boolean) => void) { listeners.push(fn); if (deferred) fn(true); },
+    async promptInstall() { if (!deferred) return; const d = deferred; await d.prompt(); const r = await d.userChoice; if (r.outcome === 'accepted') { deferred = null; listener(false); banner?.remove(); } },
     /** Offer the install once per week, never inside the installed app. */
     maybePrompt() {
       if (standalone || get() === 'installed') return; const t = Number(get()); if (t && Date.now() - t < 7 * 864e5) return;

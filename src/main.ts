@@ -19,6 +19,7 @@ import { EcologyAudioEngine } from './audio/EcologyAudioEngine';
 import { Missions } from './game/Missions';
 import { TouchControls, isTouchDevice } from './ui/TouchControls';
 import { SettingsMenu } from './ui/SettingsMenu';
+import { SnowFall } from './world/SnowFall';
 import { initPWA } from './pwa';
 import { qrot, qeuler, qmul, qaxis, qslerp, clamp, smoothstep, DEG, V3 } from './util/math';
 
@@ -74,13 +75,6 @@ async function boot() {
   const quad = new Quadcopter6DOF(af); const fc = new FlightController(af, quad); const gimbal = new Gimbal();
   const wind = new WindField((x, z) => terrain.height(x, z)); wind.addObstacles(foliage.windObstacles());
   const home = new THREE.Vector3(WORLD.home.x, 0, WORLD.home.z); home.y = terrain.height(home.x, home.z);
-  // MENU button / Esc: wind speed, gusts, wind direction and time of day. Saved on the device; applied after any preset above.
-  const menu = new SettingsMenu(w => {
-    WORLD.windRefSpeed = w.windMs; WORLD.windDirDeg = w.windFromDeg;
-    const from = w.windFromDeg * DEG; wind.dirX = -Math.sin(from); wind.dirZ = Math.cos(from);
-    wind.uStar = (Math.max(w.windMs, 0.05) * wind.kappa) / Math.log(WORLD.windRefHeight / wind.z0); wind.gustiness = w.gust;
-    atmo.setSun(atmo.azimuth, w.sunEl); atmo.refreshMaterials();
-  }); void menu;
   const windVec: V3 = [0, 0, 0]; const push = [0, 0, 0];
   const env = {
     wind: windVec, groundH: (x: number, z: number) => terrain.height(x, z), groundN: (x: number, z: number, o: number[]) => terrain.normal(x, z, o),
@@ -111,6 +105,26 @@ async function boot() {
   });
   input.gimbalCmd = input_gimbalInit;
   const pwa = initPWA();
+  // pause window (PAUSE button / Esc): freezes the flight; holds the less-used controls and the weather
+  let paused = false, installable = false; pwa.onInstallable(ok => { installable = ok; });
+  const snow = new SnowFall(qName === 'low' ? 6000 : qName === 'medium' ? 10000 : 16000, Q.renderHeight); scene.add(snow.points);
+  const MODE_NAMES: Record<string, string> = { N: 'Normal', S: 'Sport', M: 'Manual' }, MODE_NEXT: Record<string, 'N' | 'S' | 'M'> = { N: 'S', S: 'M', M: 'N' };
+  const menu = new SettingsMenu(w => {
+    WORLD.windRefSpeed = w.windMs; WORLD.windDirDeg = w.windFromDeg;
+    const from = w.windFromDeg * DEG; wind.dirX = -Math.sin(from); wind.dirZ = Math.cos(from);
+    wind.uStar = (Math.max(w.windMs, 0.05) * wind.kappa) / Math.log(WORLD.windRefHeight / wind.z0); wind.gustiness = w.gust;
+    atmo.setSun(atmo.azimuth, w.sunEl); atmo.refreshMaterials(); snow.setLevel(w.snow);
+  }, [
+    { label: 'Flight mode', value: () => MODE_NAMES[fc.mode] ?? fc.mode, run: () => { fc.mode = MODE_NEXT[fc.mode] ?? 'N'; fc.resetState(); touch?.refreshMode(); } },
+    { label: 'Camera view', value: () => chase ? 'Chase' : 'First person', run: () => { chase = !chase; } },
+    { label: 'Lens', value: () => lensName, run: () => { const l = pipeline.lens === 'standard' ? 'wide' : 'standard'; pipeline.setLens(l, 0); lensName = pipeline.lenses[l].name; } },
+    { label: 'Reset drone', value: () => 'Back to the start', run: () => { spawn(home.x, home.z, 150); menu.toggle(false); } },
+    { label: 'On-screen display', value: () => osd.visible ? 'On' : 'Off', run: () => { osd.visible = !osd.visible; } },
+    { label: 'Frame rate', value: () => fps + ' fps', run: () => { fps = fps === 60 ? 30 : 60; } },
+    { label: 'Sound', value: () => audio ? audioName : 'Tap to turn on', run: () => { initAudio().then(() => { if (audio) audioName = audio.cyclePerspective(); menu.refresh(); }); } },
+    { label: 'Full screen', run: () => { const d = document.documentElement as any; if (document.fullscreenElement) document.exitFullscreen(); else (d.requestFullscreen?.() ?? Promise.resolve()).then(() => (screen.orientation as any)?.lock?.('landscape')).catch(() => { }); } },
+    { label: 'Install app', run: () => { pwa.promptInstall(); }, show: () => installable },
+  ], p => { paused = p; });
   let touch: TouchControls | null = null;
   if (touchMode) {
     const next: Record<string, 'N' | 'S' | 'M'> = { N: 'S', S: 'M', M: 'N' };
@@ -189,7 +203,7 @@ async function boot() {
     const dtF = Math.min((now - last) / 1000, 0.1); last = now; frameIdx++;
     fpsAcc += dtF; fpsN++; if (fpsAcc > 0.5) { fpsSmooth = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
     const sticks = input.poll(dtF); void sticks;
-    const alpha = sim.advance(dtF, physStep);
+    const alpha = sim.advance(paused ? 0 : dtF, physStep);
     if (quad.crashed && !(quad as any)._counted) { (quad as any)._counted = true; missions.crashes++; } if (!quad.crashed) (quad as any)._counted = false;
     touch?.setCrashed(quad.crashed || !quad.armed);
     // interpolated body pose
@@ -212,7 +226,7 @@ async function boot() {
     const agl = quad.s[1] - terrain.height(quad.s[0], quad.s[2]);
     FoliageUniforms.uDrone.value.set(bodyPose.pos.x, bodyPose.pos.y, bodyPose.pos.z, 3.5);
     FoliageUniforms.uWash.value = clamp(fc.thrustFraction * 1.8, 0, 1) * 0.55 * (1 - smoothstep(2.5, 8, agl)) * (quad.armed ? 1 : 0);
-    const cw: V3 = [0, 0, 0]; wind.canopyWind(quad.s[0], quad.s[2], simT, cw); FoliageUniforms.uWind.value.set(cw[0], cw[1], cw[2]);
+    const cw: V3 = [0, 0, 0]; wind.canopyWind(quad.s[0], quad.s[2], simT, cw); FoliageUniforms.uWind.value.set(cw[0], cw[1], cw[2]); snow.update(camera.position, dtF, windVec);
     foliage.update(camera.position, now / 1000);
     missions.update(dtF, camera.position, missionsAirborne());
     for (let i = birds.length - 1; i >= 0; i--) { const b = birds[i]; b.t += dtF; b.s.position.addScaledVector(b.v, dtF); b.v.y += (b.t < 1.5 ? 1.2 : -0.1) * dtF; b.s.material.map = birdTex[Math.floor((b.t * 11 + b.ph) % 2)]; if (b.t > 9) { scene.remove(b.s); b.s.material.dispose(); birds.splice(i, 1); } }
