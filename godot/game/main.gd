@@ -5,9 +5,10 @@ extends Node3D
 
 const SUBSTEPS := 4
 const DT := 0.002
-const TREE_CELL := 24.0
 
 var terrain: Terrain
+var forest: Forest
+var cemetery: Cemetery
 var quad: Quad
 var fc: FlightController
 var wind := Wind.new()
@@ -27,8 +28,6 @@ var chase := false
 var paused := false
 var sim_time := 0.0
 var gimbal_pitch := deg_to_rad(-20.0)
-var _trees := {}          # cell -> Array of Vector3(x, z, radius) with trunk height in y of a parallel dict
-var _tree_h := {}
 var _cam_yaw := 0.0
 var _chase_pos := Vector3.ZERO
 var _snow_level := 0
@@ -51,7 +50,7 @@ func _ready() -> void:
 	fc.set_step(DT)
 	quad.ground_h = func(x: float, z: float) -> float: return terrain.height(x, z)
 	quad.ground_n = func(x: float, z: float) -> Vector3: return terrain.normal_at(x, z)
-	quad.obstacle_hit = _tree_hit
+	quad.obstacle_hit = forest.trunk_hit
 	add_child(drone_node)
 	drone_node.add_child(drone_view)
 	drone_view.build(af)
@@ -80,8 +79,14 @@ func _ready() -> void:
 func _build_world() -> void:
 	terrain = Terrain.new()
 	add_child(terrain)
+	terrain.add_flat_rect(Cemetery.CENTRE, Cemetery.HALF + Vector2(3, 3), 14.0)
 	terrain.build()
-	_scatter_trees()
+	cemetery = Cemetery.new()
+	add_child(cemetery)
+	cemetery.build(terrain)
+	forest = Forest.new()
+	add_child(forest)
+	forest.plant(terrain, func(x: float, z: float) -> bool: return cemetery.contains(x, z, 6.0) or (x * x + z * z) < 900.0)
 	# sun, sky and atmosphere
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -144,77 +149,6 @@ func _snow_mesh() -> Mesh:
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	qm.material = m
 	return qm
-
-func _scatter_trees() -> void:
-	var rng := RandomNumberGenerator.new(); rng.seed = 11
-	var forest := FastNoiseLite.new(); forest.seed = 31; forest.frequency = 0.004
-	var xf: Array[Transform3D] = []; var cols: Array[Color] = []; var heights: Array[float] = []
-	var step := 11.0
-	var span := 700.0
-	var x := -span
-	while x < span:
-		var z := -span
-		while z < span:
-			var px := x + rng.randf() * step; var pz := z + rng.randf() * step
-			z += step
-			var d := sqrt(px * px + pz * pz)
-			if d < 34.0: continue
-			var dens := forest.get_noise_2d(px, pz) * 0.5 + 0.5
-			if rng.randf() > smoothstep(0.35, 0.7, dens) * 0.9: continue
-			var n := terrain.normal_at(px, pz)
-			if n.y < 0.86: continue
-			var y := terrain.height(px, pz)
-			if y > 105.0: continue
-			var s := 0.7 + rng.randf() * 0.8
-			xf.append(Transform3D(Basis().scaled(Vector3(s, s, s)).rotated(Vector3.UP, rng.randf() * TAU), Vector3(px, y - 0.1, pz)))
-			cols.append(Color(0.10, 0.22, 0.10).lerp(Color(0.18, 0.30, 0.12), rng.randf()).srgb_to_linear())
-			heights.append(21.0 * s)
-			var key := Vector2i(floori(px / TREE_CELL), floori(pz / TREE_CELL))
-			if not _trees.has(key): _trees[key] = []; _tree_h[key] = []
-			_trees[key].append(Vector3(px, y, pz)); _tree_h[key].append([0.32 * s, 21.0 * s])
-		x += step
-	# one multimesh per part: trunk, lower cone, upper cone
-	var parts := [[0.30, 0.34, 4.0, 2.0, Color(0.25, 0.16, 0.10)], [0.0, 3.6, 9.0, 8.0, Color.WHITE], [0.0, 2.6, 8.0, 14.0, Color.WHITE]]
-	for p in parts:
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		var cm := CylinderMesh.new()
-		cm.top_radius = p[0]; cm.bottom_radius = p[1]; cm.height = p[2]; cm.radial_segments = 8
-		mm.mesh = cm
-		mm.instance_count = xf.size()
-		for i in xf.size():
-			var t := xf[i]
-			t.origin.y += p[3] * t.basis.get_scale().y
-			mm.set_instance_transform(i, t)
-			mm.set_instance_color(i, p[4] if p[4] != Color.WHITE else cols[i])
-		var mat := StandardMaterial3D.new()
-		mat.vertex_color_use_as_albedo = true
-		mat.roughness = 0.9
-		var mi := MultiMeshInstance3D.new()
-		mi.multimesh = mm; mi.material_override = mat
-		add_child(mi)
-
-## Trunk collision for the drone: returns the push-out vector, or Vector3.INF when clear.
-func _tree_hit(x: float, y: float, z: float, r: float) -> Vector3:
-	var key := Vector2i(floori(x / TREE_CELL), floori(z / TREE_CELL))
-	for a in range(-1, 2):
-		for b in range(-1, 2):
-			var k := Vector2i(key.x + a, key.y + b)
-			if not _trees.has(k): continue
-			var list: Array = _trees[k]
-			var hs: Array = _tree_h[k]
-			for i in list.size():
-				var t: Vector3 = list[i]
-				if y < t.y - r or y > t.y + hs[i][1] + r: continue
-				var dx := x - t.x
-				var dz := z - t.z
-				var dd := sqrt(dx * dx + dz * dz)
-				var rr: float = hs[i][0] + r
-				if dd < rr:
-					var sc := (rr - dd) / maxf(dd, 1e-4)
-					return Vector3(dx * sc, 0, dz * sc)
-	return Vector3.INF
 
 # ------------------------------------------------------------------ weather
 func apply_weather(w: Dictionary) -> void:
@@ -302,6 +236,8 @@ func _apply_pose() -> void:
 
 func _process(delta: float) -> void:
 	if quad == null: return
+	if _gallery_cam:
+		return
 	_fps_acc += delta
 	if _fps_acc > 0.5:
 		_fps = 1.0 / maxf(delta, 1e-4) * 0.5 + _fps * 0.5
@@ -362,6 +298,18 @@ func _screenshot_mode(arg: String) -> void:
 	if parts.size() > 2: chase = parts[2] == "chase"; hud.set_chase(chase)
 	if parts.size() > 3 and parts[3] == "climb":
 		_auto_climb = true
+	if parts.size() > 3 and parts[3].begins_with("at"):
+		var v := parts[3].substr(2).split("_")   # at<x>_<y_above_ground>_<z>_<yaw_deg>_<gimbal_deg>
+		var px := float(v[0]); var pz := float(v[2])
+		var py := terrain.height(px, pz) + float(v[1])
+		quad.reset(px, py, pz, deg_to_rad(float(v[3])))
+		var wh: float = float(af["omegaMax"]) * sqrt(1.0 / float(af["twr"]))
+		for i in 4:
+			quad.s[13 + i] = wh; quad.cmd[i] = wh
+		fc.heading = deg_to_rad(float(v[3])); gimbal_pitch = deg_to_rad(float(v[4]))
+		_apply_pose(); drone_node.reset_physics_interpolation()
+	if parts.size() > 3 and parts[3] == "gallery":
+		_build_gallery()
 	if parts.size() > 3 and parts[3].begins_with("menu"):
 		hud.set_paused(true); hud._tabs.current_tab = int(parts[3].substr(4))
 	if parts.size() > 3 and parts[3].begins_with("snow"):
@@ -387,3 +335,21 @@ func _run_selftest() -> void:
 	print("selftest: alt %.1f m over ground, crashed=%s, sim_time=%.2f s, wall=%d ms" % [p.y - terrain.height(p.x, p.z), quad.crashed, sim_time, Time.get_ticks_msec() - t0])
 	print("selftest: wind %.2f m/s, battery %.0f%%" % [_wind_now.length(), quad.battery.soc * 100.0])
 	get_tree().quit()
+
+var _gallery_cam := false
+
+## Development view: every tree variant and a row of cemetery pieces, close up, to judge the models.
+func _build_gallery() -> void:
+	_gallery_cam = true
+	drone_view.visible = false
+	var gy := terrain.height(0.0, 0.0)
+	var names := ["spruce_a_l0", "maple_red_l0", "maple_gold_l0", "oak_l0", "spruce_b_l0"]
+	for i in names.size():
+		var xf := Transform3D(Basis(), Vector3(-24.0 + i * 12.0, gy, -26.0))
+		Assets.place(self, "trees/" + names[i], xf)
+	var env := ["headstone_0", "headstone_2", "headstone_4", "headstone_6", "crossMonument_0", "angelMonument_0", "urnMonument_1", "kerbedPlot_0", "willowMarker_0", "ironFence_0", "bouquet_0", "deadTree_0"]
+	for i in env.size():
+		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(10.0)), Vector3(-15.0 + i * 2.8, gy, -9.0))
+		Assets.place(self, "env/" + env[i], xf)
+	cam.global_transform = Transform3D(Basis.looking_at(Vector3(0.0, -0.05, -1.0), Vector3.UP), Vector3(0.0, gy + 2.2, 4.0))
+	cam.fov = 60.0

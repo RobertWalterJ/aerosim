@@ -14,6 +14,7 @@ var _ridge := FastNoiseLite.new()
 var snow := 0.0 : set = set_snow
 var _mat: ShaderMaterial
 var _origin_h := 12.0
+var _flats: Array = []   # [{c: Vector2, half: Vector2, blend: float, h: float}]
 
 func _init() -> void:
 	_noise.seed = 2024
@@ -29,7 +30,18 @@ func raw_height(x: float, z: float) -> float:
 	# rise gently towards the valley walls so the horizon is not a flat edge
 	base += pow(clampf((d - 250.0) / 550.0, 0.0, 1.5), 2.0) * 60.0
 	var pad := smoothstep(PAD_R, PAD_R + PAD_BLEND, d)
-	return lerpf(_origin_h, base, pad)
+	var h := lerpf(_origin_h, base, pad)
+	for f in _flats:
+		var q: Vector2 = (Vector2(x, z) - f["c"]).abs() - f["half"]
+		var out := maxf(q.x, q.y)   # distance outside the rectangle (box approximation)
+		h = lerpf(f["h"], h, smoothstep(0.0, f["blend"], out))
+	return h
+
+## Level a rectangle of ground (for the cemetery) before build(). Returns the level used.
+func add_flat_rect(centre: Vector2, half: Vector2, blend: float) -> float:
+	var h := raw_height(centre.x, centre.y)
+	_flats.append({"c": centre, "half": half, "blend": blend, "h": h})
+	return h
 
 func build() -> void:
 	_origin_h = _noise.get_noise_2d(0.0, 0.0) * 16.0 + _ridge.get_noise_2d(300.0, -120.0) * 26.0 + 12.0

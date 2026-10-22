@@ -1,0 +1,7 @@
+{
+  "name": "aerosim-godot-tools",
+  "private": true,
+  "type": "module",
+  "description": "Exports the web version's procedural trees and cemetery assets to GLB files for Godot. Run: npx tsx export_assets.ts",
+  "dependencies": { "@napi-rs/canvas": "^0.1.65" }
+}
