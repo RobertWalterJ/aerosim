@@ -27,8 +27,16 @@ The second flies the whole game scene for a few seconds and reports the climb.
 - `game/` terrain, wind, drone model, touch sticks, HUD and pause window, main scene
 - `test/` headless physics test
 
+## Photoreal pipeline (from the AeroSim v2 spec)
+
+- World: the web version's procedural trees and cemetery models, exported by `tools/export_assets.ts` (run with `npx tsx export_assets.ts` in `godot/tools`).
+- Lighting: analytic sky (Rayleigh and Mie), 4000 K sun that warms as it lowers, cascaded shadows, exponential height fog with forward scatter toward the sun.
+- Sensor camera (`game/sensor_pipeline.gd` and `game/shaders/`): metering and auto-exposure with lag, bloom chain, rolling shutter and jello, Brown-Conrady distortion with chromatic aberration, sun streak and ghost and veiling glare, vignette, ISO noise, 10-stop S-curve, ISP sharpening, and H.264 macroblocking driven by the video link.
+- Drone display (`game/osd.gd`): mode, GPS, link, battery, ISO and shutter, pitch ladder, flight-path marker, gimbal scale, data bar, luma histogram, compass radar.
+
 ## Status
 
-Phase 1 spike. Done: physics port, terrain, trees with trunk collisions, sky and sun, five drones, touch and
-keyboard and gamepad controls, pause window with Fly, Drone, Weather and Display tabs, snow.
-Next: look on a real screen and tune, an Android export, the memorial park, grass, tree sway, the sensor camera look.
+Phase 1 and 2 spike. Done: physics port, five drones, terrain, the web trees and cemetery, sky and fog, the sensor pipeline,
+the display, touch and keyboard and gamepad controls, the pause window, snow.
+Next: grass and leaf litter, foliage wind sway and downwash, paths and benches and lamps and the chapel, audio and birds,
+the mission rings, soft shadows, lighting calibration against the web captures, phone speed and an Android export.

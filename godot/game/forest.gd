@@ -67,6 +67,27 @@ func plant(terrain: Terrain, keep_clear: Callable, span := 700.0, step := 9.5, s
 			Assets.scatter(self, "trees/%s_l1" % v["n"], xfs, true, NEAR_END, MID_END)
 			Assets.scatter(self, "trees/far_%s" % ("conifer" if v["conifer"] else "broadleaf"), xfs, false, MID_END, 0.0)
 
+## True if a ray from `origin` along `dir` passes through a tree crown within `reach` metres (used for sun glare).
+func canopy_blocks(origin: Vector3, dir: Vector3, reach: float) -> bool:
+	var t := 2.0
+	while t < reach:
+		var p := origin + dir * t
+		var key := Vector2i(floori(p.x / TREE_CELL), floori(p.z / TREE_CELL))
+		for a in range(-1, 2):
+			for b in range(-1, 2):
+				var k := Vector2i(key.x + a, key.y + b)
+				if not _trunks.has(k): continue
+				for tr in _trunks[k]:
+					var h: float = tr[4]
+					var base: float = tr[1] + 0.35 * h
+					if p.y < base or p.y > tr[1] + h: continue
+					var crown := 0.34 * h * (1.0 - (p.y - base) / (0.65 * h))
+					var dx: float = p.x - tr[0]
+					var dz: float = p.z - tr[2]
+					if dx * dx + dz * dz < crown * crown: return true
+		t += 3.0 if t < 30.0 else 8.0
+	return false
+
 ## Trunk collision for the drone: returns the push-out vector, or Vector3.INF when clear.
 func trunk_hit(x: float, y: float, z: float, r: float) -> Vector3:
 	var key := Vector2i(floori(x / TREE_CELL), floori(z / TREE_CELL))

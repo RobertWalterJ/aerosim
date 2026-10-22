@@ -11,6 +11,7 @@ signal mode_changed(mode: String)
 signal camera_changed(chase: bool)
 signal weather_changed(w: Dictionary)
 signal gimbal_changed(pitch_rad: float)
+signal lens_changed(lens: String)
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "snow": 0}
@@ -22,9 +23,12 @@ var paused := false
 var mode := "N"
 var chase := false
 var airframe_id := "mini"
+var lens := "standard"
 
 var _root: Control
 var _readout: Label
+var _buttons_row: HBoxContainer
+var _pause_btn: Button
 var _crash_box: VBoxContainer
 var _crash_label: Label
 var _gimbal: VSlider
@@ -116,9 +120,11 @@ func _build_flight_hud() -> void:
 	_readout.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_readout.add_theme_constant_override("outline_size", 6)
 	_readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_readout.visible = false   # the drone display (osd.gd) replaces this text
 	_root.add_child(_readout)
 
 	var pause_btn := Button.new()
+	_pause_btn = pause_btn
 	pause_btn.text = "II  PAUSE"
 	pause_btn.custom_minimum_size = Vector2(150, 56)
 	pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -127,6 +133,7 @@ func _build_flight_hud() -> void:
 	_root.add_child(pause_btn)
 
 	var row := HBoxContainer.new()
+	_buttons_row = row
 	row.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	row.position = Vector2(-150, m.y)
 	row.add_theme_constant_override("separation", 8)
@@ -179,6 +186,20 @@ func show_gimbal(on: bool) -> void:
 
 func set_gimbal_value(rad: float) -> void:
 	_gimbal.set_value_no_signal(rad_to_deg(rad))
+
+func set_lens(l: String) -> void:
+	lens = l; lens_changed.emit(l); _sync()
+
+func toggle_lens() -> void:
+	set_lens("wide" if lens == "standard" else "standard")
+
+## Keep the buttons clear of the display's top bar (called each frame with the video frame's rectangle).
+func layout_for(frame: Rect2) -> void:
+	var u := maxf(0.6, minf(frame.size.x / 1280.0, frame.size.y / 720.0))
+	var top := frame.position.y + 44.0 * u
+	var vp := get_viewport().get_visible_rect().size
+	_buttons_row.position = Vector2(vp.x * 0.5 - 150.0, top)
+	_pause_btn.position = Vector2(vp.x - 170.0, top)
 
 func cycle_mode() -> void:
 	set_mode({"N": "S", "S": "M", "M": "N"}[mode])
@@ -255,6 +276,7 @@ func _build_fly_tab() -> void:
 	var p := _page("Fly")
 	_choice(p, "Flight mode", ["Normal", "Sport", "Manual"], func(): return ["N", "S", "M"].find(mode), func(i): set_mode(["N", "S", "M"][i]))
 	_choice(p, "Camera view", ["First person", "Chase"], func(): return 1 if chase else 0, func(i): set_chase(i == 1))
+	_choice(p, "Lens", ["84° Standard", "150° Wide"], func(): return 0 if lens == "standard" else 1, func(i): set_lens("standard" if i == 0 else "wide"))
 	_heading(p, "Actions")
 	_action(p, "Reset drone to the start", func(): reset_requested.emit(); set_paused(false))
 

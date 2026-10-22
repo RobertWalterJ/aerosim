@@ -17,10 +17,15 @@ var drone_view := DroneView.new()
 var cam := Camera3D.new()
 var sun := DirectionalLight3D.new()
 var env := Environment.new()
-var sky_mat := ProceduralSkyMaterial.new()
+var sky_mat := PhysicalSkyMaterial.new()
 var snow_fx: GPUParticles3D
 var snow_mat: ParticleProcessMaterial
 var hud: Hud
+var osd: Osd
+var sensor: SensorPipeline
+var _prev_cam_q := Quaternion.IDENTITY
+var _sun_dir := Vector3(0, 1, 0)
+var _sun_vis := 1.0
 var sticks: TouchSticks
 var af: Dictionary
 var airframe_id := "mini"
@@ -70,6 +75,15 @@ func _ready() -> void:
 	sticks = TouchSticks.new()
 	hud.add_child(sticks)
 	hud.show_gimbal(af["hasGimbal"])
+	hud.lens_changed.connect(func(l: String): sensor.set_lens(l))
+	# the camera renders into the sensor pipeline's overscan viewport; the window itself only shows the video frame and the HUD
+	sensor = SensorPipeline.new()
+	add_child(sensor)
+	var touch_device := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
+	sensor.setup(cam, 540 if touch_device else 720, Viewport.MSAA_DISABLED if touch_device else Viewport.MSAA_2X)
+	var video := CanvasLayer.new(); video.layer = 1; add_child(video); video.add_child(sensor.screen)
+	get_viewport().disable_3d = true
+	osd = Osd.new(); osd.name = "Osd"; hud.add_child(osd)
 	apply_weather(hud.weather)
 	spawn()
 	if q_arg != "": _screenshot_mode(q_arg)
@@ -94,8 +108,15 @@ func _build_world() -> void:
 	sun.light_energy = 2.2
 	sun.shadow_blur = 1.2
 	add_child(sun)
-	sky_mat.sky_curve = 0.18
-	sky_mat.ground_curve = 0.05
+	# analytic sky: Rayleigh and Mie scattering from the sun's position (the sun is the directional light)
+	sky_mat.rayleigh_coefficient = 2.0
+	sky_mat.rayleigh_color = Color(0.26, 0.41, 0.58)
+	sky_mat.mie_coefficient = 0.006
+	sky_mat.mie_eccentricity = 0.8
+	sky_mat.mie_color = Color(0.69, 0.73, 0.81)
+	sky_mat.turbidity = 8.0
+	sky_mat.sun_disk_scale = 1.0
+	sky_mat.ground_color = Color(0.28, 0.30, 0.22)
 	var sky := Sky.new(); sky.sky_material = sky_mat
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
@@ -103,16 +124,18 @@ func _build_world() -> void:
 	env.ambient_light_energy = 1.3
 	env.ambient_light_sky_contribution = 0.55
 	env.ambient_light_color = Color(0.78, 0.82, 0.62)
-	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_white = 6.0
-	env.glow_enabled = true
-	env.glow_intensity = 0.5
-	env.glow_bloom = 0.04
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR   # the sensor pipeline does exposure, bloom and the tone curve
+	env.glow_enabled = false
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.62, 0.70, 0.80)
-	env.fog_density = 0.0007
-	env.fog_aerial_perspective = 0.6
-	env.fog_sky_affect = 0.4
+	# exponential height fog: thicker in the valley, with forward scattering towards the sun
+	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+	env.fog_density = 0.0009
+	env.fog_height = 55.0
+	env.fog_height_density = 0.0016
+	env.fog_sun_scatter = 0.55
+	env.fog_aerial_perspective = 0.55
+	env.fog_sky_affect = 0.3
 	if RenderingServer.get_current_rendering_method() == "forward_plus":
 		env.ssao_enabled = true
 		env.ssao_radius = 1.5
@@ -156,19 +179,20 @@ func apply_weather(w: Dictionary) -> void:
 	var el := deg_to_rad(float(w["sun"]))
 	var az := deg_to_rad(238.0)
 	var to_sun := Vector3(sin(az) * cos(el), sin(el), -cos(az) * cos(el))
+	_sun_dir = to_sun
+	if sensor: sensor.set_sun_direction(to_sun)
 	sun.global_transform = Transform3D(Basis.looking_at(-to_sun), Vector3.ZERO)
-	var warm := 1.0 - smoothstep(4.0, 18.0, float(w["sun"]))
-	sun.light_color = Color(1.0, 0.72, 0.5).lerp(Color(1.0, 0.96, 0.9), 1.0 - warm)
-	sun.light_energy = 3.2 + 1.6 * smoothstep(4.0, 24.0, float(w["sun"]))
-	sky_mat.sky_top_color = Color(0.30, 0.52, 0.88).lerp(Color(0.18, 0.30, 0.55), warm * 0.5)
-	sky_mat.sky_horizon_color = Color(0.78, 0.85, 0.92).lerp(Color(0.95, 0.66, 0.48), warm)
-	sky_mat.ground_horizon_color = sky_mat.sky_horizon_color
-	sky_mat.ground_bottom_color = Color(0.2, 0.24, 0.2)
+	var sun_el := float(w["sun"])
+	sun.light_color = Color.WHITE
+	sun.light_temperature = 3300.0 + 1200.0 * smoothstep(5.0, 22.0, sun_el)
+	sun.light_energy = 2.2 * (0.55 + 0.45 * smoothstep(3.0, 18.0, sun_el))
 	var snow := int(w["snow"])
 	_snow_level = snow
 	terrain.snow = [0.0, 0.55, 1.0][snow]
-	env.fog_density = 0.0007 * (1.0 + 2.0 * snow)
+	env.fog_density = 0.0009 * (1.0 + 2.0 * snow)
 	env.fog_light_color = Color(0.62, 0.70, 0.80).lerp(Color(0.78, 0.80, 0.84), 0.5 * minf(snow, 1.0))
+	sky_mat.turbidity = 8.0 + 14.0 * minf(snow, 2.0) * 0.5
+	sky_mat.mie_coefficient = 0.006 * (1.0 + 2.0 * snow)
 	snow_fx.emitting = snow > 0
 	snow_fx.amount_ratio = 0.4 if snow == 1 else 1.0
 	snow_mat.gravity = Vector3(0, -1.2 if snow < 2 else -2.2, 0)
@@ -273,17 +297,15 @@ func _process(delta: float) -> void:
 	snow_fx.global_position = cam.global_position + Vector3(0, 12, 0)
 	var wdir := wind.toward() * wind.speed * 0.8
 	snow_mat.direction = Vector3(wdir.x, -1.0, wdir.z).normalized() if _snow_level > 0 else Vector3.DOWN
-	# readout
-	var ppos := quad.position()
-	var agl := ppos.y - terrain.height(ppos.x, ppos.z)
-	var gs := sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5])
-	hud.set_readout("%s   %s\nALT %.0f m   SPD %.1f m/s   CLIMB %+.1f\nBATT %d%%  %.1f V   WIND %.1f m/s\n%d fps" % [
-		af["name"], {"N": "NORMAL", "S": "SPORT", "M": "MANUAL"}[fc.mode], agl, gs, quad.s[4], int(quad.battery.soc * 100.0), quad.battery.v_term, _wind_now.length(), int(_fps)])
-	hud.show_crash(quad.crash_reason if (quad.crashed or not quad.armed) else "")
+	_update_sensor_and_osd(delta)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo): return
 	match event.keycode:
+		KEY_MINUS: sensor.ev_comp = clampf(sensor.ev_comp - 0.33, -3.0, 3.0)
+		KEY_EQUAL: sensor.ev_comp = clampf(sensor.ev_comp + 0.33, -3.0, 3.0)
+		KEY_L: hud.toggle_lens()
+		KEY_H: osd.show_osd = not osd.show_osd
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
@@ -353,3 +375,64 @@ func _build_gallery() -> void:
 		Assets.place(self, "env/" + env[i], xf)
 	cam.global_transform = Transform3D(Basis.looking_at(Vector3(0.0, -0.05, -1.0), Vector3.UP), Vector3(0.0, gy + 2.2, 4.0))
 	cam.fov = 60.0
+
+# ------------------------------------------------------------------ sensor pipeline and on-screen display
+var _rf_dbm := -50.0
+
+## Line of sight from `from` to `to`: false if the terrain is in the way (a few samples are enough at these ranges).
+func _terrain_clear(from: Vector3, to: Vector3, steps := 12) -> bool:
+	for i in range(1, steps):
+		var p := from.lerp(to, float(i) / steps)
+		if terrain.height(p.x, p.z) > p.y: return false
+	return true
+
+func _update_sensor_and_osd(delta: float) -> void:
+	var cpos := cam.global_position
+	var cq := cam.global_transform.basis.get_rotation_quaternion()
+	# camera angular velocity in its own frame (x pitch up, y yaw left, z roll)
+	var dq := _prev_cam_q.inverse() * cq
+	var ang := Vector3.ZERO
+	if delta > 0.0: ang = dq.get_euler() / delta
+	_prev_cam_q = cq
+	ang = ang.clamp(Vector3(-8, -8, -8), Vector3(8, 8, 8))
+	# sun visibility for the flare: blocked by terrain or a tree crown along the ray to the sun
+	var sun_target := 1.0
+	if not _terrain_clear(cpos, cpos + _sun_dir * 1500.0, 24): sun_target = 0.0
+	elif forest.canopy_blocks(cpos, _sun_dir, 90.0): sun_target = 0.0
+	_sun_vis += (sun_target - _sun_vis) * clampf(delta * 8.0, 0.0, 1.0)
+	sensor.sun_vis = _sun_vis
+	# video link: free-space loss with distance, plus a penalty when the terrain blocks the line of sight
+	var dpos := quad.position()
+	var home_p := Vector3(0.0, terrain.height(0.0, 0.0) + 1.6, 0.0)
+	var dist := dpos.distance_to(home_p)
+	var dbm := -45.0 - 20.0 * log(maxf(dist, 10.0) / 10.0) / log(10.0)
+	if not _terrain_clear(home_p, dpos): dbm -= 28.0
+	_rf_dbm += (dbm - _rf_dbm) * clampf(delta * 3.0, 0.0, 1.0)
+	var bars := 5 if _rf_dbm > -60.0 else (4 if _rf_dbm > -70.0 else (3 if _rf_dbm > -78.0 else (2 if _rf_dbm > -86.0 else 1)))
+	var rf_bad := smoothstep(-80.0, -97.0, _rf_dbm)
+	var mean_om := (quad.s[13] + quad.s[14] + quad.s[15] + quad.s[16]) * 0.25
+	var vib := clampf(0.12 + quad.vrs * 0.8 + fc.thrust_fraction() * 0.25 + quad.ang_accel.length() / 600.0, 0.0, 1.0)
+	sensor.process_frame(delta, sim_time, ang, vib, mean_om / TAU * float(af["nBlades"]), rf_bad)
+	osd.frame = sensor.frame_rect()
+	hud.layout_for(osd.frame)
+	# telemetry for the display
+	var cb := cam.global_transform.basis
+	var fwd := -cb.z
+	var vcam := cb.inverse() * quad.velocity()
+	var agl := dpos.y - terrain.height(dpos.x, dpos.z)
+	var dfwd := quad.attitude() * Vector3(0, 0, -1)
+	osd.t = {
+		"mode": fc.mode, "sats": 14 + (3 if agl > 2.0 else 0), "rfDbm": _rf_dbm, "rfBars": bars,
+		"battPct": quad.battery.soc * 100.0, "cellV": quad.battery.cell_v(), "battA": quad.battery.current,
+		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "ev": sensor.ev_comp,
+		"pitch": asin(clampf(fwd.y, -1.0, 1.0)), "roll": -asin(clampf(cb.x.y, -1.0, 1.0)),
+		"heading": atan2(dfwd.x, -dfwd.z), "velBody": vcam, "aglM": agl, "mslM": dpos.y,
+		"gs": sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5]), "vs": quad.s[4],
+		"homeDist": sqrt(dpos.x * dpos.x + dpos.z * dpos.z),
+		"gimbalDeg": rad_to_deg(gimbal_pitch) if af["hasGimbal"] else rad_to_deg(float(af["camTilt"])),
+		"histogram": sensor.histogram, "lensName": sensor.lens_info()["name"], "airframe": af["name"],
+		"audio": "off", "fps": int(_fps), "crashed": quad.crash_reason if (quad.crashed or not quad.armed) else "",
+		"armed": quad.armed, "touch": DisplayServer.is_touchscreen_available(), "mission": [],
+		"windMs": _wind_now.length(), "windLevel": "", "homeBearing": atan2(-dpos.x, dpos.z), "stopHit": 0.0, "aero": "",
+	}
+	hud.show_crash(osd.t["crashed"])
