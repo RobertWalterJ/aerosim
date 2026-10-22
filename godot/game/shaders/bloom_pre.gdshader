@@ -2,13 +2,13 @@
 shader_type canvas_item;
 render_mode unshaded, blend_disabled;
 uniform sampler2D uScene : filter_linear, repeat_disable;
-uniform sampler2D uExp : filter_nearest, repeat_disable;
+uniform float uExpV = 0.0;     // log2 exposure, worked out on the CPU
 uniform vec2 uTexel = vec2(0.001);
 uniform float uKnee = 1.0;
 vec4 T(sampler2D s, vec2 v) { return texture(s, vec2(v.x, 1.0 - v.y)); }
 void fragment() {
 	vec2 vUv = vec2(UV.x, 1.0 - UV.y);
-	float e = exp2(texture(uExp, vec2(0.5)).r);
+	float e = exp2(uExpV);
 	vec3 c = vec3(0.0);
 	c += T(uScene, vUv + uTexel * vec2(-1.0, -1.0)).rgb; c += T(uScene, vUv + uTexel * vec2(1.0, -1.0)).rgb;
 	c += T(uScene, vUv + uTexel * vec2(-1.0, 1.0)).rgb; c += T(uScene, vUv + uTexel * vec2(1.0, 1.0)).rgb;

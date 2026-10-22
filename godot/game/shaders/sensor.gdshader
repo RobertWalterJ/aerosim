@@ -5,7 +5,7 @@ shader_type canvas_item;
 render_mode unshaded, blend_disabled;
 uniform sampler2D uScene : filter_linear, repeat_disable;
 uniform sampler2D uBloom : filter_linear, repeat_disable;
-uniform sampler2D uExp : filter_nearest, repeat_disable;
+uniform float uExpV = 0.0;     // log2 exposure, worked out on the CPU
 uniform float uS = 1.15;
 uniform float uAspect = 1.7778;
 uniform float uTime = 0.0;
@@ -87,7 +87,7 @@ void fragment() {
 	vec2 sB = 0.5 + 0.5 * a * f * (1.0 - uCA) / uS;
 	vec2 dr = droplets(vUv) * step(0.001, uRain);
 	sR += dr; sG += dr; sB += dr;
-	float e = exp2(texture(uExp, vec2(0.5)).r);
+	float e = exp2(uExpV);
 	vec3 col = vec3(T(uScene, sR).r, T(uScene, sG).g, T(uScene, sB).b) * e;
 	vec3 bl = vec3(T(uBloom, sR).r, T(uBloom, sG).g, T(uBloom, sB).b);
 	col *= uWB;

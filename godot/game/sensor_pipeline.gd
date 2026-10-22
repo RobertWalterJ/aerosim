@@ -15,6 +15,9 @@ const SHADER_DIR := "res://game/shaders/"
 
 var lens := "standard"
 var ev_comp := 0.0
+var _over := 0.0
+var _log_e := 0.0                    # log2 exposure the camera has adapted to
+var _mean_log := -2.9                # latest metered mean log luminance of the scene
 var wb_kelvin := 5600.0              # the white balance the camera has settled on
 var _sun_amt := 0.0                  # how much sun is in the picture, 0..1, eased
 var bloom_on := true
@@ -98,6 +101,7 @@ func _pass(key: String, shader: String, size: Vector2i) -> SubViewport:
 	vp.add_child(rect)
 	_holder.add_child(vp)
 	_passes[key] = mat
+	mat.set_meta("vp", vp)
 	return vp
 
 func _build() -> void:
@@ -214,6 +218,13 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	_sun_amt += (sun_target - _sun_amt) * (1.0 - exp(-minf(dt, 0.1) / (0.12 if sun_target > _sun_amt else 0.7)))
 	var wb_target := 5600.0 - 2300.0 * _sun_amt
 	wb_kelvin += (wb_target - wb_kelvin) * (1.0 - exp(-minf(dt, 0.1) / (0.9 if wb_target < wb_kelvin else 2.0)))
+	# the camera's exposure follows the metered scene, slowly: it opens up quickly in the dark, and is slow to stop down
+	# when bright light arrives, so the picture stays washed out for a moment before it settles. Worked out here, not in a shader.
+	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt, log(0.1) / log(2.0), log(3.0) / log(2.0))
+	var tau := 0.9 if tgt < _log_e else 0.45
+	_log_e += (tgt - _log_e) * (1.0 - exp(-minf(dt, 0.1) / tau))
+	_over = clampf((_log_e - tgt) / 1.5, 0.0, 1.0)     # how far the picture is still over-exposed: the haze lasts only while it is
+	exposure = pow(2.0, _log_e)
 	var next := 1 - _exp_idx
 	var m: ShaderMaterial = _passes["exp%d" % next]
 	m.set_shader_parameter("uDt", minf(dt, 0.1)); m.set_shader_parameter("uEvComp", ev_comp); m.set_shader_parameter("uBias", -2.4 * _sun_amt)
@@ -222,12 +233,14 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	_exp_idx = next
 	var exp_tex := _exp[next].get_texture()
 	# bloom
-	(_passes["down0"] as ShaderMaterial).set_shader_parameter("uExp", exp_tex)
+	(_passes["down0"] as ShaderMaterial).set_shader_parameter("uExpV", _log_e)
 	# sun position in the scene viewport's uv (y up) and its visibility
 	var cb := camera.global_transform.basis
 	var v := cb.inverse() * _sun_world
 	var behind := v.z >= 0.0
-	var ts := tan_half * s_over
+	# the sun's place in the picture follows the field of view the 3D camera really has (the game sets it each frame)
+	var ty_cam := tan(deg_to_rad(camera.fov * 0.5))
+	var ts := Vector2(ty_cam * float(out_w) / float(out_h), ty_cam)
 	var sun_uv := Vector2(2.0, 2.0)
 	if not behind:
 		sun_uv = Vector2(v.x / (-v.z) / ts.x * 0.5 + 0.5, v.y / (-v.z) / ts.y * 0.5 + 0.5)
@@ -235,7 +248,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	var fwd_dot := (-cb.z).dot(_sun_world)
 	# stages 1, 3, 4: sensor and lens
 	var sm: ShaderMaterial = _passes["sensor"]
-	sm.set_shader_parameter("uExp", exp_tex)
+	sm.set_shader_parameter("uExpV", _log_e)
 	sm.set_shader_parameter("uTime", time)
 	sm.set_shader_parameter("uSunS", sun_uv)
 	sm.set_shader_parameter("uWRS", Vector2(ang_vel_cam.y, ang_vel_cam.x))
@@ -244,7 +257,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	sm.set_shader_parameter("uVibFreq", TAU * (motor_hz * 0.071 + 17.0))
 	sm.set_shader_parameter("uFrame", float(_frame))
 	var glare := smoothstep(0.8, 0.98, fwd_dot) * (1.0 if in_view else 0.5)
-	var wash := maxf(glare * 0.6, _sun_amt)
+	var wash := maxf(glare * 0.6, _sun_amt) * lerpf(0.3, 1.0, _over)
 	sm.set_shader_parameter("uGlare", wash)
 	var wbt := clampf((wb_kelvin - 5600.0) / 5600.0, -0.6, 0.6) * 0.62
 	sm.set_shader_parameter("uWB", Vector3(1.0 + wbt, 1.0, 1.0 - wbt))
@@ -284,11 +297,12 @@ func frame_rect() -> Rect2:
 
 func _readback() -> void:
 	if DisplayServer.get_name() == "headless": return   # no real textures to read
-	# exposure: the log2 exposure sits in the red channel of the newest 1x1 viewport
-	var img := _exp[_exp_idx].get_texture().get_image()
+	# metering: the weighted mean log luminance of the scene is in the red channel of the 1x1 reduce viewport
+	var img: Image = null
+	var rm: ShaderMaterial = _passes["reduce"]
+	if rm.has_meta("vp"): img = (rm.get_meta("vp") as SubViewport).get_texture().get_image()
 	if img != null and not img.is_empty():
-		var log2e := img.get_pixel(0, 0).r
-		exposure = pow(2.0, log2e)
+		_mean_log = img.get_pixel(0, 0).r
 		var shutter := exposure / 200.0
 		var iso := 100.0
 		if shutter > 1.0 / 50.0:

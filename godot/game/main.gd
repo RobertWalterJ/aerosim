@@ -630,6 +630,9 @@ func _screenshot_mode(arg: String) -> void:
 			for i in 4:
 				quad.s[13 + i] = wh; quad.cmd[i] = wh
 			fc.heading = deg_to_rad(float(v[3])); gimbal_pitch = deg_to_rad(float(v[4]))
+			if "facesun" in parts:     # test hook: point the camera straight at the sun
+				fc.heading = deg_to_rad(_sun_az + 180.0); gimbal_pitch = deg_to_rad(_sun_el)
+				quad.reset(px, py, pz, fc.heading)
 			_apply_pose(); drone_node.reset_physics_interpolation()
 		if c == "gallery":
 			_build_gallery()
