@@ -3,3 +3,4 @@
 # Godot extracts the textures embedded in each GLB; they are rebuilt on import.
 assets/**/*.png
 assets/**/*.png.import
+build/

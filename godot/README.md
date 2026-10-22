@@ -57,3 +57,13 @@ Done: physics port, five drones, terrain, the web trees and cemetery, GPU grass 
 conditions with wet surfaces, sensor camera, drone display and flight-app controls, pause window, assisted flight.
 Next: paths and park furniture (lamps, benches, the chapel), audio and birds, mission rings, calibration against the web
 captures, phone speed and an Android export.
+
+## Android build
+
+The phone version uses the Mobile renderer (no screen-space reflections, ambient occlusion or screen-space bounce light).
+Tools live in `RWJ Coding Projects\_tools`: `jdk17`, `android-sdk` (platform-tools, build-tools 35.0.1, platform 35),
+`debug.keystore`, and the Godot 4.7.2 export templates in `%APPDATA%\Godot\export_templates`.
+
+Build: `Godot_v4.7.2-stable_win64_console.exe --headless --path godot --export-debug "Android" build/aerosim-debug.apk`
+Install: double-click `Install AeroSim on phone.bat` with the phone plugged in (USB debugging on), or copy the .apk to the phone and open it.
+Test the Mobile renderer on the PC with `--rendering-method mobile`.
