@@ -50,6 +50,7 @@ var airborne := false
 var rth_active := false
 var light_on := false
 var _quit_btn: Button
+var _subtitle: Label
 var fx_cloud := true
 var fx_trees := true
 var sound_on := true
@@ -292,67 +293,72 @@ func interactive_controls() -> Array[Control]:
 # ------------------------------------------------------------------ settings page
 func _build_settings() -> void:
 	_menu_dim = ColorRect.new()
-	_menu_dim.color = Color(0.02, 0.03, 0.04, 0.55)
+	_menu_dim.color = Color(0.01, 0.015, 0.025, 0.62)
 	_menu_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_menu_dim.visible = false
 	_root.add_child(_menu_dim)
 	_panel = PanelContainer.new()
+	_panel.theme = MenuStyle.make_theme()
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_panel.anchor_left = 0.03; _panel.anchor_right = 0.97; _panel.anchor_top = 0.04; _panel.anchor_bottom = 0.96
 	_panel.offset_left = 0; _panel.offset_right = 0; _panel.offset_top = 0; _panel.offset_bottom = 0
-	var sb := StyleBoxFlat.new(); sb.bg_color = Color(0.07, 0.08, 0.10, 0.985); sb.set_corner_radius_all(18)
-	sb.set_border_width_all(1); sb.border_color = Color(1, 1, 1, 0.14); sb.set_content_margin_all(0)
+	var sb := MenuStyle.box(MenuStyle.BG, 24, Color(1, 1, 1, 0.09), 1, 0.0, 0.0)
+	sb.shadow_color = Color(0, 0, 0, 0.5); sb.shadow_size = 28
 	_panel.add_theme_stylebox_override("panel", sb)
 	_menu_dim.add_child(_panel)
 	var col := VBoxContainer.new(); col.add_theme_constant_override("separation", 0)
 	_panel.add_child(col)
-	# header
-	var head := HBoxContainer.new(); head.custom_minimum_size = Vector2(0, 64)
-	var title := Label.new(); title.text = "  Settings"; title.add_theme_font_size_override("font_size", 28)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL; title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	head.add_child(title)
-	var close := Button.new(); close.text = "Done"; close.custom_minimum_size = Vector2(120, 48)
+	# header: the title, and a line saying what is flying and in what weather
+	var head := HBoxContainer.new(); head.custom_minimum_size = Vector2(0, 84)
+	var tbox := VBoxContainer.new(); tbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL; tbox.alignment = BoxContainer.ALIGNMENT_CENTER; tbox.add_theme_constant_override("separation", 2)
+	var title := Label.new(); title.text = "Settings"; title.add_theme_font_size_override("font_size", 32)
+	_subtitle = Label.new(); _subtitle.add_theme_font_size_override("font_size", 16); _subtitle.add_theme_color_override("font_color", MenuStyle.MUTED)
+	tbox.add_child(title); tbox.add_child(_subtitle)
+	var tm := MarginContainer.new(); tm.size_flags_horizontal = Control.SIZE_EXPAND_FILL; tm.add_theme_constant_override("margin_left", 30); tm.add_child(tbox)
+	head.add_child(tm)
+	var close := Button.new(); close.text = "Done"; close.theme_type_variation = "Ghost"; close.custom_minimum_size = Vector2(120, 48)
 	close.pressed.connect(func(): set_paused(false))
-	head.add_child(close)
-	head.add_child(Control.new())
+	var cm := MarginContainer.new(); cm.add_theme_constant_override("margin_right", 24); cm.add_theme_constant_override("margin_top", 18); cm.add_theme_constant_override("margin_bottom", 18); cm.add_child(close)
+	head.add_child(cm)
 	col.add_child(head)
-	var line := ColorRect.new(); line.color = Color(1, 1, 1, 0.1); line.custom_minimum_size = Vector2(0, 1); col.add_child(line)
+	var line := ColorRect.new(); line.color = MenuStyle.LINE; line.custom_minimum_size = Vector2(0, 1); col.add_child(line)
 	# side tabs and the page
 	var row := HBoxContainer.new(); row.size_flags_vertical = Control.SIZE_EXPAND_FILL; col.add_child(row)
-	var side := VBoxContainer.new(); side.custom_minimum_size = Vector2(210, 0); side.add_theme_constant_override("separation", 6)
+	var side := VBoxContainer.new(); side.custom_minimum_size = Vector2(230, 0); side.add_theme_constant_override("separation", 6)
 	var side_wrap := MarginContainer.new()
-	side_wrap.add_theme_constant_override("margin_left", 12); side_wrap.add_theme_constant_override("margin_top", 12); side_wrap.add_theme_constant_override("margin_right", 6)
+	side_wrap.add_theme_constant_override("margin_left", 16); side_wrap.add_theme_constant_override("margin_top", 18); side_wrap.add_theme_constant_override("margin_right", 10)
 	side_wrap.add_child(side); row.add_child(side_wrap)
-	var vline := ColorRect.new(); vline.color = Color(1, 1, 1, 0.1); vline.custom_minimum_size = Vector2(1, 0); row.add_child(vline)
+	var vline := ColorRect.new(); vline.color = MenuStyle.LINE; vline.custom_minimum_size = Vector2(1, 0); row.add_child(vline)
 	_tabs = TabContainer.new(); _tabs.tabs_visible = false; _tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL; _tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var page_wrap := MarginContainer.new(); page_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page_wrap.add_theme_constant_override("margin_left", 16); page_wrap.add_theme_constant_override("margin_right", 16); page_wrap.add_theme_constant_override("margin_top", 10)
+	page_wrap.add_theme_constant_override("margin_left", 22); page_wrap.add_theme_constant_override("margin_right", 14); page_wrap.add_theme_constant_override("margin_top", 16)
 	page_wrap.add_child(_tabs); row.add_child(page_wrap)
 	for i in TABS.size():
-		var b := Button.new(); b.text = TABS[i]; b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 56); b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		var b := Button.new(); b.text = TABS[i]; b.toggle_mode = true; b.theme_type_variation = "SideTab"; b.custom_minimum_size = Vector2(0, 56); b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.pressed.connect(func(): _tabs.current_tab = i; _sync())
 		side.add_child(b); _tab_btns.append(b)
 	_build_flight_tab(); _build_drone_tab(); _build_weather_tab(); _build_camera_tab(); _build_display_tab(); _build_controls_tab()
-	# footer
-	var line2 := ColorRect.new(); line2.color = Color(1, 1, 1, 0.1); line2.custom_minimum_size = Vector2(0, 1); col.add_child(line2)
-	var foot := HBoxContainer.new(); foot.custom_minimum_size = Vector2(0, 68); foot.add_theme_constant_override("separation", 12)
-	var peek := Button.new(); peek.text = "Hold to see the video"; peek.custom_minimum_size = Vector2(300, 52)
+	for pg in _tabs.get_children(): MenuStyle.cardify((pg as ScrollContainer).get_child(0) as VBoxContainer)
+	# footer: peek at the video on the left, then the two ways out
+	var line2 := ColorRect.new(); line2.color = MenuStyle.LINE; line2.custom_minimum_size = Vector2(0, 1); col.add_child(line2)
+	var foot := HBoxContainer.new(); foot.custom_minimum_size = Vector2(0, 84); foot.add_theme_constant_override("separation", 12)
+	var peek := Button.new(); peek.text = "Hold to peek at the video"; peek.theme_type_variation = "Ghost"; peek.custom_minimum_size = Vector2(300, 52)
 	peek.button_down.connect(func(): _panel.modulate.a = 0.0; _menu_dim.color.a = 0.0)
-	peek.button_up.connect(func(): _panel.modulate.a = 1.0; _menu_dim.color.a = 0.55)
-	var fm := MarginContainer.new(); fm.add_theme_constant_override("margin_left", 14); fm.add_theme_constant_override("margin_top", 8); fm.add_child(peek)
+	peek.button_up.connect(func(): _panel.modulate.a = 1.0; _menu_dim.color.a = 0.62)
+	var fm := MarginContainer.new(); fm.add_theme_constant_override("margin_left", 24); fm.add_theme_constant_override("margin_top", 16); fm.add_theme_constant_override("margin_bottom", 16); fm.add_child(peek)
 	foot.add_child(fm)
 	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; foot.add_child(sp)
 	# leaving the game: always in reach, and it asks for a second tap so it cannot happen by accident
-	var quit_btn := Button.new(); quit_btn.text = "Exit game"; quit_btn.custom_minimum_size = Vector2(200, 52)
+	var quit_btn := Button.new(); quit_btn.text = "Exit game"; quit_btn.theme_type_variation = "Danger"; quit_btn.custom_minimum_size = Vector2(190, 52)
 	quit_btn.pressed.connect(func():
 		if quit_btn.text == "Exit game": quit_btn.text = "Tap again to exit"
 		else: get_tree().quit())
 	_quit_btn = quit_btn
-	var qm := MarginContainer.new(); qm.add_theme_constant_override("margin_right", 6); qm.add_theme_constant_override("margin_top", 8); qm.add_child(quit_btn)
+	var qm := MarginContainer.new(); qm.add_theme_constant_override("margin_top", 16); qm.add_theme_constant_override("margin_bottom", 16); qm.add_child(quit_btn)
 	foot.add_child(qm)
-	var go := Button.new(); go.text = "Resume flight"; go.custom_minimum_size = Vector2(260, 52)
+	var go := Button.new(); go.text = "Resume flight"; go.theme_type_variation = "Primary"; go.custom_minimum_size = Vector2(250, 52)
 	go.pressed.connect(func(): set_paused(false))
-	var gm := MarginContainer.new(); gm.add_theme_constant_override("margin_right", 14); gm.add_theme_constant_override("margin_top", 8); gm.add_child(go)
+	var gm := MarginContainer.new(); gm.add_theme_constant_override("margin_right", 24); gm.add_theme_constant_override("margin_top", 16); gm.add_theme_constant_override("margin_bottom", 16); gm.add_child(go)
 	foot.add_child(gm)
 	col.add_child(foot)
 
@@ -361,33 +367,41 @@ func _page(title: String) -> VBoxContainer:
 	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_tabs.add_child(sc)
 	var v := VBoxContainer.new(); v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_theme_constant_override("separation", 10)
+	v.add_theme_constant_override("separation", 16)
 	sc.add_child(v)
 	return v
 
+## A section heading: it also starts a new card on its page.
 func _heading(parent: Control, text: String) -> void:
-	var l := Label.new(); l.text = text.to_upper()
-	l.add_theme_font_size_override("font_size", 15); l.add_theme_color_override("font_color", Color(0.55, 0.72, 0.95))
+	var l := Label.new(); l.text = text.to_upper(); l.set_meta("heading", true)
+	l.add_theme_font_size_override("font_size", 15); l.add_theme_color_override("font_color", MenuStyle.ACCENT)
+	parent.add_child(l)
+
+## The name of one setting inside a card.
+func _sub(parent: Control, text: String) -> void:
+	var l := Label.new(); l.text = text
+	l.add_theme_font_size_override("font_size", 17); l.add_theme_color_override("font_color", MenuStyle.MUTED)
 	parent.add_child(l)
 
 func _choice(parent: Control, title: String, options: Array, get_i: Callable, set_i: Callable) -> void:
-	_heading(parent, title)
+	_sub(parent, title)
 	var row := HFlowContainer.new(); row.add_theme_constant_override("h_separation", 8); row.add_theme_constant_override("v_separation", 8)
 	parent.add_child(row)
 	var btns: Array[Button] = []
 	for i in options.size():
-		var b := Button.new(); b.text = options[i]; b.toggle_mode = true; b.custom_minimum_size = Vector2(150, 54)
+		var b := Button.new(); b.text = options[i]; b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 52)
 		b.pressed.connect(func(): set_i.call(i); _sync())
 		row.add_child(b); btns.append(b)
 	_refreshers.append(func():
 		for i in btns.size(): btns[i].set_pressed_no_signal(i == int(get_i.call())))
 
 func _action(parent: Control, text: String, fn: Callable) -> Button:
-	var b := Button.new(); b.text = text; b.custom_minimum_size = Vector2(0, 54); b.pressed.connect(fn)
+	var b := Button.new(); b.text = text; b.custom_minimum_size = Vector2(0, 54); b.alignment = HORIZONTAL_ALIGNMENT_LEFT; b.pressed.connect(fn)
 	parent.add_child(b); return b
 
 func _build_flight_tab() -> void:
 	var p := _page("Flight")
+	_heading(p, "Flying")
 	_choice(p, "Flight mode", ["Normal", "Sport", "Manual"], func(): return ["N", "S", "M"].find(mode), func(i): set_mode(["N", "S", "M"][i]))
 	_choice(p, "Camera view", ["First person", "Chase"], func(): return 1 if chase else 0, func(i): set_chase(i == 1))
 	_heading(p, "Assisted flight")
@@ -397,10 +411,11 @@ func _build_flight_tab() -> void:
 
 func _build_drone_tab() -> void:
 	var p := _page("Drone")
-	_heading(p, "Choose a drone. It returns to the start.")
+	_heading(p, "Choose a drone")
+	_sub(p, "The drone returns to the start when you change it.")
 	for id in Airframes.IDS:
 		var af := Airframes.make(id)
-		var b := Button.new(); b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 78)
+		var b := Button.new(); b.toggle_mode = true; b.theme_type_variation = "DroneCard"; b.custom_minimum_size = Vector2(0, 84)
 		b.text = "%s\n%s" % [af["name"], af["blurb"]]; b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.add_theme_font_size_override("font_size", 20)
 		b.clip_text = false; b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -409,8 +424,8 @@ func _build_drone_tab() -> void:
 
 func _slider(parent: Control, key: String, title: String, lo: float, hi: float, step: float) -> void:
 	var row := HBoxContainer.new(); parent.add_child(row)
-	var l := Label.new(); l.text = title; l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.add_child(l)
-	var v := Label.new(); v.add_theme_color_override("font_color", Color.WHITE); row.add_child(v)
+	var l := Label.new(); l.text = title; l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; l.add_theme_font_size_override("font_size", 17); l.add_theme_color_override("font_color", MenuStyle.MUTED); row.add_child(l)
+	var v := Label.new(); v.add_theme_color_override("font_color", Color.WHITE); v.add_theme_font_size_override("font_size", 17); row.add_child(v)
 	var s := HSlider.new(); s.min_value = lo; s.max_value = hi; s.step = step; s.custom_minimum_size = Vector2(0, 44)
 	s.value = float(weather[key])
 	s.value_changed.connect(func(x: float): weather[key] = x; _weather_edited())
@@ -419,8 +434,8 @@ func _slider(parent: Control, key: String, title: String, lo: float, hi: float, 
 ## A slider for a setting that is not part of the saved weather.
 func _gslider(parent: Control, title: String, lo: float, hi: float, step: float, get_v: Callable, set_v: Callable, fmt: Callable) -> void:
 	var row := HBoxContainer.new(); parent.add_child(row)
-	var l := Label.new(); l.text = title; l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.add_child(l)
-	var v := Label.new(); v.add_theme_color_override("font_color", Color.WHITE); row.add_child(v)
+	var l := Label.new(); l.text = title; l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; l.add_theme_font_size_override("font_size", 17); l.add_theme_color_override("font_color", MenuStyle.MUTED); row.add_child(l)
+	var v := Label.new(); v.add_theme_color_override("font_color", Color.WHITE); v.add_theme_font_size_override("font_size", 17); row.add_child(v)
 	var s := HSlider.new(); s.min_value = lo; s.max_value = hi; s.step = step; s.custom_minimum_size = Vector2(0, 44)
 	s.value_changed.connect(func(x: float): set_v.call(x); _sync())
 	parent.add_child(s)
@@ -428,17 +443,19 @@ func _gslider(parent: Control, title: String, lo: float, hi: float, step: float,
 
 func _build_weather_tab() -> void:
 	var p := _page("Weather")
+	_heading(p, "Sky")
 	_choice(p, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
 	_slider(p, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
 	_heading(p, "Time of day")
 	_choice(p, "Clock", ["Real clock", "Set the time"], func(): return int(weather["clock_mode"]), func(i): weather["clock_mode"] = i; _weather_edited())
 	_slider(p, "hour", "Hour of day (moving this sets the time)", 0.0, 23.99, 0.05)
+	_sliders["hour"].value_changed.connect(func(_x: float): if int(weather["clock_mode"]) != 1: weather["clock_mode"] = 1; _weather_edited())
 	_choice(p, "Time passes", ["Real time", "Fast (a minute a second)", "Frozen"], func(): return int(weather["clock_speed"]), func(i): weather["clock_speed"] = i; _weather_edited())
 	_choice(p, "Date", ["Today", "Spring (21 Mar)", "Summer (21 Jun)", "Autumn (22 Sep)", "Winter (21 Dec)"], func(): return int(weather["date"]), func(i): weather["date"] = i; _weather_edited())
 	_heading(p, "Wind")
 	var seg := HFlowContainer.new(); seg.add_theme_constant_override("h_separation", 8); p.add_child(seg)
 	for pr in PRESETS:
-		var b := Button.new(); b.text = pr[0]; b.custom_minimum_size = Vector2(130, 54)
+		var b := Button.new(); b.text = pr[0]; b.custom_minimum_size = Vector2(0, 50)
 		b.pressed.connect(func(): weather["wind"] = pr[1]; weather["gust"] = pr[2]; _weather_edited())
 		seg.add_child(b)
 	_slider(p, "wind", "Wind speed", 0.0, 10.0, 0.1)
@@ -448,8 +465,10 @@ func _build_weather_tab() -> void:
 
 func _build_camera_tab() -> void:
 	var p := _page("Camera")
+	_heading(p, "Lens and light")
 	_choice(p, "Lens", ["84° Standard", "150° Wide"], func(): return 0 if lens == "standard" else 1, func(i): set_lens("standard" if i == 0 else "wide"))
 	_choice(p, "Drone light", ["Off", "On"], func(): return 1 if light_on else 0, func(i): light_on = i == 1; light_changed.emit(light_on))
+	_heading(p, "Picture")
 	_gslider(p, "Exposure compensation", -3.0, 3.0, 0.33, func(): return ev_comp, func(x): ev_comp = x; ev_changed.emit(x), func(v): return "%+.1f EV" % v)
 	_choice(p, "Bloom", ["On", "Off"], func(): return 0 if bloom else 1, func(i): bloom = i == 0; bloom_changed.emit(bloom))
 	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
@@ -462,6 +481,7 @@ func _build_controls_tab() -> void:
 	p.add_child(kb)
 	_heading(p, "Also")
 	var extra := Label.new(); extra.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	extra.add_theme_color_override("font_color", MenuStyle.MUTED)
 	extra.text = "Mouse or touch: Take off or land, Return to home, Mode, View and the shutter are the round buttons on the flight screen. Press and drag on the left half of the picture for the left stick, and on the right half for the right stick. Drag the scale on the right edge, or hold Q and E, to tilt a gimbal camera (only the Gimbal Mini and the Cinema drone have one).
 
 Game controller: left stick climbs, descends and turns; right stick moves forward, back and leans.
@@ -474,12 +494,15 @@ func _apply_fx() -> void:
 
 func _build_display_tab() -> void:
 	var p := _page("Display")
+	_heading(p, "Overlay and sound")
 	_choice(p, "Data overlay", ["On", "Off"], func(): return 0 if osd_on else 1, func(i): osd_on = i == 0; osd_changed.emit(osd_on))
 	_choice(p, "Sound", ["On", "Off"], func(): return 0 if sound_on else 1, func(i): sound_on = i == 0; sound_changed.emit(sound_on))
 	_choice(p, "Listening position", ["Ground (the pilot)", "Onboard microphone", "Cinematic mix"], func(): return listening, func(i): listening = i; listening_changed.emit(i))
 	_gslider(p, "Volume", 0.0, 1.0, 0.05, func(): return sound_vol, func(x): sound_vol = x; volume_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
+	_heading(p, "Performance")
 	_choice(p, "Frame rate", ["60 fps", "30 fps"], func(): return 0 if Engine.max_fps in [0, 60] else 1, func(i): Engine.max_fps = 60 if i == 0 else 30)
-	_heading(p, "Graphics (if the picture looks wrong on a phone, try these)")
+	_heading(p, "Graphics")
+	_sub(p, "If the picture looks wrong on a phone, try switching these off.")
 	_choice(p, "Cloud shadows on the land", ["On", "Off"], func(): return 0 if fx_cloud else 1, func(i): fx_cloud = i == 0; _apply_fx())
 	_choice(p, "Tree colour variety", ["On", "Off"], func(): return 0 if fx_trees else 1, func(i): fx_trees = i == 0; _apply_fx())
 	_choice(p, "Grass", ["On", "Off"], func(): return 0, func(i): grass_changed.emit(i == 0))
@@ -494,6 +517,9 @@ func _weather_edited() -> void:
 
 func _sync() -> void:
 	if _mode_btn == null: return
+	if _subtitle:
+		var hr := float(weather.get("hour", 16.0))
+		_subtitle.text = "%s   ·   %s   ·   %02d:%02d" % [Airframes.make(airframe_id)["name"], WeatherSystem.NAMES[int(weather["sky"])], int(hr), int((hr - floorf(hr)) * 60.0)]
 	_mode_btn.set_kind(mode)
 	_view_btn.set_active(chase)
 	for i in _tab_btns.size(): _tab_btns[i].set_pressed_no_signal(i == _tabs.current_tab)

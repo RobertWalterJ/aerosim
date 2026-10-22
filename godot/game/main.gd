@@ -332,13 +332,11 @@ func apply_weather(w: Dictionary) -> void:
 	_base_wind = float(w["wind"]); _base_gust = float(w["gust"])
 	wind.from_deg = float(w["from"])
 	var hour := float(w.get("hour", 16.0))
-	if _hour_setting < 0.0:
-		_hour_setting = hour
-		_clock = hour
-	elif absf(hour - _hour_setting) > 0.001:
-		# moving the hour slider sets the time
-		_hour_setting = hour; _clock = hour; w["clock_mode"] = 1
-	_clock_mode = int(w.get("clock_mode", 0)); _clock_speed = int(w.get("clock_speed", 0)); _date_pick = int(w.get("date", 0))
+	var new_mode := int(w.get("clock_mode", 0))
+	# a set time starts from the hour in the settings: when first loaded, when switched on, or when the slider moves
+	if new_mode == 1 and (_hour_setting < 0.0 or _clock_mode == 0 or absf(hour - _hour_setting) > 0.001): _clock = hour
+	_hour_setting = hour
+	_clock_mode = new_mode; _clock_speed = int(w.get("clock_speed", 0)); _date_pick = int(w.get("date", 0))
 	_apply_date()
 	_tick_clock(0.0)
 	_update_celestial()
