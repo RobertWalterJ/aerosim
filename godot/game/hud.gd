@@ -27,6 +27,9 @@ signal listening_changed(i: int)
 signal volume_changed(v: float)
 signal light_changed(on: bool)
 signal grass_changed(on: bool)
+signal ambient_changed(on: bool)
+signal dof_changed(mode: int)
+signal focus_changed(manual: bool, distance_m: float)
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
@@ -44,6 +47,9 @@ var ev_comp := 0.0
 var bloom := true
 var noise := 1.0
 var link_fx := true
+var dof_mode := 1                  # depth of field: 0 off, 1 natural, 2 cinematic
+var manual_focus := false
+var mf_ring := 0.95                # manual focus ring, 0 near (0.5 m) .. 1 infinity, even in dioptres like a real lens
 var osd_on := true
 var video_mode := false
 var airborne := false
@@ -53,6 +59,7 @@ var _quit_btn: Button
 var _subtitle: Label
 var fx_cloud := true
 var fx_trees := true
+var ambient_on := true
 var sound_on := true
 var listening := 2
 var sound_vol := 0.8
@@ -519,6 +526,12 @@ func _build_camera_tab() -> void:
 	_choice(p, "Bloom", ["On", "Off"], func(): return 0 if bloom else 1, func(i): bloom = i == 0; bloom_changed.emit(bloom))
 	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_choice(p, "Video link effects", ["On", "Off"], func(): return 0 if link_fx else 1, func(i): link_fx = i == 0; link_changed.emit(link_fx))
+	_choice(p, "Depth of field", ["Off", "Natural", "Cinematic"], func(): return dof_mode, func(i): dof_mode = i; dof_changed.emit(i))
+	_choice(p, "Focus", ["Auto (tap the picture to pick a spot)", "Manual"], func(): return 1 if manual_focus else 0, func(i): manual_focus = i == 1; focus_changed.emit(manual_focus, _mf_metres(mf_ring)))
+	_gslider(p, "Manual focus distance", 0.0, 1.0, 0.01, func(): return mf_ring, func(x): mf_ring = x; focus_changed.emit(manual_focus, _mf_metres(x)), func(v): return "Infinity" if _mf_metres(v) > 1000.0 else ("%.1f m" % _mf_metres(v) if _mf_metres(v) < 10.0 else "%d m" % int(round(_mf_metres(v)))))
+
+func _mf_metres(ring: float) -> float:
+	return 1.0 / maxf((1.0 - ring) * 2.0, 1e-6)
 
 func _build_controls_tab() -> void:
 	var p := _page("Controls")
@@ -558,6 +571,7 @@ func _build_display_tab() -> void:
 	_choice(p, "Cloud shadows on the land", ["On", "Off"], func(): return 0 if fx_cloud else 1, func(i): fx_cloud = i == 0; _apply_fx())
 	_choice(p, "Tree colour variety", ["On", "Off"], func(): return 0 if fx_trees else 1, func(i): fx_trees = i == 0; _apply_fx())
 	_choice(p, "Grass", ["On", "Off"], func(): return 0, func(i): grass_changed.emit(i == 0))
+	_choice(p, "Drifting leaves and dust", ["On", "Off"], func(): return 0 if ambient_on else 1, func(i): ambient_on = i == 0; ambient_changed.emit(ambient_on))
 	_heading(p, "Screen")
 	_action(p, "Full screen", func():
 		var m := DisplayServer.window_get_mode()

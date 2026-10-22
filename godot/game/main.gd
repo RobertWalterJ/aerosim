@@ -48,6 +48,7 @@ var _daylight := 1.0
 var _last_wet_applied := -1.0
 var snow_fx: GPUParticles3D
 var snow_mat: ParticleProcessMaterial
+var ambient: AmbientParticles     # drifting leaves, dust motes and rotor-wash debris
 var hud: Hud
 var osd: Osd
 var sensor: SensorPipeline
@@ -154,6 +155,7 @@ func _ready() -> void:
 	hud.weather_changed.connect(apply_weather)
 	hud.light_changed.connect(func(on: bool): drone_light.visible = on)
 	hud.grass_changed.connect(func(on: bool): grass.visible = on)
+	hud.ambient_changed.connect(func(on: bool): ambient.set_enabled(on))
 	hud.gimbal_changed.connect(func(r: float): gimbal_pitch = r)
 	hud.set_airframe(airframe_id)
 	sticks = TouchSticks.new()
@@ -165,6 +167,9 @@ func _ready() -> void:
 	hud.bloom_changed.connect(func(on: bool): sensor.bloom_on = on)
 	hud.noise_changed.connect(func(v: float): sensor.noise_scale = v)
 	hud.link_changed.connect(func(on: bool): sensor.link_effects = on)
+	hud.dof_changed.connect(func(m: int): sensor.dof_mode = m)
+	hud.focus_changed.connect(func(mf: bool, d: float): sensor.manual_focus = mf; sensor.mf_distance = d)
+	sticks.tapped.connect(func(pos: Vector2): sensor.focus_tap(pos))
 	hud.osd_changed.connect(func(on: bool): osd.show_osd = on)
 	hud.photo_requested.connect(_shutter_pressed)
 	hud.sound_changed.connect(func(on: bool): audio.set_enabled(on))
@@ -178,6 +183,7 @@ func _ready() -> void:
 	add_child(sensor)
 	var touch_device := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	sensor.setup(cam, 540 if touch_device else 720, Viewport.MSAA_DISABLED if touch_device else Viewport.MSAA_2X)
+	sensor.focus_message.connect(func(t: String): hud.toast(t))
 	var video := CanvasLayer.new(); video.layer = 1; add_child(video); video.add_child(sensor.screen)
 	get_viewport().disable_3d = not "keep3d" in OS.get_cmdline_user_args()
 	osd = Osd.new(); osd.name = "Osd"; hud.add_child(osd)
@@ -335,6 +341,7 @@ func _build_world() -> void:
 	rain_mat.direction = Vector3.DOWN
 	rain_fx.process_material = rain_mat
 	add_child(rain_fx)
+	ambient = AmbientParticles.new(); add_child(ambient); ambient.setup(terrain, touch_dev)
 
 func _snow_mesh() -> Mesh:
 	var qm := QuadMesh.new()
@@ -593,6 +600,7 @@ func _process(delta: float) -> void:
 	snow_mat.direction = Vector3(wdir.x, -1.0, wdir.z).normalized()
 	_apply_weather_state(delta)
 	_update_sensor_and_osd(delta)
+	ambient.update(delta, cam, wind.toward() * wind.speed, wind.gust, _sun_el, _sun_dir, _daylight, wx, quad.position(), quad.armed, _wash_now, float(af["armD"]))
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
@@ -745,6 +753,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var rf_bad := smoothstep(-80.0, -97.0, _rf_dbm)
 	var mean_om := (quad.s[13] + quad.s[14] + quad.s[15] + quad.s[16]) * 0.25
 	var vib := clampf(0.12 + quad.vrs * 0.8 + fc.thrust_fraction() * 0.25 + quad.ang_accel.length() / 600.0, 0.0, 1.0)
+	sensor.update_focus(delta, terrain, world, airframe_id, chase, quad.position())
 	sensor.process_frame(delta, sim_time, ang, vib, mean_om / TAU * float(af["nBlades"]), rf_bad)
 	osd.frame = sensor.frame_rect()
 	hud.layout_for(osd.frame)

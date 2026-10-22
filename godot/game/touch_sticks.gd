@@ -13,6 +13,11 @@ var enabled := true:
 var blocked: Array[Control] = []   # controls whose area never starts a stick
 var _touches := {}           # finger index -> {side, origin, pos}
 var radius := 70.0
+## A short tap (lifted within a quarter of a second, without moving) in the middle of the picture sets the focus point.
+## Touches that start there never start a stick.
+signal tapped(pos: Vector2)
+var tap_zone := Rect2(0.32, 0.16, 0.36, 0.54)   # share of the window
+var _taps := {}              # finger index -> {pos, ms}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -46,10 +51,17 @@ func _input(event: InputEvent) -> void:
 			if e.position.y < size.y * 0.16: return
 			for c in blocked:
 				if c.is_visible_in_tree() and c.get_global_rect().has_point(e.position): return
+			if tap_zone.has_point(e.position / size):
+				_taps[e.index] = {"pos": e.position, "ms": Time.get_ticks_msec()}
+				return
 			for t in _touches.values():
 				if t.side == side: return
 			_touches[e.index] = {"side": side, "origin": e.position, "pos": e.position}
 		else:
+			if _taps.has(e.index):
+				var tp: Dictionary = _taps[e.index]
+				_taps.erase(e.index)
+				if Time.get_ticks_msec() - int(tp.ms) < 250 and (e.position - tp.pos).length() < 14.0: tapped.emit(e.position)
 			if _touches.has(e.index):
 				var side: String = _touches[e.index].side
 				_touches.erase(e.index)
@@ -58,6 +70,7 @@ func _input(event: InputEvent) -> void:
 		queue_redraw()
 	elif event is InputEventScreenDrag:
 		var e := event as InputEventScreenDrag
+		if _taps.has(e.index) and (e.position - _taps[e.index].pos).length() >= 14.0: _taps.erase(e.index)
 		if _touches.has(e.index):
 			var t = _touches[e.index]
 			t.pos = e.position
@@ -69,7 +82,7 @@ func _input(event: InputEvent) -> void:
 			queue_redraw()
 
 func release_all() -> void:
-	_touches.clear(); left = Vector2.ZERO; right = Vector2.ZERO; queue_redraw()
+	_touches.clear(); _taps.clear(); left = Vector2.ZERO; right = Vector2.ZERO; queue_redraw()
 
 const LEFT_COL := Color(0.55, 0.88, 1.0)      # left stick: height and turning, cool blue
 const RIGHT_COL := Color(1.0, 0.82, 0.45)     # right stick: where the drone travels, warm amber
