@@ -51,7 +51,7 @@ void vertex() {
 void fragment() {
 	vec4 t = texture(albedo_tex, UV);
 	if (use_alpha && t.a < alpha_cut) discard;
-	vec3 c = t.rgb * vCol * tint;
+	vec3 c = t.rgb * mix(vec3(1.0), vCol, 0.55) * 1.12 * tint;
 	c = mix(c, vec3(0.62, 0.66, 0.74), g_snow * 0.35 * smoothstep(0.2, 1.0, vCol.r));
 	c *= mix(1.0, 0.72, g_wet);
 	ALBEDO = c;

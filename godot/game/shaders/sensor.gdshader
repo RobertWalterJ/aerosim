@@ -35,9 +35,9 @@ vec3 flare(vec2 uvS, float gSunVis) {
 	vec2 d = (uvS - uSunS) * uS * vec2(uAspect, 1.0);
 	float ang = radians(10.0); vec2 n = vec2(sin(ang), cos(ang)); vec2 pp = vec2(n.y, -n.x);
 	float al = dot(d, n); float pe = dot(d, pp);
-	float streak = exp(-pe * pe / (2.0 * 0.0025 * 0.0025)) * exp(-al * al / (2.0 * 0.65 * 0.65));
+	float streak = exp(-pe * pe / (2.0 * 0.0025 * 0.0025)) * exp(-al * al / (2.0 * 0.28 * 0.28));
 	float halo = exp(-dot(d, d) / (2.0 * 0.02 * 0.02)) * 0.8 + exp(-dot(d, d) / (2.0 * 0.12 * 0.12)) * 0.08;
-	vec3 c = (vec3(1.0, 0.93, 0.82) * streak * 1.1 + vec3(1.0, 0.82, 0.6) * halo) * gSunVis * uFlareI;
+	vec3 c = (vec3(1.0, 0.93, 0.82) * streak * 0.35 + vec3(1.0, 0.82, 0.6) * halo) * gSunVis * uFlareI;
 	vec2 sf = (uSunS - 0.5) * uS;
 	vec2 gp = -uGhostK * sf;
 	vec2 gd = ((uvS - 0.5) * uS - gp) * vec2(uAspect, 1.0);
