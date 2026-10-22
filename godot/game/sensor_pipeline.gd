@@ -220,7 +220,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	wb_kelvin += (wb_target - wb_kelvin) * (1.0 - exp(-minf(dt, 0.1) / (0.9 if wb_target < wb_kelvin else 2.0)))
 	# the camera's exposure follows the metered scene, slowly: it opens up quickly in the dark, and is slow to stop down
 	# when bright light arrives, so the picture stays washed out for a moment before it settles. Worked out here, not in a shader.
-	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt, log(0.1) / log(2.0), log(3.0) / log(2.0))
+	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt, log(0.1) / log(2.0), log(1.6) / log(2.0))
 	var tau := 0.9 if tgt < _log_e else 0.45
 	_log_e += (tgt - _log_e) * (1.0 - exp(-minf(dt, 0.1) / tau))
 	_over = clampf((_log_e - tgt) / 1.5, 0.0, 1.0)     # how far the picture is still over-exposed: the haze lasts only while it is

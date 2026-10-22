@@ -225,6 +225,9 @@ func _build_world() -> void:
 	add_child(world)
 	world.build(terrain, touch_dev)
 	home = world.home
+	var lake := Lake.new()
+	add_child(lake)
+	lake.build()
 	await _stage("Growing the grass", 0.7)
 	grass = Grass.new()
 	add_child(grass)
