@@ -81,6 +81,8 @@ static func make_theme() -> Theme:
 	t.set_type_variation("DroneCard", "Button")
 	var drone_on := box(Color(ACCENT.r, ACCENT.g, ACCENT.b, 0.13), 14, ACCENT, 2, 20.0, 14.0)
 	_button(t, "DroneCard", box(FIELD, 14, LINE, 1, 20.0, 14.0), box(FIELD_HOVER, 14, LINE, 1, 20.0, 14.0), drone_on, drone_on, TEXT, TEXT)
+	t.set_constant("icon_max_width", "DroneCard", 210)
+	t.set_constant("h_separation", "DroneCard", 22)
 	# cards
 	t.set_type_variation("Card", "PanelContainer")
 	t.set_stylebox("panel", "Card", box(CARD, 18, LINE, 1, 22.0, 18.0))

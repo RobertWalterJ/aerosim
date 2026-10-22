@@ -415,7 +415,7 @@ func _build_drone_tab() -> void:
 	_sub(p, "The drone returns to the start when you change it.")
 	for id in Airframes.IDS:
 		var af := Airframes.make(id)
-		var b := Button.new(); b.toggle_mode = true; b.theme_type_variation = "DroneCard"; b.custom_minimum_size = Vector2(0, 84)
+		var b := Button.new(); b.toggle_mode = true; b.theme_type_variation = "DroneCard"; b.custom_minimum_size = Vector2(0, 116)
 		b.text = "%s\n%s" % [af["name"], af["blurb"]]; b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.add_theme_font_size_override("font_size", 20)
 		b.clip_text = false; b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -489,6 +489,13 @@ Game controller: left stick climbs, descends and turns; right stick moves forwar
 The picture shown is the drone's own camera. Hold \"Hold to see the video\" at the bottom to look past this page."
 	p.add_child(extra)
 
+## Put a picture of each drone on its card in the drone chooser.
+func set_drone_thumbs(thumbs: Dictionary) -> void:
+	for id in thumbs:
+		if _drone_buttons.has(id):
+			var b: Button = _drone_buttons[id]
+			b.icon = thumbs[id]; b.expand_icon = true
+
 func _apply_fx() -> void:
 	RenderingServer.global_shader_parameter_set("g_fx", Vector4(1.0 if fx_cloud else 0.0, 1.0 if fx_trees else 0.0, 0.0, 0.0))
 
@@ -522,6 +529,7 @@ func _sync() -> void:
 		_subtitle.text = "%s   ·   %s   ·   %02d:%02d" % [Airframes.make(airframe_id)["name"], WeatherSystem.NAMES[int(weather["sky"])], int(hr), int((hr - floorf(hr)) * 60.0)]
 	_mode_btn.set_kind(mode)
 	_view_btn.set_active(chase)
+	_view_btn.set_kind("chase" if chase else "eye")
 	for i in _tab_btns.size(): _tab_btns[i].set_pressed_no_signal(i == _tabs.current_tab)
 	for f in _refreshers: f.call()
 	for id in _drone_buttons: _drone_buttons[id].set_pressed_no_signal(id == airframe_id)

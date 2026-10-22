@@ -75,6 +75,11 @@ var _wind_now := Vector3.ZERO
 
 var _loaded := false
 var _gimbal_rate := 0.0
+
+## The pictures on the drone chooser are drawn once the game is running, a drone at a time.
+func _make_drone_pictures() -> void:
+	var thumbs: Dictionary = await DroneThumbs.render_all(self, Airframes.IDS)
+	hud.set_drone_thumbs(thumbs)
 var _load_layer: CanvasLayer
 var _load_label: Label
 var _load_bar: ProgressBar
@@ -192,6 +197,7 @@ func _ready() -> void:
 	spawn()
 	_loaded = true
 	if _load_layer: _load_layer.queue_free()
+	_make_drone_pictures()
 	if q_arg != "": _screenshot_mode(q_arg)
 	if _selftest: _run_selftest()
 	if _apstest: _run_apstest()
