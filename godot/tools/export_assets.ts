@@ -47,7 +47,8 @@ function packExtras(geo: THREE.BufferGeometry): THREE.BufferGeometry {
   const uv1 = new Float32Array(n * 2);
   const wind = geo.getAttribute('aWind'), sway = geo.getAttribute('aSway'), polish = geo.getAttribute('aPolish');
   for (let i = 0; i < n; i++) {
-    if (wind) { uv1[i * 2] = wind.getX(i); uv1[i * 2 + 1] = wind.getY(i); }
+    if (polish) { uv1[i * 2] = polish.getX(i); uv1[i * 2 + 1] = sway ? sway.getX(i) : 0; }   // stone: (polish, sway)
+    else if (wind) { uv1[i * 2] = wind.getX(i); uv1[i * 2 + 1] = wind.getY(i); }
     else { uv1[i * 2] = sway ? sway.getX(i) : 0; uv1[i * 2 + 1] = polish ? polish.getX(i) : 0; }
   }
   const c = geo.clone();

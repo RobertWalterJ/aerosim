@@ -41,7 +41,8 @@ static func _load_env() -> void:
 	for c in holder.get_children():
 		var out := []
 		_collect(c, Transform3D.IDENTITY, out)
-		# the exporter parented each model directly under the root, so drop the node's own transform
+		_swap_stone(out)
+		_swap_foliage("env/" + str(c.name), out)
 		_cache["env/" + str(c.name)] = out
 	inst.free()
 
@@ -71,6 +72,22 @@ static func _swap_foliage(name: String, out: Array) -> void:
 			m.set_shader_parameter("tint", Vector3(b.albedo_color.r, b.albedo_color.g, b.albedo_color.b))
 			mesh.surface_set_material(i, m)
 
+## The cemetery's stone gets its own shader (polish, lichen, rain and snow response).
+static func _swap_stone(out: Array) -> void:
+	var shader := load("res://game/shaders/stone.gdshader") as Shader
+	for p in out:
+		var mesh: Mesh = p["mesh"]
+		for i in mesh.get_surface_count():
+			var src := mesh.surface_get_material(i)
+			if not (src is BaseMaterial3D): continue
+			var b := src as BaseMaterial3D
+			if b.resource_name != "env-stone" or b.albedo_texture == null: continue
+			var m := ShaderMaterial.new()
+			m.shader = shader
+			m.set_shader_parameter("albedo_tex", b.albedo_texture)
+			if b.normal_texture != null: m.set_shader_parameter("normal_tex", b.normal_texture)
+			mesh.surface_set_material(i, m)
+
 static func _tint_far(name: String, out: Array) -> void:
 	# the far silhouettes carry only baked shading; give them their colour here
 	if not name.begins_with("trees/far_"): return
@@ -93,11 +110,29 @@ static func info(name: String) -> Dictionary:
 				_manifest[("trees/" if e["kind"] == "tree" else "env/") + str(e["name"])] = e
 	return _manifest.get(name, {})
 
+## Rain makes stone, iron and bark darker and glossier. Each material remembers its dry values the first time it is seen.
+static func set_wetness(wet: float) -> void:
+	for name in _cache:
+		for p in _cache[name]:
+			var mesh: Mesh = p["mesh"]
+			for i in mesh.get_surface_count():
+				var m := mesh.surface_get_material(i)
+				if m is BaseMaterial3D:
+					var b := m as BaseMaterial3D
+					if not b.has_meta("dry_r"):
+						b.set_meta("dry_r", b.roughness); b.set_meta("dry_c", b.albedo_color)
+					b.roughness = float(b.get_meta("dry_r")) * (1.0 - 0.6 * wet)
+					var dc: Color = b.get_meta("dry_c")
+					var k := 1.0 - 0.32 * wet
+					b.albedo_color = Color(dc.r * k, dc.g * k, dc.b * k, dc.a)
+					b.metallic_specular = lerpf(0.5, 0.8, wet)
+
 static func _tame(m: Material) -> void:
 	# the web version's stone is authored a little over 1.0 for its own exposure; bring it in line with this lighting
 	if m is BaseMaterial3D:
 		var b := m as BaseMaterial3D
 		if b.albedo_color.r > 1.0: b.albedo_color = Color(0.82, 0.82, 0.82)
+		elif b.albedo_texture == null and b.albedo_color.r > 0.55: b.albedo_color = Color(b.albedo_color.r * 0.72, b.albedo_color.g * 0.72, b.albedo_color.b * 0.72)
 
 static func _collect(n: Node, xf: Transform3D, out: Array) -> void:
 	var here := xf

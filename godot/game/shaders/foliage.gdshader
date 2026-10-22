@@ -9,6 +9,7 @@ global uniform vec3 g_wind;
 global uniform vec4 g_drone;
 global uniform float g_wash;
 global uniform float g_snow;
+global uniform float g_wet;
 
 uniform sampler2D albedo_tex : source_color, repeat_enable, filter_linear_mipmap;
 uniform sampler2D normal_tex : hint_normal, repeat_enable, filter_linear_mipmap;
@@ -52,9 +53,10 @@ void fragment() {
 	if (use_alpha && t.a < alpha_cut) discard;
 	vec3 c = t.rgb * vCol * tint;
 	c = mix(c, vec3(0.62, 0.66, 0.74), g_snow * 0.35 * smoothstep(0.2, 1.0, vCol.r));
+	c *= mix(1.0, 0.72, g_wet);
 	ALBEDO = c;
-	ROUGHNESS = roughness;
-	SPECULAR = 0.3;
+	ROUGHNESS = roughness * mix(1.0, 0.5, g_wet);
+	SPECULAR = mix(0.3, 0.75, g_wet);
 	BACKLIGHT = c * translucency;
 	if (use_normal) NORMAL_MAP = texture(normal_tex, UV).rgb;
 }

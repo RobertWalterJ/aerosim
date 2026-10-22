@@ -11,6 +11,7 @@ global uniform vec3 g_wind;       // canopy-level wind in m/s
 global uniform vec4 g_drone;      // xyz drone position, w = downwash radius
 global uniform float g_wash;      // downwash strength 0..1
 global uniform float g_snow;
+global uniform float g_wet;
 
 uniform float uPatch = 13.0;      // side of the square patch that follows the camera
 uniform vec2 uBH = vec2(0.1, 0.28);
@@ -83,12 +84,13 @@ void vertex() {
 		NORMAL = normalize(vec3(sin(ang) * 0.35, 1.0, cos(ang) * 0.35));
 	}
 	vCol = mix(vCol, vec3(0.62, 0.66, 0.74), g_snow * 0.8);
+	vCol *= mix(1.0, 0.7, g_wet);
 	VERTEX = wp;
 }
 
 void fragment() {
 	ALBEDO = vCol;
-	ROUGHNESS = uLitter < 0.5 ? 0.62 : 0.8;
-	SPECULAR = 0.25;
+	ROUGHNESS = (uLitter < 0.5 ? 0.62 : 0.8) * mix(1.0, 0.45, g_wet);
+	SPECULAR = mix(0.25, 0.7, g_wet);
 	BACKLIGHT = uLitter < 0.5 ? vCol * 0.55 : vec3(0.0);
 }

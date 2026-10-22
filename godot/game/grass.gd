@@ -14,7 +14,8 @@ static func add_globals() -> void:
 	# shared by every vegetation shader; set once, then updated each frame by main.gd
 	for g in [["g_cam", RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3.ZERO], ["g_time", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0],
 			["g_wind", RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3(2, 0, 1)], ["g_drone", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0, -999, 0, 3.5)],
-			["g_wash", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0], ["g_snow", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0]]:
+			["g_wash", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0], ["g_snow", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0],
+			["g_wet", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0]]:
 		RenderingServer.global_shader_parameter_add(g[0], g[1], g[2])
 
 func build(terrain: Terrain, quality: String, excl: Rect2) -> void:

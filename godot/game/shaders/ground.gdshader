@@ -4,6 +4,7 @@ shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 
 global uniform float g_snow;
+global uniform float g_wet;
 global uniform vec3 g_cam;
 
 uniform sampler2D uCover : filter_linear, repeat_disable;
@@ -58,8 +59,14 @@ void fragment() {
 	float drift = smoothstep(0.2, 0.8, d2.g + 0.3 * d1.g);
 	float cov = g_snow * smoothstep(0.55, 0.9, abs(nrm.y)) * mix(0.7, 1.0, drift);
 	g = mix(g, vec3(0.62, 0.66, 0.74), cov);
+	// wet ground: darker and glossier, with standing water in the low flat patches
+	float wet = g_wet * (1.0 - cov);
+	float puddle = wet * smoothstep(0.60, 0.70, gfbm(xz * 0.09 + 5.0)) * smoothstep(0.55, 0.9, abs(nrm.y)) * (1.0 - forest * 0.5);
+	g *= mix(1.0, 0.62, wet);
+	g = mix(g, g * 0.55, puddle);
 	ALBEDO = g;
-	ROUGHNESS = mix(0.96, 0.7, cov);
+	ROUGHNESS = mix(mix(0.96, 0.7, cov), mix(0.55, 0.04, puddle), wet);
+	SPECULAR = mix(0.5, 1.0, puddle);
 	NORMAL_MAP = texture(uDetailN, xz * 0.35).rgb;
 	NORMAL_MAP_DEPTH = 0.6 * (1.0 - smoothstep(20.0, 90.0, dist));
 }

@@ -14,7 +14,7 @@ signal gimbal_changed(pitch_rad: float)
 signal lens_changed(lens: String)
 
 const WEATHER_FILE := "user://weather.cfg"
-const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "snow": 0}
+const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6}
 const PRESETS := [["Still", 0.0, 0.0], ["Calm", 1.0, 0.45], ["Light", 3.0, 0.65], ["Breezy", 5.0, 0.85], ["Strong", 7.5, 1.0]]
 const COMPASS := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
@@ -257,12 +257,12 @@ func _heading(parent: Control, text: String) -> void:
 
 func _choice(parent: Control, title: String, options: Array, get_i: Callable, set_i: Callable) -> void:
 	_heading(parent, title)
-	var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 8)
+	var row := HFlowContainer.new(); row.add_theme_constant_override("h_separation", 8); row.add_theme_constant_override("v_separation", 8)
 	parent.add_child(row)
 	var btns: Array[Button] = []
 	for i in options.size():
 		var b := Button.new(); b.text = options[i]; b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 56)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size = Vector2(150, 56)
 		b.pressed.connect(func(): set_i.call(i); _sync())
 		row.add_child(b); btns.append(b)
 	_refreshers.append(func():
@@ -314,7 +314,8 @@ func _build_weather_tab() -> void:
 	_slider(p, "from", "Wind comes from", 0.0, 359.0, 1.0)
 	_heading(p, "Time of day")
 	_slider(p, "sun", "Sun height", 4.0, 40.0, 1.0)
-	_choice(p, "Precipitation", ["Clear", "Light snow", "Heavy snow"], func(): return int(weather["snow"]), func(i): weather["snow"] = i; _weather_edited())
+	_choice(p, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
+	_slider(p, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
 	_action(p, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
 
 func _build_display_tab() -> void:
@@ -343,6 +344,7 @@ func _sync() -> void:
 			"gust": _slider_labels[k].text = "Steady" if v < 0.34 else ("Some gusts" if v < 0.7 else "Gusty")
 			"from": _slider_labels[k].text = "%s (%d°)" % [COMPASS[int(round(v / 45.0)) % 8], int(v)]
 			"sun": _slider_labels[k].text = "Sunset glow" if v < 8 else ("Late afternoon" if v < 18 else ("Afternoon" if v < 30 else "Midday"))
+			"intensity": _slider_labels[k].text = "Light" if v < 0.34 else ("Moderate" if v < 0.7 else "Heavy")
 
 func set_paused(on: bool) -> void:
 	paused = on

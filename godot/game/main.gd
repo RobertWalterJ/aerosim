@@ -19,7 +19,14 @@ var drone_view := DroneView.new()
 var cam := Camera3D.new()
 var sun := DirectionalLight3D.new()
 var env := Environment.new()
-var sky_mat := PhysicalSkyMaterial.new()
+var sky_mat := ShaderMaterial.new()
+var wx := WeatherSystem.new()
+var rain_fx: GPUParticles3D
+var rain_mat: ParticleProcessMaterial
+var _base_wind := 1.0
+var _base_gust := 0.45
+var _sun_el := 14.0
+var _last_wet_applied := -1.0
 var snow_fx: GPUParticles3D
 var snow_mat: ParticleProcessMaterial
 var hud: Hud
@@ -121,16 +128,9 @@ func _build_world() -> void:
 	sun.light_energy = 2.2
 	sun.shadow_blur = 1.2
 	add_child(sun)
-	# analytic sky: Rayleigh and Mie scattering from the sun's position (the sun is the directional light)
-	sky_mat.rayleigh_coefficient = 2.0
-	sky_mat.rayleigh_color = Color(0.26, 0.41, 0.58)
-	sky_mat.mie_coefficient = 0.004
-	sky_mat.mie_eccentricity = 0.8
-	sky_mat.mie_color = Color(0.69, 0.73, 0.81)
-	sky_mat.turbidity = 8.0
-	sky_mat.sun_disk_scale = 1.0
-	sky_mat.ground_color = Color(0.28, 0.30, 0.22)
+	sky_mat.shader = load("res://game/shaders/sky.gdshader")   # weather-driven sky: clear-sky colour, sun, clouds
 	var sky := Sky.new(); sky.sky_material = sky_mat
+	sky.process_mode = Sky.PROCESS_MODE_REALTIME
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
@@ -152,8 +152,15 @@ func _build_world() -> void:
 	if RenderingServer.get_current_rendering_method() == "forward_plus":
 		env.ssao_enabled = true
 		env.ssao_radius = 1.5
-		env.ssil_enabled = false
+		env.ssao_intensity = 1.6
+		env.ssil_enabled = true            # screen-space bounce light
+		env.ssr_enabled = true             # reflections in puddles, wet stone and glossy leaves
+		env.ssr_max_steps = 64
+		env.ssr_fade_in = 0.15
+		env.ssr_fade_out = 2.0
+		env.ssr_depth_tolerance = 0.25
 		env.sdfgi_enabled = false
+	sun.light_angular_distance = 0.5     # soft shadow edges, wider further from the caster
 	var we := WorldEnvironment.new(); we.environment = env
 	add_child(we)
 	# snow
@@ -174,6 +181,32 @@ func _build_world() -> void:
 	snow_mat.scale_min = 0.6; snow_mat.scale_max = 1.4
 	snow_fx.process_material = snow_mat
 	add_child(snow_fx)
+	# rain: thin streaks that fall fast and lean with the wind
+	rain_fx = GPUParticles3D.new()
+	rain_fx.amount = 14000
+	rain_fx.lifetime = 1.4
+	rain_fx.visibility_aabb = AABB(Vector3(-40, -30, -40), Vector3(80, 60, 80))
+	rain_fx.local_coords = false
+	rain_fx.emitting = false
+	var rq := QuadMesh.new()
+	rq.size = Vector2(0.008, 0.42)
+	var rm := StandardMaterial3D.new()
+	rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	rm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	rm.billboard_keep_scale = true
+	rm.albedo_color = Color(0.82, 0.88, 0.95, 0.2)
+	rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	rq.material = rm
+	rain_fx.draw_pass_1 = rq
+	rain_mat = ParticleProcessMaterial.new()
+	rain_mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	rain_mat.emission_box_extents = Vector3(34, 1, 34)
+	rain_mat.particle_flag_align_y = true
+	rain_mat.gravity = Vector3(0, -22, 0)
+	rain_mat.initial_velocity_min = 4.0; rain_mat.initial_velocity_max = 6.0
+	rain_mat.direction = Vector3.DOWN
+	rain_fx.process_material = rain_mat
+	add_child(rain_fx)
 
 func _snow_mesh() -> Mesh:
 	var qm := QuadMesh.new()
@@ -188,27 +221,64 @@ func _snow_mesh() -> Mesh:
 
 # ------------------------------------------------------------------ weather
 func apply_weather(w: Dictionary) -> void:
-	wind.speed = float(w["wind"]); wind.gust = float(w["gust"]); wind.from_deg = float(w["from"])
-	var el := deg_to_rad(float(w["sun"]))
+	_base_wind = float(w["wind"]); _base_gust = float(w["gust"])
+	wind.from_deg = float(w["from"])
+	var first := _sun_el < 0.0
+	_sun_el = float(w["sun"])
+	var el := deg_to_rad(_sun_el)
 	var az := deg_to_rad(238.0)
 	var to_sun := Vector3(sin(az) * cos(el), sin(el), -cos(az) * cos(el))
 	_sun_dir = to_sun
 	if sensor: sensor.set_sun_direction(to_sun)
 	sun.global_transform = Transform3D(Basis.looking_at(-to_sun), Vector3.ZERO)
-	var sun_el := float(w["sun"])
 	sun.light_color = Color.WHITE
-	sun.light_temperature = 3300.0 + 1200.0 * smoothstep(5.0, 22.0, sun_el)
-	sun.light_energy = 1.7 * (0.55 + 0.45 * smoothstep(3.0, 18.0, sun_el))
-	var snow := int(w["snow"])
-	_snow_level = snow
-	terrain.snow = [0.0, 0.55, 1.0][snow]
-	env.fog_density = 0.0004 * (1.0 + 3.0 * snow)
-	env.fog_light_color = Color(0.62, 0.70, 0.80).lerp(Color(0.78, 0.80, 0.84), 0.5 * minf(snow, 1.0))
-	sky_mat.turbidity = 8.0 + 14.0 * minf(snow, 2.0) * 0.5
-	sky_mat.mie_coefficient = 0.004 * (1.0 + 2.0 * snow)
-	snow_fx.emitting = snow > 0
-	snow_fx.amount_ratio = 0.4 if snow == 1 else 1.0
-	snow_mat.gravity = Vector3(0, -1.2 if snow < 2 else -2.2, 0)
+	sun.light_temperature = 3300.0 + 1200.0 * smoothstep(5.0, 22.0, _sun_el)
+	wx.set_condition(int(w["sky"]), float(w["intensity"]))
+	_apply_weather_state(0.0, true)
+
+## Push the weather's current values into the sky, light, fog, particles and surface wetness. Called every frame
+## with the time step (the weather eases between conditions) and once with snap = true to jump straight to the target.
+func _apply_weather_state(delta: float, snap := false) -> void:
+	wx.update(delta, snap)
+	var c := wx.cur
+	var sun_base := 1.7 * (0.55 + 0.45 * smoothstep(3.0, 18.0, _sun_el))
+	var storm_flash := wx.flash
+	sun.light_energy = sun_base * float(c["sun"]) + storm_flash * 4.0
+	sun.shadow_opacity = clampf(0.25 + 3.0 * float(c["sun"]), 0.0, 1.0)
+	env.ambient_light_energy = 1.7 * float(c["amb"]) + storm_flash * 1.2
+	sky_mat.set_shader_parameter("sun_dir", _sun_dir)
+	sky_mat.set_shader_parameter("cover", float(c["cover"]))
+	sky_mat.set_shader_parameter("dark", float(c["dark"]))
+	sky_mat.set_shader_parameter("cirrus", float(c["cirrus"]))
+	sky_mat.set_shader_parameter("haze", float(c["haze"]))
+	sky_mat.set_shader_parameter("fog", float(c["fog"]))
+	sky_mat.set_shader_parameter("flash", storm_flash)
+	var wd := wind.toward()
+	sky_mat.set_shader_parameter("drift", Vector2(wd.x, wd.z) * (0.5 + 0.6 * wind.speed))
+	# fog: thicker and greyer in rain, snow and mist
+	var grey := clampf(float(c["haze"]) * 0.9 + float(c["fog"]) * 0.4, 0.0, 1.0)
+	env.fog_density = 0.0004 * float(c["fogd"])
+	env.fog_light_color = Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey)
+	env.fog_sky_affect = 0.3 + 0.5 * float(c["fog"])
+	env.fog_height_density = 0.0009 * float(c["fogd"])
+	# wind follows the condition
+	wind.speed = _base_wind * float(c["wind"])
+	wind.gust = clampf(_base_gust + (0.35 if wx.kind == WeatherSystem.Kind.STORM else 0.0), 0.0, 1.0)
+	# precipitation
+	var rain := float(c["rain"])
+	var snow_p := float(c["snow"])
+	rain_fx.emitting = rain > 0.03
+	rain_fx.amount_ratio = clampf(rain, 0.05, 1.0)
+	var lean := wind.toward() * wind.speed * 0.9
+	rain_mat.gravity = Vector3(lean.x, -22.0, lean.z)
+	snow_fx.emitting = snow_p > 0.03
+	snow_fx.amount_ratio = clampf(snow_p, 0.05, 1.0)
+	snow_mat.gravity = Vector3(0, -1.2 - 1.2 * snow_p, 0)
+	terrain.snow = wx.snow_cover
+	RenderingServer.global_shader_parameter_set("g_wet", wx.wet)
+	if absf(wx.wet - _last_wet_applied) > 0.015:
+		_last_wet_applied = wx.wet
+		Assets.set_wetness(wx.wet)
 
 # ------------------------------------------------------------------ flight
 func spawn() -> void:
@@ -306,10 +376,12 @@ func _process(delta: float) -> void:
 		cam.fov = 84.0
 	drone_view.visible = chase
 	drone_view.update_props(quad.s, sim_time, quad.armed)
-	# snow follows the camera
+	# precipitation follows the camera
 	snow_fx.global_position = cam.global_position + Vector3(0, 12, 0)
+	rain_fx.global_position = cam.global_position + Vector3(0, 16, 0)
 	var wdir := wind.toward() * wind.speed * 0.8
-	snow_mat.direction = Vector3(wdir.x, -1.0, wdir.z).normalized() if _snow_level > 0 else Vector3.DOWN
+	snow_mat.direction = Vector3(wdir.x, -1.0, wdir.z).normalized()
+	_apply_weather_state(delta)
 	_update_sensor_and_osd(delta)
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -331,24 +403,25 @@ func _screenshot_mode(arg: String) -> void:
 	var path := parts[0]
 	var frames := int(parts[1]) if parts.size() > 1 else 90
 	if parts.size() > 2: chase = parts[2] == "chase"; hud.set_chase(chase)
-	if parts.size() > 3 and parts[3] == "climb":
-		_auto_climb = true
-	if parts.size() > 3 and parts[3].begins_with("at"):
-		var v := parts[3].substr(2).split("_")   # at<x>_<y_above_ground>_<z>_<yaw_deg>_<gimbal_deg>
-		var px := float(v[0]); var pz := float(v[2])
-		var py := terrain.height(px, pz) + float(v[1])
-		quad.reset(px, py, pz, deg_to_rad(float(v[3])))
-		var wh: float = float(af["omegaMax"]) * sqrt(1.0 / float(af["twr"]))
-		for i in 4:
-			quad.s[13 + i] = wh; quad.cmd[i] = wh
-		fc.heading = deg_to_rad(float(v[3])); gimbal_pitch = deg_to_rad(float(v[4]))
-		_apply_pose(); drone_node.reset_physics_interpolation()
-	if parts.size() > 3 and parts[3] == "gallery":
-		_build_gallery()
-	if parts.size() > 3 and parts[3].begins_with("menu"):
-		hud.set_paused(true); hud._tabs.current_tab = int(parts[3].substr(4))
-	if parts.size() > 3 and parts[3].begins_with("snow"):
-		hud.weather["snow"] = int(parts[3].substr(4)); apply_weather(hud.weather); _auto_climb = true
+	for c in parts.slice(3):
+		if c == "climb":
+			_auto_climb = true
+		if c.begins_with("at"):
+			var v := c.substr(2).split("_")   # at<x>_<y_above_ground>_<z>_<yaw_deg>_<gimbal_deg>
+			var px := float(v[0]); var pz := float(v[2])
+			var py := terrain.height(px, pz) + float(v[1])
+			quad.reset(px, py, pz, deg_to_rad(float(v[3])))
+			var wh: float = float(af["omegaMax"]) * sqrt(1.0 / float(af["twr"]))
+			for i in 4:
+				quad.s[13 + i] = wh; quad.cmd[i] = wh
+			fc.heading = deg_to_rad(float(v[3])); gimbal_pitch = deg_to_rad(float(v[4]))
+			_apply_pose(); drone_node.reset_physics_interpolation()
+		if c == "gallery":
+			_build_gallery()
+		if c.begins_with("menu"):
+			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
+		if c.begins_with("sky"):
+			hud.weather["sky"] = int(c.substr(3)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true
 	await get_tree().create_timer(0.1).timeout
 	for i in frames: await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
@@ -420,6 +493,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var sun_target := 1.0
 	if not _terrain_clear(cpos, cpos + _sun_dir * 1500.0, 24): sun_target = 0.0
 	elif forest.canopy_blocks(cpos, _sun_dir, 90.0): sun_target = 0.0
+	sun_target *= smoothstep(0.12, 0.5, float(wx.cur["sun"]))
 	_sun_vis += (sun_target - _sun_vis) * clampf(delta * 8.0, 0.0, 1.0)
 	sensor.sun_vis = _sun_vis
 	# video link: free-space loss with distance, plus a penalty when the terrain blocks the line of sight
