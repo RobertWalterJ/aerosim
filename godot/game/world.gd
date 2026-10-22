@@ -24,6 +24,8 @@ var home := Vector2(-18.0, 36.0)
 var _trunks := {}                # Vector2i -> Array of [x, y, z, radius, height]
 var _cyls := {}                  # Vector2i -> Array of [x, z, r, y0, y1]
 var _boxes := {}                 # Vector2i -> Array of [x0, z0, x1, z1, y0, y1]
+var _hedge_cyls := []            # the hedgerows' own colliders [x, z, r, y0, y1] (game/hedgerow.gd)
+var _hedge_pts := []             # where the layout's separate hedge pieces stood (their colliders are replaced)
 
 func build(t: Terrain, touch_device: bool) -> void:
 	terrain = t
@@ -34,6 +36,7 @@ func build(t: Terrain, touch_device: bool) -> void:
 	_trees()
 	_far_trees(touch_device)
 	_props()
+	_hedge_cyls = Hedgerow.build(self, touch_device)
 	_park()
 	_colliders()
 
@@ -84,6 +87,10 @@ func _props() -> void:
 		if items.is_empty(): continue
 		var d: Array = fam["d"]
 		var name: String = fam["name"]
+		if Hedgerow.SPECIES.has(name):    # hedge pieces are joined into continuous rows by Hedgerow instead
+			for it in items: _hedge_pts.append(Vector2(float(it[0]), float(it[2])))
+			prop_count += items.size()
+			continue
 		var cells := {}   # Vector2i -> variant -> Array[Transform3D]
 		for it in items:
 			var s: float = it[6]
@@ -122,7 +129,12 @@ func _cast_shadows(n: Node) -> void:
 
 # ------------------------------------------------------------------ collisions
 func _colliders() -> void:
+	var cyl_list: Array = []
+	var piece_keys := Hedgerow.piece_keys(_hedge_pts)
 	for c in layout["colliders"]["cyl"]:
+		if not Hedgerow.is_piece_collider(c, piece_keys): cyl_list.append(c)
+	cyl_list.append_array(_hedge_cyls)
+	for c in cyl_list:
 		var k := Vector2i(floori(float(c[0]) / GRID), floori(float(c[1]) / GRID))
 		if not _cyls.has(k): _cyls[k] = []
 		_cyls[k].append([c[0], c[1], c[2], c[3], c[4]])
