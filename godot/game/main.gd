@@ -74,6 +74,7 @@ var _fps := 60.0
 var _wind_now := Vector3.ZERO
 
 var _loaded := false
+var _gimbal_rate := 0.0
 var _load_layer: CanvasLayer
 var _load_label: Label
 var _load_bar: ProgressBar
@@ -505,6 +506,13 @@ func _process(delta: float) -> void:
 	if quad == null or not _loaded: return
 	if _gallery_cam:
 		return
+	# Q and E tilt a gimbal camera smoothly while held: it speeds up, then eases to a stop when released
+	var tilt_in := (1.0 if Input.is_key_pressed(KEY_Q) else 0.0) - (1.0 if Input.is_key_pressed(KEY_E) else 0.0)
+	if not af["hasGimbal"] or paused: tilt_in = 0.0
+	_gimbal_rate = lerpf(_gimbal_rate, tilt_in * deg_to_rad(45.0), 1.0 - exp(-delta * 7.0))
+	if absf(_gimbal_rate) > 0.0005:
+		gimbal_pitch = clampf(gimbal_pitch + _gimbal_rate * delta, deg_to_rad(-90.0), deg_to_rad(20.0))
+		hud.set_gimbal_value(gimbal_pitch)
 	_tick_clock(delta)
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
@@ -566,8 +574,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
-		KEY_Q: gimbal_pitch = clampf(gimbal_pitch + 0.1, deg_to_rad(-90.0), deg_to_rad(20.0)); hud.set_gimbal_value(gimbal_pitch)
-		KEY_E: gimbal_pitch = clampf(gimbal_pitch - 0.1, deg_to_rad(-90.0), deg_to_rad(20.0)); hud.set_gimbal_value(gimbal_pitch)
+		KEY_Q, KEY_E:
+			if not af["hasGimbal"]: hud.toast("This drone's camera is fixed. Pick the Gimbal Mini or the Cinema drone to tilt it.")
 
 # ------------------------------------------------------------------ screenshot helper for development
 func _screenshot_mode(arg: String) -> void:

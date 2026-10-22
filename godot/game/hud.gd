@@ -32,7 +32,7 @@ const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
 const PRESETS := [["Still", 0.0, 0.0], ["Calm", 1.0, 0.45], ["Light", 3.0, 0.65], ["Breezy", 5.0, 0.85], ["Strong", 7.5, 1.0]]
 const COMPASS := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-const TABS := ["Flight", "Drone", "Weather", "Camera", "Display"]
+const TABS := ["Flight", "Drone", "Weather", "Camera", "Display", "Controls"]
 
 var weather := DEFAULT_WEATHER.duplicate()
 var paused := false
@@ -331,7 +331,7 @@ func _build_settings() -> void:
 		var b := Button.new(); b.text = TABS[i]; b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 56); b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.pressed.connect(func(): _tabs.current_tab = i; _sync())
 		side.add_child(b); _tab_btns.append(b)
-	_build_flight_tab(); _build_drone_tab(); _build_weather_tab(); _build_camera_tab(); _build_display_tab()
+	_build_flight_tab(); _build_drone_tab(); _build_weather_tab(); _build_camera_tab(); _build_display_tab(); _build_controls_tab()
 	# footer
 	var line2 := ColorRect.new(); line2.color = Color(1, 1, 1, 0.1); line2.custom_minimum_size = Vector2(0, 1); col.add_child(line2)
 	var foot := HBoxContainer.new(); foot.custom_minimum_size = Vector2(0, 68); foot.add_theme_constant_override("separation", 12)
@@ -445,6 +445,20 @@ func _build_camera_tab() -> void:
 	_choice(p, "Bloom", ["On", "Off"], func(): return 0 if bloom else 1, func(i): bloom = i == 0; bloom_changed.emit(bloom))
 	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_choice(p, "Video link effects", ["On", "Off"], func(): return 0 if link_fx else 1, func(i): link_fx = i == 0; link_changed.emit(link_fx))
+
+func _build_controls_tab() -> void:
+	var p := _page("Controls")
+	_heading(p, "Keyboard")
+	var kb := KeyboardGuide.new(); kb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.add_child(kb)
+	_heading(p, "Also")
+	var extra := Label.new(); extra.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	extra.text = "Mouse or touch: Take off or land, Return to home, Mode, View and the shutter are the round buttons on the flight screen. Press and drag on the left half of the picture for the left stick, and on the right half for the right stick. Drag the scale on the right edge, or hold Q and E, to tilt a gimbal camera (only the Gimbal Mini and the Cinema drone have one).
+
+Game controller: left stick climbs, descends and turns; right stick moves forward, back and leans.
+
+The picture shown is the drone's own camera. Hold \"Hold to see the video\" at the bottom to look past this page."
+	p.add_child(extra)
 
 func _apply_fx() -> void:
 	RenderingServer.global_shader_parameter_set("g_fx", Vector4(1.0 if fx_cloud else 0.0, 1.0 if fx_trees else 0.0, 0.0, 0.0))
