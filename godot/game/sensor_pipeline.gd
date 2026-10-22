@@ -312,7 +312,8 @@ func _readback() -> void:
 	var rm: ShaderMaterial = _passes["reduce"]
 	if rm.has_meta("vp"): img = (rm.get_meta("vp") as SubViewport).get_texture().get_image()
 	if img != null and not img.is_empty():
-		_mean_log = img.get_pixel(0, 0).r
+		var ml: float = img.get_pixel(0, 0).r
+		if is_finite(ml) and ml > -17.0 and ml < 8.0: _mean_log = ml      # a phone GPU that cannot hold the value gives nonsense: keep the last good reading
 		var shutter := exposure / 200.0
 		var iso := 100.0
 		if shutter > 1.0 / 50.0:

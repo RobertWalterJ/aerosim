@@ -30,6 +30,7 @@ uniform sampler2D uHT : filter_linear, repeat_disable;
 uniform sampler2D uCV : filter_linear, repeat_disable;
 
 varying vec3 vCol;
+varying float vShade;
 
 float hsh(float x) { return fract(sin(x * 127.1) * 43758.5453); }
 float gh(vec2 p) { p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
@@ -115,11 +116,12 @@ void vertex() {
 	}
 	vCol = mix(vCol, vec3(0.62, 0.66, 0.74), g_snow * 0.8);
 	vCol *= mix(1.0, 0.7, g_wet);
+	vShade = world_shade(wp);
 	VERTEX = wp;
 }
 
 void fragment() {
-	ALBEDO = vCol * world_shade((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
+	ALBEDO = vCol * clamp(vShade, 0.0, 1.0);
 	ROUGHNESS = (uLitter < 0.5 ? 0.62 : 0.8) * mix(1.0, 0.45, g_wet);
 	SPECULAR = mix(0.25, 0.7, g_wet);
 	BACKLIGHT = uLitter < 0.5 ? vCol * 0.95 : vec3(0.0);

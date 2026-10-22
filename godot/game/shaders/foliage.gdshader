@@ -25,6 +25,7 @@ uniform vec3 tint = vec3(1.0);
 
 varying vec3 vCol;
 varying vec3 vVar;
+varying float vShade;
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -48,6 +49,7 @@ void vertex() {
 	// world displacement back into the model's own space (instances are uniformly scaled and turned about Y)
 	VERTEX += inverse(mat3(MODEL_MATRIX)) * wv;
 	vCol = COLOR.rgb;
+	vShade = world_shade((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);     // worked out per vertex: cheap, and safe on phone GPUs
 	// every tree is a touch different: brightness and a slight hue lean, from where it stands
 	vec2 oc = MODEL_MATRIX[3].xz;
 	float h1 = fract(sin(dot(oc, vec2(12.9898, 78.233))) * 43758.5453);
@@ -61,8 +63,7 @@ void fragment() {
 	vec3 c = t.rgb * mix(vec3(1.0), vCol, 0.55) * 1.12 * tint * vVar;
 	c = mix(c, vec3(0.62, 0.66, 0.74), g_snow * 0.35 * smoothstep(0.2, 1.0, vCol.r));
 	c *= mix(1.0, 0.72, g_wet);
-	vec3 wpf = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	c *= world_shade(wpf);
+	c *= clamp(vShade, 0.0, 1.0);
 	ALBEDO = c;
 	ROUGHNESS = roughness * mix(1.0, 0.5, g_wet);
 	SPECULAR = mix(0.3, 0.75, g_wet);
