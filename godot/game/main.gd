@@ -9,6 +9,8 @@ const DT := 0.002
 var terrain: Terrain
 var forest: Forest
 var cemetery: Cemetery
+var meadow: Meadow
+var grass: Grass
 var quad: Quad
 var fc: FlightController
 var wind := Wind.new()
@@ -48,6 +50,7 @@ func _ready() -> void:
 		if a.begins_with("drone="): airframe_id = a.substr(6)
 		if a.begins_with("shot="): q_arg = a.substr(5)
 		if a == "selftest": _selftest = true
+	Grass.add_globals()
 	_build_world()
 	af = Airframes.make(airframe_id)
 	quad = Quad.new(af)
@@ -94,6 +97,7 @@ func _build_world() -> void:
 	terrain = Terrain.new()
 	add_child(terrain)
 	terrain.add_flat_rect(Cemetery.CENTRE, Cemetery.HALF + Vector2(3, 3), 14.0)
+	terrain.lawn_rects = [{"c": Cemetery.CENTRE, "half": Cemetery.HALF + Vector2(6, 6)}]
 	terrain.build()
 	cemetery = Cemetery.new()
 	add_child(cemetery)
@@ -101,6 +105,15 @@ func _build_world() -> void:
 	forest = Forest.new()
 	add_child(forest)
 	forest.plant(terrain, func(x: float, z: float) -> bool: return cemetery.contains(x, z, 6.0) or (x * x + z * z) < 900.0)
+	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
+	var dev_args := OS.get_cmdline_user_args()
+	meadow = Meadow.new()
+	add_child(meadow)
+	if not "nomeadow" in dev_args: meadow.plant(terrain, func(x: float, z: float) -> bool: return cemetery.contains(x, z, 3.0) or (x * x + z * z) < 196.0, 0.12 if touch_dev else 0.3)
+	grass = Grass.new()
+	add_child(grass)
+	var cr := Rect2(Cemetery.CENTRE - Cemetery.HALF - Vector2(1, 1), (Cemetery.HALF + Vector2(1, 1)) * 2.0)
+	if not "nograss" in dev_args: grass.build(terrain, "low" if touch_dev else "high", cr)
 	# sun, sky and atmosphere
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -111,7 +124,7 @@ func _build_world() -> void:
 	# analytic sky: Rayleigh and Mie scattering from the sun's position (the sun is the directional light)
 	sky_mat.rayleigh_coefficient = 2.0
 	sky_mat.rayleigh_color = Color(0.26, 0.41, 0.58)
-	sky_mat.mie_coefficient = 0.006
+	sky_mat.mie_coefficient = 0.004
 	sky_mat.mie_eccentricity = 0.8
 	sky_mat.mie_color = Color(0.69, 0.73, 0.81)
 	sky_mat.turbidity = 8.0
@@ -121,7 +134,7 @@ func _build_world() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 1.3
+	env.ambient_light_energy = 1.7
 	env.ambient_light_sky_contribution = 0.55
 	env.ambient_light_color = Color(0.78, 0.82, 0.62)
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR   # the sensor pipeline does exposure, bloom and the tone curve
@@ -130,10 +143,10 @@ func _build_world() -> void:
 	env.fog_light_color = Color(0.62, 0.70, 0.80)
 	# exponential height fog: thicker in the valley, with forward scattering towards the sun
 	env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	env.fog_density = 0.0009
+	env.fog_density = 0.0004
 	env.fog_height = 55.0
-	env.fog_height_density = 0.0016
-	env.fog_sun_scatter = 0.55
+	env.fog_height_density = 0.0009
+	env.fog_sun_scatter = 0.35
 	env.fog_aerial_perspective = 0.55
 	env.fog_sky_affect = 0.3
 	if RenderingServer.get_current_rendering_method() == "forward_plus":
@@ -185,14 +198,14 @@ func apply_weather(w: Dictionary) -> void:
 	var sun_el := float(w["sun"])
 	sun.light_color = Color.WHITE
 	sun.light_temperature = 3300.0 + 1200.0 * smoothstep(5.0, 22.0, sun_el)
-	sun.light_energy = 2.2 * (0.55 + 0.45 * smoothstep(3.0, 18.0, sun_el))
+	sun.light_energy = 1.7 * (0.55 + 0.45 * smoothstep(3.0, 18.0, sun_el))
 	var snow := int(w["snow"])
 	_snow_level = snow
 	terrain.snow = [0.0, 0.55, 1.0][snow]
-	env.fog_density = 0.0009 * (1.0 + 2.0 * snow)
+	env.fog_density = 0.0004 * (1.0 + 3.0 * snow)
 	env.fog_light_color = Color(0.62, 0.70, 0.80).lerp(Color(0.78, 0.80, 0.84), 0.5 * minf(snow, 1.0))
 	sky_mat.turbidity = 8.0 + 14.0 * minf(snow, 2.0) * 0.5
-	sky_mat.mie_coefficient = 0.006 * (1.0 + 2.0 * snow)
+	sky_mat.mie_coefficient = 0.004 * (1.0 + 2.0 * snow)
 	snow_fx.emitting = snow > 0
 	snow_fx.amount_ratio = 0.4 if snow == 1 else 1.0
 	snow_mat.gravity = Vector3(0, -1.2 if snow < 2 else -2.2, 0)
@@ -387,6 +400,14 @@ func _terrain_clear(from: Vector3, to: Vector3, steps := 12) -> bool:
 	return true
 
 func _update_sensor_and_osd(delta: float) -> void:
+	# shared by the grass, foliage and ground shaders: camera, clock, canopy wind and the drone's rotor wash
+	var dp := quad.position()
+	var agl0 := dp.y - terrain.height(dp.x, dp.z)
+	RenderingServer.global_shader_parameter_set("g_cam", cam.global_position)
+	RenderingServer.global_shader_parameter_set("g_time", sim_time)
+	RenderingServer.global_shader_parameter_set("g_wind", wind.sample(Vector3(dp.x, terrain.height(dp.x, dp.z) + 14.0, dp.z), 14.0, sim_time))
+	RenderingServer.global_shader_parameter_set("g_drone", Vector4(dp.x, dp.y, dp.z, 3.5))
+	RenderingServer.global_shader_parameter_set("g_wash", clampf(fc.thrust_fraction() * 1.8, 0.0, 1.0) * 0.55 * (1.0 - smoothstep(2.5, 8.0, agl0)) * (1.0 if quad.armed else 0.0))
 	var cpos := cam.global_position
 	var cq := cam.global_transform.basis.get_rotation_quaternion()
 	# camera angular velocity in its own frame (x pitch up, y yaw left, z roll)

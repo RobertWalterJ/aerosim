@@ -93,7 +93,8 @@ for (const kind of ['conifer', 'broadleaf'] as const) {
 }
 
 // ---- cemetery, fences, hedges, clutter, snags: every family and variant at the near detail level
-const SKIP = new Set(['meadowClump', 'lawnTuft']);   // grass clumps are rebuilt in Godot
+const SKIP = new Set<string>();
+const WITH_LOD1 = new Set(['meadowClump', 'lawnTuft']);   // ground cover also gets a lighter model for the middle distance
 // all environment assets go into ONE file so their stone, bark and iron textures are stored once
 const envRoot = new THREE.Group(); envRoot.name = 'env';
 for (const a of ENV_ASSETS) {
@@ -104,6 +105,12 @@ for (const a of ENV_ASSETS) {
     envRoot.add(m);
     r.geometry.computeBoundingBox();
     manifest.push({ kind: 'env', family: a.family, name: m.name, collider: r.collider ?? null, tris: tris(r.geometry), bbox: [r.geometry.boundingBox!.min.toArray(), r.geometry.boundingBox!.max.toArray()] });
+    if (WITH_LOD1.has(a.name)) {
+      const r1 = a.build(seed, 1);
+      const m1 = new THREE.Mesh(packExtras(r1.geometry), r1.material); m1.name = `${a.name}L1_${seed}`;
+      envRoot.add(m1);
+      manifest.push({ kind: 'env', family: a.family, name: m1.name, collider: null, tris: tris(r1.geometry) });
+    }
   }
   console.log('env', a.family, a.name, a.variants, 'variants');
 }

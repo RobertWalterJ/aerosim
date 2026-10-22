@@ -115,6 +115,474 @@
  },
  {
   "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_0",
+  "collider": null,
+  "tris": 3032,
+  "bbox": [
+   [
+    -0.49561846256256104,
+    -0.00024281395599246025,
+    -0.4499359428882599
+   ],
+   [
+    0.5388469099998474,
+    0.6815015077590942,
+    0.5566028952598572
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_0",
+  "collider": null,
+  "tris": 428
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_1",
+  "collider": null,
+  "tris": 2342,
+  "bbox": [
+   [
+    -0.5496580600738525,
+    -0.00022818264551460743,
+    -0.7009644508361816
+   ],
+   [
+    0.5995549559593201,
+    0.9585585594177246,
+    0.5926388502120972
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_1",
+  "collider": null,
+  "tris": 392
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_2",
+  "collider": null,
+  "tris": 3284,
+  "bbox": [
+   [
+    -0.5916448831558228,
+    -0.0002900481049437076,
+    -0.6045374870300293
+   ],
+   [
+    0.635525107383728,
+    0.9363244771957397,
+    0.7122502326965332
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_2",
+  "collider": null,
+  "tris": 544
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_3",
+  "collider": null,
+  "tris": 2112,
+  "bbox": [
+   [
+    -0.8332438468933105,
+    -0.0001909620623337105,
+    -0.9259228706359863
+   ],
+   [
+    0.7287607789039612,
+    1.3365058898925781,
+    0.8227531909942627
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_3",
+  "collider": null,
+  "tris": 404
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_4",
+  "collider": null,
+  "tris": 1632,
+  "bbox": [
+   [
+    -0.7136110663414001,
+    -0.0006784677389077842,
+    -0.8084878325462341
+   ],
+   [
+    0.6576202511787415,
+    1.1380563974380493,
+    0.6980467438697815
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_4",
+  "collider": null,
+  "tris": 228
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_5",
+  "collider": null,
+  "tris": 1090,
+  "bbox": [
+   [
+    -0.7967272996902466,
+    -0.06350207328796387,
+    -0.8658890128135681
+   ],
+   [
+    0.8637938499450684,
+    0.9977555274963379,
+    0.6382584571838379
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_5",
+  "collider": null,
+  "tris": 174
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_6",
+  "collider": null,
+  "tris": 1200,
+  "bbox": [
+   [
+    -0.5582143068313599,
+    -0.0002239801688119769,
+    -0.5509975552558899
+   ],
+   [
+    0.6063991189002991,
+    0.739281177520752,
+    0.6234223246574402
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_6",
+  "collider": null,
+  "tris": 160
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_7",
+  "collider": null,
+  "tris": 1784,
+  "bbox": [
+   [
+    -0.7864593267440796,
+    -0.0008383331005461514,
+    -0.951066792011261
+   ],
+   [
+    0.9664615392684937,
+    1.112843632698059,
+    0.8125429749488831
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_7",
+  "collider": null,
+  "tris": 538
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_8",
+  "collider": null,
+  "tris": 3060,
+  "bbox": [
+   [
+    -0.6778963208198547,
+    -0.00025482464116066694,
+    -0.643451452255249
+   ],
+   [
+    0.6561265587806702,
+    0.7785264849662781,
+    0.5822045207023621
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_8",
+  "collider": null,
+  "tris": 472
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClump_9",
+  "collider": null,
+  "tris": 2556,
+  "bbox": [
+   [
+    -0.5716191530227661,
+    -0.0002694549330044538,
+    -0.5973310470581055
+   ],
+   [
+    0.5635443329811096,
+    0.9543489217758179,
+    0.5147333741188049
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "meadow",
+  "name": "meadowClumpL1_9",
+  "collider": null,
+  "tris": 356
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuft_0",
+  "collider": null,
+  "tris": 516,
+  "bbox": [
+   [
+    -0.17393843829631805,
+    -1.243424410837035e-18,
+    -0.16246294975280762
+   ],
+   [
+    0.16376711428165436,
+    0.06293818354606628,
+    0.16330917179584503
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuftL1_0",
+  "collider": null,
+  "tris": 140
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuft_1",
+  "collider": null,
+  "tris": 606,
+  "bbox": [
+   [
+    -0.1577824205160141,
+    -1.4357861928644308e-18,
+    -0.16800180077552795
+   ],
+   [
+    0.1500154584646225,
+    0.04667871817946434,
+    0.16026407480239868
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuftL1_1",
+  "collider": null,
+  "tris": 164
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuft_2",
+  "collider": null,
+  "tris": 462,
+  "bbox": [
+   [
+    -0.1775362342596054,
+    -1.1845534496537532e-18,
+    -0.1642361283302307
+   ],
+   [
+    0.1722123920917511,
+    0.0708402544260025,
+    0.15026569366455078
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuftL1_2",
+  "collider": null,
+  "tris": 128
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuft_3",
+  "collider": null,
+  "tris": 600,
+  "bbox": [
+   [
+    -0.14956596493721008,
+    -1.3079056211273812e-18,
+    -0.148351788520813
+   ],
+   [
+    0.175925150513649,
+    0.07737722992897034,
+    0.16414327919483185
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuftL1_3",
+  "collider": null,
+  "tris": 164
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuft_4",
+  "collider": null,
+  "tris": 462,
+  "bbox": [
+   [
+    -0.14880907535552979,
+    -1.2452380043300576e-18,
+    -0.15441453456878662
+   ],
+   [
+    0.1774517297744751,
+    0.07230466604232788,
+    0.1585652232170105
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuftL1_4",
+  "collider": null,
+  "tris": 128
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuft_5",
+  "collider": null,
+  "tris": 480,
+  "bbox": [
+   [
+    -0.1722526103258133,
+    -1.2543670797629225e-18,
+    -0.17184840142726898
+   ],
+   [
+    0.1721341907978058,
+    0.0756198838353157,
+    0.16801278293132782
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuftL1_5",
+  "collider": null,
+  "tris": 132
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuft_6",
+  "collider": null,
+  "tris": 630,
+  "bbox": [
+   [
+    -0.18081042170524597,
+    -1.736353435373843e-18,
+    -0.1583940088748932
+   ],
+   [
+    0.16807778179645538,
+    0.06211114674806595,
+    0.16219112277030945
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuftL1_6",
+  "collider": null,
+  "tris": 172
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuft_7",
+  "collider": null,
+  "tris": 540,
+  "bbox": [
+   [
+    -0.15432482957839966,
+    -1.5606728877719212e-18,
+    -0.1723848581314087
+   ],
+   [
+    0.15259099006652832,
+    0.05438298359513283,
+    0.1721436083316803
+   ]
+  ]
+ },
+ {
+  "kind": "env",
+  "family": "lawn",
+  "name": "lawnTuftL1_7",
+  "collider": null,
+  "tris": 148
+ },
+ {
+  "kind": "env",
   "family": "hedges",
   "name": "hedge_0",
   "collider": {

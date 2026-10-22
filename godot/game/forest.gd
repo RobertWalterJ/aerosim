@@ -24,7 +24,6 @@ var tree_count := 0
 ## keep_clear(x, z) -> bool: return true for places where no tree may stand (cemetery, take-off pad).
 func plant(terrain: Terrain, keep_clear: Callable, span := 700.0, step := 9.5, seed_value := 11) -> void:
 	var rng := RandomNumberGenerator.new(); rng.seed = seed_value
-	var forest := FastNoiseLite.new(); forest.seed = 31; forest.frequency = 0.004
 	var park := FastNoiseLite.new(); park.seed = 8; park.frequency = 0.012
 	var cells := {}   # Vector2i -> variant index -> Array[Transform3D]
 	var x := -span
@@ -36,9 +35,8 @@ func plant(terrain: Terrain, keep_clear: Callable, span := 700.0, step := 9.5, s
 			z += step
 			var d := sqrt(px * px + pz * pz)
 			if d < 30.0 or keep_clear.call(px, pz): continue
-			var dens := forest.get_noise_2d(px, pz) * 0.5 + 0.5
-			# open parkland near the start, denser woodland further out
-			var want := smoothstep(0.32, 0.7, dens) * (0.35 + 0.65 * smoothstep(60.0, 320.0, d))
+			# open parkland near the start, denser woodland further out (same field the ground shader paints as forest floor)
+			var want := terrain.forest_want(px, pz)
 			if rng.randf() > want: continue
 			if terrain.normal_at(px, pz).y < 0.86: continue
 			var y := terrain.height(px, pz)

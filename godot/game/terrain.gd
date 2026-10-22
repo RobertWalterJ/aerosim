@@ -14,9 +14,16 @@ var _ridge := FastNoiseLite.new()
 var snow := 0.0 : set = set_snow
 var _mat: ShaderMaterial
 var _origin_h := 12.0
+var cover_tex: ImageTexture
+var height_tex: ImageTexture
+var lawn_rects: Array = []   # [{c: Vector2, half: Vector2}] extra mown areas, set before build()
+var _forest := FastNoiseLite.new()
+var _rag := FastNoiseLite.new()
 var _flats: Array = []   # [{c: Vector2, half: Vector2, blend: float, h: float}]
 
 func _init() -> void:
+	_forest.seed = 31; _forest.frequency = 0.004
+	_rag.seed = 19; _rag.frequency = 0.02
 	_noise.seed = 2024
 	_noise.frequency = 0.0022
 	_noise.fractal_octaves = 5
@@ -42,6 +49,21 @@ func add_flat_rect(centre: Vector2, half: Vector2, blend: float) -> float:
 	var h := raw_height(centre.x, centre.y)
 	_flats.append({"c": centre, "half": half, "blend": blend, "h": h})
 	return h
+
+## How much woodland (0..1) there should be at a point: drives both where trees stand and the woodland floor.
+func forest_want(x: float, z: float) -> float:
+	var d := sqrt(x * x + z * z)
+	var dens := _forest.get_noise_2d(x, z) * 0.5 + 0.5
+	return smoothstep(0.32, 0.7, dens) * (0.35 + 0.65 * smoothstep(60.0, 320.0, d))
+
+## Mown lawn amount (0..1): the park around the start and the land around any lawn rectangle, with a ragged edge.
+func mown(x: float, z: float) -> float:
+	var d := sqrt(x * x + z * z)
+	var m := 1.0 - smoothstep(55.0, 130.0, d)
+	for r in lawn_rects:
+		var q: Vector2 = (Vector2(x, z) - r["c"]).abs() - r["half"]
+		m = maxf(m, 1.0 - smoothstep(0.0, 45.0, maxf(q.x, q.y)))
+	return clampf(m + (_rag.get_noise_2d(x, z)) * 0.4 * minf(m * 2.0, 1.0), 0.0, 1.0)
 
 func build() -> void:
 	_origin_h = _noise.get_noise_2d(0.0, 0.0) * 16.0 + _ridge.get_noise_2d(300.0, -120.0) * 26.0 + 12.0
@@ -86,6 +108,7 @@ func build() -> void:
 	arrays[Mesh.ARRAY_INDEX] = idx
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_build_cover_textures()
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.material_override = _make_material()
@@ -126,29 +149,8 @@ func _color_at(x: float, z: float, y: float, n: Vector3) -> Color:
 	return c * 0.75
 
 func _make_material() -> ShaderMaterial:
-	var sh := Shader.new()
-	sh.code = """
-shader_type spatial;
-render_mode diffuse_lambert;
-uniform sampler2D detail : source_color, repeat_enable, filter_linear_mipmap;
-uniform float snow = 0.0;
-varying vec3 wpos;
-varying vec3 wnormal;
-void vertex() { wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; wnormal = NORMAL; }
-void fragment() {
-	vec3 d1 = texture(detail, wpos.xz * 0.35).rgb;
-	vec3 d2 = texture(detail, wpos.xz * 0.04).rgb;
-	vec3 base = COLOR.rgb * (0.55 + 0.9 * d1.r) * (0.75 + 0.5 * d2.r);
-	// snow settles on flat ground in uneven drifts
-	float drift = smoothstep(0.2, 0.8, d2.g + 0.3 * d1.g);
-	float cover = snow * smoothstep(0.55, 0.9, wnormal.y) * mix(0.7, 1.0, drift);
-	base = mix(base, vec3(0.62, 0.66, 0.74), cover);
-	ALBEDO = base;
-	ROUGHNESS = mix(0.95, 0.7, cover);
-}
-"""
 	var m := ShaderMaterial.new()
-	m.shader = sh
+	m.shader = load("res://game/shaders/ground.gdshader")
 	var tex := NoiseTexture2D.new()
 	var fn := FastNoiseLite.new()
 	fn.frequency = 0.04
@@ -157,10 +159,41 @@ void fragment() {
 	tex.width = 512; tex.height = 512
 	tex.seamless = true
 	tex.generate_mipmaps = true
-	m.set_shader_parameter("detail", tex)
+	m.set_shader_parameter("uDetail", tex)
+	var ntex := NoiseTexture2D.new()
+	ntex.noise = fn
+	ntex.width = 512; ntex.height = 512
+	ntex.seamless = true
+	ntex.as_normal_map = true
+	ntex.bump_strength = 4.0
+	m.set_shader_parameter("uDetailN", ntex)
+	m.set_shader_parameter("uCover", cover_tex)
+	m.set_shader_parameter("uSize", SIZE)
 	_mat = m
 	return m
 
 func set_snow(v: float) -> void:
 	snow = v
-	if _mat: _mat.set_shader_parameter("snow", v)
+	RenderingServer.global_shader_parameter_set("g_snow", v)
+
+## Ground data for the shaders: the height grid (for placing grass blades) and the cover map (woodland, mown lawn).
+func _build_cover_textures() -> void:
+	var n := CELLS + 1
+	var hb := PackedFloat32Array(); hb.resize(n * n)
+	for i in n * n: hb[i] = _h[i]
+	height_tex = ImageTexture.create_from_image(Image.create_from_data(n, n, false, Image.FORMAT_RF, hb.to_byte_array()))
+	var cs := 512
+	var img := Image.create(cs, cs, false, Image.FORMAT_RGB8)
+	for j in cs:
+		for i in cs:
+			var x := ((i + 0.5) / cs - 0.5) * SIZE
+			var z := ((j + 0.5) / cs - 0.5) * SIZE
+			var f := clampf(forest_want(x, z) * 1.3, 0.0, 1.0)
+			var m := mown(x, z) * (1.0 - f)
+			img.set_pixel(i, j, Color(f, 0.0, m))
+	cover_tex = ImageTexture.create_from_image(img)
+
+## Cover at a point: x woodland, z mown lawn (the same data the shaders read).
+func cover_at(x: float, z: float) -> Vector2:
+	var f := clampf(forest_want(x, z) * 1.3, 0.0, 1.0)
+	return Vector2(f, mown(x, z) * (1.0 - f))

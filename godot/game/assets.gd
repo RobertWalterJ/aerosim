@@ -21,6 +21,7 @@ static func parts(name: String) -> Array:
 	_collect(inst, Transform3D.IDENTITY, out)
 	inst.free()
 	_tint_far(name, out)
+	_swap_foliage(name, out)
 	_cache[name] = out
 	return out
 
@@ -43,6 +44,32 @@ static func _load_env() -> void:
 		# the exporter parented each model directly under the root, so drop the node's own transform
 		_cache["env/" + str(c.name)] = out
 	inst.free()
+
+## Trees and ground cover get the wind-sway shader in place of the imported standard material.
+static func _swap_foliage(name: String, out: Array) -> void:
+	if name.begins_with("trees/far_"): return
+	if not (name.begins_with("trees/") or name.begins_with("env/meadowClump") or name.begins_with("env/lawnTuft")): return
+	var shader := load("res://game/shaders/foliage.gdshader") as Shader
+	for p in out:
+		var mesh: Mesh = p["mesh"]
+		for i in mesh.get_surface_count():
+			var src := mesh.surface_get_material(i)
+			if not (src is BaseMaterial3D): continue
+			var b := src as BaseMaterial3D
+			var wood := b.transparency != BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			var m := ShaderMaterial.new()
+			m.shader = shader
+			m.set_shader_parameter("albedo_tex", b.albedo_texture)
+			if b.normal_texture != null:
+				m.set_shader_parameter("normal_tex", b.normal_texture)
+				m.set_shader_parameter("use_normal", true)
+			m.set_shader_parameter("use_alpha", not wood)
+			m.set_shader_parameter("alpha_cut", b.alpha_scissor_threshold if not wood else 0.5)
+			m.set_shader_parameter("roughness", b.roughness)
+			m.set_shader_parameter("flutter", 0.0 if wood else 1.0)
+			m.set_shader_parameter("translucency", 0.0 if wood else 0.55)
+			m.set_shader_parameter("tint", Vector3(b.albedo_color.r, b.albedo_color.g, b.albedo_color.b))
+			mesh.surface_set_material(i, m)
 
 static func _tint_far(name: String, out: Array) -> void:
 	# the far silhouettes carry only baked shading; give them their colour here
