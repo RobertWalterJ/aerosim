@@ -47,10 +47,13 @@ static func _load_world() -> void:
 		var fam := str(c.name).split("__")[0]
 		if fam in ["meadow", "hedge-boxwood", "hedge-yew", "shrubs"]:
 			_swap_foliage_parts(out)
-		elif fam in ["memorials", "stone-wall"]:
-			_swap_stone(out)
+		elif fam in STONE_FAMILIES:
+			_swap_stone(out, STONE_FAMILIES[fam])
+		elif fam == "park":
+			_swap_stone(out, "granite")       # the park's headstones (park__inst0..3); lamps and benches have no stone texture
 		_cache["world/" + str(c.name)] = out
 	inst.free()
+	_swap_park_stone()
 
 static var _env_loaded := false
 
@@ -68,7 +71,7 @@ static func _load_env() -> void:
 	for c in holder.get_children():
 		var out := []
 		_collect(c, Transform3D.IDENTITY, out)
-		_swap_stone(out)
+		_swap_stone(out, _env_stone_look(str(c.name)))
 		_swap_foliage("env/" + str(c.name), out)
 		_cache["env/" + str(c.name)] = out
 	inst.free()
@@ -102,9 +105,23 @@ static func _swap_foliage_parts(out: Array) -> void:
 			m.set_shader_parameter("tint", Vector3(b.albedo_color.r, b.albedo_color.g, b.albedo_color.b))
 			mesh.surface_set_material(i, m)
 
-## The cemetery's stone gets its own shader (polish, lichen, rain and snow response).
-static func _swap_stone(out: Array) -> void:
-	var shader := load("res://game/shaders/stone.gdshader") as Shader
+## ---- stone and brick ----
+## The cemetery's stone gets its own shader (polish, lichen, rain and snow response), and most of it a photographed
+## PBR set from assets/textures (see the README there) laid on at real size. Looks:
+##   memorial  weathered limestone over the model's stone (Victorian memorials, headstones in env)
+##   granite   the model's polished or honed granite; polish follows the imported roughness (park headstones, obelisks)
+##   rubble    random rubble wall (the boundary wall)      rock    lichened natural rock (outcrops)
+##   brick     red brick (chapel plinth)                    ashlar  dressed stone blocks (memorial steps, gate piers)
+const STONE_FAMILIES := {"memorials": "memorial", "stone-wall": "rubble", "rocks": "rock"}
+## Each set's metres per repeat.
+const STONE_SETS := {"rubble": 2.4, "mossrock": 3.0, "limestone": 1.2, "ashlar": 3.0, "brick": 1.0}
+
+static var _stone_mats := {}     # one shared material per look and source material, never one per instance
+static var _stone_tex := {}
+static var _park_scene: PackedScene
+
+static func _swap_stone(out: Array, look := "memorial") -> void:
+	if look == "": return
 	for p in out:
 		var mesh: Mesh = p["mesh"]
 		for i in mesh.get_surface_count():
@@ -112,11 +129,88 @@ static func _swap_stone(out: Array) -> void:
 			if not (src is BaseMaterial3D): continue
 			var b := src as BaseMaterial3D
 			if b.albedo_texture == null: continue
-			var m := ShaderMaterial.new()
-			m.shader = shader
-			m.set_shader_parameter("albedo_tex", b.albedo_texture)
-			if b.normal_texture != null: m.set_shader_parameter("normal_tex", b.normal_texture)
-			mesh.surface_set_material(i, m)
+			if look == "granite" and b.normal_texture == null: continue    # e.g. the park bench's wood
+			mesh.surface_set_material(i, _stone_mat(b, look))
+
+static func _env_stone_look(node: String) -> String:
+	if node.begins_with("stoneWall"): return "rubble"
+	if node.begins_with("rockOutcrop"): return "rock"
+	for k in ["headstone", "willowMarker", "urnMonument", "crossMonument", "angelMonument", "kerbedPlot"]:
+		if node.begins_with(k): return "memorial"
+	return ""     # wood, foliage and ground in the same file keep their own material
+
+static func _stone_mat(b: BaseMaterial3D, look: String) -> ShaderMaterial:
+	var key := "%s:%d" % [look, b.get_instance_id()]
+	if _stone_mats.has(key): return _stone_mats[key]
+	var m := ShaderMaterial.new()
+	m.shader = load("res://game/shaders/stone.gdshader") as Shader
+	m.set_shader_parameter("albedo_tex", b.albedo_texture)
+	if b.normal_texture != null: m.set_shader_parameter("normal_tex", b.normal_texture)
+	match look:
+		"memorial":
+			_stone_set(m, "limestone", 2)
+			m.set_shader_parameter("set_mix", 0.6); m.set_shader_parameter("set_tint", Vector3(0.78, 0.77, 0.74))
+			m.set_shader_parameter("set_jitter", 1.0); m.set_shader_parameter("set_normal_amt", 0.8)
+		"granite":
+			var polish := clampf(inverse_lerp(0.62, 0.14, b.roughness), 0.0, 1.0)
+			_stone_set(m, "limestone", 2)
+			m.set_shader_parameter("polish_override", polish); m.set_shader_parameter("tint", Vector3(0.8, 0.8, 0.8))
+			m.set_shader_parameter("set_mix", 0.15); m.set_shader_parameter("set_tint", Vector3(0.7, 0.7, 0.68))
+			m.set_shader_parameter("set_jitter", 1.0); m.set_shader_parameter("set_normal_amt", 0.45)
+		"rubble":
+			_stone_set(m, "rubble", 1)
+			m.set_shader_parameter("polish_override", 0.0); m.set_shader_parameter("set_tint", Vector3(1.05, 1.02, 0.98))
+		"rock":
+			_stone_set(m, "mossrock", 1)
+			m.set_shader_parameter("polish_override", 0.0); m.set_shader_parameter("set_jitter", 1.0); m.set_shader_parameter("moss_amt", 0.5)
+		"brick":
+			_stone_set(m, "brick", 1)
+			m.set_shader_parameter("polish_override", 0.0); m.set_shader_parameter("set_tint", Vector3(0.92, 0.9, 0.9)); m.set_shader_parameter("moss_amt", 0.4)
+		"ashlar":
+			_stone_set(m, "ashlar", 1)
+			m.set_shader_parameter("polish_override", 0.1); m.set_shader_parameter("moss_amt", 0.6)
+	_stone_mats[key] = m
+	return m
+
+static func _stone_set(m: ShaderMaterial, set_name: String, mode: int) -> void:
+	if not _stone_tex.has(set_name):
+		var t := []
+		for map in ["diff", "nor", "arm"]: t.append(load("res://assets/textures/%s_%s.jpg" % [set_name, map]))
+		_stone_tex[set_name] = t
+	var tex: Array = _stone_tex[set_name]
+	if tex[0] == null: return      # set missing: keep the model's own stone
+	m.set_shader_parameter("set_mode", mode)
+	m.set_shader_parameter("set_albedo", tex[0]); m.set_shader_parameter("set_normal", tex[1]); m.set_shader_parameter("set_arm", tex[2])
+	m.set_shader_parameter("set_metres", float(STONE_SETS[set_name]))
+	if mode == 1: m.set_shader_parameter("model_normal_amt", 0.0)
+
+## The one-off park pieces (world.gd instances park.glb itself). Its meshes are shared with that instance, so swapping
+## their materials here re-dresses the memorial, obelisks, gate piers and chapel plinth. The node names are generic,
+## so pieces are told apart by size and imported roughness; the chapel's clapboard, roofs and trim are left alone.
+static func _swap_park_stone() -> void:
+	_park_scene = load("res://assets/world/park.glb") as PackedScene
+	if _park_scene == null: return
+	var inst := _park_scene.instantiate()
+	_park_stone_walk(inst)
+	inst.free()
+
+static func _park_stone_walk(n: Node) -> void:
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		var mesh := (n as MeshInstance3D).mesh
+		var sz := mesh.get_aabb().size
+		for i in mesh.get_surface_count():
+			var src := mesh.surface_get_material(i)
+			if not (src is BaseMaterial3D): continue
+			var b := src as BaseMaterial3D
+			if b.albedo_texture == null or b.normal_texture == null: continue
+			var r := b.roughness
+			var look := ""
+			if sz.y > 0.5 and sz.y < 1.5 and sz.x > 5.0 and sz.z > 5.0 and r >= 0.8: look = "brick"            # chapel plinth
+			elif sz.y < 0.4 and sz.x > 1.5 and absf(sz.x - sz.z) < 0.05 and r >= 0.5 and r < 0.7: look = "ashlar"   # memorial steps
+			elif sz.y > 3.0 and sz.y < 4.0 and sz.x < 1.2 and r >= 0.5 and r < 0.7: look = "ashlar"           # gate piers
+			elif r < 0.7: look = "granite"                                                                     # pedestal, plaques, obelisks
+			if look != "": mesh.surface_set_material(i, _stone_mat(b, look))
+	for c in n.get_children(): _park_stone_walk(c)
 
 static func _tint_far(name: String, out: Array) -> void:
 	# the far silhouettes carry only baked shading; give them their colour here
