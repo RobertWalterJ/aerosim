@@ -44,9 +44,7 @@ func _ready() -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var th := Theme.new()
-	th.default_font_size = 22
-	_root.theme = th
+	_root.theme = _make_theme()
 	add_child(_root)
 	_build_flight_hud()
 	_build_pause_menu()
@@ -57,6 +55,57 @@ func _safe_margin() -> Vector4:
 	var win := DisplayServer.window_get_size()
 	if r.size.x <= 0 or win.x <= 0: return Vector4(10, 10, 10, 10)
 	return Vector4(maxf(10, r.position.x), maxf(10, r.position.y), 10, 10)
+
+# ------------------------------------------------------------------ look
+func _box(bg: Color, border: Color = Color(0.86, 1, 0.94, 0.35), radius: int = 12, margin: int = 12) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg; sb.border_color = border; sb.set_border_width_all(1); sb.set_corner_radius_all(radius); sb.set_content_margin_all(margin)
+	return sb
+
+func _grabber(radius: int, col: Color) -> ImageTexture:
+	var n := radius * 2 + 2
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var d := Vector2(x + 0.5 - n / 2.0, y + 0.5 - n / 2.0).length()
+			var a := clampf(radius + 0.5 - d, 0.0, 1.0)
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
+	return ImageTexture.create_from_image(img)
+
+func _make_theme() -> Theme:
+	var th := Theme.new()
+	th.default_font_size = 22
+	var idle := Color(0.14, 0.24, 0.27, 0.92)
+	th.set_stylebox("normal", "Button", _box(idle))
+	th.set_stylebox("hover", "Button", _box(Color(0.20, 0.33, 0.37, 0.95)))
+	th.set_stylebox("pressed", "Button", _box(Color(0.10, 0.46, 0.34, 0.97), Color.WHITE))
+	th.set_stylebox("hover_pressed", "Button", _box(Color(0.13, 0.52, 0.39, 0.97), Color.WHITE))
+	th.set_stylebox("focus", "Button", StyleBoxEmpty.new())
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		th.set_color(c, "Button", Color.WHITE)
+	# sliders: a thick track and a big round handle, easy to hit with a thumb
+	var track := _box(Color(0.30, 0.40, 0.42, 0.9), Color(0, 0, 0, 0), 6, 0); track.content_margin_top = 5; track.content_margin_bottom = 5
+	var fill := _box(Color(0.30, 0.85, 0.65, 0.95), Color(0, 0, 0, 0), 6, 0); fill.content_margin_top = 5; fill.content_margin_bottom = 5
+	for t in ["HSlider", "VSlider"]:
+		th.set_stylebox("slider", t, track)
+		th.set_stylebox("grabber_area", t, fill)
+		th.set_stylebox("grabber_area_highlight", t, fill)
+		th.set_icon("grabber", t, _grabber(18, Color(0.95, 1, 0.97)))
+		th.set_icon("grabber_highlight", t, _grabber(20, Color.WHITE))
+		th.set_icon("grabber_disabled", t, _grabber(18, Color(0.6, 0.6, 0.6)))
+	th.set_constant("center_grabber", "HSlider", 1)
+	# tabs
+	var tab_on := _box(Color(0.10, 0.46, 0.34, 0.97), Color.WHITE, 10, 14); tab_on.content_margin_left = 26; tab_on.content_margin_right = 26
+	var tab_off := _box(idle, Color(0.86, 1, 0.94, 0.25), 10, 14); tab_off.content_margin_left = 26; tab_off.content_margin_right = 26
+	th.set_stylebox("tab_selected", "TabContainer", tab_on)
+	th.set_stylebox("tab_unselected", "TabContainer", tab_off)
+	th.set_stylebox("tab_hovered", "TabContainer", _box(Color(0.20, 0.33, 0.37, 0.95), Color(0.86, 1, 0.94, 0.4), 10, 14))
+	th.set_stylebox("panel", "TabContainer", StyleBoxEmpty.new())
+	th.set_font_size("font_size", "TabContainer", 24)
+	for c in ["font_selected_color", "font_unselected_color", "font_hovered_color"]:
+		th.set_color(c, "TabContainer", Color.WHITE)
+	th.set_constant("side_margin", "TabContainer", 4)
+	return th
 
 # ------------------------------------------------------------------ flight screen
 func _build_flight_hud() -> void:

@@ -13,6 +13,7 @@ var _noise := FastNoiseLite.new()
 var _ridge := FastNoiseLite.new()
 var snow := 0.0 : set = set_snow
 var _mat: ShaderMaterial
+var _origin_h := 12.0
 
 func _init() -> void:
 	_noise.seed = 2024
@@ -24,13 +25,14 @@ func _init() -> void:
 
 func raw_height(x: float, z: float) -> float:
 	var d := sqrt(x * x + z * z)
-	var base := _noise.get_noise_2d(x, z) * 38.0 + _ridge.get_noise_2d(x + 300.0, z - 120.0) * 55.0 + 22.0
+	var base := _noise.get_noise_2d(x, z) * 16.0 + _ridge.get_noise_2d(x + 300.0, z - 120.0) * 26.0 + 12.0
 	# rise gently towards the valley walls so the horizon is not a flat edge
-	base += pow(clampf(d / 700.0, 0.0, 1.5), 2.0) * 40.0
+	base += pow(clampf((d - 250.0) / 550.0, 0.0, 1.5), 2.0) * 60.0
 	var pad := smoothstep(PAD_R, PAD_R + PAD_BLEND, d)
-	return lerpf(3.0, base, pad)
+	return lerpf(_origin_h, base, pad)
 
 func build() -> void:
+	_origin_h = _noise.get_noise_2d(0.0, 0.0) * 16.0 + _ridge.get_noise_2d(300.0, -120.0) * 26.0 + 12.0
 	var n1 := CELLS + 1
 	_h.resize(n1 * n1)
 	for j in n1:
@@ -61,8 +63,8 @@ func build() -> void:
 			var b := a + 1
 			var c := a + n1
 			var d := c + 1
-			idx[k] = a; idx[k + 1] = c; idx[k + 2] = b
-			idx[k + 3] = b; idx[k + 4] = c; idx[k + 5] = d
+			idx[k] = a; idx[k + 1] = b; idx[k + 2] = c
+			idx[k + 3] = b; idx[k + 4] = d; idx[k + 5] = c
 			k += 6
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -105,11 +107,11 @@ func normal_at(x: float, z: float) -> Vector3:
 
 func _color_at(x: float, z: float, y: float, n: Vector3) -> Color:
 	var slope := 1.0 - n.y
-	var grass := Color(0.27, 0.40, 0.14).lerp(Color(0.40, 0.46, 0.18), clampf(_noise.get_noise_2d(x * 3.0, z * 3.0) * 0.5 + 0.5, 0.0, 1.0))
+	var grass := Color(0.34, 0.42, 0.12).lerp(Color(0.46, 0.48, 0.16), clampf(_noise.get_noise_2d(x * 3.0, z * 3.0) * 0.5 + 0.5, 0.0, 1.0))
 	var rock := Color(0.40, 0.38, 0.34)
 	var c := grass.lerp(rock, smoothstep(0.12, 0.35, slope))
 	c = c.lerp(Color(0.55, 0.5, 0.35), smoothstep(60.0, 110.0, y) * 0.5)   # dry upland
-	return c.srgb_to_linear()
+	return c * 0.75
 
 func _make_material() -> ShaderMaterial:
 	var sh := Shader.new()
