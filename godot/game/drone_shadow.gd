@@ -34,9 +34,9 @@ func update(drone_pos: Vector3, heading: float, light_dir: Vector3, strength: fl
 	var span := (_armd * 1.4142 + _r) * 2.0
 	var hl := Vector2(light_dir.x, light_dir.z)
 	hl = hl.normalized() if hl.length() > 1e-4 else Vector2(0, 1)
-	var detail_a := strength * 0.8 * (1.0 - smoothstep(1.2, 9.0, h))
-	var blob_a := strength * 0.7 / (1.0 + h / 14.0)
-	var blob_w := span * (1.5 + h * 0.08)
+	var detail_a := strength * 0.9 * (1.0 - smoothstep(6.0, 45.0, h))
+	var blob_a := strength * 0.7 / (1.0 + h / 30.0)
+	var blob_w := span * (2.6 + h * 0.06)
 	RenderingServer.global_shader_parameter_set("g_dsA", Vector4(p.x, p.z, heading, _armd))
 	RenderingServer.global_shader_parameter_set("g_dsB", Vector4(detail_a, blob_a, blob_w, clampf(1.0 / ly, 1.0, 3.2)))
 	RenderingServer.global_shader_parameter_set("g_dsC", Vector4(-hl.x, -hl.y, _r, drone_pos.y))

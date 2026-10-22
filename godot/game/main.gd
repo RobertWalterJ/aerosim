@@ -422,7 +422,13 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	# fog: thicker and greyer in rain, snow and mist
 	var grey := clampf(float(c["haze"]) * 0.9 + float(c["fog"]) * 0.4, 0.0, 1.0)
 	env.fog_density = 0.00012 * float(c["fogd"])
-	env.fog_light_color = Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey) * lerpf(0.03 + 0.12 * moon_f, 1.0, _daylight)
+	# low sun: warm golden haze in the air and cool blue light in the shade, the way a real evening looks
+	var warm := (1.0 - smoothstep(3.0, 24.0, _sun_el)) * smoothstep(-2.0, 3.0, _sun_el) * (1.0 - 0.7 * float(c["cover"]))
+	var fog_c := Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey).lerp(Color(1.0, 0.66, 0.40), warm * 0.75)
+	env.fog_light_color = fog_c * lerpf(0.03 + 0.12 * moon_f, 1.0, _daylight)
+	env.fog_sun_scatter = 0.35 + 0.5 * warm
+	env.ambient_light_color = Color(0.78, 0.82, 0.62).lerp(Color(0.52, 0.62, 0.95), warm * 0.8)
+	sun.light_energy = maxf(sun.light_energy, 0.0) * (1.0 + 0.5 * warm)
 	env.fog_sky_affect = 0.05 + 0.6 * float(c["fog"])
 	env.fog_height_density = 0.0003 * float(c["fogd"])
 	# wind follows the condition

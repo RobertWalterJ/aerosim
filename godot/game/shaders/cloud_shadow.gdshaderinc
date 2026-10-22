@@ -11,7 +11,7 @@ float cs_noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 
 float drone_shadow(vec3 wp) {
 	if (g_dsB.x + g_dsB.y < 0.001) return 1.0;
 	vec2 d = wp.xz - g_dsA.xy;
-	if (dot(d, d) > 400.0) return 1.0;
+	if (dot(d, d) > 900.0) return 1.0;
 	float below = 1.0 - smoothstep(g_dsC.w - 0.3, g_dsC.w + 0.6, wp.y);       // only things lower than the drone are in its shadow
 	vec2 dir = g_dsC.xy;
 	vec2 perp = vec2(-dir.y, dir.x);
@@ -19,7 +19,7 @@ float drone_shadow(vec3 wp) {
 	float bv = dot(d, perp) / (0.5 * g_dsB.z);
 	float blob = pow(1.0 - smoothstep(0.0, 1.0, sqrt(bu * bu + bv * bv)), 1.6) * g_dsB.y;
 	float ch = cos(g_dsA.z); float sh = sin(g_dsA.z);
-	vec2 loc = vec2(ch * d.x - sh * d.y, sh * d.x + ch * d.y);       // the point in the drone's own axes
+	vec2 loc = vec2(ch * d.x - sh * d.y, sh * d.x + ch * d.y) / 1.9;     // drawn 1.9 times life size so it can be seen       // the point in the drone's own axes
 	float k = g_dsA.w / 0.0795;
 	float body = 1.0 - smoothstep(0.85, 1.05, length(vec2(loc.x / (0.05 * k), loc.y / (0.085 * k))));
 	vec2 a = abs(loc);
