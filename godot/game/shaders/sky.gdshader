@@ -52,6 +52,15 @@ void sky() {
 	// Mie glow and sun disc
 	float glow = pow(max(mu, 0.0), 6.0) * 0.35 + pow(max(mu, 0.0), 64.0) * 0.8;
 	col += vec3(1.0, 0.82, 0.58) * glow * day * (1.0 - 0.8 * cover);
+	// distant ridges beyond the edge of the modelled land: two hazy silhouettes, the far one paler
+	float az = atan(dir.x, dir.z);
+	float ridge_far = 0.010 + 0.042 * vnoise(vec3(az * 1.7, 0.5, 0.5)) + 0.014 * vnoise(vec3(az * 6.0, 2.0, 0.5));
+	float ridge_near = 0.004 + 0.026 * vnoise(vec3(az * 2.6, 4.0, 1.5)) + 0.008 * vnoise(vec3(az * 9.0, 7.0, 0.5));
+	float vis = (1.0 - clamp(fog * 1.1, 0.0, 1.0)) * step(0.0, dir.y) * day;
+	vec3 far_c = mix(horizon, vec3(0.36, 0.50, 0.66), 0.55);
+	vec3 near_c = mix(horizon, vec3(0.20, 0.33, 0.38), 0.65);
+	col = mix(col, far_c, (1.0 - smoothstep(ridge_far - 0.0015, ridge_far + 0.0015, dir.y)) * vis * 0.85);
+	col = mix(col, near_c, (1.0 - smoothstep(ridge_near - 0.0015, ridge_near + 0.0015, dir.y)) * vis * 0.8);
 	float disc = smoothstep(0.99955, 0.99975, mu) * 60.0 * day;
 	// ---- clouds on a plane above the viewer
 	float cloud_a = 0.0;

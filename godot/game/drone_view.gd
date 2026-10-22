@@ -8,6 +8,7 @@ var _discs: Array[MeshInstance3D] = []
 var _gimbal: Node3D
 var _af: Dictionary
 var _omega_max := 1.0
+var _fpv := false
 
 func build(af: Dictionary) -> void:
 	for c in get_children(): c.queue_free()
@@ -71,12 +72,18 @@ func build(af: Dictionary) -> void:
 	if not af["hasGimbal"]:
 		_gimbal.rotation.x = af["camTilt"]
 
+## Through the drone's own camera: the camera pod would fill the picture, so it is hidden, and fast props show as a blur.
+func set_fpv(on: bool) -> void:
+	_fpv = on
+	if _gimbal: _gimbal.visible = not on
+
 func update_props(motor_omega: PackedFloat64Array, t: float, armed: bool) -> void:
 	for i in _props.size():
 		var w := motor_omega[13 + i]
 		var spin := 1.0 if i % 2 == 1 else -1.0
 		_props[i].rotation.y = fmod(t * w * 0.05 * spin, TAU) if armed else _props[i].rotation.y
-		var a := clampf(w / (_omega_max * 0.35), 0.0, 1.0) * 0.22
+		var a := clampf(w / (_omega_max * 0.35), 0.0, 1.0) * (0.5 if _fpv else 0.22)
+		_props[i].visible = not (_fpv and w > _omega_max * 0.3 and armed)
 		(_discs[i].material_override as StandardMaterial3D).albedo_color.a = a
 
 func _mat(c: Color, rough: float, metal: float) -> StandardMaterial3D:

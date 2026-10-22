@@ -7,6 +7,7 @@ render_mode cull_disabled, depth_draw_opaque, specular_schlick_ggx;
 
 global uniform vec3 g_cam;
 global uniform float g_time;
+#include "res://game/shaders/cloud_shadow.gdshaderinc"
 global uniform vec3 g_wind;       // canopy-level wind in m/s
 global uniform vec4 g_drone;      // xyz drone position, w = downwash radius
 global uniform float g_wash;      // downwash strength 0..1
@@ -91,7 +92,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = vCol;
+	ALBEDO = vCol * cloud_shade((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	ROUGHNESS = (uLitter < 0.5 ? 0.62 : 0.8) * mix(1.0, 0.45, g_wet);
 	SPECULAR = mix(0.25, 0.7, g_wet);
 	BACKLIGHT = uLitter < 0.5 ? vCol * 0.55 : vec3(0.0);

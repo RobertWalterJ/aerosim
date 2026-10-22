@@ -27,6 +27,7 @@ uniform float uGhostK = 0.55;
 uniform float uFrame = 0.0;
 uniform float uFlareI = 1.0;
 uniform float uVig = 0.28;
+uniform float uRain = 0.0;     // water on the lens, 0 dry .. 1 streaming
 vec4 T(sampler2D s, vec2 v) { return texture(s, vec2(v.x, 1.0 - v.y)); }
 float hash(vec2 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973).xy); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
 const vec3 ghostCol = vec3(0.0513, 1.0, 0.402);
@@ -35,9 +36,9 @@ vec3 flare(vec2 uvS, float gSunVis) {
 	vec2 d = (uvS - uSunS) * uS * vec2(uAspect, 1.0);
 	float ang = radians(10.0); vec2 n = vec2(sin(ang), cos(ang)); vec2 pp = vec2(n.y, -n.x);
 	float al = dot(d, n); float pe = dot(d, pp);
-	float streak = exp(-pe * pe / (2.0 * 0.0025 * 0.0025)) * exp(-al * al / (2.0 * 0.28 * 0.28));
+	float streak = exp(-pe * pe / (2.0 * 0.0025 * 0.0025)) * exp(-al * al / (2.0 * 0.14 * 0.14));
 	float halo = exp(-dot(d, d) / (2.0 * 0.02 * 0.02)) * 0.8 + exp(-dot(d, d) / (2.0 * 0.12 * 0.12)) * 0.08;
-	vec3 c = (vec3(1.0, 0.93, 0.82) * streak * 0.35 + vec3(1.0, 0.82, 0.6) * halo) * gSunVis * uFlareI;
+	vec3 c = (vec3(1.0, 0.93, 0.82) * streak * 0.3 + vec3(1.0, 0.82, 0.6) * halo) * gSunVis * uFlareI;
 	vec2 sf = (uSunS - 0.5) * uS;
 	vec2 gp = -uGhostK * sf;
 	vec2 gd = ((uvS - 0.5) * uS - gp) * vec2(uAspect, 1.0);
@@ -48,6 +49,18 @@ vec3 flare(vec2 uvS, float gSunVis) {
 	vec2 gp2 = -0.28 * sf; float r2 = length(((uvS - 0.5) * uS - gp2) * vec2(uAspect, 1.0));
 	c += vec3(0.9, 0.5, 0.35) * exp(-pow((r2 - 0.03) / 0.005, 2.0)) * 0.25 * gSunVis * uFlareI * fadeG;
 	return c;
+}
+
+// drops of water on the lens: each bends the picture like a tiny fisheye, so the scene shows through it upside down
+vec2 droplets(vec2 uv) {
+	vec2 g = uv * vec2(uAspect, 1.0) * 8.0;
+	vec2 id = floor(g); vec2 f = fract(g) - 0.5;
+	if (hash(id + 9.0) > uRain) return vec2(0.0);
+	vec2 p = (vec2(hash(id + 3.1), hash(id + 7.7)) - 0.5) * 0.5;
+	float size = 0.12 + 0.2 * hash(id + 1.3);
+	vec2 d = f - p; float r = length(d);
+	float m = smoothstep(size, size * 0.55, r);
+	return -d / size * m * 0.03 * vec2(1.0 / uAspect, 1.0);
 }
 
 void fragment() {
@@ -71,6 +84,8 @@ void fragment() {
 	vec2 sR = 0.5 + 0.5 * a * f * (1.0 + uCA) / uS;
 	vec2 sG = 0.5 + 0.5 * a * f / uS;
 	vec2 sB = 0.5 + 0.5 * a * f * (1.0 - uCA) / uS;
+	vec2 dr = droplets(vUv) * step(0.001, uRain);
+	sR += dr; sG += dr; sB += dr;
 	float e = exp2(texture(uExp, vec2(0.5)).r);
 	vec3 col = vec3(T(uScene, sR).r, T(uScene, sG).g, T(uScene, sB).b) * e;
 	vec3 bl = vec3(T(uBloom, sR).r, T(uBloom, sG).g, T(uBloom, sB).b);

@@ -1,6 +1,7 @@
 // The ground under the grass: mown lawn with faint mowing stripes, tall dry meadow with bare patches, and woodland
 // floor with fallen leaves, all blended by the cover texture (r = woodland, b = mown lawn). Snow settles on flat ground.
 shader_type spatial;
+#include "res://game/shaders/cloud_shadow.gdshaderinc"
 render_mode diffuse_burley, specular_schlick_ggx, cull_disabled;
 
 global uniform float g_snow;
@@ -80,6 +81,7 @@ void fragment() {
 	float puddle = wet * smoothstep(0.60, 0.70, gfbm(xz * 0.09 + 5.0)) * smoothstep(0.55, 0.9, abs(nrm.y)) * (1.0 - forest * 0.5);
 	g *= mix(1.0, 0.62, wet);
 	g = mix(g, g * 0.55, puddle);
+	g *= cloud_shade(wpos);
 	ALBEDO = g;
 	float base_rough = mix(0.96, arm.g, asph);
 	ROUGHNESS = mix(mix(base_rough, 0.7, cov), mix(mix(0.55, 0.3, asph), 0.04, puddle), wet);

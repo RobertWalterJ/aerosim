@@ -186,7 +186,14 @@ func _build_world() -> void:
 		env.ssr_fade_in = 0.15
 		env.ssr_fade_out = 2.0
 		env.ssr_depth_tolerance = 0.25
-		env.sdfgi_enabled = false
+		# sun and sky light bouncing between the ground, grass and trees. Off by default (it blackens the leaf cards); try it with `gi`.
+		env.sdfgi_enabled = OS.get_cmdline_user_args().has("gi")
+		env.sdfgi_use_occlusion = true
+		env.sdfgi_cascades = 5
+		env.sdfgi_min_cell_size = 1.0
+		env.sdfgi_energy = 1.0
+		env.sdfgi_bounce_feedback = 0.4
+		if env.sdfgi_enabled: env.ssil_enabled = false
 	sun.light_angular_distance = 0.5     # soft shadow edges, wider further from the caster
 	var we := WorldEnvironment.new(); we.environment = env
 	add_child(we)
@@ -290,11 +297,15 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	env.fog_height_density = 0.0003 * float(c["fogd"])
 	# wind follows the condition
 	wind.speed = _base_wind * float(c["wind"])
+	RenderingServer.global_shader_parameter_set("g_cloud", Vector4(float(c["cover"]), wd.x * (4.0 + 2.0 * wind.speed), wd.z * (4.0 + 2.0 * wind.speed), sim_time))
 	wind.gust = clampf(_base_gust + (0.35 if wx.kind == WeatherSystem.Kind.STORM else 0.0), 0.0, 1.0)
 	# precipitation
 	var rain := float(c["rain"])
 	var snow_p := float(c["snow"])
 	rain_fx.emitting = rain > 0.03
+	# water collects on the lens in rain and dries slowly once it stops
+	_lens_water = move_toward(_lens_water, clampf(rain * 1.4, 0.0, 0.8) if rain > 0.03 else 0.0, delta * (0.25 if rain > 0.03 else 0.03))
+	sensor.rain_lens = _lens_water if not chase else 0.0
 	rain_fx.amount_ratio = clampf(rain, 0.05, 1.0)
 	var lean := wind.toward() * wind.speed * 0.9
 	rain_mat.gravity = Vector3(lean.x, -22.0, lean.z)
@@ -405,7 +416,8 @@ func _process(delta: float) -> void:
 		else:
 			cam.global_transform.basis = Basis(q) * Basis(Vector3.RIGHT, float(af["camTilt"]))
 		cam.fov = 84.0
-	drone_view.visible = chase
+	drone_view.visible = true
+	drone_view.set_fpv(not chase)
 	drone_view.update_props(quad.s, sim_time, quad.armed)
 	# precipitation follows the camera
 	snow_fx.global_position = cam.global_position + Vector3(0, 12, 0)
@@ -436,6 +448,8 @@ func _screenshot_mode(arg: String) -> void:
 	var frames := int(parts[1]) if parts.size() > 1 else 90
 	if parts.size() > 2: chase = parts[2] == "chase"; hud.set_chase(chase)
 	for c in parts.slice(3):
+		if c.begins_with("drone"): switch_drone(c.substr(5))
+		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
 		if c == "climb":
 			_auto_climb = true
 		if c.begins_with("at"):
@@ -466,6 +480,7 @@ func _screenshot_mode(arg: String) -> void:
 	get_tree().quit()
 
 var _auto_climb := false
+var _lens_water := 0.0
 
 var _selftest := false
 

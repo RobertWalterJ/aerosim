@@ -5,6 +5,7 @@ shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, specular_schlick_ggx;
 
 global uniform float g_time;
+#include "res://game/shaders/cloud_shadow.gdshaderinc"
 global uniform vec3 g_wind;
 global uniform vec4 g_drone;
 global uniform float g_wash;
@@ -23,6 +24,7 @@ uniform float flutter = 1.0;          // leaf flutter amount (0 for bare wood)
 uniform vec3 tint = vec3(1.0);
 
 varying vec3 vCol;
+varying vec3 vVar;
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -46,14 +48,21 @@ void vertex() {
 	// world displacement back into the model's own space (instances are uniformly scaled and turned about Y)
 	VERTEX += inverse(mat3(MODEL_MATRIX)) * wv;
 	vCol = COLOR.rgb;
+	// every tree is a touch different: brightness and a slight hue lean, from where it stands
+	vec2 oc = MODEL_MATRIX[3].xz;
+	float h1 = fract(sin(dot(oc, vec2(12.9898, 78.233))) * 43758.5453);
+	float h2 = fract(sin(dot(oc, vec2(39.346, 11.135))) * 24634.6345);
+	vVar = vec3(0.88 + 0.24 * h1 + 0.06 * (h2 - 0.5), 0.9 + 0.2 * h1, 0.86 + 0.28 * h2);
 }
 
 void fragment() {
 	vec4 t = texture(albedo_tex, UV);
 	if (use_alpha && t.a < alpha_cut) discard;
-	vec3 c = t.rgb * mix(vec3(1.0), vCol, 0.55) * 1.12 * tint;
+	vec3 c = t.rgb * mix(vec3(1.0), vCol, 0.55) * 1.12 * tint * vVar;
 	c = mix(c, vec3(0.62, 0.66, 0.74), g_snow * 0.35 * smoothstep(0.2, 1.0, vCol.r));
 	c *= mix(1.0, 0.72, g_wet);
+	vec3 wpf = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	c *= cloud_shade(wpf);
 	ALBEDO = c;
 	ROUGHNESS = roughness * mix(1.0, 0.5, g_wet);
 	SPECULAR = mix(0.3, 0.75, g_wet);
