@@ -7,6 +7,7 @@ extends Control
 var left := Vector2.ZERO     # x = yaw, y = throttle (up = +1)
 var right := Vector2.ZERO    # x = roll, y = pitch (up = forward = +1)
 var enabled := true
+var blocked: Array[Control] = []   # controls whose area never starts a stick
 var _touches := {}           # finger index -> {side, origin, pos}
 var radius := 70.0
 
@@ -34,6 +35,8 @@ func _input(event: InputEvent) -> void:
 			var side := "L" if e.position.x < size.x * 0.5 else "R"
 			# keep the top strip and the far-right gimbal strip free for buttons
 			if e.position.y < size.y * 0.16: return
+			for c in blocked:
+				if c.is_visible_in_tree() and c.get_global_rect().has_point(e.position): return
 			for t in _touches.values():
 				if t.side == side: return
 			_touches[e.index] = {"side": side, "origin": e.position, "pos": e.position}

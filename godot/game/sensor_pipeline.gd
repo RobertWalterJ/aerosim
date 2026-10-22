@@ -16,6 +16,8 @@ const SHADER_DIR := "res://game/shaders/"
 var lens := "standard"
 var ev_comp := 0.0
 var bloom_on := true
+var noise_scale := 1.0              # sensor noise amount, 1 = as designed
+var link_effects := true            # video-link macroblocking on or off
 var out_w := 1280
 var out_h := 720
 var msaa := Viewport.MSAA_2X
@@ -234,7 +236,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	sm.set_shader_parameter("uFrame", float(_frame))
 	var glare := smoothstep(0.8, 0.98, fwd_dot) * (1.0 if in_view else 0.5)
 	sm.set_shader_parameter("uGlare", glare)
-	sm.set_shader_parameter("uIso", pow(clampf(exposure / 3.5, 1.0, 16.0), 0.8))
+	sm.set_shader_parameter("uIso", pow(clampf(exposure / 3.5, 1.0, 16.0), 0.8) * noise_scale)
 	sm.set_shader_parameter("uBloomK", 0.1 if bloom_on else 0.0)
 	sm.set_shader_parameter("uSunVis", sun_vis)
 	sm.set_shader_parameter("uInView", 1.0 if in_view else 0.0)
@@ -244,7 +246,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	# stage 7: two codec viewports take turns so the previous frame is available for stale macroblocks
 	var cn := 1 - _codec_idx
 	var cm: ShaderMaterial = _passes["codec%d" % cn]
-	cm.set_shader_parameter("uBad", rf_bad); cm.set_shader_parameter("uFrame", float(_frame))
+	cm.set_shader_parameter("uBad", rf_bad if link_effects else 0.0); cm.set_shader_parameter("uFrame", float(_frame))
 	_codec[cn].render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_codec[_codec_idx].render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_codec_idx = cn
@@ -292,3 +294,8 @@ func _readback() -> void:
 				var lum := 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
 				histogram[mini(63, int(lum * 64.0))] += 1.0
 		for i in 64: histogram[i] /= 64.0 * 36.0
+
+## The finished video frame as an image (what a photo saves), or null when there is nothing to read.
+func capture() -> Image:
+	if DisplayServer.get_name() == "headless" or _codec.is_empty(): return null
+	return _codec[_codec_idx].get_texture().get_image()

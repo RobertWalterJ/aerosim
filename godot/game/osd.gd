@@ -38,13 +38,14 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, w, 36 * u), Color(0, 0, 0, 0.28))
 	var mode: String = t["mode"]
 	var mcol := Color("88ffff") if mode == "N" else (Color("ffcc66") if mode == "S" else (Color("ff88ff") if mode == "A" else Color("ff8888")))
-	draw_rect(Rect2(m, 8 * u, 26 * u, 20 * u), mcol, false, 1.6 * u)
-	_text(mode, Vector2(m + 13 * u, 24 * u), 15 * u, mcol, 1, true)
+	var ml := 54.0 * u   # clear of the back button
+	draw_rect(Rect2(ml, 8 * u, 26 * u, 20 * u), mcol, false, 1.6 * u)
+	_text(mode, Vector2(ml + 13 * u, 24 * u), 15 * u, mcol, 1, true)
 	var armed: bool = t["armed"]
 	var status := "DISARMED"
 	if armed: status = {"A": "AEROBATIC", "M": "MANUAL", "S": "SPORT", "N": "NORMAL"}.get(mode, "NORMAL")
 	elif str(t["crashed"]) != "": status = str(t["crashed"])
-	_text(status, Vector2(m + 36 * u, 24 * u), 13 * u, white if armed else Color("ff6666"))
+	_text(status, Vector2(ml + 36 * u, 24 * u), 13 * u, white if armed else Color("ff6666"))
 	var gx := w * 0.30
 	_text("GPS", Vector2(gx, 24 * u), 13 * u, white)
 	_bars(Vector2(gx + 34 * u, 24 * u), u, int(round(float(t["sats"]) / 4.0)), Color("77ff77"))
@@ -62,7 +63,7 @@ func _draw() -> void:
 	draw_rect(Rect2(bx + 28 * u, 15 * u, 2 * u, 8 * u), bc)
 	_text("%d%%  %.2fV/c  %.1fA" % [int(round(pct)), float(t["cellV"]), float(t["battA"])], Vector2(bx + 38 * u, 24 * u), 13 * u, white)
 	var ev: float = t["ev"]
-	_text("ISO %d  1/%d  EV %s%.1f" % [int(t["iso"]), int(round(1.0 / float(t["shutter"]))), "+" if ev >= 0.0 else "", ev], Vector2(w - m, 24 * u), 13 * u, white, 2)
+	_text("ISO %d  1/%d  EV %s%.1f" % [int(t["iso"]), int(round(1.0 / float(t["shutter"]))), "+" if ev >= 0.0 else "", ev], Vector2(w - 54 * u, 24 * u), 13 * u, white, 2)
 	# ---- reticle, horizon and pitch ladder
 	var cx := w / 2.0
 	var cy := h / 2.0
@@ -151,13 +152,16 @@ func _draw() -> void:
 	draw_set_transform(Vector2(x0, y0), 0.0, Vector2.ONE)
 	# ---- left info and warnings
 	var info := [str(t["lensName"]), str(t["airframe"]), "AUDIO: %s" % str(t["audio"]), "%d fps sensor" % int(t["fps"])]
-	for i in info.size(): _text(info[i], Vector2(m, 62 * u + i * 16 * u), 12 * u, Color(1, 1, 1, 0.85))
+	for i in info.size(): _text(info[i], Vector2(m + 70 * u, 62 * u + i * 16 * u), 12 * u, Color(1, 1, 1, 0.85))
 	var mission: Array = t.get("mission", [])
-	for i in mission.size(): _text(str(mission[i]), Vector2(m, 62 * u + 84 * u + i * 17 * u), 13 * u, Color("ffe14d") if i == 0 else white, 0, true)
+	for i in mission.size(): _text(str(mission[i]), Vector2(m + 70 * u, 62 * u + 84 * u + i * 17 * u), 13 * u, Color("ffe14d") if i == 0 else white, 0, true)
 	if str(t.get("aero", "")) != "": _text(str(t["aero"]), Vector2(cx, 62 * u), 13 * u, Color("ff88ff"), 1, true)
 	if str(t["crashed"]) != "":
 		_text(str(t["crashed"]).to_upper(), Vector2(cx, cy - 60 * u), 30 * u, Color("ff5555"), 1, true)
 		_text("TAP RESET" if bool(t.get("touch", false)) else "PRESS R TO RESET", Vector2(cx, cy - 34 * u), 15 * u, white, 1)
+	if str(t.get("rec", "")) != "" and int(Time.get_ticks_msec() / 500) % 2 == 0:
+		draw_circle(Vector2(w - 150 * u, 58 * u), 5 * u, Color("ff3333"))
+		_text(str(t["rec"]), Vector2(w - 140 * u, 62 * u), 13 * u, Color("ff6666"))
 	if float(t["rfDbm"]) < -85.0: _text("VIDEO LINK WEAK", Vector2(cx, 70 * u), 16 * u, Color("ff7766"), 1, true)
 	if pct < 15.0: _text("LOW BATTERY - LAND NOW", Vector2(cx, 92 * u), 16 * u, Color("ff7766"), 1, true)
 

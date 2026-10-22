@@ -1,8 +1,10 @@
 class_name Hud
 extends CanvasLayer
-## On-screen display and the pause window. The flight screen keeps only what you need mid-flight (mode, camera,
-## the readout, and Pause). Everything else lives in the pause window: Fly, Drone, Weather and Display tabs.
-## Resume and "Hold to peek" stay at the bottom of every tab.
+## The flight app: what a phone clipped into a drone remote shows. The live video fills the screen with the drone's
+## data overlay (osd.gd) on top. Round glass buttons sit at the edges the way they do in a drone app: back and settings
+## in the top bar, flight mode, auto takeoff or landing, return to home and the camera view down the left, the shutter
+## and photo or video switch on the right, and a map thumbnail in the corner. Notices appear under the top bar.
+## Settings opens a full-screen phone-style page (Flight, Drone, Weather, Camera, Display) and pauses the flight.
 
 signal pause_changed(paused: bool)
 signal reset_requested
@@ -12,11 +14,20 @@ signal camera_changed(chase: bool)
 signal weather_changed(w: Dictionary)
 signal gimbal_changed(pitch_rad: float)
 signal lens_changed(lens: String)
+signal photo_requested
+signal takeoff_land_requested
+signal rth_requested
+signal ev_changed(ev: float)
+signal bloom_changed(on: bool)
+signal noise_changed(amount: float)
+signal link_changed(on: bool)
+signal osd_changed(on: bool)
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6}
 const PRESETS := [["Still", 0.0, 0.0], ["Calm", 1.0, 0.45], ["Light", 3.0, 0.65], ["Breezy", 5.0, 0.85], ["Strong", 7.5, 1.0]]
 const COMPASS := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+const TABS := ["Flight", "Drone", "Weather", "Camera", "Display"]
 
 var weather := DEFAULT_WEATHER.duplicate()
 var paused := false
@@ -24,19 +35,36 @@ var mode := "N"
 var chase := false
 var airframe_id := "mini"
 var lens := "standard"
+var ev_comp := 0.0
+var bloom := true
+var noise := 1.0
+var link_fx := true
+var osd_on := true
+var video_mode := false
+var airborne := false
+var rth_active := false
+
+var minimap: MiniMap
 
 var _root: Control
-var _readout: Label
-var _buttons_row: HBoxContainer
-var _pause_btn: Button
+var _back_btn: RoundButton
+var _gear_btn: RoundButton
+var _mode_btn: RoundButton
+var _tl_btn: RoundButton
+var _rth_btn: RoundButton
+var _view_btn: RoundButton
+var _pv_btn: RoundButton
+var _shutter: ShutterButton
+var _gimbal: VSlider
+var _toast: Label
+var _toast_tween: Tween
+var _flash: ColorRect
 var _crash_box: VBoxContainer
 var _crash_label: Label
-var _gimbal: VSlider
-var _panel: PanelContainer
 var _menu_dim: ColorRect
+var _panel: PanelContainer
 var _tabs: TabContainer
-var _mode_btn: Button
-var _cam_btn: Button
+var _tab_btns: Array[Button] = []
 var _refreshers: Array[Callable] = []
 var _drone_buttons := {}
 var _sliders := {}
@@ -51,17 +79,11 @@ func _ready() -> void:
 	_root.theme = _make_theme()
 	add_child(_root)
 	_build_flight_hud()
-	_build_pause_menu()
+	_build_settings()
 	_sync()
 
-func _safe_margin() -> Vector4:
-	var r := DisplayServer.get_display_safe_area()
-	var win := DisplayServer.window_get_size()
-	if r.size.x <= 0 or win.x <= 0: return Vector4(10, 10, 10, 10)
-	return Vector4(maxf(10, r.position.x), maxf(10, r.position.y), 10, 10)
-
 # ------------------------------------------------------------------ look
-func _box(bg: Color, border: Color = Color(0.86, 1, 0.94, 0.35), radius: int = 12, margin: int = 12) -> StyleBoxFlat:
+func _box(bg: Color, border: Color = Color(1, 1, 1, 0.22), radius: int = 12, margin: int = 12) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = bg; sb.border_color = border; sb.set_border_width_all(1); sb.set_corner_radius_all(radius); sb.set_content_margin_all(margin)
 	return sb
@@ -79,83 +101,64 @@ func _grabber(radius: int, col: Color) -> ImageTexture:
 func _make_theme() -> Theme:
 	var th := Theme.new()
 	th.default_font_size = 22
-	var idle := Color(0.14, 0.24, 0.27, 0.92)
+	var idle := Color(0.13, 0.15, 0.19, 0.96)
+	var blue := Color(0.17, 0.42, 0.78, 0.98)
 	th.set_stylebox("normal", "Button", _box(idle))
-	th.set_stylebox("hover", "Button", _box(Color(0.20, 0.33, 0.37, 0.95)))
-	th.set_stylebox("pressed", "Button", _box(Color(0.10, 0.46, 0.34, 0.97), Color.WHITE))
-	th.set_stylebox("hover_pressed", "Button", _box(Color(0.13, 0.52, 0.39, 0.97), Color.WHITE))
+	th.set_stylebox("hover", "Button", _box(Color(0.19, 0.22, 0.28, 0.98)))
+	th.set_stylebox("pressed", "Button", _box(blue, Color(1, 1, 1, 0.7)))
+	th.set_stylebox("hover_pressed", "Button", _box(Color(0.2, 0.47, 0.85, 0.98), Color(1, 1, 1, 0.8)))
 	th.set_stylebox("focus", "Button", StyleBoxEmpty.new())
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
 		th.set_color(c, "Button", Color.WHITE)
-	# sliders: a thick track and a big round handle, easy to hit with a thumb
-	var track := _box(Color(0.30, 0.40, 0.42, 0.9), Color(0, 0, 0, 0), 6, 0); track.content_margin_top = 5; track.content_margin_bottom = 5
-	var fill := _box(Color(0.30, 0.85, 0.65, 0.95), Color(0, 0, 0, 0), 6, 0); fill.content_margin_top = 5; fill.content_margin_bottom = 5
+	var track := _box(Color(0.30, 0.33, 0.40, 0.9), Color(0, 0, 0, 0), 6, 0); track.content_margin_top = 4; track.content_margin_bottom = 4
+	var fill := _box(Color(0.30, 0.62, 1.0, 0.95), Color(0, 0, 0, 0), 6, 0); fill.content_margin_top = 4; fill.content_margin_bottom = 4
 	for t in ["HSlider", "VSlider"]:
 		th.set_stylebox("slider", t, track)
 		th.set_stylebox("grabber_area", t, fill)
 		th.set_stylebox("grabber_area_highlight", t, fill)
-		th.set_icon("grabber", t, _grabber(18, Color(0.95, 1, 0.97)))
-		th.set_icon("grabber_highlight", t, _grabber(20, Color.WHITE))
-		th.set_icon("grabber_disabled", t, _grabber(18, Color(0.6, 0.6, 0.6)))
+		th.set_icon("grabber", t, _grabber(16, Color(1, 1, 1)))
+		th.set_icon("grabber_highlight", t, _grabber(18, Color.WHITE))
+		th.set_icon("grabber_disabled", t, _grabber(16, Color(0.6, 0.6, 0.6)))
 	th.set_constant("center_grabber", "HSlider", 1)
-	# tabs
-	var tab_on := _box(Color(0.10, 0.46, 0.34, 0.97), Color.WHITE, 10, 14); tab_on.content_margin_left = 26; tab_on.content_margin_right = 26
-	var tab_off := _box(idle, Color(0.86, 1, 0.94, 0.25), 10, 14); tab_off.content_margin_left = 26; tab_off.content_margin_right = 26
-	th.set_stylebox("tab_selected", "TabContainer", tab_on)
-	th.set_stylebox("tab_unselected", "TabContainer", tab_off)
-	th.set_stylebox("tab_hovered", "TabContainer", _box(Color(0.20, 0.33, 0.37, 0.95), Color(0.86, 1, 0.94, 0.4), 10, 14))
 	th.set_stylebox("panel", "TabContainer", StyleBoxEmpty.new())
-	th.set_font_size("font_size", "TabContainer", 24)
-	for c in ["font_selected_color", "font_unselected_color", "font_hovered_color"]:
-		th.set_color(c, "TabContainer", Color.WHITE)
-	th.set_constant("side_margin", "TabContainer", 4)
+	th.set_color("font_color", "Label", Color(0.93, 0.95, 0.98))
 	return th
 
 # ------------------------------------------------------------------ flight screen
 func _build_flight_hud() -> void:
-	var m := _safe_margin()
-	_readout = Label.new()
-	_readout.position = Vector2(m.x + 6, m.y + 4)
-	_readout.add_theme_font_size_override("font_size", 20)
-	_readout.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	_readout.add_theme_constant_override("outline_size", 6)
-	_readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_readout.visible = false   # the drone display (osd.gd) replaces this text
-	_root.add_child(_readout)
-
-	var pause_btn := Button.new()
-	_pause_btn = pause_btn
-	pause_btn.text = "II  PAUSE"
-	pause_btn.custom_minimum_size = Vector2(150, 56)
-	pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	pause_btn.position = Vector2(-160 - m.z, m.y)
-	pause_btn.pressed.connect(func(): set_paused(true))
-	_root.add_child(pause_btn)
-
-	var row := HBoxContainer.new()
-	_buttons_row = row
-	row.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	row.position = Vector2(-150, m.y)
-	row.add_theme_constant_override("separation", 8)
-	_root.add_child(row)
-	_mode_btn = Button.new(); _mode_btn.custom_minimum_size = Vector2(140, 52)
-	_mode_btn.pressed.connect(cycle_mode)
-	row.add_child(_mode_btn)
-	_cam_btn = Button.new(); _cam_btn.custom_minimum_size = Vector2(140, 52)
-	_cam_btn.pressed.connect(func(): set_chase(not chase))
-	row.add_child(_cam_btn)
-
+	_back_btn = RoundButton.new("back", 40); _back_btn.pressed.connect(func(): set_paused(true)); _root.add_child(_back_btn)
+	_gear_btn = RoundButton.new("gear", 40); _gear_btn.pressed.connect(func(): set_paused(true)); _root.add_child(_gear_btn)
+	_mode_btn = RoundButton.new("N", 52); _mode_btn.label = "Mode"; _mode_btn.pressed.connect(cycle_mode); _root.add_child(_mode_btn)
+	_tl_btn = RoundButton.new("takeoff", 52); _tl_btn.label = "Takeoff"; _tl_btn.pressed.connect(func(): takeoff_land_requested.emit()); _root.add_child(_tl_btn)
+	_rth_btn = RoundButton.new("home", 52); _rth_btn.label = "Return"; _rth_btn.pressed.connect(func(): rth_requested.emit()); _root.add_child(_rth_btn)
+	_view_btn = RoundButton.new("eye", 52); _view_btn.label = "View"; _view_btn.pressed.connect(func(): set_chase(not chase)); _root.add_child(_view_btn)
+	_pv_btn = RoundButton.new("camera", 44); _pv_btn.pressed.connect(toggle_photo_video); _root.add_child(_pv_btn)
+	_shutter = ShutterButton.new(80); _shutter.pressed.connect(func(): photo_requested.emit()); _root.add_child(_shutter)
+	minimap = MiniMap.new(150); _root.add_child(minimap)
+	# the gimbal: the data overlay draws the scale; this invisible slider sits over it to take the touch
 	_gimbal = VSlider.new()
 	_gimbal.min_value = -90.0; _gimbal.max_value = 20.0; _gimbal.step = 1.0; _gimbal.value = -20.0
-	_gimbal.custom_minimum_size = Vector2(56, 260)
-	_gimbal.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	_gimbal.position = Vector2(-70 - m.z, -130)
+	_gimbal.modulate = Color(1, 1, 1, 0.01)
 	_gimbal.value_changed.connect(func(v: float): gimbal_changed.emit(deg_to_rad(v)))
 	_root.add_child(_gimbal)
-
+	# notices under the top bar
+	_toast = Label.new()
+	_toast.add_theme_font_size_override("font_size", 22)
+	_toast.add_theme_color_override("font_color", Color.WHITE)
+	_toast.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	_toast.add_theme_constant_override("outline_size", 6)
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast.modulate.a = 0.0
+	_root.add_child(_toast)
+	# photo flash
+	_flash = ColorRect.new()
+	_flash.color = Color(1, 1, 1, 0)
+	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_flash)
+	# crash notice with a big reset
 	_crash_box = VBoxContainer.new()
-	_crash_box.set_anchors_preset(Control.PRESET_CENTER)
-	_crash_box.position = Vector2(-150, -10)
 	_crash_box.add_theme_constant_override("separation", 10)
 	_crash_box.visible = false
 	_root.add_child(_crash_box)
@@ -165,17 +168,76 @@ func _build_flight_hud() -> void:
 	_crash_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
 	_crash_label.add_theme_constant_override("outline_size", 8)
 	_crash_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_crash_label.custom_minimum_size = Vector2(300, 0)
+	_crash_label.custom_minimum_size = Vector2(320, 0)
 	_crash_box.add_child(_crash_label)
-	var rb := Button.new(); rb.text = "RESET"; rb.custom_minimum_size = Vector2(300, 72)
+	var rb := Button.new(); rb.text = "RESET"; rb.custom_minimum_size = Vector2(320, 72)
 	rb.add_theme_font_size_override("font_size", 30)
 	var sb := StyleBoxFlat.new(); sb.bg_color = Color(0.78, 0.16, 0.16, 0.9); sb.set_corner_radius_all(14); sb.set_border_width_all(2); sb.border_color = Color.WHITE
 	rb.add_theme_stylebox_override("normal", sb); rb.add_theme_stylebox_override("hover", sb); rb.add_theme_stylebox_override("pressed", sb)
 	rb.pressed.connect(func(): reset_requested.emit())
 	_crash_box.add_child(rb)
 
-func set_readout(text: String) -> void:
-	_readout.text = text
+func _place(c: Control, pos: Vector2, d: float) -> void:
+	c.position = pos
+	if c.size != Vector2(d, d):
+		c.custom_minimum_size = Vector2(d, d)
+		c.size = Vector2(d, d)
+		c.queue_redraw()
+
+## Place everything around the video frame (called each frame with its rectangle).
+func layout_for(frame: Rect2) -> void:
+	var u := maxf(0.6, minf(frame.size.x / 1280.0, frame.size.y / 720.0))
+	var vp := get_viewport().get_visible_rect().size
+	var m := 14.0 * u
+	var bar := 36.0 * u
+	var left := maxf(frame.position.x, 0.0) + m
+	var right := minf(frame.end.x, vp.x) - m
+	var top := frame.position.y + bar + 10.0 * u
+	var bottom := frame.end.y - 56.0 * u - 10.0 * u
+	var cy := frame.position.y + frame.size.y * 0.5
+	_place(_back_btn, Vector2(frame.position.x + 4.0 * u, frame.position.y - 2.0 * u), 40.0 * u)
+	_place(_gear_btn, Vector2(minf(frame.end.x, vp.x) - 44.0 * u, frame.position.y - 2.0 * u), 40.0 * u)
+	var step := 82.0 * u
+	var y0 := top + 4.0 * u
+	_place(_mode_btn, Vector2(left, y0), 52.0 * u)
+	_place(_tl_btn, Vector2(left, y0 + step), 52.0 * u)
+	_place(_rth_btn, Vector2(left, y0 + step * 2.0), 52.0 * u)
+	_place(_view_btn, Vector2(left, y0 + step * 3.0), 52.0 * u)
+	var sx := right - 80.0 * u - 18.0 * u
+	_place(_shutter, Vector2(sx, cy - 40.0 * u), 80.0 * u)
+	_place(_pv_btn, Vector2(sx + 18.0 * u, cy - 40.0 * u - 62.0 * u), 44.0 * u)
+	_place(minimap, Vector2(left + 66.0 * u, bottom - 150.0 * u), 150.0 * u)
+	_gimbal.size = Vector2(44.0 * u, frame.size.y * 0.44)
+	_gimbal.position = Vector2(frame.end.x - 48.0 * u, frame.position.y + frame.size.y * 0.28)
+	_toast.size = Vector2(vp.x, 36.0)
+	_toast.position = Vector2(0, frame.position.y + bar + 6.0 * u)
+	_crash_box.position = Vector2(vp.x * 0.5 - 160.0, vp.y * 0.5 - 10.0)
+	_flash.size = vp
+
+# ------------------------------------------------------------------ notices and state shown on the buttons
+## A short notice under the top bar, like "Returning to home".
+func toast(text: String, warn := false) -> void:
+	_toast.text = text
+	_toast.add_theme_color_override("font_color", Color(1, 0.72, 0.35) if warn else Color.WHITE)
+	if _toast_tween != null and _toast_tween.is_valid(): _toast_tween.kill()
+	_toast.modulate.a = 1.0
+	_toast_tween = create_tween()
+	_toast_tween.tween_interval(2.2)
+	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.6)
+
+func flash_photo() -> void:
+	_flash.color = Color(1, 1, 1, 0.75)
+	var tw := create_tween()
+	tw.tween_property(_flash, "color:a", 0.0, 0.35)
+
+func set_airborne(on: bool) -> void:
+	if on == airborne: return
+	airborne = on
+	_tl_btn.set_kind("land" if on else "takeoff"); _tl_btn.label = "Land" if on else "Takeoff"
+
+func set_rth(on: bool) -> void:
+	rth_active = on
+	_rth_btn.set_active(on)
 
 func show_crash(reason: String) -> void:
 	_crash_box.visible = reason != ""
@@ -187,19 +249,11 @@ func show_gimbal(on: bool) -> void:
 func set_gimbal_value(rad: float) -> void:
 	_gimbal.set_value_no_signal(rad_to_deg(rad))
 
-func set_lens(l: String) -> void:
-	lens = l; lens_changed.emit(l); _sync()
-
-func toggle_lens() -> void:
-	set_lens("wide" if lens == "standard" else "standard")
-
-## Keep the buttons clear of the display's top bar (called each frame with the video frame's rectangle).
-func layout_for(frame: Rect2) -> void:
-	var u := maxf(0.6, minf(frame.size.x / 1280.0, frame.size.y / 720.0))
-	var top := frame.position.y + 44.0 * u
-	var vp := get_viewport().get_visible_rect().size
-	_buttons_row.position = Vector2(vp.x * 0.5 - 150.0, top)
-	_pause_btn.position = Vector2(vp.x - 170.0, top)
+func toggle_photo_video() -> void:
+	video_mode = not video_mode
+	_shutter.video_mode = video_mode; _shutter.queue_redraw()
+	_pv_btn.set_kind("video" if video_mode else "camera")
+	toast("Video mode" if video_mode else "Photo mode")
 
 func cycle_mode() -> void:
 	set_mode({"N": "S", "S": "M", "M": "N"}[mode])
@@ -210,36 +264,77 @@ func set_mode(m: String) -> void:
 func set_chase(on: bool) -> void:
 	chase = on; camera_changed.emit(on); _sync()
 
-# ------------------------------------------------------------------ pause window
-func _build_pause_menu() -> void:
+func set_lens(l: String) -> void:
+	lens = l; lens_changed.emit(l); _sync()
+
+func toggle_lens() -> void:
+	set_lens("wide" if lens == "standard" else "standard")
+
+func set_airframe(id: String) -> void:
+	airframe_id = id; _sync()
+
+## The controls a stick must not start under (so tapping a button does not also put down a thumb stick).
+func interactive_controls() -> Array[Control]:
+	return [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal]
+
+# ------------------------------------------------------------------ settings page
+func _build_settings() -> void:
 	_menu_dim = ColorRect.new()
-	_menu_dim.color = Color(0.02, 0.03, 0.04, 0.6)
+	_menu_dim.color = Color(0.02, 0.03, 0.04, 0.55)
 	_menu_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_menu_dim.visible = false
 	_root.add_child(_menu_dim)
 	_panel = PanelContainer.new()
 	_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_panel.anchor_left = 0.08; _panel.anchor_right = 0.92; _panel.anchor_top = 0.05; _panel.anchor_bottom = 0.95
+	_panel.anchor_left = 0.03; _panel.anchor_right = 0.97; _panel.anchor_top = 0.04; _panel.anchor_bottom = 0.96
 	_panel.offset_left = 0; _panel.offset_right = 0; _panel.offset_top = 0; _panel.offset_bottom = 0
-	var sb := StyleBoxFlat.new(); sb.bg_color = Color(0.05, 0.09, 0.10, 0.97); sb.set_corner_radius_all(16)
-	sb.set_border_width_all(1); sb.border_color = Color(0.86, 1, 0.94, 0.4); sb.set_content_margin_all(14)
+	var sb := StyleBoxFlat.new(); sb.bg_color = Color(0.07, 0.08, 0.10, 0.985); sb.set_corner_radius_all(18)
+	sb.set_border_width_all(1); sb.border_color = Color(1, 1, 1, 0.14); sb.set_content_margin_all(0)
 	_panel.add_theme_stylebox_override("panel", sb)
 	_menu_dim.add_child(_panel)
-	var col := VBoxContainer.new(); col.add_theme_constant_override("separation", 10)
+	var col := VBoxContainer.new(); col.add_theme_constant_override("separation", 0)
 	_panel.add_child(col)
-	_tabs = TabContainer.new(); _tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	col.add_child(_tabs)
-	_build_fly_tab(); _build_drone_tab(); _build_weather_tab(); _build_display_tab()
-	var foot := HBoxContainer.new(); foot.add_theme_constant_override("separation", 12)
-	col.add_child(foot)
-	var peek := Button.new(); peek.text = "Hold to peek"; peek.custom_minimum_size = Vector2(220, 56)
-	peek.button_down.connect(func(): _tabs.modulate.a = 0.05; _panel.self_modulate.a = 0.0; _menu_dim.color.a = 0.0)
-	peek.button_up.connect(func(): _tabs.modulate.a = 1.0; _panel.self_modulate.a = 1.0; _menu_dim.color.a = 0.6)
-	foot.add_child(peek)
+	# header
+	var head := HBoxContainer.new(); head.custom_minimum_size = Vector2(0, 64)
+	var title := Label.new(); title.text = "  Settings"; title.add_theme_font_size_override("font_size", 28)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL; title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(title)
+	var close := Button.new(); close.text = "Done"; close.custom_minimum_size = Vector2(120, 48)
+	close.pressed.connect(func(): set_paused(false))
+	head.add_child(close)
+	head.add_child(Control.new())
+	col.add_child(head)
+	var line := ColorRect.new(); line.color = Color(1, 1, 1, 0.1); line.custom_minimum_size = Vector2(0, 1); col.add_child(line)
+	# side tabs and the page
+	var row := HBoxContainer.new(); row.size_flags_vertical = Control.SIZE_EXPAND_FILL; col.add_child(row)
+	var side := VBoxContainer.new(); side.custom_minimum_size = Vector2(210, 0); side.add_theme_constant_override("separation", 6)
+	var side_wrap := MarginContainer.new()
+	side_wrap.add_theme_constant_override("margin_left", 12); side_wrap.add_theme_constant_override("margin_top", 12); side_wrap.add_theme_constant_override("margin_right", 6)
+	side_wrap.add_child(side); row.add_child(side_wrap)
+	var vline := ColorRect.new(); vline.color = Color(1, 1, 1, 0.1); vline.custom_minimum_size = Vector2(1, 0); row.add_child(vline)
+	_tabs = TabContainer.new(); _tabs.tabs_visible = false; _tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL; _tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var page_wrap := MarginContainer.new(); page_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page_wrap.add_theme_constant_override("margin_left", 16); page_wrap.add_theme_constant_override("margin_right", 16); page_wrap.add_theme_constant_override("margin_top", 10)
+	page_wrap.add_child(_tabs); row.add_child(page_wrap)
+	for i in TABS.size():
+		var b := Button.new(); b.text = TABS[i]; b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 56); b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.pressed.connect(func(): _tabs.current_tab = i; _sync())
+		side.add_child(b); _tab_btns.append(b)
+	_build_flight_tab(); _build_drone_tab(); _build_weather_tab(); _build_camera_tab(); _build_display_tab()
+	# footer
+	var line2 := ColorRect.new(); line2.color = Color(1, 1, 1, 0.1); line2.custom_minimum_size = Vector2(0, 1); col.add_child(line2)
+	var foot := HBoxContainer.new(); foot.custom_minimum_size = Vector2(0, 68); foot.add_theme_constant_override("separation", 12)
+	var peek := Button.new(); peek.text = "Hold to see the video"; peek.custom_minimum_size = Vector2(300, 52)
+	peek.button_down.connect(func(): _panel.modulate.a = 0.0; _menu_dim.color.a = 0.0)
+	peek.button_up.connect(func(): _panel.modulate.a = 1.0; _menu_dim.color.a = 0.55)
+	var fm := MarginContainer.new(); fm.add_theme_constant_override("margin_left", 14); fm.add_theme_constant_override("margin_top", 8); fm.add_child(peek)
+	foot.add_child(fm)
 	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; foot.add_child(sp)
-	var go := Button.new(); go.text = "Resume"; go.custom_minimum_size = Vector2(220, 56)
+	var go := Button.new(); go.text = "Resume flight"; go.custom_minimum_size = Vector2(260, 52)
 	go.pressed.connect(func(): set_paused(false))
-	foot.add_child(go)
+	var gm := MarginContainer.new(); gm.add_theme_constant_override("margin_right", 14); gm.add_theme_constant_override("margin_top", 8); gm.add_child(go)
+	foot.add_child(gm)
+	col.add_child(foot)
 
 func _page(title: String) -> VBoxContainer:
 	var sc := ScrollContainer.new(); sc.name = title
@@ -252,7 +347,7 @@ func _page(title: String) -> VBoxContainer:
 
 func _heading(parent: Control, text: String) -> void:
 	var l := Label.new(); l.text = text.to_upper()
-	l.add_theme_font_size_override("font_size", 16); l.add_theme_color_override("font_color", Color(0.6, 1, 0.85))
+	l.add_theme_font_size_override("font_size", 15); l.add_theme_color_override("font_color", Color(0.55, 0.72, 0.95))
 	parent.add_child(l)
 
 func _choice(parent: Control, title: String, options: Array, get_i: Callable, set_i: Callable) -> void:
@@ -261,23 +356,23 @@ func _choice(parent: Control, title: String, options: Array, get_i: Callable, se
 	parent.add_child(row)
 	var btns: Array[Button] = []
 	for i in options.size():
-		var b := Button.new(); b.text = options[i]; b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 56)
-		b.custom_minimum_size = Vector2(150, 56)
+		var b := Button.new(); b.text = options[i]; b.toggle_mode = true; b.custom_minimum_size = Vector2(150, 54)
 		b.pressed.connect(func(): set_i.call(i); _sync())
 		row.add_child(b); btns.append(b)
 	_refreshers.append(func():
 		for i in btns.size(): btns[i].set_pressed_no_signal(i == int(get_i.call())))
 
 func _action(parent: Control, text: String, fn: Callable) -> Button:
-	var b := Button.new(); b.text = text; b.custom_minimum_size = Vector2(0, 56); b.pressed.connect(fn)
+	var b := Button.new(); b.text = text; b.custom_minimum_size = Vector2(0, 54); b.pressed.connect(fn)
 	parent.add_child(b); return b
 
-func _build_fly_tab() -> void:
-	var p := _page("Fly")
+func _build_flight_tab() -> void:
+	var p := _page("Flight")
 	_choice(p, "Flight mode", ["Normal", "Sport", "Manual"], func(): return ["N", "S", "M"].find(mode), func(i): set_mode(["N", "S", "M"][i]))
 	_choice(p, "Camera view", ["First person", "Chase"], func(): return 1 if chase else 0, func(i): set_chase(i == 1))
-	_choice(p, "Lens", ["84° Standard", "150° Wide"], func(): return 0 if lens == "standard" else 1, func(i): set_lens("standard" if i == 0 else "wide"))
-	_heading(p, "Actions")
+	_heading(p, "Assisted flight")
+	_action(p, "Auto takeoff or landing", func(): takeoff_land_requested.emit(); set_paused(false))
+	_action(p, "Return to home", func(): rth_requested.emit(); set_paused(false))
 	_action(p, "Reset drone to the start", func(): reset_requested.emit(); set_paused(false))
 
 func _build_drone_tab() -> void:
@@ -285,7 +380,7 @@ func _build_drone_tab() -> void:
 	_heading(p, "Choose a drone. It returns to the start.")
 	for id in Airframes.IDS:
 		var af := Airframes.make(id)
-		var b := Button.new(); b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 80)
+		var b := Button.new(); b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 78)
 		b.text = "%s\n%s" % [af["name"], af["blurb"]]; b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.add_theme_font_size_override("font_size", 20)
 		b.clip_text = false; b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -301,25 +396,44 @@ func _slider(parent: Control, key: String, title: String, lo: float, hi: float, 
 	s.value_changed.connect(func(x: float): weather[key] = x; _weather_edited())
 	parent.add_child(s); _sliders[key] = s; _slider_labels[key] = v
 
+## A slider for a setting that is not part of the saved weather.
+func _gslider(parent: Control, title: String, lo: float, hi: float, step: float, get_v: Callable, set_v: Callable, fmt: Callable) -> void:
+	var row := HBoxContainer.new(); parent.add_child(row)
+	var l := Label.new(); l.text = title; l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; row.add_child(l)
+	var v := Label.new(); v.add_theme_color_override("font_color", Color.WHITE); row.add_child(v)
+	var s := HSlider.new(); s.min_value = lo; s.max_value = hi; s.step = step; s.custom_minimum_size = Vector2(0, 44)
+	s.value_changed.connect(func(x: float): set_v.call(x); _sync())
+	parent.add_child(s)
+	_refreshers.append(func(): s.set_value_no_signal(float(get_v.call())); v.text = str(fmt.call(float(get_v.call()))))
+
 func _build_weather_tab() -> void:
 	var p := _page("Weather")
+	_choice(p, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
+	_slider(p, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
+	_heading(p, "Time of day")
+	_slider(p, "sun", "Sun height", 4.0, 40.0, 1.0)
 	_heading(p, "Wind")
-	var seg := HBoxContainer.new(); seg.add_theme_constant_override("separation", 8); p.add_child(seg)
+	var seg := HFlowContainer.new(); seg.add_theme_constant_override("h_separation", 8); p.add_child(seg)
 	for pr in PRESETS:
-		var b := Button.new(); b.text = pr[0]; b.custom_minimum_size = Vector2(0, 56); b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var b := Button.new(); b.text = pr[0]; b.custom_minimum_size = Vector2(130, 54)
 		b.pressed.connect(func(): weather["wind"] = pr[1]; weather["gust"] = pr[2]; _weather_edited())
 		seg.add_child(b)
 	_slider(p, "wind", "Wind speed", 0.0, 10.0, 0.1)
 	_slider(p, "gust", "Gusts", 0.0, 1.0, 0.01)
 	_slider(p, "from", "Wind comes from", 0.0, 359.0, 1.0)
-	_heading(p, "Time of day")
-	_slider(p, "sun", "Sun height", 4.0, 40.0, 1.0)
-	_choice(p, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
-	_slider(p, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
 	_action(p, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
+
+func _build_camera_tab() -> void:
+	var p := _page("Camera")
+	_choice(p, "Lens", ["84° Standard", "150° Wide"], func(): return 0 if lens == "standard" else 1, func(i): set_lens("standard" if i == 0 else "wide"))
+	_gslider(p, "Exposure compensation", -3.0, 3.0, 0.33, func(): return ev_comp, func(x): ev_comp = x; ev_changed.emit(x), func(v): return "%+.1f EV" % v)
+	_choice(p, "Bloom", ["On", "Off"], func(): return 0 if bloom else 1, func(i): bloom = i == 0; bloom_changed.emit(bloom))
+	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
+	_choice(p, "Video link effects", ["On", "Off"], func(): return 0 if link_fx else 1, func(i): link_fx = i == 0; link_changed.emit(link_fx))
 
 func _build_display_tab() -> void:
 	var p := _page("Display")
+	_choice(p, "Data overlay", ["On", "Off"], func(): return 0 if osd_on else 1, func(i): osd_on = i == 0; osd_changed.emit(osd_on))
 	_choice(p, "Frame rate", ["60 fps", "30 fps"], func(): return 0 if Engine.max_fps in [0, 60] else 1, func(i): Engine.max_fps = 60 if i == 0 else 30)
 	_heading(p, "Screen")
 	_action(p, "Full screen", func():
@@ -332,8 +446,9 @@ func _weather_edited() -> void:
 
 func _sync() -> void:
 	if _mode_btn == null: return
-	_mode_btn.text = "MODE " + mode
-	_cam_btn.text = "CHASE" if chase else "FPV"
+	_mode_btn.set_kind(mode)
+	_view_btn.set_active(chase)
+	for i in _tab_btns.size(): _tab_btns[i].set_pressed_no_signal(i == _tabs.current_tab)
 	for f in _refreshers: f.call()
 	for id in _drone_buttons: _drone_buttons[id].set_pressed_no_signal(id == airframe_id)
 	for k in _sliders:
@@ -349,11 +464,11 @@ func _sync() -> void:
 func set_paused(on: bool) -> void:
 	paused = on
 	_menu_dim.visible = on
+	# the settings page covers the flight screen the way an app's settings page does
+	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _crash_box]:
+		(c as CanvasItem).visible = not on
 	if on: _sync()
 	pause_changed.emit(on)
-
-func set_airframe(id: String) -> void:
-	airframe_id = id; _sync()
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:

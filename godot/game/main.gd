@@ -32,6 +32,9 @@ var snow_mat: ParticleProcessMaterial
 var hud: Hud
 var osd: Osd
 var sensor: SensorPipeline
+var autopilot := AutoPilot.new()
+var recording := false
+var _rec_time := 0.0
 var _prev_cam_q := Quaternion.IDENTITY
 var _sun_dir := Vector3(0, 1, 0)
 var _sun_vis := 1.0
@@ -57,6 +60,7 @@ func _ready() -> void:
 		if a.begins_with("drone="): airframe_id = a.substr(6)
 		if a.begins_with("shot="): q_arg = a.substr(5)
 		if a == "selftest": _selftest = true
+		if a == "apstest": _apstest = true
 	Grass.add_globals()
 	_build_world()
 	af = Airframes.make(airframe_id)
@@ -74,7 +78,7 @@ func _ready() -> void:
 	cam.near = 0.03; cam.far = 3000.0; cam.fov = 84.0; cam.current = true
 	hud = Hud.new()
 	add_child(hud)
-	hud.pause_changed.connect(func(p: bool): paused = p; if sticks: sticks.release_all())
+	hud.pause_changed.connect(func(p: bool): paused = p; if sticks: sticks.release_all(); sticks.enabled = not p; osd.visible = not p)
 	hud.reset_requested.connect(spawn)
 	hud.drone_picked.connect(switch_drone)
 	hud.mode_changed.connect(func(m: String): fc.mode = m; fc.reset_state())
@@ -84,8 +88,17 @@ func _ready() -> void:
 	hud.set_airframe(airframe_id)
 	sticks = TouchSticks.new()
 	hud.add_child(sticks)
+	sticks.blocked = hud.interactive_controls()
 	hud.show_gimbal(af["hasGimbal"])
 	hud.lens_changed.connect(func(l: String): sensor.set_lens(l))
+	hud.ev_changed.connect(func(v: float): sensor.ev_comp = v)
+	hud.bloom_changed.connect(func(on: bool): sensor.bloom_on = on)
+	hud.noise_changed.connect(func(v: float): sensor.noise_scale = v)
+	hud.link_changed.connect(func(on: bool): sensor.link_effects = on)
+	hud.osd_changed.connect(func(on: bool): osd.show_osd = on)
+	hud.photo_requested.connect(_shutter_pressed)
+	hud.takeoff_land_requested.connect(_takeoff_or_land)
+	hud.rth_requested.connect(_toggle_rth)
 	# the camera renders into the sensor pipeline's overscan viewport; the window itself only shows the video frame and the HUD
 	sensor = SensorPipeline.new()
 	add_child(sensor)
@@ -94,10 +107,13 @@ func _ready() -> void:
 	var video := CanvasLayer.new(); video.layer = 1; add_child(video); video.add_child(sensor.screen)
 	get_viewport().disable_3d = true
 	osd = Osd.new(); osd.name = "Osd"; hud.add_child(osd)
+	hud.minimap.bake(terrain)
+	hud.minimap.features = [Rect2(Cemetery.CENTRE - Cemetery.HALF, Cemetery.HALF * 2.0)]
 	apply_weather(hud.weather)
 	spawn()
 	if q_arg != "": _screenshot_mode(q_arg)
 	if _selftest: _run_selftest()
+	if _apstest: _run_apstest()
 
 # ------------------------------------------------------------------ world
 func _build_world() -> void:
@@ -282,6 +298,8 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 
 # ------------------------------------------------------------------ flight
 func spawn() -> void:
+	autopilot.cancel()
+	if hud and hud.minimap: hud.minimap.clear_trail()
 	var y := terrain.height(0.0, 0.0) + 0.04
 	quad.reset(0.0, y, 0.0, deg_to_rad(150.0))
 	fc.reset_state(); fc.mode = hud.mode if hud else "N"; fc.heading = deg_to_rad(150.0)
@@ -329,6 +347,7 @@ func _physics_process(_delta: float) -> void:
 	var st := _read_sticks()
 	var p := quad.position()
 	var agl := p.y - terrain.height(p.x, p.z)
+	st = _autopilot_sticks(st, p, agl)
 	quad.wind = wind.sample(p, maxf(agl, 0.05), sim_time)
 	_wind_now = quad.wind
 	fc.on_ground = agl < 0.15
@@ -531,3 +550,91 @@ func _update_sensor_and_osd(delta: float) -> void:
 		"windMs": _wind_now.length(), "windLevel": "", "homeBearing": atan2(-dpos.x, dpos.z), "stopHit": 0.0, "aero": "",
 	}
 	hud.show_crash(osd.t["crashed"])
+	hud.set_airborne(agl > 0.4)
+	hud.set_rth(autopilot.state in [AutoPilot.State.RTH_CLIMB, AutoPilot.State.RTH_FLY, AutoPilot.State.RTH_LAND])
+	hud.minimap.update_state(dpos, float(osd.t["heading"]), delta)
+	if recording:
+		_rec_time += delta
+		osd.t["rec"] = "REC %02d:%02d" % [int(_rec_time) / 60, int(_rec_time) % 60]
+
+# ------------------------------------------------------------------ assisted flight, photos
+## Mixes the assisted-flight sticks into what the pilot holds. Return to home gives way as soon as the pilot moves a stick.
+func _autopilot_sticks(st: Vector4, p: Vector3, agl: float) -> Vector4:
+	if not autopilot.active(): return st
+	if fc.mode == "M":
+		autopilot.cancel("Assisted flight needs Normal or Sport mode")
+	else:
+		var lim: Dictionary = af["limits"]["S" if fc.mode == "S" else "N"]
+		var cmd := autopilot.update(p, quad.velocity(), fc.heading, agl, Vector2.ZERO, float(lim["vH"]), float(lim["vUp"]))
+		var rth := autopilot.state in [AutoPilot.State.RTH_CLIMB, AutoPilot.State.RTH_FLY, AutoPilot.State.RTH_LAND]
+		if rth and maxf(maxf(absf(st.x), absf(st.y)), maxf(absf(st.z), absf(st.w))) > 0.25:
+			autopilot.cancel("Return to home cancelled")
+		elif cmd.is_finite():
+			st = cmd
+	if autopilot.message != "":
+		hud.toast(autopilot.message); autopilot.message = ""
+	return st
+
+func _takeoff_or_land() -> void:
+	var p := quad.position()
+	var agl := p.y - terrain.height(p.x, p.z)
+	if quad.crashed or not quad.armed:
+		hud.toast("Reset the drone first", true); return
+	if autopilot.state == AutoPilot.State.TAKEOFF or autopilot.state == AutoPilot.State.LAND:
+		autopilot.cancel("Cancelled"); return
+	if agl > 0.4: autopilot.start_landing()
+	else: autopilot.start_takeoff()
+	if fc.mode == "M": hud.set_mode("N")
+
+func _toggle_rth() -> void:
+	var p := quad.position()
+	var agl := p.y - terrain.height(p.x, p.z)
+	if quad.crashed or not quad.armed:
+		hud.toast("Reset the drone first", true); return
+	if autopilot.state in [AutoPilot.State.RTH_CLIMB, AutoPilot.State.RTH_FLY, AutoPilot.State.RTH_LAND]:
+		autopilot.cancel("Return to home cancelled"); hud.toast("Return to home cancelled"); return
+	if agl < 0.4:
+		hud.toast("Take off first", true); return
+	if fc.mode == "M": hud.set_mode("N")
+	autopilot.start_rth(agl)
+
+## The shutter: a photo saves the finished video frame; in video mode it starts and stops a recording indicator.
+func _shutter_pressed() -> void:
+	if hud.video_mode:
+		recording = not recording; _rec_time = 0.0
+		hud._shutter.recording = recording; hud._shutter.queue_redraw()
+		hud.toast("Recording" if recording else "Recording saved")
+		return
+	var img := sensor.capture()
+	hud.flash_photo()
+	if img == null:
+		hud.toast("Photo taken"); return
+	DirAccess.make_dir_recursive_absolute("user://photos")
+	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
+	var path := "user://photos/AeroSim_%s.png" % stamp
+	img.save_png(path)
+	hud.toast("Photo saved")
+
+var _apstest := false
+
+## Headless check of assisted flight: take off, then fly 60 m away and come home by Return to Home and land.
+func _run_apstest() -> void:
+	_takeoff_or_land()
+	for i in 500: await get_tree().physics_frame
+	var p := quad.position()
+	print("apstest: after takeoff agl %.2f m, state %d" % [p.y - terrain.height(p.x, p.z), autopilot.state])
+	# put the drone 60 m out at 18 m above ground, hovering
+	var px := 45.0
+	var pz := 40.0
+	quad.reset(px, terrain.height(px, pz) + 18.0, pz, deg_to_rad(40.0))
+	var wh: float = float(af["omegaMax"]) * sqrt(1.0 / float(af["twr"]))
+	for k in 4:
+		quad.s[13 + k] = wh; quad.cmd[k] = wh
+	fc.heading = deg_to_rad(40.0)
+	_toggle_rth()
+	var t := 0
+	while autopilot.active() and t < 6000:
+		await get_tree().physics_frame; t += 1
+	p = quad.position()
+	print("apstest: rth finished after %.1f s, state %d, %.1f m from home, agl %.2f m, crashed=%s" % [t * 0.008, autopilot.state, sqrt(p.x * p.x + p.z * p.z), p.y - terrain.height(p.x, p.z), quad.crashed])
+	get_tree().quit()
