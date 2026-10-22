@@ -42,6 +42,13 @@ func build(af: Dictionary) -> void:
 		var cm := CylinderMesh.new(); cm.top_radius = 0.014 * scale_k; cm.bottom_radius = 0.015 * scale_k; cm.height = 0.022
 		motor.mesh = cm; motor.material_override = metal; motor.position = p + Vector3(0, 0.012, 0)
 		add_child(motor)
+		# navigation lights: green front right, red front left, white behind
+		var led := MeshInstance3D.new(); var lsm := SphereMesh.new(); lsm.radius = 0.006 * scale_k; lsm.height = 0.012 * scale_k
+		var lc := Color(0.2, 1.0, 0.3) if i == 0 else (Color(1.0, 0.15, 0.1) if i == 3 else Color(1.0, 1.0, 1.0))
+		var lm := StandardMaterial3D.new(); lm.albedo_color = lc; lm.emission_enabled = true; lm.emission = lc; lm.emission_energy_multiplier = 3.0
+		led.mesh = lsm; led.material_override = lm; led.position = p + Vector3(0, -0.004, 0) + Vector3(sign(p.x), 0, sign(p.z)) * 0.012 * scale_k
+		led.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(led)
 		var prop := Node3D.new(); prop.position = p + Vector3(0, 0.03, 0)
 		var blades: int = af["nBlades"]
 		for b in blades:

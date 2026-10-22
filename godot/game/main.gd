@@ -17,6 +17,8 @@ var drone_node := Node3D.new()
 var drone_view := DroneView.new()
 var cam := Camera3D.new()
 var sun := DirectionalLight3D.new()
+var moon := DirectionalLight3D.new()
+var drone_light := SpotLight3D.new()
 var env := Environment.new()
 var sky_mat := ShaderMaterial.new()
 var wx := WeatherSystem.new()
@@ -25,6 +27,23 @@ var rain_mat: ParticleProcessMaterial
 var _base_wind := 1.0
 var _base_gust := 0.45
 var _sun_el := 14.0
+var _sun_az := 238.0
+# time of day: the sun and moon follow the real clock, or a time the player sets, which can run on or stand still
+const DATES := [[3, 21], [6, 21], [9, 22], [12, 21]]
+var _clock := 16.0               # local hour, 0..24
+var _doy := 295
+var _unix := 0.0
+var _utc_off := -4.0
+var _clock_mode := 0             # 0 real clock, 1 set time
+var _clock_speed := 0            # 0 real time, 1 fast, 2 frozen
+var _date_pick := 0
+var _hour_setting := -1.0
+var _celestial_t := 0.0
+var _hour_write_t := 0.0
+var _moon_el := -20.0
+var _moon_dir := Vector3(0, -1, 0)
+var _moon_illum := 0.5
+var _daylight := 1.0
 var _last_wet_applied := -1.0
 var snow_fx: GPUParticles3D
 var snow_mat: ParticleProcessMaterial
@@ -74,6 +93,14 @@ func _ready() -> void:
 	quad.obstacle_hit = world.obstacle_hit
 	add_child(drone_node)
 	drone_node.add_child(drone_view)
+	# a spotlight on the airframe, pointing forward and a little down, for flying at night
+	drone_light.position = Vector3(0, -0.02, -0.1)
+	drone_light.rotation_degrees = Vector3(-22, 0, 0)
+	drone_light.spot_range = 70.0; drone_light.spot_angle = 34.0; drone_light.spot_attenuation = 0.5
+	drone_light.light_energy = 14.0; drone_light.light_color = Color(1.0, 0.96, 0.88)
+	drone_light.shadow_enabled = true
+	drone_light.visible = false
+	drone_node.add_child(drone_light)
 	drone_view.build(af)
 	add_child(cam)
 	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
@@ -86,6 +113,7 @@ func _ready() -> void:
 	hud.mode_changed.connect(func(m: String): fc.mode = m; fc.reset_state())
 	hud.camera_changed.connect(func(c: bool): chase = c)
 	hud.weather_changed.connect(apply_weather)
+	hud.light_changed.connect(func(on: bool): drone_light.visible = on)
 	hud.gimbal_changed.connect(func(r: float): gimbal_pitch = r)
 	hud.set_airframe(airframe_id)
 	sticks = TouchSticks.new()
@@ -155,6 +183,13 @@ func _build_world() -> void:
 	sun.light_energy = 2.2
 	sun.shadow_blur = 1.2
 	add_child(sun)
+	moon.shadow_enabled = true
+	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	moon.directional_shadow_max_distance = 120.0
+	moon.light_color = Color(0.62, 0.74, 1.0)
+	moon.light_energy = 0.0
+	moon.light_angular_distance = 1.0
+	add_child(moon)
 	sky_mat.shader = load("res://game/shaders/sky.gdshader")   # weather-driven sky: clear-sky colour, sun, clouds
 	var sky := Sky.new(); sky.sky_material = sky_mat
 	sky.process_mode = Sky.PROCESS_MODE_REALTIME
@@ -257,29 +292,73 @@ func _snow_mesh() -> Mesh:
 func apply_weather(w: Dictionary) -> void:
 	_base_wind = float(w["wind"]); _base_gust = float(w["gust"])
 	wind.from_deg = float(w["from"])
-	var first := _sun_el < 0.0
-	_sun_el = float(w["sun"])
-	var el := deg_to_rad(_sun_el)
-	var az := deg_to_rad(238.0)
-	var to_sun := Vector3(sin(az) * cos(el), sin(el), -cos(az) * cos(el))
-	_sun_dir = to_sun
-	if sensor: sensor.set_sun_direction(to_sun)
-	sun.global_transform = Transform3D(Basis.looking_at(-to_sun), Vector3.ZERO)
-	sun.light_color = Color.WHITE
-	sun.light_temperature = 3300.0 + 1200.0 * smoothstep(5.0, 22.0, _sun_el)
+	var hour := float(w.get("hour", 16.0))
+	if _hour_setting < 0.0:
+		_hour_setting = hour
+		_clock = hour
+	elif absf(hour - _hour_setting) > 0.001:
+		# moving the hour slider sets the time
+		_hour_setting = hour; _clock = hour; w["clock_mode"] = 1
+	_clock_mode = int(w.get("clock_mode", 0)); _clock_speed = int(w.get("clock_speed", 0)); _date_pick = int(w.get("date", 0))
+	_apply_date()
+	_tick_clock(0.0)
+	_update_celestial()
 	wx.set_condition(int(w["sky"]), float(w["intensity"]))
 	_apply_weather_state(0.0, true)
 
-## Push the weather's current values into the sky, light, fog, particles and surface wetness. Called every frame
-## with the time step (the weather eases between conditions) and once with snap = true to jump straight to the target.
+## The calendar day: today's, or one of the season presets.
+func _apply_date() -> void:
+	var now := Time.get_datetime_dict_from_system(false)
+	var m := int(now["month"]); var d := int(now["day"])
+	if _date_pick > 0:
+		var pr: Array = DATES[_date_pick - 1]
+		m = pr[0]; d = pr[1]
+	_doy = Solar.day_of_year(m, d)
+	_unix = Time.get_unix_time_from_datetime_dict({"year": int(now["year"]), "month": m, "day": d, "hour": 12, "minute": 0, "second": 0}) + 4.0 * 3600.0
+	_utc_off = Solar.utc_offset_for(_doy)
+
+func _tick_clock(delta: float) -> void:
+	if _clock_mode == 0:
+		var now := Time.get_datetime_dict_from_system(false)
+		_clock = float(now["hour"]) + float(now["minute"]) / 60.0 + float(now["second"]) / 3600.0
+	elif _clock_speed != 2 and not paused:
+		_clock += delta / 3600.0 * (60.0 if _clock_speed == 1 else 1.0)
+		if _clock >= 24.0: _clock -= 24.0
+
+## Place the sun and the moon in the sky for the current time.
+func _update_celestial() -> void:
+	var sp := Solar.sun_position(_doy, _clock, _utc_off)
+	_sun_el = sp.x; _sun_az = sp.y
+	var to_sun := Solar.direction(sp.x, sp.y)
+	_sun_dir = to_sun
+	if sensor: sensor.set_sun_direction(to_sun)
+	sun.global_transform = Transform3D(Basis.looking_at(-to_sun, Vector3.UP if absf(to_sun.y) < 0.99 else Vector3.FORWARD), Vector3.ZERO)
+	sun.light_color = Color.WHITE
+	sun.light_temperature = 3300.0 + 1200.0 * smoothstep(5.0, 22.0, _sun_el) + 1500.0 * smoothstep(22.0, 60.0, _sun_el)
+	var phase := Solar.moon_phase(_unix + (_clock - 12.0) * 3600.0)
+	_moon_illum = Solar.moon_illumination(phase)
+	var mp := Solar.moon_position(_doy, _clock, phase, _utc_off)
+	_moon_el = mp.x
+	_moon_dir = Solar.direction(mp.x, mp.y)
+	moon.global_transform = Transform3D(Basis.looking_at(-_moon_dir, Vector3.UP if absf(_moon_dir.y) < 0.99 else Vector3.FORWARD), Vector3.ZERO)
+	_daylight = smoothstep(-9.0, 5.0, _sun_el)
+
 func _apply_weather_state(delta: float, snap := false) -> void:
 	wx.update(delta, snap)
 	var c := wx.cur
-	var sun_base := 2.6 * (0.55 + 0.45 * smoothstep(3.0, 18.0, _sun_el))
+	var sun_base := 2.6 * (0.55 + 0.45 * smoothstep(3.0, 18.0, _sun_el)) * smoothstep(-1.5, 3.0, _sun_el)
 	var storm_flash := wx.flash
 	sun.light_energy = sun_base * float(c["sun"]) + storm_flash * 4.0
 	sun.shadow_opacity = clampf(0.25 + 3.0 * float(c["sun"]), 0.0, 1.0)
-	env.ambient_light_energy = 1.15 * float(c["amb"]) + storm_flash * 1.2
+	# the moon: its light scales with how much of it is lit and how high it stands, and cloud dims it
+	var moon_f := _moon_illum * smoothstep(-2.0, 8.0, _moon_el) * (1.0 - _daylight)
+	moon.light_energy = 0.14 * pow(_moon_illum, 1.3) * smoothstep(-2.0, 8.0, _moon_el) * (1.0 - _daylight) * (0.25 + 0.75 * float(c["sun"]))
+	moon.visible = moon.light_energy > 0.002
+	sun.visible = _sun_el > -3.0
+	var night_amb := 0.012 + 0.10 * moon_f
+	env.ambient_light_energy = 1.15 * float(c["amb"]) * lerpf(night_amb, 1.0, _daylight) + storm_flash * 1.2
+	sky_mat.set_shader_parameter("moon_dir", _moon_dir)
+	sky_mat.set_shader_parameter("moon_illum", _moon_illum)
 	sky_mat.set_shader_parameter("sun_dir", _sun_dir)
 	sky_mat.set_shader_parameter("cover", float(c["cover"]))
 	sky_mat.set_shader_parameter("dark", float(c["dark"]))
@@ -292,7 +371,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	# fog: thicker and greyer in rain, snow and mist
 	var grey := clampf(float(c["haze"]) * 0.9 + float(c["fog"]) * 0.4, 0.0, 1.0)
 	env.fog_density = 0.00012 * float(c["fogd"])
-	env.fog_light_color = Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey)
+	env.fog_light_color = Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey) * lerpf(0.03 + 0.12 * moon_f, 1.0, _daylight)
 	env.fog_sky_affect = 0.05 + 0.6 * float(c["fog"])
 	env.fog_height_density = 0.0003 * float(c["fogd"])
 	# wind follows the condition
@@ -387,6 +466,15 @@ func _process(delta: float) -> void:
 	if quad == null: return
 	if _gallery_cam:
 		return
+	_tick_clock(delta)
+	_celestial_t -= delta
+	if _celestial_t <= 0.0:
+		_celestial_t = 0.25
+		_update_celestial()
+	_hour_write_t -= delta
+	if _hour_write_t <= 0.0:
+		_hour_write_t = 1.0
+		_hour_setting = _clock; hud.weather["hour"] = _clock      # so the settings page shows the time that is running
 	_fps_acc += delta
 	if _fps_acc > 0.5:
 		_fps = 1.0 / maxf(delta, 1e-4) * 0.5 + _fps * 0.5
@@ -451,6 +539,11 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
 		if c == "armed": quad.armed = true
+		if c.begins_with("clock"):     # test hook: freeze the clock at that hour (clock7.5), on the date picked with date1..4
+			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)
+		if c.begins_with("date"):
+			hud.weather["date"] = int(c.substr(4)); apply_weather(hud.weather)
+		if c == "light": drone_light.visible = true
 		if c.begins_with("cd"): _chase_d = float(c.substr(2))
 		if c == "climb":
 			_auto_climb = true
@@ -555,7 +648,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var sun_target := 1.0
 	if not _terrain_clear(cpos, cpos + _sun_dir * 1500.0, 24): sun_target = 0.0
 	elif world.canopy_blocks(cpos, _sun_dir, 90.0): sun_target = 0.0
-	sun_target *= smoothstep(0.12, 0.5, float(wx.cur["sun"]))
+	sun_target *= smoothstep(0.12, 0.5, float(wx.cur["sun"])) * smoothstep(0.0, 3.0, _sun_el)
 	_sun_vis += (sun_target - _sun_vis) * clampf(delta * 8.0, 0.0, 1.0)
 	sensor.sun_vis = _sun_vis
 	# video link: free-space loss with distance, plus a penalty when the terrain blocks the line of sight

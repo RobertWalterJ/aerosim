@@ -21,8 +21,9 @@ static func add_globals() -> void:
 func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Vector2) -> void:
 	var counts: Array = QUALITY_COUNTS.get(quality, QUALITY_COUNTS["medium"])
 	var layers := [
-		{"patch": 13.0, "count": counts[0], "h": Vector2(0.10, 0.28), "w": 0.0085, "litter": 0.0},
-		{"patch": 46.0, "count": counts[1], "h": Vector2(0.18, 0.55), "w": 0.02, "litter": 0.0},
+		{"patch": 13.0, "count": counts[0], "h": Vector2(0.10, 0.28), "w": 0.0085, "litter": 0.0, "clump": 0.3, "tall": 0.0},
+		{"patch": 46.0, "count": counts[1], "h": Vector2(0.18, 0.55), "w": 0.02, "litter": 0.0, "clump": 0.6, "tall": 0.0},
+		{"patch": 30.0, "count": int(counts[1] * 0.45), "h": Vector2(0.45, 1.05), "w": 0.03, "litter": 0.0, "clump": 0.8, "tall": 1.0},
 		{"patch": 16.0, "count": counts[2], "h": Vector2(0.05, 0.09), "w": 0.045, "litter": 1.0},
 	]
 	var shader := load("res://game/shaders/grass.gdshader") as Shader
@@ -44,6 +45,8 @@ func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Ve
 		mat.set_shader_parameter("uBH", L["h"])
 		mat.set_shader_parameter("uWidth", L["w"])
 		mat.set_shader_parameter("uLitter", L["litter"])
+		mat.set_shader_parameter("uClump", L.get("clump", 0.4))
+		mat.set_shader_parameter("uTall", L.get("tall", 0.0))
 		mat.set_shader_parameter("uHT", terrain.height_tex)
 		mat.set_shader_parameter("uCV", terrain.cover_tex)
 		mat.set_shader_parameter("uSize", Terrain.SIZE)

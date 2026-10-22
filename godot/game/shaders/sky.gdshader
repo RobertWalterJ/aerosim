@@ -12,6 +12,8 @@ uniform float haze : hint_range(0.0, 1.0) = 0.2;      // dust and moisture: wash
 uniform float fog : hint_range(0.0, 1.0) = 0.0;       // ground fog: the whole lower sky goes milky
 uniform vec2 drift = vec2(0.6, 0.2);                  // cloud movement in noise units per second
 uniform float flash : hint_range(0.0, 1.0) = 0.0;     // lightning
+uniform vec3 moon_dir = vec3(0.0, -1.0, 0.0);          // unit vector towards the moon
+uniform float moon_illum : hint_range(0.0, 1.0) = 0.5; // fraction of the moon's face that is lit
 
 float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 float vnoise(vec3 p) {
@@ -41,8 +43,8 @@ void sky() {
 	float day = smoothstep(-0.12, 0.12, sun_h);                 // 0 night .. 1 day
 	float warm = 1.0 - smoothstep(0.06, 0.42, sun_h);           // sunrise and sunset
 	// ---- clear sky
-	vec3 zenith = mix(vec3(0.03, 0.05, 0.12), vec3(0.10, 0.26, 0.70), day);
-	vec3 horizon = mix(vec3(0.06, 0.07, 0.12), vec3(0.55, 0.72, 0.92), day);
+	vec3 zenith = mix(vec3(0.004, 0.007, 0.018), vec3(0.10, 0.26, 0.70), day);
+	vec3 horizon = mix(vec3(0.009, 0.011, 0.022), vec3(0.55, 0.72, 0.92), day);
 	horizon = mix(horizon, vec3(0.95, 0.62, 0.38), warm * day * (0.5 + 0.5 * pow(max(mu, 0.0), 2.0)));
 	zenith = mix(zenith, vec3(0.28, 0.32, 0.50), warm * 0.4);
 	vec3 col = mix(horizon, zenith, pow(up, 0.42));
@@ -62,6 +64,54 @@ void sky() {
 	col = mix(col, far_c, (1.0 - smoothstep(ridge_far - 0.0015, ridge_far + 0.0015, dir.y)) * vis * 0.85);
 	col = mix(col, near_c, (1.0 - smoothstep(ridge_near - 0.0015, ridge_near + 0.0015, dir.y)) * vis * 0.8);
 	float disc = smoothstep(0.99955, 0.99975, mu) * 60.0 * day;
+	// ---- night: stars, and the moon with its phase
+	float night = 1.0 - smoothstep(-0.16, 0.04, sun_h);
+	vec3 night_extra = vec3(0.0);
+	float moon_up = smoothstep(-0.08, 0.04, moon_dir.y);
+	if (night > 0.01) {
+		// stars: a jittered point in each cell of a fine grid on the sphere, each with its own brightness and twinkle
+		vec3 sp = dir * 90.0;
+		vec3 cell = floor(sp);
+		vec3 fp = fract(sp) - 0.5;
+		float h = hash13(cell);
+		vec3 jit = vec3(hash13(cell + 7.1), hash13(cell + 13.7), hash13(cell + 29.3)) - 0.5;
+		float star = smoothstep(0.07, 0.0, length(fp - jit * 0.5)) * step(0.80, h);
+		float tw = 0.75 + 0.25 * sin(TIME * (2.0 + 5.0 * h) + h * 40.0);
+		float mag = pow((h - 0.80) / 0.20, 2.0) * 3.0 + 0.4;
+		vec3 starc = mix(vec3(0.75, 0.85, 1.0), vec3(1.0, 0.88, 0.7), fract(h * 91.7));
+		float hide = smoothstep(0.0, 0.1, dir.y) * (1.0 - 0.9 * haze) * (1.0 - fog) * (1.0 - 0.8 * moon_illum * moon_up);
+		night_extra += starc * star * mag * tw * hide * 1.6;
+		// the faint band of the Milky Way
+		float band = exp(-pow(dot(dir, normalize(vec3(0.3, 0.8, -0.5))) * 4.0, 2.0));
+		night_extra += vec3(0.30, 0.34, 0.46) * band * (0.25 + 0.75 * fbm(dir * 7.0)) * 0.05 * hide;
+		// moonlight lifts the whole sky a little
+		col += vec3(0.0035, 0.0055, 0.012) * moon_illum * moon_up * night * (1.0 - 0.5 * up);
+		float mu_m = dot(dir, moon_dir);
+		// the disc, drawn a little larger than life so it reads on a small screen
+		float rad = 0.02;
+		float ang = acos(clamp(mu_m, -1.0, 1.0));
+		if (ang < rad * 1.25 && moon_dir.y > -0.08) {
+			vec3 t1 = normalize(cross(vec3(0.0, 1.0, 0.0), moon_dir));
+			vec3 t2 = cross(moon_dir, t1);
+			vec2 pm = vec2(dot(dir, t1), dot(dir, t2)) / sin(rad);
+			float r2 = dot(pm, pm);
+			if (r2 < 1.0) {
+				vec3 sdn = normalize(sun_dir);
+				float cos_e = dot(sdn, moon_dir);
+				float sin_e = sqrt(max(1.0 - cos_e * cos_e, 0.0));
+				vec2 toward = vec2(dot(sdn, t1), dot(sdn, t2));
+				toward = length(toward) > 1e-4 ? normalize(toward) : vec2(1.0, 0.0);
+				vec3 nrm = vec3(pm, sqrt(1.0 - r2));
+				vec3 lgt = vec3(toward * sin_e, -cos_e);
+				float lit = smoothstep(-0.04, 0.10, dot(nrm, lgt));
+				float maria = 0.55 + 0.45 * fbm(vec3(pm * 2.2, 3.0));
+				float shade = (lit * maria + 0.02) * smoothstep(1.0, 0.92, r2);
+				night_extra += vec3(1.0, 0.97, 0.9) * shade * 0.22 * moon_up;
+			}
+		}
+		night_extra += vec3(0.55, 0.65, 1.0) * (pow(max(mu_m, 0.0), 220.0) * 0.12 + pow(max(mu_m, 0.0), 24.0) * 0.012) * moon_illum * moon_up;
+		night_extra *= night;
+	}
 	// ---- clouds on a plane above the viewer
 	float cloud_a = 0.0;
 	vec3 cloud_col = vec3(1.0);
@@ -86,7 +136,7 @@ void sky() {
 		cloud_a = clamp(cloud_a + ci * 0.7, 0.0, 1.0);
 	}
 	// the sun is hidden by cloud
-	vec3 sky_col = col + vec3(1.0, 0.95, 0.85) * disc * (1.0 - cloud_a);
+	vec3 sky_col = col + vec3(1.0, 0.95, 0.85) * disc * (1.0 - cloud_a) + night_extra * (1.0 - cloud_a);
 	sky_col = mix(sky_col, cloud_col * (0.9 + 0.5 * day), cloud_a);
 	// below the horizon: ground haze colour
 	if (dir.y < 0.0) {

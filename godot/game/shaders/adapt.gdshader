@@ -7,7 +7,7 @@ uniform float uDt = 0.016;
 uniform float uTau = 0.35;
 uniform float uEvComp = 0.0;
 uniform float uMinE = 0.03;
-uniform float uMaxE = 40.0;
+uniform float uMaxE = 8.0;
 void fragment() {
 	float meanLog = texture(uMeter, vec2(0.5)).r;
 	float target = log2(0.13) - meanLog + uEvComp;

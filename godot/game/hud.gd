@@ -25,9 +25,10 @@ signal osd_changed(on: bool)
 signal sound_changed(on: bool)
 signal listening_changed(i: int)
 signal volume_changed(v: float)
+signal light_changed(on: bool)
 
 const WEATHER_FILE := "user://weather.cfg"
-const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6}
+const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
 const PRESETS := [["Still", 0.0, 0.0], ["Calm", 1.0, 0.45], ["Light", 3.0, 0.65], ["Breezy", 5.0, 0.85], ["Strong", 7.5, 1.0]]
 const COMPASS := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 const TABS := ["Flight", "Drone", "Weather", "Camera", "Display"]
@@ -46,6 +47,7 @@ var osd_on := true
 var video_mode := false
 var airborne := false
 var rth_active := false
+var light_on := false
 var sound_on := true
 var listening := 2
 var sound_vol := 0.8
@@ -417,7 +419,10 @@ func _build_weather_tab() -> void:
 	_choice(p, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
 	_slider(p, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
 	_heading(p, "Time of day")
-	_slider(p, "sun", "Sun height", 4.0, 40.0, 1.0)
+	_choice(p, "Clock", ["Real clock", "Set the time"], func(): return int(weather["clock_mode"]), func(i): weather["clock_mode"] = i; _weather_edited())
+	_slider(p, "hour", "Hour of day (moving this sets the time)", 0.0, 23.99, 0.05)
+	_choice(p, "Time passes", ["Real time", "Fast (a minute a second)", "Frozen"], func(): return int(weather["clock_speed"]), func(i): weather["clock_speed"] = i; _weather_edited())
+	_choice(p, "Date", ["Today", "Spring (21 Mar)", "Summer (21 Jun)", "Autumn (22 Sep)", "Winter (21 Dec)"], func(): return int(weather["date"]), func(i): weather["date"] = i; _weather_edited())
 	_heading(p, "Wind")
 	var seg := HFlowContainer.new(); seg.add_theme_constant_override("h_separation", 8); p.add_child(seg)
 	for pr in PRESETS:
@@ -432,6 +437,7 @@ func _build_weather_tab() -> void:
 func _build_camera_tab() -> void:
 	var p := _page("Camera")
 	_choice(p, "Lens", ["84° Standard", "150° Wide"], func(): return 0 if lens == "standard" else 1, func(i): set_lens("standard" if i == 0 else "wide"))
+	_choice(p, "Drone light", ["Off", "On"], func(): return 1 if light_on else 0, func(i): light_on = i == 1; light_changed.emit(light_on))
 	_gslider(p, "Exposure compensation", -3.0, 3.0, 0.33, func(): return ev_comp, func(x): ev_comp = x; ev_changed.emit(x), func(v): return "%+.1f EV" % v)
 	_choice(p, "Bloom", ["On", "Off"], func(): return 0 if bloom else 1, func(i): bloom = i == 0; bloom_changed.emit(bloom))
 	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
@@ -467,7 +473,7 @@ func _sync() -> void:
 			"wind": _slider_labels[k].text = "%.1f m/s" % v
 			"gust": _slider_labels[k].text = "Steady" if v < 0.34 else ("Some gusts" if v < 0.7 else "Gusty")
 			"from": _slider_labels[k].text = "%s (%d°)" % [COMPASS[int(round(v / 45.0)) % 8], int(v)]
-			"sun": _slider_labels[k].text = "Sunset glow" if v < 8 else ("Late afternoon" if v < 18 else ("Afternoon" if v < 30 else "Midday"))
+			"hour": _slider_labels[k].text = "%02d:%02d" % [int(v), int((v - floorf(v)) * 60.0)]
 			"intensity": _slider_labels[k].text = "Light" if v < 0.34 else ("Moderate" if v < 0.7 else "Heavy")
 
 func set_paused(on: bool) -> void:
