@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+/** Ground and grass whitening, 0 = bare, 1 = fully covered. Shared by the terrain and grass shaders. */
+export const SnowCover = { uSnow: { value: 0 } };
+
 /**
  * Falling snow: one Points object whose flakes live in a box that follows the camera. Each flake's position
  * is computed on the GPU from a fixed random seed and the clock, so there is no per-flake work on the CPU.
@@ -52,6 +55,7 @@ export class SnowFall {
     this.points.visible = level > 0;
     this.u.uDensity.value = level === 1 ? 0.4 : level >= 2 ? 1 : 0;
     this.fall = level >= 2 ? 2.2 : 1.2;
+    SnowCover.uSnow.value = level === 1 ? 0.55 : level >= 2 ? 1 : 0;
   }
 
   /** Call once per frame with the camera position, the frame time and the wind vector (m/s). */

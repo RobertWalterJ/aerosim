@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { AIRFRAMES, Airframe, QUALITY, Quality, WORLD } from './config';
+import { AIRFRAMES, Airframe, AirframeId, QUALITY, Quality, WORLD } from './config';
 import { ValleyTerrain } from './world/ValleyTerrain';
 import { Colliders } from './world/Colliders';
 import { FoliageInstancer } from './world/FoliageInstancer';
@@ -108,23 +108,40 @@ async function boot() {
   // pause window (PAUSE button / Esc): freezes the flight; holds the less-used controls and the weather
   let paused = false, installable = false; pwa.onInstallable(ok => { installable = ok; });
   const snow = new SnowFall(qName === 'low' ? 6000 : qName === 'medium' ? 10000 : 16000, Q.renderHeight); scene.add(snow.points);
-  const MODE_NAMES: Record<string, string> = { N: 'Normal', S: 'Sport', M: 'Manual' }, MODE_NEXT: Record<string, 'N' | 'S' | 'M'> = { N: 'S', S: 'M', M: 'N' };
+  const switchAirframe = (next: Airframe) => {
+    af = next; quad.af = af; Object.assign(quad, { rotor: new (quad.rotor.constructor as any)(af) }); (quad as any).battery = new (quad.battery.constructor as any)(af.cells, af.capacityAh, af.rInt);
+    (quad as any).rpos = [[af.armD, 0, -af.armD], [af.armD, 0, af.armD], [-af.armD, 0, af.armD], [-af.armD, 0, -af.armD]]; fc.setAirframe(af); drone.setAirframe(af); spawn(home.x, home.z, 150);
+  };
+  const DRONES: [AirframeId, string, string][] = [
+    ['mini', 'Gimbal Mini', '249 g. Light and easy, with a steady gimbal camera. A good place to start.'],
+    ['freestyle', '5-inch Freestyle', '750 g. Fast and powerful. Made for flips, rolls and tricks.'],
+    ['race', 'Race quad', '600 g. The fastest. Quick to turn and hard to fly.'],
+    ['cinewhoop', 'Cinewhoop', '350 g. Slow and steady. Guarded props for smooth shots close to things.'],
+    ['cinema', 'Cinema drone', '1.4 kg. Big and heavy. Very smooth and slow to turn.'],
+  ];
+  const FLIGHT_MODES: ('N' | 'S' | 'M')[] = ['N', 'S', 'M'];
   const menu = new SettingsMenu(w => {
     WORLD.windRefSpeed = w.windMs; WORLD.windDirDeg = w.windFromDeg;
     const from = w.windFromDeg * DEG; wind.dirX = -Math.sin(from); wind.dirZ = Math.cos(from);
     wind.uStar = (Math.max(w.windMs, 0.05) * wind.kappa) / Math.log(WORLD.windRefHeight / wind.z0); wind.gustiness = w.gust;
     atmo.setSun(atmo.azimuth, w.sunEl); atmo.refreshMaterials(); snow.setLevel(w.snow);
-  }, [
-    { label: 'Flight mode', value: () => MODE_NAMES[fc.mode] ?? fc.mode, run: () => { fc.mode = MODE_NEXT[fc.mode] ?? 'N'; fc.resetState(); touch?.refreshMode(); } },
-    { label: 'Camera view', value: () => chase ? 'Chase' : 'First person', run: () => { chase = !chase; } },
-    { label: 'Lens', value: () => lensName, run: () => { const l = pipeline.lens === 'standard' ? 'wide' : 'standard'; pipeline.setLens(l, 0); lensName = pipeline.lenses[l].name; } },
-    { label: 'Reset drone', value: () => 'Back to the start', run: () => { spawn(home.x, home.z, 150); menu.toggle(false); } },
-    { label: 'On-screen display', value: () => osd.visible ? 'On' : 'Off', run: () => { osd.visible = !osd.visible; } },
-    { label: 'Frame rate', value: () => fps + ' fps', run: () => { fps = fps === 60 ? 30 : 60; } },
-    { label: 'Sound', value: () => audio ? audioName : 'Tap to turn on', run: () => { initAudio().then(() => { if (audio) audioName = audio.cyclePerspective(); menu.refresh(); }); } },
-    { label: 'Full screen', run: () => { const d = document.documentElement as any; if (document.fullscreenElement) document.exitFullscreen(); else (d.requestFullscreen?.() ?? Promise.resolve()).then(() => (screen.orientation as any)?.lock?.('landscape')).catch(() => { }); } },
-    { label: 'Install app', run: () => { pwa.promptInstall(); }, show: () => installable },
-  ], p => { paused = p; });
+    atmo.fog.near = 0.00012 * (1 + 1.5 * w.snow); // haze thickens in snow (fog.near holds the density)
+  }, {
+    fly: [
+      { type: 'choice', label: 'Flight mode', options: ['Normal', 'Sport', 'Manual'], get: () => Math.max(0, FLIGHT_MODES.indexOf(fc.mode as 'N' | 'S' | 'M')), set: i => { fc.mode = FLIGHT_MODES[i]!; fc.resetState(); touch?.refreshMode(); } },
+      { type: 'choice', label: 'Camera view', options: ['First person', 'Chase'], get: () => chase ? 1 : 0, set: i => { chase = i === 1; } },
+      { type: 'choice', label: 'Lens', options: ['Standard', 'Wide'], get: () => pipeline.lens === 'standard' ? 0 : 1, set: i => { const l = i === 0 ? 'standard' : 'wide'; pipeline.setLens(l, 0); lensName = pipeline.lenses[l].name; } },
+      { type: 'action', label: 'Reset drone', value: () => 'Back to the start', run: () => { spawn(home.x, home.z, 150); menu.toggle(false); } },
+    ],
+    drones: DRONES.map(([id, name, blurb]) => ({ name, blurb, selected: () => af.id === id, pick: () => { switchAirframe(AIRFRAMES[id]); menu.toggle(false); } })),
+    display: [
+      { type: 'choice', label: 'On-screen display', options: ['On', 'Off'], get: () => osd.visible ? 0 : 1, set: i => { osd.visible = i === 0; } },
+      { type: 'choice', label: 'Frame rate', options: ['60 fps', '30 fps'], get: () => fps === 60 ? 0 : 1, set: i => { fps = i === 0 ? 60 : 30; } },
+      { type: 'action', label: 'Sound', value: () => audio ? audioName : 'Tap to turn on', run: () => { initAudio().then(() => { if (audio) audioName = audio.cyclePerspective(); menu.refresh(); }); } },
+      { type: 'action', label: 'Full screen', run: () => { const d = document.documentElement as any; if (document.fullscreenElement) document.exitFullscreen(); else (d.requestFullscreen?.() ?? Promise.resolve()).then(() => (screen.orientation as any)?.lock?.('landscape')).catch(() => { }); } },
+      { type: 'action', label: 'Install app', run: () => { pwa.promptInstall(); }, show: () => installable },
+    ],
+  }, p => { paused = p; });
   let touch: TouchControls | null = null;
   if (touchMode) {
     const next: Record<string, 'N' | 'S' | 'M'> = { N: 'S', S: 'M', M: 'N' };

@@ -9,6 +9,7 @@ import { buildSpruce, buildBroadleaf, buildFarTree, TreeGeo } from './TreeFactor
 import { makeBark, makeSpruceSprig, makeLeafCluster } from './ProceduralTextures';
 import { makeFoliageMaterial, FoliageUniforms, patchSSS } from './FoliageMaterials';
 import { GROUND_GLSL } from './ValleyTerrain';
+import { SnowCover } from './SnowFall';
 
 export interface TreeRec { x: number; y: number; z: number; rot: number; s: number; sw: number; variant: number; tint: number; conifer: boolean; H: number; crownR: number; }
 
@@ -207,11 +208,11 @@ export class GrassLayer {
     };
     (this as any).exclusions = this.u.uExcl.value;
     mat.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, this.u, { uTime: FoliageUniforms.uTime, uWind: FoliageUniforms.uWind, uDrone: FoliageUniforms.uDrone, uWash: FoliageUniforms.uWash });
+      Object.assign(sh.uniforms, this.u, { uTime: FoliageUniforms.uTime, uWind: FoliageUniforms.uWind, uDrone: FoliageUniforms.uDrone, uWash: FoliageUniforms.uWash, uSnow: SnowCover.uSnow });
       const LIT = o.mode === 1 ? '#define LITTER 1\n' : '';
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', `${LIT}#include <common>
-attribute vec4 aSeed; uniform vec3 uCam, uWind; uniform float uPatch, uWidth, uTime, uWash; uniform vec2 uBH; uniform vec4 uDrone; uniform sampler2D uHT, uCV, uPT; uniform vec4 uExcl[16];
+attribute vec4 aSeed; uniform vec3 uCam, uWind; uniform float uPatch, uWidth, uTime, uWash; uniform vec2 uBH; uniform vec4 uDrone; uniform sampler2D uHT, uCV, uPT; uniform vec4 uExcl[16]; uniform float uSnow;
 varying vec3 vGrassCol;
 ${GROUND_GLSL}
 float hsh(float x){ return fract(sin(x*127.1)*43758.5453); }`)
@@ -237,7 +238,7 @@ keep *= step(fract(aSeed.z*37.7), dens);
 float hv = aSeed.w;
 float mowed = cv.b;
 float hMul = mix(mix(0.9, 3.4, smoothstep(0.35,0.75,gfbm(wxz*0.02))), 0.75, mowed);
-float H = mix(uBH.x, uBH.y, hv) * hMul * keep * fade;
+float H = mix(uBH.x, uBH.y, hv) * hMul * keep * fade * (1.0 - 0.5 * uSnow);
 float ang = ang0; vec3 right = vec3(cos(ang), 0.0, sin(ang)); vec3 fwd = vec3(-sin(ang), 0.0, cos(ang));
 vec3 transformed;
 #ifndef LITTER
@@ -265,6 +266,7 @@ int pi_ = int(floor(hsh(aSeed.z*71.3)*5.0));
 vec3 lc = pi_==0 ? lin(vec3(0.62,0.17,0.08)) : pi_==1 ? lin(vec3(0.82,0.38,0.09)) : pi_==2 ? lin(vec3(0.85,0.62,0.14)) : pi_==3 ? lin(vec3(0.45,0.26,0.10)) : lin(vec3(0.66,0.50,0.17));
 vGrassCol = lc * (0.7 + 0.5*hsh(aSeed.w*3.1));
 #endif
+vGrassCol = mix(vGrassCol, vec3(0.78, 0.82, 0.90), uSnow * 0.8);
 `);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGrassCol;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = vGrassCol;');
       if (o.mode === 0) patchSSS(sh, 'vec3(0.55,0.75,0.12)', 1.25);

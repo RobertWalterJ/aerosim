@@ -1,6 +1,6 @@
 import { Quadcopter6DOF } from '../src/physics/Quadcopter6DOF';
 import { FlightController } from '../src/physics/FlightControllerPID';
-import { MINI, FREESTYLE } from '../src/config';
+import { MINI, FREESTYLE, RACE, CINEWHOOP, CINEMA } from '../src/config';
 import { RotorModel } from '../src/physics/AerodynamicsBEM';
 
 const env = (wind: [number, number, number] = [0, 0, 0]) => ({
@@ -9,7 +9,7 @@ const env = (wind: [number, number, number] = [0, 0, 0]) => ({
 let fails = 0; const DEG = Math.PI / 180;
 const check = (name: string, ok: boolean, info: string) => { console.log((ok ? 'PASS ' : 'FAIL ') + name + '  ' + info); if (!ok) fails++; };
 
-for (const af of [MINI, FREESTYLE]) {
+for (const af of [MINI, FREESTYLE, RACE, CINEWHOOP, CINEMA]) {
   console.log('--- ' + af.name);
   const rm = new RotorModel(af);
   const o = { T: 0, Q: 0, H: 0, lambdaI: 0, ge: 1, vrs: 0 };

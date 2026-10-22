@@ -3,6 +3,7 @@ import { WORLD } from '../config';
 import { fbm2, noise2 } from '../util/noise';
 import { smoothstep, clamp } from '../util/math';
 import { makeAsphalt, makeGroundDetail } from './ProceduralTextures';
+import { SnowCover } from './SnowFall';
 
 export type P2 = [number, number];
 const N = 2049;                       // heightmap vertices per side (2048 cells)
@@ -239,7 +240,7 @@ export class ValleyTerrain {
     const U = {
       uCover: { value: this.coverTex }, uPath: { value: this.pathTex }, uAsphalt: { value: asphalt.map }, uAsphaltN: { value: asphalt.normalMap },
       uDetail: { value: detail.map }, uDetailN: { value: detail.normalMap }, uPathMin: { value: new THREE.Vector2(-PATH_SPAN / 2, -PATH_SPAN / 2) },
-      uSize: { value: SIZE },
+      uSize: { value: SIZE }, uSnow: SnowCover.uSnow,
     };
     (mat as any).userData.uniforms = U;
     mat.onBeforeCompile = (sh) => {
@@ -247,7 +248,7 @@ export class ValleyTerrain {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvWP = position;');
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
-varying vec3 vWP; uniform sampler2D uCover,uPath,uAsphalt,uAsphaltN,uDetail,uDetailN; uniform vec2 uPathMin; uniform float uSize;
+varying vec3 vWP; uniform sampler2D uCover,uPath,uAsphalt,uAsphaltN,uDetail,uDetailN; uniform vec2 uPathMin; uniform float uSize, uSnow;
 ${GROUND_GLSL}
 float gAsph; float gEdge; float gForest; float gDistFade; vec3 gDetailN; vec3 gAsphN;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
@@ -283,6 +284,13 @@ float gAsph; float gEdge; float gForest; float gDistFade; vec3 gDetailN; vec3 gA
   gForest = cover.r;
   vec3 albedo = mix(g, lip, gEdge*0.85);
   albedo = mix(albedo, asph, gAsph);
+  // snow: settles on flat ground in uneven drifts, thinner on the paved paths and steep banks
+  if (uSnow > 0.001) {
+    float up = abs(normalize(cross(dFdx(vWP), dFdy(vWP))).y);
+    float drift = smoothstep(0.1, 0.6, gfbm(xz*0.07) + 0.3*gfbm(xz*0.7));
+    float cov = uSnow * smoothstep(0.5, 0.9, up) * mix(0.7, 1.0, drift) * mix(1.0, 0.55, gAsph);
+    albedo = mix(albedo, vec3(0.78, 0.82, 0.90), cov);
+  }
   // darker root-zone so blades read as the lit surface layer
   albedo *= mix(1.0, 0.62, (1.0-gAsph)*gDistFade*0.75);
   diffuseColor.rgb = albedo;
