@@ -16,17 +16,16 @@ class Kit:
 	## outline: "hull" (plan and side outline of the part), "ring" (a turned ring seen from above), "side" (side only), "none".
 	## plan_pts: the true outline seen from above, in the part's own (x, z), for parts that are not convex (flat plates).
 	func add(m: Material, data: Array, xf := Transform3D.IDENTITY, col := Color.WHITE, outline := "hull", plan_pts := PackedVector2Array()) -> void:
-		if not _arr.has(m): _arr[m] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray()]
-		var e: Array = _arr[m]
+		# packed arrays are values, so each part is kept as a chunk and joined once at commit
+		if not _arr.has(m): _arr[m] = []
 		var pos: PackedVector3Array = data[0]
 		var nrm: PackedVector3Array = data[1]
-		(e[0] as PackedVector3Array).append_array(xf * pos)
-		(e[1] as PackedVector3Array).append_array(Transform3D(xf.basis.inverse().transposed(), Vector3.ZERO) * nrm)
+		var cols: PackedColorArray
 		if data.size() > 2:
-			(e[2] as PackedColorArray).append_array(data[2])
+			cols = data[2]
 		else:
-			var cols := PackedColorArray(); cols.resize(pos.size()); cols.fill(col)
-			(e[2] as PackedColorArray).append_array(cols)
+			cols = PackedColorArray(); cols.resize(pos.size()); cols.fill(col)
+		(_arr[m] as Array).append([xf * pos, Transform3D(xf.basis.inverse().transposed(), Vector3.ZERO) * nrm, cols])
 		if record and outline != "none":
 			outline_only(data, xf, outline, plan_pts)
 
@@ -64,11 +63,13 @@ class Kit:
 	func commit() -> ArrayMesh:
 		var mesh := ArrayMesh.new()
 		for m in _arr:
-			var e: Array = _arr[m]
-			if (e[0] as PackedVector3Array).is_empty(): continue
+			var vs := PackedVector3Array(); var ns := PackedVector3Array(); var cs := PackedColorArray()
+			for chunk in _arr[m]:
+				vs.append_array(chunk[0]); ns.append_array(chunk[1]); cs.append_array(chunk[2])
+			if vs.is_empty(): continue
 			var arrays := []
 			arrays.resize(Mesh.ARRAY_MAX)
-			arrays[Mesh.ARRAY_VERTEX] = e[0]; arrays[Mesh.ARRAY_NORMAL] = e[1]; arrays[Mesh.ARRAY_COLOR] = e[2]
+			arrays[Mesh.ARRAY_VERTEX] = vs; arrays[Mesh.ARRAY_NORMAL] = ns; arrays[Mesh.ARRAY_COLOR] = cs
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 			mesh.surface_set_material(mesh.get_surface_count() - 1, m)
 		_arr.clear()
@@ -82,16 +83,21 @@ static func grid(rows: Array, closed_i: bool, closed_j: bool, hint: Callable, ro
 	var nj := (rows[0] as PackedVector3Array).size()
 	var N: Array = []
 	var vote := 0.0
+	var every := maxi(1, (ni * nj) / 48)          # the outward vote only needs a sample of points
+	var k := 0
 	for i in ni:
 		var nr := PackedVector3Array(); nr.resize(nj)
+		var row: PackedVector3Array = rows[i]
 		for j in nj:
 			var ti := _tan(rows, i, j, true, closed_i, ni, nj)
 			var tj := _tan(rows, i, j, false, closed_j, ni, nj)
 			var n := tj.cross(ti)
 			n = n.normalized() if n.length_squared() > 1e-24 else Vector3.ZERO
 			nr[j] = n
-			var h: Vector3 = hint.call(i, j, rows[i][j])
-			vote += n.dot(h.normalized() if h.length_squared() > 0.0 else h)
+			k += 1
+			if k % every == 0 and n != Vector3.ZERO:
+				var h: Vector3 = hint.call(i, j, row[j])
+				vote += n.dot(h.normalized() if h.length_squared() > 0.0 else h)
 		N.append(nr)
 	var flip := vote < 0.0
 	# points where the surface pinches to a pole take the normal of the row next to them

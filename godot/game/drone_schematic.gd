@@ -55,7 +55,7 @@ static func facts(af: Dictionary) -> Array:
 	var cam := "Gimbal, tilts" if af["hasGimbal"] else "Fixed, %d° up" % int(round(rad_to_deg(float(af["camTilt"]))))
 	var top_speed: float = float(af["limits"]["S"]["vH"]) * 3.6
 	return [
-		["Weight", "%d g" % int(round(float(af["mass"]) * 1000.0))],
+		["Weight", ("%d g" % int(round(float(af["mass"]) * 1000.0))) if float(af["mass"]) < 1.0 else ("%s kg" % str(snappedf(float(af["mass"]), 0.1)))],
 		["Wheelbase", "%d mm" % int(round(2.0 * sqrt(2.0) * float(af["armD"]) * 1000.0))],
 		["Tip to tip", "%d mm" % int(round(span * 1000.0))],
 		["Props", "%.1f in, %d blades" % [float(af["R"]) * 2.0 / 0.0254, int(af["nBlades"])]],
