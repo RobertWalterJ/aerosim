@@ -22,6 +22,9 @@ signal bloom_changed(on: bool)
 signal noise_changed(amount: float)
 signal link_changed(on: bool)
 signal osd_changed(on: bool)
+signal sound_changed(on: bool)
+signal listening_changed(i: int)
+signal volume_changed(v: float)
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6}
@@ -43,6 +46,9 @@ var osd_on := true
 var video_mode := false
 var airborne := false
 var rth_active := false
+var sound_on := true
+var listening := 2
+var sound_vol := 0.8
 
 var minimap: MiniMap
 
@@ -434,6 +440,9 @@ func _build_camera_tab() -> void:
 func _build_display_tab() -> void:
 	var p := _page("Display")
 	_choice(p, "Data overlay", ["On", "Off"], func(): return 0 if osd_on else 1, func(i): osd_on = i == 0; osd_changed.emit(osd_on))
+	_choice(p, "Sound", ["On", "Off"], func(): return 0 if sound_on else 1, func(i): sound_on = i == 0; sound_changed.emit(sound_on))
+	_choice(p, "Listening position", ["Ground (the pilot)", "Onboard microphone", "Cinematic mix"], func(): return listening, func(i): listening = i; listening_changed.emit(i))
+	_gslider(p, "Volume", 0.0, 1.0, 0.05, func(): return sound_vol, func(x): sound_vol = x; volume_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_choice(p, "Frame rate", ["60 fps", "30 fps"], func(): return 0 if Engine.max_fps in [0, 60] else 1, func(i): Engine.max_fps = 60 if i == 0 else 30)
 	_heading(p, "Screen")
 	_action(p, "Full screen", func():

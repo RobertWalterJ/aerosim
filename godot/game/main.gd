@@ -32,6 +32,9 @@ var hud: Hud
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
+var audio: DroneAudio
+var _canopy_wind := Vector3.ZERO
+var _wash_now := 0.0
 var recording := false
 var _rec_time := 0.0
 var _prev_cam_q := Quaternion.IDENTITY
@@ -96,6 +99,9 @@ func _ready() -> void:
 	hud.link_changed.connect(func(on: bool): sensor.link_effects = on)
 	hud.osd_changed.connect(func(on: bool): osd.show_osd = on)
 	hud.photo_requested.connect(_shutter_pressed)
+	hud.sound_changed.connect(func(on: bool): audio.set_enabled(on))
+	hud.listening_changed.connect(func(i: int): audio.set_perspective(i))
+	hud.volume_changed.connect(func(v: float): audio.set_volume(v))
 	hud.takeoff_land_requested.connect(_takeoff_or_land)
 	hud.rth_requested.connect(_toggle_rth)
 	# the camera renders into the sensor pipeline's overscan viewport; the window itself only shows the video frame and the HUD
@@ -104,8 +110,15 @@ func _ready() -> void:
 	var touch_device := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	sensor.setup(cam, 540 if touch_device else 720, Viewport.MSAA_DISABLED if touch_device else Viewport.MSAA_2X)
 	var video := CanvasLayer.new(); video.layer = 1; add_child(video); video.add_child(sensor.screen)
-	get_viewport().disable_3d = true
+	get_viewport().disable_3d = not "keep3d" in OS.get_cmdline_user_args()
 	osd = Osd.new(); osd.name = "Osd"; hud.add_child(osd)
+	# sound: motors, wind, rotor wash, birds in the trees near the start
+	audio = DroneAudio.new()
+	add_child(audio)
+	var tl: Array = []
+	for tr in world.layout["trees"]:
+		tl.append([tr[0], tr[1], tr[2], (21.0 if int(tr[5]) < 2 else 13.0) * float(tr[4])])
+	audio.setup(drone_node, Vector3(home.x, terrain.height(home.x, home.y) + 1.7, home.y), tl, float(af["armD"]), home)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
 	var pl: Array[PackedVector2Array] = []
@@ -312,6 +325,7 @@ func switch_drone(id: String) -> void:
 	quad.set_airframe(af)
 	fc.set_airframe(af)
 	drone_view.build(af)
+	audio.set_arm(float(af["armD"]))
 	hud.set_airframe(id)
 	hud.show_gimbal(af["hasGimbal"])
 	spawn()
@@ -407,6 +421,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_MINUS: sensor.ev_comp = clampf(sensor.ev_comp - 0.33, -3.0, 3.0)
 		KEY_EQUAL: sensor.ev_comp = clampf(sensor.ev_comp + 0.33, -3.0, 3.0)
 		KEY_L: hud.toggle_lens()
+		KEY_V: hud.listening = (hud.listening + 1) % 3; audio.set_perspective(hud.listening); hud.toast("Sound: " + audio.perspective_name())
 		KEY_H: osd.show_osd = not osd.show_osd
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
@@ -444,6 +459,10 @@ func _screenshot_mode(arg: String) -> void:
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)
 	print("saved ", path)
+	var peaks := []
+	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds"]:
+		peaks.append("%s %.0f dB" % [bn, AudioServer.get_bus_peak_volume_left_db(AudioServer.get_bus_index(bn), 0)])
+	print("audio peaks ", ", ".join(peaks))
 	get_tree().quit()
 
 var _auto_climb := false
@@ -459,6 +478,12 @@ func _run_selftest() -> void:
 	var p := quad.position()
 	print("selftest: alt %.1f m over ground, crashed=%s, sim_time=%.2f s, wall=%d ms" % [p.y - terrain.height(p.x, p.z), quad.crashed, sim_time, Time.get_ticks_msec() - t0])
 	print("selftest: wind %.2f m/s, battery %.0f%%" % [_wind_now.length(), quad.battery.soc * 100.0])
+	var peaks := []
+	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds"]:
+		var bi := AudioServer.get_bus_index(bn)
+		peaks.append("%s %.0f dB" % [bn, AudioServer.get_bus_peak_volume_left_db(bi, 0)])
+	print("selftest: audio peaks ", ", ".join(peaks))
+	print("selftest: motor3d playing=", audio._motor_g[0].playing, " bus=", audio._motor_g[0].bus, " vol=", audio._motor_g[0].volume_db, " pitch=", audio._motor_g[0].pitch_scale, " in_tree=", audio._motor_g[0].is_inside_tree(), " dist=", audio._motor_g[0].global_position.distance_to(audio._listener.global_position), " | 2d playing=", audio._motor_o[0].playing, " vol=", audio._motor_o[0].volume_db)
 	get_tree().quit()
 
 var _gallery_cam := false
@@ -495,9 +520,11 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var agl0 := dp.y - terrain.height(dp.x, dp.z)
 	RenderingServer.global_shader_parameter_set("g_cam", cam.global_position)
 	RenderingServer.global_shader_parameter_set("g_time", sim_time)
-	RenderingServer.global_shader_parameter_set("g_wind", wind.sample(Vector3(dp.x, terrain.height(dp.x, dp.z) + 14.0, dp.z), 14.0, sim_time))
+	_canopy_wind = wind.sample(Vector3(dp.x, terrain.height(dp.x, dp.z) + 14.0, dp.z), 14.0, sim_time)
+	RenderingServer.global_shader_parameter_set("g_wind", _canopy_wind)
 	RenderingServer.global_shader_parameter_set("g_drone", Vector4(dp.x, dp.y, dp.z, 3.5))
-	RenderingServer.global_shader_parameter_set("g_wash", clampf(fc.thrust_fraction() * 1.8, 0.0, 1.0) * 0.55 * (1.0 - smoothstep(2.5, 8.0, agl0)) * (1.0 if quad.armed else 0.0))
+	_wash_now = clampf(fc.thrust_fraction() * 1.8, 0.0, 1.0) * 0.55 * (1.0 - smoothstep(2.5, 8.0, agl0)) * (1.0 if quad.armed else 0.0)
+	RenderingServer.global_shader_parameter_set("g_wash", _wash_now)
 	var cpos := cam.global_position
 	var cq := cam.global_transform.basis.get_rotation_quaternion()
 	# camera angular velocity in its own frame (x pitch up, y yaw left, z roll)
@@ -543,11 +570,16 @@ func _update_sensor_and_osd(delta: float) -> void:
 		"homeDist": sqrt((dpos.x - home.x) * (dpos.x - home.x) + (dpos.z - home.y) * (dpos.z - home.y)),
 		"gimbalDeg": rad_to_deg(gimbal_pitch) if af["hasGimbal"] else rad_to_deg(float(af["camTilt"])),
 		"histogram": sensor.histogram, "lensName": sensor.lens_info()["name"], "airframe": af["name"],
-		"audio": "off", "fps": int(_fps), "crashed": quad.crash_reason if (quad.crashed or not quad.armed) else "",
+		"audio": audio.perspective_name() if audio.enabled else "off", "fps": int(_fps), "crashed": quad.crash_reason if (quad.crashed or not quad.armed) else "",
 		"armed": quad.armed, "touch": DisplayServer.is_touchscreen_available(), "mission": [],
 		"windMs": _wind_now.length(), "windLevel": "", "homeBearing": atan2(home.x - dpos.x, -(home.y - dpos.z)), "stopHit": 0.0, "aero": "",
 	}
 	hud.show_crash(osd.t["crashed"])
+	var om := PackedFloat64Array([quad.s[13], quad.s[14], quad.s[15], quad.s[16]])
+	var cov_f := terrain.cover_at(dpos.x, dpos.z).x
+	audio.update({"omega": om, "blades": af["nBlades"], "thrust": clampf(fc.thrust_fraction() ** 0.5, 0.0, 1.0), "vz": quad.s[4], "jerk": quad.ang_accel.length(), "vrs": quad.vrs,
+		"air_speed": (quad.velocity() - _wind_now).length(), "drone_pos": dpos, "drone_vel": quad.velocity(), "agl": agl, "wash": _wash_now,
+		"wind": Vector2(_canopy_wind.x, _canopy_wind.z).length(), "conifer": clampf(0.3 + 0.7 * cov_f, 0.0, 1.0), "gust": wind.gust}, delta)
 	hud.set_airborne(agl > 0.4)
 	hud.set_rth(autopilot.state in [AutoPilot.State.RTH_CLIMB, AutoPilot.State.RTH_FLY, AutoPilot.State.RTH_LAND])
 	hud.minimap.update_state(dpos, float(osd.t["heading"]), delta)
