@@ -10,6 +10,8 @@ extends Node
 const RATE := 44100
 const PERSPECTIVES := ["Ground", "Onboard", "Cinematic Hybrid"]
 const POOL := 16
+const GRATE := 32000        # motor synth sample rate
+const TAB := 2048           # one cycle of the motor note
 
 var perspective := 2
 var volume := 0.8
@@ -20,6 +22,19 @@ signal bird_flush(pos: Vector3)
 var _rng := RandomNumberGenerator.new()
 var _motor_g: Array[AudioStreamPlayer3D] = []
 var _motor_o: Array[AudioStreamPlayer] = []
+var _pb_g: Array[AudioStreamGeneratorPlayback] = []
+var _pb_o: Array[AudioStreamGeneratorPlayback] = []
+var _tab_full := PackedFloat32Array()
+var _tab_lite := PackedFloat32Array()
+var _m_phase := PackedFloat64Array([0.0, 0.31, 0.57, 0.83])
+var _m_freq := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+var _m_amp := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+var _m_tf := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+var _m_ta := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+var _hiss_lp := 0.0
+var _wind_a: AudioStreamPlayer
+var _wind_b: AudioStreamPlayer
+var _wind_lp: AudioEffectLowPassFilter
 var _slap_g: AudioStreamPlayer3D
 var _slap_o: AudioStreamPlayer
 var _wash_g: AudioStreamPlayer3D
@@ -50,14 +65,21 @@ func setup(drone: Node3D, pilot_pos: Vector3, trees: Array, arm: float, home: Ve
 	add_child(_listener)
 	_listener.current = true
 	_build_buses()
-	var motor_wave := _loop(_motor_samples(), RATE)
+	_tab_full = _motor_table(5)
+	_tab_lite = _motor_table(2)
 	var offs := [Vector3(arm, 0, -arm), Vector3(arm, 0, arm), Vector3(-arm, 0, arm), Vector3(-arm, 0, -arm)]
 	for m in 4:
-		var g := _player3d(motor_wave, "Ground", drone, offs[m], 6.0)
-		g.finished.connect(g.play)
+		var gs := AudioStreamGenerator.new(); gs.mix_rate = GRATE; gs.buffer_length = 0.1
+		var g := _player3d(gs, "Ground", drone, offs[m], 6.0)
+		g.doppler_tracking = AudioStreamPlayer3D.DOPPLER_TRACKING_DISABLED
 		_motor_g.append(g)
-		var o := _player(motor_wave, "Onboard")
-		_motor_o.append(o)
+		var os := AudioStreamGenerator.new(); os.mix_rate = GRATE; os.buffer_length = 0.1
+		_motor_o.append(_player(os, "Onboard"))
+	var wind_wave := _loop(_wind_samples(), RATE)
+	_wind_a = _player(wind_wave, "Wind")
+	_wind_b = _player(wind_wave, "Wind")
+	_wind_b.pitch_scale = 0.77
+	_wind_a.volume_db = -80.0; _wind_b.volume_db = -80.0
 	var slap := _loop(_noise_samples(51, 17.0, 0.85), RATE)
 	_slap_g = _player3d(slap, "SlapG", drone, Vector3.ZERO, 5.0)
 	_slap_o = _player(slap, "SlapO")
@@ -71,8 +93,11 @@ func setup(drone: Node3D, pilot_pos: Vector3, trees: Array, arm: float, home: Ve
 		p.volume_db = -80.0
 	_build_birds(trees, home)
 	set_perspective(perspective)
-	for p in _motor_g: p.play()
-	for p in _motor_o: p.play()
+	for p in _motor_g:
+		p.play(); _pb_g.append(p.get_stream_playback() as AudioStreamGeneratorPlayback)
+	for p in _motor_o:
+		p.play(); _pb_o.append(p.get_stream_playback() as AudioStreamGeneratorPlayback)
+	_wind_a.play(); _wind_b.play(1.7)
 	for p in [_slap_g, _slap_o, _wash_g, _wash_o, _buffet, _leaf, _spruce]: p.play()
 
 ## Move the four motor sound sources when the drone changes (longer arms on a bigger drone).
@@ -134,6 +159,8 @@ func _build_buses() -> void:
 	_bus("Buffet", "Onboard", [_bandpass(110.0, 0.5), dist])
 	_bus("Leaf", "Ambient", [_bandpass(1500.0, 0.6)])
 	_bus("Spruce", "Ambient", [_bandpass(4200.0, 0.8)])
+	_wind_lp = AudioEffectLowPassFilter.new(); _wind_lp.cutoff_hz = 500.0
+	_bus("Wind", "Master", [_wind_lp])
 	_bus("Ambient", "Master")
 	_bus("Birds", "Master")
 
@@ -167,19 +194,72 @@ func _wav(samples: PackedFloat32Array, rate: int) -> AudioStreamWAV:
 	w.format = AudioStreamWAV.FORMAT_16_BITS; w.mix_rate = rate; w.stereo = false; w.data = bytes
 	return w
 
-## One second of a 200 Hz motor note: a sawtooth fundamental plus four triangle harmonics, each softer than the last.
-func _motor_samples() -> PackedFloat32Array:
-	var n := RATE
-	var out := PackedFloat32Array(); out.resize(n)
-	for i in n:
-		var t := float(i) / RATE
+## One cycle of a motor note: a sawtooth fundamental plus softer triangle harmonics. `n_h` harmonics (fewer at high pitch, so nothing folds back).
+func _motor_table(n_h: int) -> PackedFloat32Array:
+	var out := PackedFloat32Array(); out.resize(TAB)
+	for i in TAB:
+		var t := float(i) / TAB
 		var v := 0.0
-		for h in range(1, 6):
-			var ph := fposmod(t * 200.0 * h, 1.0)
+		for h in range(1, n_h + 1):
+			var ph := fposmod(t * h, 1.0)
 			var wave := 2.0 * (ph - 0.5) if h == 1 else 2.0 * absf(2.0 * fposmod(ph + 0.25, 1.0) - 1.0) - 1.0
 			v += wave / pow(float(h), 1.15) * (1.3 if h == 1 else 1.0)
 		out[i] = v * 0.2
 	return out
+
+## Four seconds of low, rolling wind: brown noise, with the ends blended so the loop has no seam.
+func _wind_samples() -> PackedFloat32Array:
+	var n := RATE * 4
+	var raw := PackedFloat32Array(); raw.resize(n)
+	var y := 0.0
+	var peak := 0.001
+	for i in n:
+		y = y * 0.985 + (_rng.randf() * 2.0 - 1.0) * 0.12
+		raw[i] = y
+		peak = maxf(peak, absf(y))
+	var xf := RATE / 2
+	var out := PackedFloat32Array(); out.resize(n - xf)
+	for i in n - xf:
+		var v := raw[i]
+		if i < xf:
+			var k := float(i) / xf
+			v = raw[i] * k + raw[n - xf + i] * (1.0 - k)
+		out[i] = v / peak * 0.8
+	return out
+
+## Fill each motor's audio buffer, gliding smoothly from the last pitch and loudness to the new ones.
+func _fill_motors() -> void:
+	for m in 4:
+		var n := mini(_pb_g[m].get_frames_available(), _pb_o[m].get_frames_available())
+		n = mini(n, 1600)
+		if n <= 0: continue
+		var f1 := _m_freq[m]; var a1 := _m_amp[m]
+		var f2 := _m_tf[m]; var a2 := _m_ta[m]
+		var tab := _tab_full if f2 * 5.0 < 14000.0 else _tab_lite
+		var buf := PackedVector2Array(); buf.resize(n)
+		var ph := _m_phase[m]
+		var lp := _hiss_lp
+		var inv := 1.0 / GRATE
+		for i in n:
+			var k := float(i) / n
+			var f := f1 + (f2 - f1) * k
+			var a := a1 + (a2 - a1) * k
+			ph += f * inv
+			if ph >= 1.0: ph -= 1.0
+			var x := ph * TAB
+			var i0 := int(x)
+			var fr := x - i0
+			var v := tab[i0] * (1.0 - fr) + tab[(i0 + 1) & (TAB - 1)] * fr
+			lp += ((_rng.randf() * 2.0 - 1.0) - lp) * 0.3
+			var s := (v + lp * 0.16) * a
+			buf[i] = Vector2(s, s)
+		_m_phase[m] = ph
+		_m_freq[m] = f2; _m_amp[m] = a2
+		_hiss_lp = lp
+		_pb_g[m].push_buffer(buf)
+		var bo := PackedVector2Array(); bo.resize(n)
+		for i in n: bo[i] = buf[i] * 0.708
+		_pb_o[m].push_buffer(bo)
 
 ## Pink-ish noise, three seconds. `cycles` > 0 shapes it with that many steady pulses per three seconds (slap and rustle).
 func _noise_samples(cycles: int, _rate_hz: float, depth: float) -> PackedFloat32Array:
@@ -294,10 +374,11 @@ func update(a: Dictionary, dt: float) -> void:
 	var omega: PackedFloat64Array = a["omega"]
 	for m in 4:
 		var f0: float = omega[m] / TAU * float(a["blades"])
-		var pitch := clampf(f0 * (1.0 + m * 0.0013) / 200.0, 0.05, 14.0)
-		_motor_g[m].pitch_scale = pitch; _motor_o[m].pitch_scale = pitch
-		var db := linear_to_db(maxf(amp * 0.5, 1e-4))
-		_motor_g[m].volume_db = db; _motor_o[m].volume_db = db - 3.0
+		# each motor drifts a hair off the others, so the four beat against each other like real props
+		var wob := 1.0 + m * 0.0013 + 0.0025 * sin(_time * (6.0 + m * 1.7) + m * 2.0)
+		_m_tf[m] = clampf(f0 * wob, 25.0, 2600.0)
+		_m_ta[m] = amp * 0.5
+	_fill_motors()
 	# blade-vortex slap in descents and turbulence
 	var slap := clampf(maxf(0.0, -float(a["vz"]) - 1.5) * 0.12 + float(a["vrs"]) * 0.8 + float(a["jerk"]) * 0.0004, 0.0, 1.0)
 	var sp := (14.0 + 40.0 * slap) / 17.0
@@ -322,6 +403,13 @@ func update(a: Dictionary, dt: float) -> void:
 	var gust: float = a["gust"]
 	_spruce.volume_db = linear_to_db(maxf(0.1 * w * (0.4 + con) * (0.6 + 0.4 * gust), 1e-4))
 	_leaf.volume_db = linear_to_db(maxf(0.12 * w * (1.2 - con) * (0.5 + gust), 1e-4))
+	# the wind itself: low and rolling, swelling with each gust, brighter when it blows hard
+	var gw := clampf(float(a["wind"]) / 8.0, 0.0, 1.0)
+	var swell := 0.55 + 0.45 * sin(_time * 0.37) * sin(_time * 0.11 + 1.0)
+	var wl := clampf(0.05 + 0.75 * pow(gw, 1.3) * (0.6 + 0.4 * gust) * swell + 0.35 * clampf((air_speed - 4.0) / 14.0, 0.0, 1.0), 0.0, 1.0)
+	_wind_a.volume_db = linear_to_db(maxf(wl * 0.55, 1e-4))
+	_wind_b.volume_db = linear_to_db(maxf(wl * 0.4 * (0.6 + 0.4 * sin(_time * 0.23 + 2.0)), 1e-4))
+	_wind_lp.cutoff_hz = 260.0 + 1700.0 * gw + 900.0 * clampf(air_speed / 20.0, 0.0, 1.0)
 	_update_birds(dpos, dt, a["drone_vel"])
 
 func _update_birds(dpos: Vector3, dt: float, _dvel: Vector3) -> void:

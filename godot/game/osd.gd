@@ -84,12 +84,16 @@ func _draw() -> void:
 	draw_set_transform(Vector2(x0, y0), 0.0, Vector2.ONE)
 	# flight-path marker
 	var vb: Vector3 = t["velBody"]
-	var sp := sqrt(vb.x * vb.x + vb.z * vb.z)
-	if sp > 0.8:
-		var fx := clampf((vb.x / maxf(sp, 1.0)) * minf(1.0, sp / 12.0) * 120.0, -140.0, 140.0) * u
-		var fy := clampf((-vb.y / maxf(sp, 4.0)) * 90.0, -100.0, 100.0) * u
-		var p := Vector2(cx + fx, cy + fy)
-		var gc := Color("88ff88")
+	var spd := vb.length()
+	if spd > 0.8:
+		# where the drone is actually heading, as seen through this lens: the direction of travel projected onto the picture
+		var d := vb / spd
+		var f := (h * 0.5) / tan(deg_to_rad(float(t.get("fov", 84.0))) * 0.5)
+		var fwd := maxf(-d.z, 0.02)
+		var behind := d.z > 0.0
+		var lim := Vector2(w * 0.5 - 70.0 * u, h * 0.5 - 90.0 * u)
+		var p := Vector2(cx + clampf(f * d.x / fwd, -lim.x, lim.x), cy + clampf(-f * d.y / fwd, -lim.y, lim.y))
+		var gc := Color("88ff88", 0.45 if behind else 1.0)
 		draw_arc(p, 6 * u, 0, TAU, 20, gc, 1.5 * u)
 		draw_line(p + Vector2(-12 * u, 0), p + Vector2(-6 * u, 0), gc, 1.5 * u)
 		draw_line(p + Vector2(6 * u, 0), p + Vector2(12 * u, 0), gc, 1.5 * u)
