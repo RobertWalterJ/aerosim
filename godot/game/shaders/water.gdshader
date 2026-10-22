@@ -6,6 +6,8 @@ global uniform float g_time;
 global uniform vec3 g_wind;
 global uniform float g_snow;
 
+uniform sampler2D uCover : filter_linear, repeat_disable;
+uniform float uSize = 4000.0;
 uniform vec3 deep : source_color = vec3(0.03, 0.12, 0.15);
 uniform vec3 shallow : source_color = vec3(0.10, 0.28, 0.27);
 
@@ -26,6 +28,8 @@ vec2 ripple(vec2 p, float t, vec2 dir) {
 void vertex() { wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
 
 void fragment() {
+	vec3 cv = texture(uCover, wp.xz / uSize + 0.5).rgb;
+	if (cv.r > 0.12) discard;          // the water stops at the woods
 	float w = clamp(length(g_wind.xz) / 8.0, 0.0, 1.0);
 	vec2 dir = normalize(g_wind.xz + vec2(0.001)) * (0.6 + 1.4 * w);
 	float dist = length(wp - CAMERA_POSITION_WORLD);

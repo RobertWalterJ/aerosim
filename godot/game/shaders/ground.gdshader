@@ -72,6 +72,20 @@ void fragment() {
 	vec3 nrm = normalize(cross(dFdx(wpos), dFdy(wpos)));
 	float slope = 1.0 - abs(nrm.y);
 	g = mix(g, mix(lin(vec3(0.40, 0.37, 0.32)), lin(vec3(0.30, 0.22, 0.15)), n2), smoothstep(0.14, 0.34, slope) * (1.0 - asph));
+	// the lake shore: wet mud at the water line, sand above it, then scattered rock, and a mud and sand bed under the water
+	float wl = 68.9;
+	float above = wpos.y - wl;
+	float shore_n = gfbm(xz * 0.15);
+	vec3 mud = lin(vec3(0.20, 0.15, 0.10));
+	vec3 sand = lin(vec3(0.55, 0.47, 0.32));
+	vec3 rockc = lin(vec3(0.36, 0.34, 0.31));
+	float band = 1.0 - smoothstep(1.2, 4.0 + 3.0 * shore_n, above);                         // how close to the water
+	float under = 1.0 - smoothstep(-0.2, 0.2, above);
+	vec3 shore = mix(sand, mud, 1.0 - smoothstep(0.0, 0.9 + 0.6 * shore_n, above));
+	float rocks = smoothstep(0.55, 0.75, gfbm(xz * 0.5 + 11.0)) * smoothstep(0.3, 1.6, above) * (1.0 - smoothstep(2.5, 5.5, above));
+	shore = mix(shore, rockc * (0.7 + 0.6 * gn(xz * 3.0)), clamp(rocks + 0.7 * smoothstep(0.25, 0.4, 1.0 - abs(nrm.y)) * band, 0.0, 1.0));
+	shore = mix(shore, mud * 0.8, under);
+	g = mix(g, shore, band * (1.0 - asph) * (1.0 - 0.0 * forest));
 	// snow in uneven drifts on flat ground
 	float drift = smoothstep(0.2, 0.8, d2.g + 0.3 * d1.g);
 	float cov = g_snow * smoothstep(0.55, 0.9, abs(nrm.y)) * mix(0.7, 1.0, drift);

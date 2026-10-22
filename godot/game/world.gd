@@ -44,7 +44,6 @@ func _trees() -> void:
 		var x: float = tr[0]; var y: float = tr[1]; var z: float = tr[2]
 		var s: float = tr[4]
 		var vi: int = int(tr[5])
-		if y < Lake.LEVEL + 0.6: continue
 		var xf := Transform3D(Basis(Vector3.UP, float(tr[3])).scaled(Vector3(s, s, s)), Vector3(x, y, z))
 		var key := Vector2i(floori(x / CELL), floori(z / CELL))
 		if not cells.has(key): cells[key] = {}
@@ -71,7 +70,6 @@ func _far_trees(touch_device: bool) -> void:
 		for i in range(0, arr.size() / 9, step):
 			var o := i * 9
 			var x: float = arr[o]; var z: float = arr[o + 2]
-			if float(arr[o + 1]) < Lake.LEVEL + 0.6: continue     # no trees standing in the lake
 			var xf := Transform3D(Basis(Vector3.UP, float(arr[o + 3])).scaled(Vector3(arr[o + 4], arr[o + 5], arr[o + 4])), Vector3(x, arr[o + 1], z))
 			var key := Vector2i(floori(x / FAR_CELL), floori(z / FAR_CELL))
 			if not cells.has(key): cells[key] = [[] as Array[Transform3D], [] as Array[Color]]

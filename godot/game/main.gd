@@ -143,7 +143,7 @@ func _ready() -> void:
 	_after_drone_built()
 	add_child(cam)
 	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
-	cam.near = 0.03; cam.far = 3000.0; cam.fov = 84.0; cam.current = true
+	cam.near = 0.03; cam.far = 26000.0; cam.fov = 84.0; cam.current = true
 	hud = Hud.new()
 	add_child(hud)
 	hud.pause_changed.connect(func(p: bool): paused = p; if sticks: sticks.release_all(); sticks.enabled = not p; osd.visible = not p)
@@ -227,7 +227,10 @@ func _build_world() -> void:
 	home = world.home
 	var lake := Lake.new()
 	add_child(lake)
-	lake.build()
+	lake.build(terrain)
+	var hills := FarHills.new()
+	add_child(hills)
+	hills.build(terrain)
 	await _stage("Growing the grass", 0.7)
 	grass = Grass.new()
 	add_child(grass)
