@@ -77,16 +77,13 @@ func _draw() -> void:
 		var pts := PackedVector2Array()
 		for p in _trail: pts.append(_w2m(p))
 		draw_polyline(pts, Color(0.35, 0.7, 1.0, 0.9), 1.8, true)
-	# home marker
-	var hp := _w2m(home)
-	draw_circle(hp, 8.0, Color(1.0, 0.8, 0.2, 0.95))
-	var f := ThemeDB.fallback_font
-	draw_string(f, hp + Vector2(-4.5, 5), "H", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.1, 0.1, 0.1))
-	# the drone, always pointing up
-	draw_colored_polygon(PackedVector2Array([c + Vector2(0, -10), c + Vector2(7, 8), c + Vector2(0, 4), c + Vector2(-7, 8)]), Color(0.25, 0.62, 1.0))
-	draw_polyline(PackedVector2Array([c + Vector2(0, -10), c + Vector2(7, 8), c + Vector2(0, 4), c + Vector2(-7, 8), c + Vector2(0, -10)]), Color.WHITE, 1.4, true)
+	# home marker and the drone, always pointing up (the map turns, not the arrow)
+	HudIcons.home_marker(self, _w2m(home), 8.5)
+	HudIcons.drone_marker(self, c, 11.0, 0.0, Color(0.22, 0.58, 1.0))
 	# north marker on the rim
 	var nd := Vector2(sin(-heading), -cos(-heading)) * (size.x * 0.5 - 12.0)
-	draw_circle(c + nd, 8.0, Color(0, 0, 0, 0.5))
-	draw_string(f, c + nd + Vector2(-4, 5), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.55, 0.5))
+	draw_circle(c + nd, 8.5, Color(0, 0, 0, 0.55), true, -1.0, true)
+	var nf := HudIcons.bold_font()
+	var nw := nf.get_string_size("N", HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x
+	draw_string(nf, c + nd + Vector2(-nw * 0.5, 4.3), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 0.5, 0.45))
 	draw_rect(Rect2(Vector2.ZERO, size), Color(1, 1, 1, 0.9), false, 2.0)

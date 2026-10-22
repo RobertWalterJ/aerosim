@@ -62,7 +62,7 @@ void fragment() {
 	c = mix(c, vec3(0.62, 0.66, 0.74), g_snow * 0.35 * smoothstep(0.2, 1.0, vCol.r));
 	c *= mix(1.0, 0.72, g_wet);
 	vec3 wpf = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	c *= cloud_shade(wpf);
+	c *= world_shade(wpf);
 	ALBEDO = c;
 	ROUGHNESS = roughness * mix(1.0, 0.5, g_wet);
 	SPECULAR = mix(0.3, 0.75, g_wet);

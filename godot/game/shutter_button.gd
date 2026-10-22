@@ -7,6 +7,7 @@ signal pressed
 
 var video_mode := false
 var recording := false
+var disabled := false
 var _down := false
 var _finger := -1
 
@@ -14,6 +15,7 @@ func _init(diameter := 76.0) -> void:
 	custom_minimum_size = Vector2(diameter, diameter)
 	size = Vector2(diameter, diameter)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	z_index = 1   # above the data overlay, whose top bar band would otherwise dim the glyphs
 
 func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree(): return
@@ -26,20 +28,37 @@ func _input(event: InputEvent) -> void:
 		elif not e.pressed and e.index == _finger:
 			var fire := inside
 			_finger = -1; _down = false; queue_redraw()
-			if fire: pressed.emit()
+			if fire and not disabled: pressed.emit()
 			get_viewport().set_input_as_handled()
 
 func _draw() -> void:
 	var c := size * 0.5
-	var r := minf(size.x, size.y) * 0.5 - 2.0
-	draw_circle(c, r, Color(0.05, 0.06, 0.08, 0.35))
-	draw_arc(c, r, 0, TAU, 56, Color(1, 1, 1, 0.95), 3.0, true)
-	var inner := r * (0.70 if not _down else 0.62)
-	if video_mode:
-		if recording:
-			var q := inner * 0.62
-			draw_rect(Rect2(c - Vector2(q, q), Vector2(q, q) * 2.0), Color(0.95, 0.2, 0.2))
-		else:
-			draw_circle(c, inner, Color(0.95, 0.2, 0.2))
+	var d := minf(size.x, size.y)
+	var r := d * 0.5 - 2.0
+	var lw := maxf(2.4, d * 0.042)
+	var ring := Color(0.55, 0.57, 0.6) if disabled else Color(1, 1, 1, 0.97)
+	# dark glass behind, a hairline shadow so the ring holds up against a bright sky, then the white ring
+	draw_circle(c, r, Color(0.04, 0.05, 0.07, 0.40 if not _down else 0.55), true, -1.0, true)
+	draw_circle(c, r + lw * 0.5 + 0.6, Color(0, 0, 0, 0.22), false, 1.2, true)
+	draw_circle(c, r - lw * 0.5 + 0.5, ring, false, lw, true)
+	var inner := r * (0.74 if not _down else 0.66)
+	var fill := Color(1, 1, 1, 0.97)
+	if video_mode: fill = HudIcons.RED
+	if disabled: fill = Color(0.45, 0.47, 0.5)
+	elif _down: fill = fill.darkened(0.12)
+	if video_mode and recording:
+		# recording: the dot becomes a rounded square, the stop sign
+		var q := inner * 0.56
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = fill
+		sb.set_corner_radius_all(int(round(q * 0.36)))
+		sb.anti_aliasing = true; sb.anti_aliasing_size = 0.8
+		sb.draw(get_canvas_item(), Rect2(c - Vector2(q, q), Vector2(q, q) * 2.0))
 	else:
-		draw_circle(c, inner, Color(1, 1, 1, 0.95))
+		draw_circle(c, inner, fill, true, -1.0, true)
+
+## Grey the shutter out: it still shows, but a tap does nothing.
+func set_disabled(on: bool) -> void:
+	if on != disabled:
+		disabled = on
+		queue_redraw()

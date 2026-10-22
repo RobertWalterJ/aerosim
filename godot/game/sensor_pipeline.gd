@@ -15,6 +15,8 @@ const SHADER_DIR := "res://game/shaders/"
 
 var lens := "standard"
 var ev_comp := 0.0
+var wb_kelvin := 5600.0              # the white balance the camera has settled on
+var _sun_amt := 0.0                  # how much sun is in the picture, 0..1, eased
 var bloom_on := true
 var rain_lens := 0.0                # water on the lens, 0..1
 var noise_scale := 1.0              # sensor noise amount, 1 = as designed
@@ -206,9 +208,15 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	_frame += 1
 	var tan_half := _tan_half()
 	# stage 2: metering and adaptation. Two 1x1 viewports take turns, each reading the other's result.
+	# the sun in the picture: it washes the frame out, then the camera stops down and its auto white balance swings cooler
+	var cb0 := camera.global_transform.basis
+	var sun_target := smoothstep(0.86, 0.99, (-cb0.z).dot(_sun_world)) * sun_vis
+	_sun_amt += (sun_target - _sun_amt) * (1.0 - exp(-minf(dt, 0.1) / (0.12 if sun_target > _sun_amt else 0.7)))
+	var wb_target := 5600.0 - 2300.0 * _sun_amt
+	wb_kelvin += (wb_target - wb_kelvin) * (1.0 - exp(-minf(dt, 0.1) / (0.9 if wb_target < wb_kelvin else 2.0)))
 	var next := 1 - _exp_idx
 	var m: ShaderMaterial = _passes["exp%d" % next]
-	m.set_shader_parameter("uDt", minf(dt, 0.1)); m.set_shader_parameter("uEvComp", ev_comp)
+	m.set_shader_parameter("uDt", minf(dt, 0.1)); m.set_shader_parameter("uEvComp", ev_comp); m.set_shader_parameter("uBias", -2.4 * _sun_amt)
 	_exp[next].render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_exp[_exp_idx].render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_exp_idx = next
@@ -236,15 +244,18 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	sm.set_shader_parameter("uVibFreq", TAU * (motor_hz * 0.071 + 17.0))
 	sm.set_shader_parameter("uFrame", float(_frame))
 	var glare := smoothstep(0.8, 0.98, fwd_dot) * (1.0 if in_view else 0.5)
-	sm.set_shader_parameter("uGlare", glare)
+	var wash := maxf(glare * 0.6, _sun_amt)
+	sm.set_shader_parameter("uGlare", wash)
+	var wbt := clampf((wb_kelvin - 5600.0) / 5600.0, -0.6, 0.6) * 0.62
+	sm.set_shader_parameter("uWB", Vector3(1.0 + wbt, 1.0, 1.0 - wbt))
 	sm.set_shader_parameter("uIso", pow(clampf(exposure / 3.5, 1.0, 16.0), 0.8) * noise_scale)
-	sm.set_shader_parameter("uBloomK", 0.1 if bloom_on else 0.0)
+	sm.set_shader_parameter("uBloomK", (0.1 + 0.3 * _sun_amt) if bloom_on else 0.0)
 	sm.set_shader_parameter("uSunVis", sun_vis)
 	sm.set_shader_parameter("uRain", rain_lens)
 	sm.set_shader_parameter("uInView", 1.0 if in_view else 0.0)
 	# stages 5 and 6
 	var ip: ShaderMaterial = _passes["isp"]
-	ip.set_shader_parameter("uGlare", glare)
+	ip.set_shader_parameter("uGlare", wash)
 	# stage 7: two codec viewports take turns so the previous frame is available for stale macroblocks
 	var cn := 1 - _codec_idx
 	var cm: ShaderMaterial = _passes["codec%d" % cn]

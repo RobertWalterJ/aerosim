@@ -14,7 +14,7 @@ vec3 curve(vec3 x) {
 	vec3 s = t * t * (3.0 - 2.0 * t);
 	vec3 v = mix(t, s, 0.62);
 	v = pow(v, vec3(1.07));
-	v = mix(v, vec3(0.5), 0.22 * uGlare) + 0.03 * uGlare;
+	v = mix(v, vec3(0.5), 0.34 * uGlare) + 0.05 * uGlare;
 	return v;
 }
 vec3 sat(vec3 c) { float l = dot(c, vec3(0.299, 0.587, 0.114)); return mix(vec3(l), c, uSat); }

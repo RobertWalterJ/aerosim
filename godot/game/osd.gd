@@ -37,33 +37,40 @@ func _draw() -> void:
 	# ---- top bar
 	draw_rect(Rect2(0, 0, w, 36 * u), Color(0, 0, 0, 0.28))
 	var mode: String = t["mode"]
-	var mcol := Color("88ffff") if mode == "N" else (Color("ffcc66") if mode == "S" else (Color("ff88ff") if mode == "A" else Color("ff8888")))
+	var mcol := HudIcons.mode_tint(mode)   # the same chip colours as the Mode button
 	var ml := 54.0 * u   # clear of the back button
-	draw_rect(Rect2(ml, 8 * u, 26 * u, 20 * u), mcol, false, 1.6 * u)
-	_text(mode, Vector2(ml + 13 * u, 24 * u), 15 * u, mcol, 1, true)
+	HudIcons.mode_chip(self, mode, Vector2(ml + 11 * u, 18 * u), 27 * u, mcol)
 	var armed: bool = t["armed"]
 	var status := "DISARMED"
 	if armed: status = {"A": "AEROBATIC", "M": "MANUAL", "S": "SPORT", "N": "NORMAL"}.get(mode, "NORMAL")
 	elif str(t["crashed"]) != "": status = str(t["crashed"])
-	_text(status, Vector2(ml + 36 * u, 24 * u), 13 * u, white if armed else Color("ff6666"))
+	_text(status, Vector2(ml + 30 * u, 24 * u), 13 * u, white if armed else Color("ff6666"))
+	# GPS: a satellite, its signal bars and the number of satellites
 	var gx := w * 0.30
-	_text("GPS", Vector2(gx, 24 * u), 13 * u, white)
-	_bars(Vector2(gx + 34 * u, 24 * u), u, int(round(float(t["sats"]) / 4.0)), Color("77ff77"))
-	_text(_s(int(t["sats"])), Vector2(gx + 66 * u, 24 * u), 13 * u, white)
+	var sbh := 12.0 * u
+	var sats := int(t["sats"])
+	HudIcons.icon_shadowed(self, "gps", Vector2(gx + 9 * u, 18 * u), 23 * u, white, 2.0, 1.2)
+	var gb := int(round(float(sats) / 4.0))
+	HudIcons.bars(self, Vector2(gx + 22 * u, 24 * u), sbh, gb, HudIcons.signal_colour(gb))
+	_text(_s(sats), Vector2(gx + 26 * u + HudIcons.bars_width(sbh), 24 * u), 13 * u, white)
+	# the radio link: the remote (RC) and the HD video link share one radio, so both show its bars; then its strength
 	var rx := w * 0.43
 	var bars: int = t["rfBars"]
-	_text("RF", Vector2(rx, 24 * u), 13 * u, white)
-	_bars(Vector2(rx + 22 * u, 24 * u), u, bars, Color("ff6666") if bars <= 1 else Color("77ff77"))
-	_text("%d dBm" % int(round(float(t["rfDbm"]))), Vector2(rx + 52 * u, 24 * u), 13 * u, white)
+	var lc := HudIcons.signal_colour(bars)
+	HudIcons.icon_shadowed(self, "rc", Vector2(rx + 9 * u, 18 * u), 20 * u, white, 2.0, 1.3)
+	HudIcons.bars(self, Vector2(rx + 21 * u, 24 * u), sbh, bars, lc)
+	var hdx := rx + 29 * u + HudIcons.bars_width(sbh)
+	HudIcons.icon_shadowed(self, "hd", Vector2(hdx + 10 * u, 18 * u), 25 * u, white)
+	HudIcons.bars(self, Vector2(hdx + 23 * u, 24 * u), sbh, bars, lc)
+	_text("%d dBm" % int(round(float(t["rfDbm"]))), Vector2(hdx + 29 * u + HudIcons.bars_width(sbh), 24 * u), 13 * u, white)
 	var bx := w * 0.60
 	var pct: float = t["battPct"]
 	var bc := Color("ff6666") if pct < 20.0 else (Color("ffcc66") if pct < 40.0 else white)
-	draw_rect(Rect2(bx, 12 * u, 28 * u, 14 * u), bc, false, 1.5 * u)
-	draw_rect(Rect2(bx + 2 * u, 14 * u, 24 * u * pct / 100.0, 10 * u), bc)
-	draw_rect(Rect2(bx + 28 * u, 15 * u, 2 * u, 8 * u), bc)
-	_text("%d%%  %.2fV/c  %.1fA" % [int(round(pct)), float(t["cellV"]), float(t["battA"])], Vector2(bx + 38 * u, 24 * u), 13 * u, white)
+	HudIcons.battery(self, Vector2(bx + 0.8 * u, 19 * u), 13 * u, pct, Color(0, 0, 0, 0.32))
+	var bw := HudIcons.battery(self, Vector2(bx, 18 * u), 13 * u, pct, bc)
+	_text("%d%%  %.2fV/c  %.1fA" % [int(round(pct)), float(t["cellV"]), float(t["battA"])], Vector2(bx + bw + 7 * u, 24 * u), 13 * u, white)
 	var ev: float = t["ev"]
-	_text("ISO %d  1/%d  EV %s%.1f" % [int(t["iso"]), int(round(1.0 / float(t["shutter"]))), "+" if ev >= 0.0 else "", ev], Vector2(w - 54 * u, 24 * u), 13 * u, white, 2)
+	_text("ISO %d  1/%d  EV %s%.1f  WB %dK" % [int(t["iso"]), int(round(1.0 / float(t["shutter"]))), "+" if ev >= 0.0 else "", ev, int(t.get("wb", 5600))], Vector2(w - 54 * u, 24 * u), 13 * u, white, 2)
 	# ---- reticle, horizon and pitch ladder
 	var cx := w / 2.0
 	var cy := h / 2.0
@@ -168,11 +175,6 @@ func _draw() -> void:
 		_text(str(t["rec"]), Vector2(w - 140 * u, 62 * u), 13 * u, Color("ff6666"))
 	if float(t["rfDbm"]) < -85.0: _text("VIDEO LINK WEAK", Vector2(cx, 70 * u), 16 * u, Color("ff7766"), 1, true)
 	if pct < 15.0: _text("LOW BATTERY - LAND NOW", Vector2(cx, 92 * u), 16 * u, Color("ff7766"), 1, true)
-
-func _bars(origin: Vector2, u: float, on: int, col: Color) -> void:
-	for i in 5:
-		var bh := (4 + i * 3) * u
-		draw_rect(Rect2(origin.x + i * 5 * u, origin.y - bh, 3 * u, bh), col if i < on else Color(1, 1, 1, 0.3))
 
 ## align: 0 left, 1 centre, 2 right
 func _text(s: String, p: Vector2, size: float, col: Color, align := 0, bold := false) -> void:

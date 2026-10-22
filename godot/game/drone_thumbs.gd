@@ -3,7 +3,7 @@ extends RefCounted
 ## A small picture of each drone for the drone chooser: the real model, lit from above and seen from the front and a little
 ## to the side, rendered once into a texture on a transparent background.
 
-const SIZE := Vector2i(440, 264)
+const SIZE := Vector2i(320, 192)
 
 ## Returns {airframe id: ImageTexture}. Call from a node in the tree; it waits a few frames per drone.
 static func render_all(host: Node, ids: Array) -> Dictionary:

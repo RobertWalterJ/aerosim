@@ -19,6 +19,7 @@ var cam := Camera3D.new()
 var sun := DirectionalLight3D.new()
 var moon := DirectionalLight3D.new()
 var drone_light := SpotLight3D.new()
+var drone_shadow := DroneShadow.new()
 var env := Environment.new()
 var sky_mat := ShaderMaterial.new()
 var wx := WeatherSystem.new()
@@ -76,6 +77,10 @@ var _wind_now := Vector3.ZERO
 var _loaded := false
 var _gimbal_rate := 0.0
 
+## The drone's shadow is sized to this airframe.
+func _after_drone_built() -> void:
+	if terrain: drone_shadow.setup(af, terrain)
+
 ## The pictures on the drone chooser are drawn once the game is running, a drone at a time.
 func _make_drone_pictures() -> void:
 	var thumbs: Dictionary = await DroneThumbs.render_all(self, Airframes.IDS)
@@ -125,6 +130,7 @@ func _ready() -> void:
 	quad.obstacle_hit = world.obstacle_hit
 	add_child(drone_node)
 	drone_node.add_child(drone_view)
+	add_child(drone_shadow)
 	# a spotlight on the airframe, pointing forward and a little down, for flying at night
 	drone_light.position = Vector3(0, -0.02, -0.1)
 	drone_light.rotation_degrees = Vector3(-22, 0, 0)
@@ -134,6 +140,7 @@ func _ready() -> void:
 	drone_light.visible = false
 	drone_node.add_child(drone_light)
 	drone_view.build(af)
+	_after_drone_built()
 	add_child(cam)
 	cam.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	cam.near = 0.03; cam.far = 3000.0; cam.fov = 84.0; cam.current = true
@@ -195,6 +202,7 @@ func _ready() -> void:
 	hud.minimap.paths = pl
 	apply_weather(hud.weather)
 	spawn()
+	drone_shadow.setup(af, terrain)
 	_loaded = true
 	if _load_layer: _load_layer.queue_free()
 	_make_drone_pictures()
@@ -458,6 +466,7 @@ func switch_drone(id: String) -> void:
 	quad.set_airframe(af)
 	fc.set_airframe(af)
 	drone_view.build(af)
+	_after_drone_built()
 	audio.set_arm(float(af["armD"]))
 	hud.set_airframe(id)
 	hud.show_gimbal(af["hasGimbal"])
@@ -557,6 +566,13 @@ func _process(delta: float) -> void:
 		cam.fov = 84.0
 	drone_view.visible = true
 	drone_view.set_fpv(not chase)
+	# the shadow follows the light that is up: the sun by day, the moon (much fainter) by night
+	var lit_dir := _sun_dir
+	var lit_k := float(wx.cur["sun"]) * smoothstep(0.0, 6.0, _sun_el)
+	if _sun_el < 3.0 and _moon_el > 3.0:
+		lit_dir = _moon_dir; lit_k = 0.3 * float(wx.cur["sun"]) * _moon_illum * (1.0 - _daylight)
+	var head_y := atan2(-(q * Vector3(0, 0, -1)).x, -(q * Vector3(0, 0, -1)).z)
+	drone_shadow.update(pos, head_y, lit_dir, lit_k)
 	drone_view.update_props(quad.s, sim_time, quad.armed)
 	# precipitation follows the camera
 	snow_fx.global_position = cam.global_position + Vector3(0, 12, 0)
@@ -726,7 +742,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	osd.t = {
 		"mode": fc.mode, "sats": 14 + (3 if agl > 2.0 else 0), "rfDbm": _rf_dbm, "rfBars": bars,
 		"battPct": quad.battery.soc * 100.0, "cellV": quad.battery.cell_v(), "battA": quad.battery.current,
-		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "ev": sensor.ev_comp,
+		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "ev": sensor.ev_comp, "wb": int(round(sensor.wb_kelvin / 100.0)) * 100,
 		"pitch": asin(clampf(fwd.y, -1.0, 1.0)), "roll": -asin(clampf(cb.x.y, -1.0, 1.0)),
 		"heading": atan2(dfwd.x, -dfwd.z), "velBody": vcam, "fov": cam.fov, "aglM": agl, "mslM": dpos.y,
 		"gs": sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5]), "vs": quad.s[4],

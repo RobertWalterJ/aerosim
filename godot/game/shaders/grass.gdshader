@@ -119,7 +119,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = vCol * cloud_shade((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
+	ALBEDO = vCol * world_shade((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	ROUGHNESS = (uLitter < 0.5 ? 0.62 : 0.8) * mix(1.0, 0.45, g_wet);
 	SPECULAR = mix(0.25, 0.7, g_wet);
 	BACKLIGHT = uLitter < 0.5 ? vCol * 0.95 : vec3(0.0);

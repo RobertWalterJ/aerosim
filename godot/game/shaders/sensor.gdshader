@@ -27,6 +27,7 @@ uniform float uGhostK = 0.55;
 uniform float uFrame = 0.0;
 uniform float uFlareI = 1.0;
 uniform float uVig = 0.28;
+uniform vec3 uWB = vec3(1.0);   // white balance gain from the camera's auto white balance
 uniform float uRain = 0.0;     // water on the lens, 0 dry .. 1 streaming
 vec4 T(sampler2D s, vec2 v) { return texture(s, vec2(v.x, 1.0 - v.y)); }
 float hash(vec2 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973).xy); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
@@ -89,10 +90,11 @@ void fragment() {
 	float e = exp2(texture(uExp, vec2(0.5)).r);
 	vec3 col = vec3(T(uScene, sR).r, T(uScene, sG).g, T(uScene, sB).b) * e;
 	vec3 bl = vec3(T(uBloom, sR).r, T(uBloom, sG).g, T(uBloom, sB).b);
+	col *= uWB;
 	col += bl * uBloomK;
 	// anamorphic streak, cyan ghost and veiling glare
 	col += flare(sG, gSunVis);
-	col += vec3(0.020, 0.022, 0.026) * uGlare * (0.4 + 0.6 * gSunVis);
+	col += vec3(0.020, 0.022, 0.026) * uGlare * (0.4 + 0.6 * gSunVis) * 3.0;
 	// optical vignette
 	float vr = length(a) * 0.7071; col *= 1.0 - uVig * vr * vr;
 	// sensor ISO noise (shot + read), luminance and chroma, scaled by analogue gain

@@ -80,6 +80,8 @@ var _tabs: TabContainer
 var _tab_btns: Array[Button] = []
 var _refreshers: Array[Callable] = []
 var _drone_buttons := {}
+var _drone_pics := {}                 # id -> TextureRect: the 3D picture on each drone card
+var _drone_lineup: DroneSchematic     # all five drones side by side at true size
 var _sliders := {}
 var _slider_labels := {}
 
@@ -412,15 +414,59 @@ func _build_flight_tab() -> void:
 func _build_drone_tab() -> void:
 	var p := _page("Drone")
 	_heading(p, "Choose a drone")
-	_sub(p, "The drone returns to the start when you change it.")
+	var intro := Label.new(); intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; intro.custom_minimum_size = Vector2(200, 0)
+	intro.text = "All the drawings here are to the same scale, so you can compare sizes. The drone returns to the start when you change it."
+	intro.add_theme_font_size_override("font_size", 17); intro.add_theme_color_override("font_color", MenuStyle.MUTED)
+	p.add_child(intro)
+	_drone_lineup = DroneSchematic.new(); _drone_lineup.lineup = true; _drone_lineup.selected = airframe_id
+	_drone_lineup.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	p.add_child(_drone_lineup)
 	for id in Airframes.IDS:
 		var af := Airframes.make(id)
-		var b := Button.new(); b.toggle_mode = true; b.theme_type_variation = "DroneCard"; b.custom_minimum_size = Vector2(0, 116)
-		b.text = "%s\n%s" % [af["name"], af["blurb"]]; b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		b.add_theme_font_size_override("font_size", 20)
-		b.clip_text = false; b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		# the card: a toggle button underneath, the drawing and the facts on top (they let clicks through to it)
+		var cell := MarginContainer.new(); cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var b := Button.new(); b.toggle_mode = true; b.theme_type_variation = "DroneCard"
 		b.pressed.connect(func(): if id != airframe_id: drone_picked.emit(id); set_paused(false))
-		p.add_child(b); _drone_buttons[id] = b
+		cell.add_child(b)
+		var pad := MarginContainer.new()
+		for side in ["left", "right", "top", "bottom"]: pad.add_theme_constant_override("margin_" + side, 14)
+		cell.add_child(pad)
+		var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 18); pad.add_child(row)
+		var sheet := DroneSchematic.new(); sheet.id = id
+		row.add_child(sheet)
+		var info := VBoxContainer.new(); info.size_flags_horizontal = Control.SIZE_EXPAND_FILL; info.add_theme_constant_override("separation", 6)
+		row.add_child(info)
+		var head := HBoxContainer.new(); info.add_child(head)
+		var name_l := Label.new(); name_l.text = af["name"]; name_l.add_theme_font_size_override("font_size", 22)
+		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL; name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		name_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; name_l.custom_minimum_size = Vector2(90, 0)
+		head.add_child(name_l)
+		var pic := TextureRect.new(); pic.custom_minimum_size = Vector2(120, 70)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE; pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		head.add_child(pic); _drone_pics[id] = pic
+		# the weight is listed below, so the description starts after it
+		var btxt: String = af["blurb"]
+		if btxt.begins_with("%d g. " % int(round(float(af["mass"]) * 1000.0))) or btxt.begins_with("%.1f kg. " % float(af["mass"])):
+			btxt = btxt.substr(btxt.find(". ") + 2)
+		var blurb := Label.new(); blurb.text = btxt; blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		blurb.add_theme_font_size_override("font_size", 16); blurb.add_theme_color_override("font_color", MenuStyle.MUTED)
+		blurb.custom_minimum_size = Vector2(200, 0)
+		info.add_child(blurb)
+		var grid := GridContainer.new(); grid.columns = 2
+		grid.add_theme_constant_override("h_separation", 14); grid.add_theme_constant_override("v_separation", 1)
+		for fact in DroneSchematic.facts(af):
+			var k := Label.new(); k.text = fact[0]; k.add_theme_font_size_override("font_size", 15); k.add_theme_color_override("font_color", MenuStyle.MUTED)
+			var v := Label.new(); v.text = fact[1]; v.add_theme_font_size_override("font_size", 16)
+			grid.add_child(k); grid.add_child(v)
+		info.add_child(grid)
+		_let_clicks_through(pad)
+		p.add_child(cell); _drone_buttons[id] = b
+
+## Drawings and labels laid over a card must not catch the press meant for the card itself.
+func _let_clicks_through(c: Control) -> void:
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for k in c.get_children():
+		if k is Control: _let_clicks_through(k)
 
 func _slider(parent: Control, key: String, title: String, lo: float, hi: float, step: float) -> void:
 	var row := HBoxContainer.new(); parent.add_child(row)
@@ -492,9 +538,8 @@ The picture shown is the drone's own camera. Hold \"Hold to see the video\" at t
 ## Put a picture of each drone on its card in the drone chooser.
 func set_drone_thumbs(thumbs: Dictionary) -> void:
 	for id in thumbs:
-		if _drone_buttons.has(id):
-			var b: Button = _drone_buttons[id]
-			b.icon = thumbs[id]; b.expand_icon = true
+		if _drone_pics.has(id):
+			(_drone_pics[id] as TextureRect).texture = thumbs[id]
 
 func _apply_fx() -> void:
 	RenderingServer.global_shader_parameter_set("g_fx", Vector4(1.0 if fx_cloud else 0.0, 1.0 if fx_trees else 0.0, 0.0, 0.0))
@@ -533,6 +578,8 @@ func _sync() -> void:
 	for i in _tab_btns.size(): _tab_btns[i].set_pressed_no_signal(i == _tabs.current_tab)
 	for f in _refreshers: f.call()
 	for id in _drone_buttons: _drone_buttons[id].set_pressed_no_signal(id == airframe_id)
+	if _drone_lineup and _drone_lineup.selected != airframe_id:
+		_drone_lineup.selected = airframe_id; _drone_lineup.queue_redraw()
 	for k in _sliders:
 		_sliders[k].set_value_no_signal(float(weather[k]))
 		var v := float(weather[k])
