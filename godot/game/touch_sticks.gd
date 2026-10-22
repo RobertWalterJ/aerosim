@@ -90,7 +90,8 @@ func _draw() -> void:
 		for t in _touches.values():
 			if t.side == side:
 				origin = t.origin; pos = t.pos; live = true
-		var a := 0.55 if live else 0.22
+		if not live: continue      # a stick only appears while a thumb is on it
+		var a := 0.55
 		draw_circle(origin, radius, Color(0.04, 0.08, 0.1, 0.22 if live else 0.10))
 		draw_arc(origin, radius, 0.0, TAU, 48, Color(col.r, col.g, col.b, a + 0.2), 2.0, true)
 		# the cross the stick travels along, with an arrowhead at each end
