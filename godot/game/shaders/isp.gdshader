@@ -6,7 +6,7 @@ uniform vec2 uTexel = vec2(0.001);
 uniform float uGlare = 0.0;
 uniform float uSharp = 1.4;
 uniform float uRadius = 1.2;
-uniform float uSat = 1.1;
+uniform float uSat = 1.22;
 vec4 T(sampler2D s, vec2 v) { return texture(s, vec2(v.x, 1.0 - v.y)); }
 vec3 curve(vec3 x) {
 	vec3 st = log2(max(x, vec3(1e-5)) / 0.18);

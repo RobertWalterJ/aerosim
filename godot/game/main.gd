@@ -268,11 +268,11 @@ func apply_weather(w: Dictionary) -> void:
 func _apply_weather_state(delta: float, snap := false) -> void:
 	wx.update(delta, snap)
 	var c := wx.cur
-	var sun_base := 1.7 * (0.55 + 0.45 * smoothstep(3.0, 18.0, _sun_el))
+	var sun_base := 2.6 * (0.55 + 0.45 * smoothstep(3.0, 18.0, _sun_el))
 	var storm_flash := wx.flash
 	sun.light_energy = sun_base * float(c["sun"]) + storm_flash * 4.0
 	sun.shadow_opacity = clampf(0.25 + 3.0 * float(c["sun"]), 0.0, 1.0)
-	env.ambient_light_energy = 1.7 * float(c["amb"]) + storm_flash * 1.2
+	env.ambient_light_energy = 1.15 * float(c["amb"]) + storm_flash * 1.2
 	sky_mat.set_shader_parameter("sun_dir", _sun_dir)
 	sky_mat.set_shader_parameter("cover", float(c["cover"]))
 	sky_mat.set_shader_parameter("dark", float(c["dark"]))
@@ -284,10 +284,10 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sky_mat.set_shader_parameter("drift", Vector2(wd.x, wd.z) * (0.5 + 0.6 * wind.speed))
 	# fog: thicker and greyer in rain, snow and mist
 	var grey := clampf(float(c["haze"]) * 0.9 + float(c["fog"]) * 0.4, 0.0, 1.0)
-	env.fog_density = 0.0004 * float(c["fogd"])
+	env.fog_density = 0.00012 * float(c["fogd"])
 	env.fog_light_color = Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey)
-	env.fog_sky_affect = 0.3 + 0.5 * float(c["fog"])
-	env.fog_height_density = 0.0009 * float(c["fogd"])
+	env.fog_sky_affect = 0.05 + 0.6 * float(c["fog"])
+	env.fog_height_density = 0.0003 * float(c["fogd"])
 	# wind follows the condition
 	wind.speed = _base_wind * float(c["wind"])
 	wind.gust = clampf(_base_gust + (0.35 if wx.kind == WeatherSystem.Kind.STORM else 0.0), 0.0, 1.0)

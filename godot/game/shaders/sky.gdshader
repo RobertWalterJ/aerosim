@@ -41,8 +41,8 @@ void sky() {
 	float day = smoothstep(-0.12, 0.12, sun_h);                 // 0 night .. 1 day
 	float warm = 1.0 - smoothstep(0.06, 0.42, sun_h);           // sunrise and sunset
 	// ---- clear sky
-	vec3 zenith = mix(vec3(0.03, 0.05, 0.12), vec3(0.16, 0.34, 0.72), day);
-	vec3 horizon = mix(vec3(0.06, 0.07, 0.12), vec3(0.62, 0.74, 0.90), day);
+	vec3 zenith = mix(vec3(0.03, 0.05, 0.12), vec3(0.10, 0.26, 0.70), day);
+	vec3 horizon = mix(vec3(0.06, 0.07, 0.12), vec3(0.55, 0.72, 0.92), day);
 	horizon = mix(horizon, vec3(0.95, 0.62, 0.38), warm * day * (0.5 + 0.5 * pow(max(mu, 0.0), 2.0)));
 	zenith = mix(zenith, vec3(0.28, 0.32, 0.50), warm * 0.4);
 	vec3 col = mix(horizon, zenith, pow(up, 0.42));

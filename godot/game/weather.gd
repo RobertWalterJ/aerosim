@@ -11,7 +11,7 @@ enum Kind { CLEAR, PARTLY, OVERCAST, FOG, RAIN, STORM, SNOW }
 # per condition: cover, dark, cirrus, haze, fog (sky), sun (direct light left), amb (sky light left), fogd (height fog density x),
 #                wind (x the menu wind), rain, snow (0..1 base intensity), wet (target wetness)
 const TABLE := [
-	{"cover": 0.12, "dark": 0.0, "cirrus": 0.35, "haze": 0.15, "fog": 0.0, "sun": 1.0, "amb": 1.0, "fogd": 1.0, "wind": 1.0, "rain": 0.0, "snow": 0.0, "wet": 0.0},
+	{"cover": 0.12, "dark": 0.0, "cirrus": 0.35, "haze": 0.02, "fog": 0.0, "sun": 1.0, "amb": 1.0, "fogd": 1.0, "wind": 1.0, "rain": 0.0, "snow": 0.0, "wet": 0.0},
 	{"cover": 0.48, "dark": 0.05, "cirrus": 0.25, "haze": 0.22, "fog": 0.0, "sun": 0.78, "amb": 1.0, "fogd": 1.1, "wind": 1.15, "rain": 0.0, "snow": 0.0, "wet": 0.0},
 	{"cover": 0.92, "dark": 0.28, "cirrus": 0.0, "haze": 0.38, "fog": 0.1, "sun": 0.2, "amb": 0.9, "fogd": 1.7, "wind": 1.3, "rain": 0.0, "snow": 0.0, "wet": 0.0},
 	{"cover": 0.35, "dark": 0.0, "cirrus": 0.0, "haze": 0.75, "fog": 0.95, "sun": 0.35, "amb": 0.95, "fogd": 8.0, "wind": 0.5, "rain": 0.0, "snow": 0.0, "wet": 0.25},
