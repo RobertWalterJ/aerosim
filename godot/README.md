@@ -34,6 +34,13 @@ The second flies the whole game scene for a few seconds and reports the climb.
 - Sensor camera (`game/sensor_pipeline.gd` and `game/shaders/`): metering and auto-exposure with lag, bloom chain, rolling shutter and jello, Brown-Conrady distortion with chromatic aberration, sun streak and ghost and veiling glare, vignette, ISO noise, 10-stop S-curve, ISP sharpening, and H.264 macroblocking driven by the video link.
 - Drone display (`game/osd.gd`): mode, GPS, link, battery, ISO and shutter, pitch ladder, flight-path marker, gimbal scale, data bar, luma histogram, compass radar.
 
+## The world
+
+The valley is the web version's own: `tools/export_world.ts` bakes it in Node (heightmap, woodland and lawn map, path distance,
+where every tree, meadow clump, hedge, railing, wall, memorial, lamp, bench and car stands, the chapel and monuments) and writes
+`assets/world/`. Godot loads it in `game/terrain.gd` and `game/world.gd`. Re-run `npx tsx export_world.ts` in `godot/tools` after
+changing the web generators. The park paths are drawn with the shared library's asphalt (`assets/textures`, CC0).
+
 ## The flight app (phone-on-a-remote feel)
 
 `game/hud.gd` and friends make the screen behave like a drone app: full-screen video with the data overlay, round glass buttons

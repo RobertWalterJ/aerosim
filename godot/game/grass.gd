@@ -18,7 +18,7 @@ static func add_globals() -> void:
 			["g_wet", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0]]:
 		RenderingServer.global_shader_parameter_add(g[0], g[1], g[2])
 
-func build(terrain: Terrain, quality: String, excl: Rect2) -> void:
+func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Vector2) -> void:
 	var counts: Array = QUALITY_COUNTS.get(quality, QUALITY_COUNTS["medium"])
 	var layers := [
 		{"patch": 13.0, "count": counts[0], "h": Vector2(0.10, 0.28), "w": 0.0085, "litter": 0.0},
@@ -48,7 +48,12 @@ func build(terrain: Terrain, quality: String, excl: Rect2) -> void:
 		mat.set_shader_parameter("uCV", terrain.cover_tex)
 		mat.set_shader_parameter("uSize", Terrain.SIZE)
 		mat.set_shader_parameter("uCells", float(Terrain.CELLS))
-		mat.set_shader_parameter("uExcl", Vector4(excl.position.x, excl.position.y, excl.end.x, excl.end.y))
+		var ex := PackedVector4Array()
+		for r in excl: ex.append(Vector4(r.position.x, r.position.y, r.end.x, r.end.y))
+		ex.resize(16)
+		mat.set_shader_parameter("uExcl", ex)
+		mat.set_shader_parameter("uExclN", mini(excl.size(), 16))
+		mat.set_shader_parameter("uPad", pad_centre)
 		var mi := MultiMeshInstance3D.new()
 		mi.multimesh = mm
 		mi.material_override = mat

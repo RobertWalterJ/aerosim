@@ -9,7 +9,8 @@ const VIEW_M := 420.0            # metres across the map thumbnail
 var drone := Vector3.ZERO
 var heading := 0.0              # compass bearing in radians, 0 = north, clockwise
 var home := Vector2.ZERO
-var features: Array[Rect2] = [] # rectangles to outline (the cemetery), in world x,z
+var features: Array[Rect2] = [] # rectangles to outline, in world x,z
+var paths: Array[PackedVector2Array] = []   # park paths as lines, in world x,z
 var _tex: ImageTexture
 var _size_m := 1600.0
 var _trail := PackedVector2Array()
@@ -24,7 +25,7 @@ func _init(d := 150.0) -> void:
 ## Paint the map from the terrain: hill-shading times a land colour from the cover map.
 func bake(terrain: Terrain) -> void:
 	_size_m = Terrain.SIZE
-	var n := 320
+	var n := 512
 	var img := Image.create(n, n, false, Image.FORMAT_RGB8)
 	var sun := Vector3(-0.6, 0.7, -0.4).normalized()
 	for j in n:
@@ -64,6 +65,11 @@ func _draw() -> void:
 		draw_set_transform(c, -heading, Vector2(k, k))
 		draw_texture_rect(_tex, Rect2(Vector2(-drone.x, -drone.z) - Vector2(_size_m, _size_m) * 0.5, Vector2(_size_m, _size_m)), false)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	for pl in paths:
+		if pl.size() < 2: continue
+		var pts := PackedVector2Array()
+		for p in pl: pts.append(_w2m(p))
+		draw_polyline(pts, Color(0.9, 0.88, 0.8, 0.8), 1.4, true)
 	for r in features:
 		var a := _w2m(r.position); var b := _w2m(Vector2(r.end.x, r.position.y)); var d := _w2m(r.end); var e := _w2m(Vector2(r.position.x, r.end.y))
 		draw_polyline(PackedVector2Array([a, b, d, e, a]), Color(1, 1, 1, 0.55), 1.2, true)

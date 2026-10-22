@@ -7,9 +7,8 @@ const SUBSTEPS := 4
 const DT := 0.002
 
 var terrain: Terrain
-var forest: Forest
-var cemetery: Cemetery
-var meadow: Meadow
+var world: World
+var home := Vector2(-18.0, 36.0)
 var grass: Grass
 var quad: Quad
 var fc: FlightController
@@ -69,7 +68,7 @@ func _ready() -> void:
 	fc.set_step(DT)
 	quad.ground_h = func(x: float, z: float) -> float: return terrain.height(x, z)
 	quad.ground_n = func(x: float, z: float) -> Vector3: return terrain.normal_at(x, z)
-	quad.obstacle_hit = forest.trunk_hit
+	quad.obstacle_hit = world.obstacle_hit
 	add_child(drone_node)
 	drone_node.add_child(drone_view)
 	drone_view.build(af)
@@ -108,7 +107,13 @@ func _ready() -> void:
 	get_viewport().disable_3d = true
 	osd = Osd.new(); osd.name = "Osd"; hud.add_child(osd)
 	hud.minimap.bake(terrain)
-	hud.minimap.features = [Rect2(Cemetery.CENTRE - Cemetery.HALF, Cemetery.HALF * 2.0)]
+	hud.minimap.home = home
+	var pl: Array[PackedVector2Array] = []
+	for p in terrain.layout["paths"]:
+		var pts := PackedVector2Array()
+		for q in p["pts"]: pts.append(Vector2(q[0], q[1]))
+		pl.append(pts)
+	hud.minimap.paths = pl
 	apply_weather(hud.weather)
 	spawn()
 	if q_arg != "": _screenshot_mode(q_arg)
@@ -117,26 +122,19 @@ func _ready() -> void:
 
 # ------------------------------------------------------------------ world
 func _build_world() -> void:
-	terrain = Terrain.new()
-	add_child(terrain)
-	terrain.add_flat_rect(Cemetery.CENTRE, Cemetery.HALF + Vector2(3, 3), 14.0)
-	terrain.lawn_rects = [{"c": Cemetery.CENTRE, "half": Cemetery.HALF + Vector2(6, 6)}]
-	terrain.build()
-	cemetery = Cemetery.new()
-	add_child(cemetery)
-	cemetery.build(terrain)
-	forest = Forest.new()
-	add_child(forest)
-	forest.plant(terrain, func(x: float, z: float) -> bool: return cemetery.contains(x, z, 6.0) or (x * x + z * z) < 900.0)
 	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	var dev_args := OS.get_cmdline_user_args()
-	meadow = Meadow.new()
-	add_child(meadow)
-	if not "nomeadow" in dev_args: meadow.plant(terrain, func(x: float, z: float) -> bool: return cemetery.contains(x, z, 3.0) or (x * x + z * z) < 196.0, 0.12 if touch_dev else 0.3)
+	terrain = Terrain.new()
+	add_child(terrain)
+	terrain.load_world()
+	terrain.build()
+	world = World.new()
+	add_child(world)
+	world.build(terrain, touch_dev)
+	home = world.home
 	grass = Grass.new()
 	add_child(grass)
-	var cr := Rect2(Cemetery.CENTRE - Cemetery.HALF - Vector2(1, 1), (Cemetery.HALF + Vector2(1, 1)) * 2.0)
-	if not "nograss" in dev_args: grass.build(terrain, "low" if touch_dev else "high", cr)
+	if not "nograss" in dev_args: grass.build(terrain, "low" if touch_dev else "high", world.exclusions, home)
 	# sun, sky and atmosphere
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -300,8 +298,8 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 func spawn() -> void:
 	autopilot.cancel()
 	if hud and hud.minimap: hud.minimap.clear_trail()
-	var y := terrain.height(0.0, 0.0) + 0.04
-	quad.reset(0.0, y, 0.0, deg_to_rad(150.0))
+	var y := terrain.height(home.x, home.y) + 0.04
+	quad.reset(home.x, y, home.y, deg_to_rad(150.0))
 	fc.reset_state(); fc.mode = hud.mode if hud else "N"; fc.heading = deg_to_rad(150.0)
 	_cam_yaw = deg_to_rad(150.0)
 	_apply_pose()
@@ -469,7 +467,7 @@ var _gallery_cam := false
 func _build_gallery() -> void:
 	_gallery_cam = true
 	drone_view.visible = false
-	var gy := terrain.height(0.0, 0.0)
+	var gy := terrain.height(home.x, home.y)
 	var names := ["spruce_a_l0", "maple_red_l0", "maple_gold_l0", "oak_l0", "spruce_b_l0"]
 	for i in names.size():
 		var xf := Transform3D(Basis(), Vector3(-24.0 + i * 12.0, gy, -26.0))
@@ -511,13 +509,13 @@ func _update_sensor_and_osd(delta: float) -> void:
 	# sun visibility for the flare: blocked by terrain or a tree crown along the ray to the sun
 	var sun_target := 1.0
 	if not _terrain_clear(cpos, cpos + _sun_dir * 1500.0, 24): sun_target = 0.0
-	elif forest.canopy_blocks(cpos, _sun_dir, 90.0): sun_target = 0.0
+	elif world.canopy_blocks(cpos, _sun_dir, 90.0): sun_target = 0.0
 	sun_target *= smoothstep(0.12, 0.5, float(wx.cur["sun"]))
 	_sun_vis += (sun_target - _sun_vis) * clampf(delta * 8.0, 0.0, 1.0)
 	sensor.sun_vis = _sun_vis
 	# video link: free-space loss with distance, plus a penalty when the terrain blocks the line of sight
 	var dpos := quad.position()
-	var home_p := Vector3(0.0, terrain.height(0.0, 0.0) + 1.6, 0.0)
+	var home_p := Vector3(home.x, terrain.height(home.x, home.y) + 1.6, home.y)
 	var dist := dpos.distance_to(home_p)
 	var dbm := -45.0 - 20.0 * log(maxf(dist, 10.0) / 10.0) / log(10.0)
 	if not _terrain_clear(home_p, dpos): dbm -= 28.0
@@ -542,12 +540,12 @@ func _update_sensor_and_osd(delta: float) -> void:
 		"pitch": asin(clampf(fwd.y, -1.0, 1.0)), "roll": -asin(clampf(cb.x.y, -1.0, 1.0)),
 		"heading": atan2(dfwd.x, -dfwd.z), "velBody": vcam, "aglM": agl, "mslM": dpos.y,
 		"gs": sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5]), "vs": quad.s[4],
-		"homeDist": sqrt(dpos.x * dpos.x + dpos.z * dpos.z),
+		"homeDist": sqrt((dpos.x - home.x) * (dpos.x - home.x) + (dpos.z - home.y) * (dpos.z - home.y)),
 		"gimbalDeg": rad_to_deg(gimbal_pitch) if af["hasGimbal"] else rad_to_deg(float(af["camTilt"])),
 		"histogram": sensor.histogram, "lensName": sensor.lens_info()["name"], "airframe": af["name"],
 		"audio": "off", "fps": int(_fps), "crashed": quad.crash_reason if (quad.crashed or not quad.armed) else "",
 		"armed": quad.armed, "touch": DisplayServer.is_touchscreen_available(), "mission": [],
-		"windMs": _wind_now.length(), "windLevel": "", "homeBearing": atan2(-dpos.x, dpos.z), "stopHit": 0.0, "aero": "",
+		"windMs": _wind_now.length(), "windLevel": "", "homeBearing": atan2(home.x - dpos.x, -(home.y - dpos.z)), "stopHit": 0.0, "aero": "",
 	}
 	hud.show_crash(osd.t["crashed"])
 	hud.set_airborne(agl > 0.4)
@@ -565,7 +563,7 @@ func _autopilot_sticks(st: Vector4, p: Vector3, agl: float) -> Vector4:
 		autopilot.cancel("Assisted flight needs Normal or Sport mode")
 	else:
 		var lim: Dictionary = af["limits"]["S" if fc.mode == "S" else "N"]
-		var cmd := autopilot.update(p, quad.velocity(), fc.heading, agl, Vector2.ZERO, float(lim["vH"]), float(lim["vUp"]))
+		var cmd := autopilot.update(p, quad.velocity(), fc.heading, agl, home, float(lim["vH"]), float(lim["vUp"]))
 		var rth := autopilot.state in [AutoPilot.State.RTH_CLIMB, AutoPilot.State.RTH_FLY, AutoPilot.State.RTH_LAND]
 		if rth and maxf(maxf(absf(st.x), absf(st.y)), maxf(absf(st.z), absf(st.w))) > 0.25:
 			autopilot.cancel("Return to home cancelled")

@@ -12,6 +12,9 @@ static func parts(name: String) -> Array:
 	if name.begins_with("env/"):
 		_load_env()
 		return _cache.get(name, [])
+	if name.begins_with("world/"):
+		_load_world()
+		return _cache.get(name, [])
 	var scene := load("res://assets/%s.glb" % name) as PackedScene
 	if scene == null:
 		push_warning("missing model " + name)
@@ -24,6 +27,30 @@ static func parts(name: String) -> Array:
 	_swap_foliage(name, out)
 	_cache[name] = out
 	return out
+
+static var _world_loaded := false
+
+## The web world's prop families and instanced park pieces, all in one file. Nodes are named family__variant__lod.
+static func _load_world() -> void:
+	if _world_loaded: return
+	_world_loaded = true
+	var scene := load("res://assets/world/props.glb") as PackedScene
+	if scene == null:
+		push_warning("missing res://assets/world/props.glb")
+		return
+	var inst := scene.instantiate()
+	var holder: Node = inst
+	while holder.get_child_count() == 1: holder = holder.get_child(0)
+	for c in holder.get_children():
+		var out := []
+		_collect(c, Transform3D.IDENTITY, out)
+		var fam := str(c.name).split("__")[0]
+		if fam in ["meadow", "hedge-boxwood", "hedge-yew", "shrubs"]:
+			_swap_foliage_parts(out)
+		elif fam in ["memorials", "stone-wall"]:
+			_swap_stone(out)
+		_cache["world/" + str(c.name)] = out
+	inst.free()
 
 static var _env_loaded := false
 
@@ -50,6 +77,9 @@ static func _load_env() -> void:
 static func _swap_foliage(name: String, out: Array) -> void:
 	if name.begins_with("trees/far_"): return
 	if not (name.begins_with("trees/") or name.begins_with("env/meadowClump") or name.begins_with("env/lawnTuft")): return
+	_swap_foliage_parts(out)
+
+static func _swap_foliage_parts(out: Array) -> void:
 	var shader := load("res://game/shaders/foliage.gdshader") as Shader
 	for p in out:
 		var mesh: Mesh = p["mesh"]
@@ -81,7 +111,7 @@ static func _swap_stone(out: Array) -> void:
 			var src := mesh.surface_get_material(i)
 			if not (src is BaseMaterial3D): continue
 			var b := src as BaseMaterial3D
-			if b.resource_name != "env-stone" or b.albedo_texture == null: continue
+			if b.albedo_texture == null: continue
 			var m := ShaderMaterial.new()
 			m.shader = shader
 			m.set_shader_parameter("albedo_tex", b.albedo_texture)
@@ -144,15 +174,17 @@ static func _collect(n: Node, xf: Transform3D, out: Array) -> void:
 	for c in n.get_children(): _collect(c, here, out)
 
 ## Adds one MultiMeshInstance3D per part of the model, one instance for each transform in `xfs`.
-static func scatter(parent: Node, name: String, xfs: Array[Transform3D], shadows := true, range_begin := 0.0, range_end := 0.0) -> void:
+static func scatter(parent: Node, name: String, xfs: Array[Transform3D], shadows := true, range_begin := 0.0, range_end := 0.0, colors: Array[Color] = []) -> void:
 	if xfs.is_empty(): return
 	for p in parts(name):
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = p["mesh"]
+		mm.use_colors = not colors.is_empty()
 		mm.instance_count = xfs.size()
 		for i in xfs.size():
 			mm.set_instance_transform(i, xfs[i] * (p["xf"] as Transform3D))
+			if not colors.is_empty(): mm.set_instance_color(i, colors[i])
 		var mi := MultiMeshInstance3D.new()
 		mi.multimesh = mm
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

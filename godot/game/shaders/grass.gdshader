@@ -16,10 +16,12 @@ global uniform float g_wet;
 uniform float uPatch = 13.0;      // side of the square patch that follows the camera
 uniform vec2 uBH = vec2(0.1, 0.28);
 uniform float uWidth = 0.0085;
-uniform float uSize = 1600.0;     // terrain size in metres
-uniform float uCells = 320.0;     // terrain grid squares
-uniform vec4 uExcl = vec4(1e9, 1e9, 1e9, 1e9);   // a rectangle with no grass (the cemetery)
-uniform float uPadR = 11.0;       // radius of the bare take-off pad around the origin
+uniform float uSize = 4000.0;     // terrain size in metres
+uniform float uCells = 2048.0;    // terrain grid squares
+uniform vec4 uExcl[16];           // rectangles with no grass (buildings, monuments): xmin, zmin, xmax, zmax
+uniform int uExclN = 0;
+uniform vec2 uPad = vec2(0.0);    // centre of the bare take-off pad
+uniform float uPadR = 11.0;
 uniform float uLitter = 0.0;
 uniform sampler2D uHT : filter_linear, repeat_disable;
 uniform sampler2D uCV : filter_linear, repeat_disable;
@@ -43,8 +45,8 @@ void vertex() {
 	float gy = textureLod(uHT, huv, 0.0).r - 0.02;
 	vec3 cv = textureLod(uCV, wxz / uSize + 0.5, 0.0).rgb;   // r forest floor, b mown lawn
 	float keep = 1.0;
-	if (wxz.x > uExcl.x && wxz.y > uExcl.y && wxz.x < uExcl.z && wxz.y < uExcl.w) keep = 0.0;
-	keep *= smoothstep(uPadR, uPadR + 4.0, length(wxz));
+	for (int i = 0; i < 16; i++) { if (i < uExclN) { vec4 e = uExcl[i]; if (wxz.x > e.x && wxz.y > e.y && wxz.x < e.z && wxz.y < e.w) keep = 0.0; } }
+	keep *= smoothstep(uPadR, uPadR + 4.0, length(wxz - uPad));
 	float dens = mix(1.0, 0.22, cv.r);
 	keep *= step(fract(seed.z * 37.7), dens);
 	float mowed = cv.b;

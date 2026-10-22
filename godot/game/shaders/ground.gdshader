@@ -1,7 +1,7 @@
 // The ground under the grass: mown lawn with faint mowing stripes, tall dry meadow with bare patches, and woodland
 // floor with fallen leaves, all blended by the cover texture (r = woodland, b = mown lawn). Snow settles on flat ground.
 shader_type spatial;
-render_mode diffuse_burley, specular_schlick_ggx;
+render_mode diffuse_burley, specular_schlick_ggx, cull_disabled;
 
 global uniform float g_snow;
 global uniform float g_wet;
@@ -10,7 +10,11 @@ global uniform vec3 g_cam;
 uniform sampler2D uCover : filter_linear, repeat_disable;
 uniform sampler2D uDetail : source_color, repeat_enable, filter_linear_mipmap;
 uniform sampler2D uDetailN : hint_normal, repeat_enable, filter_linear_mipmap;
-uniform float uSize = 1600.0;
+uniform float uSize = 4000.0;
+uniform sampler2D uPath : filter_linear, repeat_disable;       // r = distance to the nearest path, in 8 m units, over the 512 m park square
+uniform sampler2D uAsphalt : source_color, repeat_enable, filter_linear_mipmap;
+uniform sampler2D uAsphaltN : hint_normal, repeat_enable, filter_linear_mipmap;
+uniform sampler2D uAsphaltARM : repeat_enable, filter_linear_mipmap;   // r occlusion, g roughness, b metal
 
 varying vec3 wpos;
 
@@ -51,10 +55,22 @@ void fragment() {
 	g = mix(g, lc * 0.7, leaf * 0.55);
 	// dark root zone so the blades read as the lit surface layer
 	g *= mix(1.0, 0.62, (1.0 - forest) * (1.0 - smoothstep(30.0, 100.0, dist)) * 0.7);
+	// the park's paths: real asphalt (shared PBR set) with a worn lip where the lawn meets it
+	vec2 puv = (xz + 256.0) / 512.0;
+	float pd = 99.0;
+	if (puv.x > 0.001 && puv.y > 0.001 && puv.x < 0.999 && puv.y < 0.999) pd = texture(uPath, puv).r * 8.0;
+	float wob = (gfbm(xz * 0.45) - 0.5) * 0.42;
+	float hw = 1.55 + wob;
+	float asph = 1.0 - smoothstep(hw - 0.04, hw + 0.04, pd);
+	float lipw = (1.0 - asph) * (1.0 - smoothstep(hw + 0.05, hw + 0.55 + wob, pd));
+	g = mix(g, mix(lin(vec3(0.22, 0.20, 0.15)), g, 0.4) * (0.6 + 0.8 * d1.g), lipw * 0.85);
+	vec3 acol = texture(uAsphalt, xz / 5.0).rgb * (0.85 + 0.3 * gfbm(xz * 0.6));
+	vec3 arm = texture(uAsphaltARM, xz / 5.0).rgb;
+	g = mix(g, acol * mix(1.0, 0.85, smoothstep(0.0, 0.6, gn(xz * 0.9) * gfbm(xz * 0.08))), asph);
 	// steep banks show rock and soil
 	vec3 nrm = normalize(cross(dFdx(wpos), dFdy(wpos)));
 	float slope = 1.0 - abs(nrm.y);
-	g = mix(g, mix(lin(vec3(0.40, 0.37, 0.32)), lin(vec3(0.30, 0.22, 0.15)), n2), smoothstep(0.14, 0.34, slope));
+	g = mix(g, mix(lin(vec3(0.40, 0.37, 0.32)), lin(vec3(0.30, 0.22, 0.15)), n2), smoothstep(0.14, 0.34, slope) * (1.0 - asph));
 	// snow in uneven drifts on flat ground
 	float drift = smoothstep(0.2, 0.8, d2.g + 0.3 * d1.g);
 	float cov = g_snow * smoothstep(0.55, 0.9, abs(nrm.y)) * mix(0.7, 1.0, drift);
@@ -65,8 +81,9 @@ void fragment() {
 	g *= mix(1.0, 0.62, wet);
 	g = mix(g, g * 0.55, puddle);
 	ALBEDO = g;
-	ROUGHNESS = mix(mix(0.96, 0.7, cov), mix(0.55, 0.04, puddle), wet);
-	SPECULAR = mix(0.5, 1.0, puddle);
-	NORMAL_MAP = texture(uDetailN, xz * 0.35).rgb;
-	NORMAL_MAP_DEPTH = 0.6 * (1.0 - smoothstep(20.0, 90.0, dist));
+	float base_rough = mix(0.96, arm.g, asph);
+	ROUGHNESS = mix(mix(base_rough, 0.7, cov), mix(mix(0.55, 0.3, asph), 0.04, puddle), wet);
+	SPECULAR = mix(0.5, 1.0, max(puddle, wet * asph));
+	NORMAL_MAP = mix(texture(uDetailN, xz * 0.35).rgb, texture(uAsphaltN, xz / 5.0).rgb, asph);
+	NORMAL_MAP_DEPTH = mix(0.6, 0.8, asph) * (1.0 - smoothstep(20.0, 90.0, dist));
 }
