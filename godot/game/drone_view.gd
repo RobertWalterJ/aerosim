@@ -9,6 +9,8 @@ var _gimbal: Node3D
 var _af: Dictionary
 var _omega_max := 1.0
 var _fpv := false
+var _phase := PackedFloat64Array([0.0, 1.1, 2.3, 3.7])
+var _last_t := 0.0
 
 func build(af: Dictionary) -> void:
 	for c in get_children(): c.queue_free()
@@ -49,8 +51,10 @@ func build(af: Dictionary) -> void:
 		add_child(prop); _props.append(prop)
 		var disc := MeshInstance3D.new()
 		var dm := CylinderMesh.new(); dm.top_radius = r; dm.bottom_radius = r; dm.height = 0.001; dm.radial_segments = 32
-		var dmat := StandardMaterial3D.new()
-		dmat.albedo_color = Color(0.1, 0.1, 0.12, 0.0); dmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var dmat := ShaderMaterial.new()
+		dmat.shader = load("res://game/shaders/prop_blur.gdshader")
+		dmat.set_shader_parameter("radius", r); dmat.set_shader_parameter("n_blades", float(blades))
+		dmat.set_shader_parameter("chord", 0.012 * scale_k)
 		disc.mesh = dm; disc.material_override = dmat; disc.position = p + Vector3(0, 0.031, 0); disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(disc); _discs.append(disc)
 		if ducted:
@@ -78,13 +82,21 @@ func set_fpv(on: bool) -> void:
 	if _gimbal: _gimbal.visible = not on
 
 func update_props(motor_omega: PackedFloat64Array, t: float, armed: bool) -> void:
+	var dt := clampf(t - _last_t, 0.0, 0.1)
+	_last_t = t
 	for i in _props.size():
 		var w := motor_omega[13 + i]
 		var spin := 1.0 if i % 2 == 1 else -1.0
-		_props[i].rotation.y = fmod(t * w * 0.05 * spin, TAU) if armed else _props[i].rotation.y
-		var a := clampf(w / (_omega_max * 0.35), 0.0, 1.0) * (0.5 if _fpv else 0.22)
-		_props[i].visible = not (_fpv and w > _omega_max * 0.3 and armed)
-		(_discs[i].material_override as StandardMaterial3D).albedo_color.a = a
+		var blur: bool = armed and w > 45.0       # above about 7 turns a second the blades are only ever seen smeared
+		_props[i].visible = not blur
+		_discs[i].visible = blur
+		if not blur:
+			if armed: _props[i].rotation.y = fmod(t * w * 0.05 * spin, TAU)
+			continue
+		_phase[i] = fmod(_phase[i] + spin * w * dt, TAU)
+		var m := _discs[i].material_override as ShaderMaterial
+		m.set_shader_parameter("phase", _phase[i])
+		m.set_shader_parameter("omega", spin * w)
 
 func _mat(c: Color, rough: float, metal: float) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()

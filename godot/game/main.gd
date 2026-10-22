@@ -399,7 +399,7 @@ func _process(delta: float) -> void:
 		var heading := atan2(-fwd.x, -fwd.z)
 		_cam_yaw = lerp_angle(_cam_yaw, heading, clampf(delta * 3.0, 0.0, 1.0))
 		var back := Vector3(sin(_cam_yaw), 0.0, cos(_cam_yaw))
-		var d := 3.5 + 16.0 * float(af["armD"])
+		var d := _chase_d if _chase_d > 0.0 else 3.5 + 16.0 * float(af["armD"])
 		var want := pos + back * d + Vector3(0, 0.5 + 4.0 * float(af["armD"]), 0)
 		_chase_pos = want if _chase_pos == Vector3.ZERO else _chase_pos.lerp(want, clampf(delta * 6.0, 0.0, 1.0))
 		cam.global_transform = Transform3D(Basis.looking_at((pos - _chase_pos).normalized(), Vector3.UP), _chase_pos)
@@ -450,6 +450,8 @@ func _screenshot_mode(arg: String) -> void:
 	for c in parts.slice(3):
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
+		if c == "armed": quad.armed = true
+		if c.begins_with("cd"): _chase_d = float(c.substr(2))
 		if c == "climb":
 			_auto_climb = true
 		if c.begins_with("at"):
@@ -481,6 +483,7 @@ func _screenshot_mode(arg: String) -> void:
 
 var _auto_climb := false
 var _lens_water := 0.0
+var _chase_d := 0.0            # test hook: chase camera distance in metres (`cd<m>` in a screenshot run)
 
 var _selftest := false
 
