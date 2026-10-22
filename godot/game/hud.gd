@@ -49,6 +49,7 @@ var video_mode := false
 var airborne := false
 var rth_active := false
 var light_on := false
+var _quit_btn: Button
 var fx_cloud := true
 var fx_trees := true
 var sound_on := true
@@ -341,6 +342,14 @@ func _build_settings() -> void:
 	var fm := MarginContainer.new(); fm.add_theme_constant_override("margin_left", 14); fm.add_theme_constant_override("margin_top", 8); fm.add_child(peek)
 	foot.add_child(fm)
 	var sp := Control.new(); sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL; foot.add_child(sp)
+	# leaving the game: always in reach, and it asks for a second tap so it cannot happen by accident
+	var quit_btn := Button.new(); quit_btn.text = "Exit game"; quit_btn.custom_minimum_size = Vector2(200, 52)
+	quit_btn.pressed.connect(func():
+		if quit_btn.text == "Exit game": quit_btn.text = "Tap again to exit"
+		else: get_tree().quit())
+	_quit_btn = quit_btn
+	var qm := MarginContainer.new(); qm.add_theme_constant_override("margin_right", 6); qm.add_theme_constant_override("margin_top", 8); qm.add_child(quit_btn)
+	foot.add_child(qm)
 	var go := Button.new(); go.text = "Resume flight"; go.custom_minimum_size = Vector2(260, 52)
 	go.pressed.connect(func(): set_paused(false))
 	var gm := MarginContainer.new(); gm.add_theme_constant_override("margin_right", 14); gm.add_theme_constant_override("margin_top", 8); gm.add_child(go)
@@ -502,6 +511,7 @@ func _sync() -> void:
 
 func set_paused(on: bool) -> void:
 	paused = on
+	if _quit_btn: _quit_btn.text = "Exit game"
 	_menu_dim.visible = on
 	# the settings page covers the flight screen the way an app's settings page does
 	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _crash_box]:
