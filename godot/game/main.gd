@@ -73,7 +73,33 @@ var _fps_acc := 0.0
 var _fps := 60.0
 var _wind_now := Vector3.ZERO
 
+var _loaded := false
+var _load_layer: CanvasLayer
+var _load_label: Label
+var _load_bar: ProgressBar
+
+## A plain loading page, so a phone that takes a while to build the valley shows what it is doing and how far along it is.
+func _loading_show() -> void:
+	_load_layer = CanvasLayer.new(); _load_layer.layer = 100
+	var bg := ColorRect.new(); bg.color = Color(0.05, 0.06, 0.08); bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_load_layer.add_child(bg)
+	var box := VBoxContainer.new(); box.set_anchors_preset(Control.PRESET_CENTER); box.grow_horizontal = Control.GROW_DIRECTION_BOTH; box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.custom_minimum_size = Vector2(520, 0); box.add_theme_constant_override("separation", 14)
+	var title := Label.new(); title.text = "AeroSim"; title.add_theme_font_size_override("font_size", 44); title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_load_label = Label.new(); _load_label.add_theme_font_size_override("font_size", 22); _load_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_load_bar = ProgressBar.new(); _load_bar.show_percentage = false; _load_bar.custom_minimum_size = Vector2(520, 14); _load_bar.max_value = 1.0
+	box.add_child(title); box.add_child(_load_label); box.add_child(_load_bar)
+	_load_layer.add_child(box)
+	add_child(_load_layer)
+
+func _stage(text: String, frac: float) -> void:
+	if _load_label == null: return
+	_load_label.text = text; _load_bar.value = frac
+	await get_tree().process_frame
+
 func _ready() -> void:
+	_loading_show()
+	await _stage("Starting up", 0.02)
 	Engine.physics_ticks_per_second = 125
 	Engine.max_physics_steps_per_frame = 8
 	var q_arg := ""
@@ -83,7 +109,7 @@ func _ready() -> void:
 		if a == "selftest": _selftest = true
 		if a == "apstest": _apstest = true
 	Grass.add_globals()
-	_build_world()
+	await _build_world()
 	af = Airframes.make(airframe_id)
 	quad = Quad.new(af)
 	fc = FlightController.new(af, quad)
@@ -114,6 +140,7 @@ func _ready() -> void:
 	hud.camera_changed.connect(func(c: bool): chase = c)
 	hud.weather_changed.connect(apply_weather)
 	hud.light_changed.connect(func(on: bool): drone_light.visible = on)
+	hud.grass_changed.connect(func(on: bool): grass.visible = on)
 	hud.gimbal_changed.connect(func(r: float): gimbal_pitch = r)
 	hud.set_airframe(airframe_id)
 	sticks = TouchSticks.new()
@@ -133,6 +160,7 @@ func _ready() -> void:
 	hud.takeoff_land_requested.connect(_takeoff_or_land)
 	hud.rth_requested.connect(_toggle_rth)
 	# the camera renders into the sensor pipeline's overscan viewport; the window itself only shows the video frame and the HUD
+	await _stage("Setting up the camera", 0.82)
 	sensor = SensorPipeline.new()
 	add_child(sensor)
 	var touch_device := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
@@ -141,12 +169,16 @@ func _ready() -> void:
 	get_viewport().disable_3d = not "keep3d" in OS.get_cmdline_user_args()
 	osd = Osd.new(); osd.name = "Osd"; hud.add_child(osd)
 	# sound: motors, wind, rotor wash, birds in the trees near the start
+	await _stage("Tuning the sound", 0.9)
 	audio = DroneAudio.new()
 	add_child(audio)
 	var tl: Array = []
 	for tr in world.layout["trees"]:
 		tl.append([tr[0], tr[1], tr[2], (21.0 if int(tr[5]) < 2 else 13.0) * float(tr[4])])
+	if touch_device: hud.listening = 1
+	audio.perspective = hud.listening
 	audio.setup(drone_node, Vector3(home.x, terrain.height(home.x, home.y) + 1.7, home.y), tl, float(af["armD"]), home)
+	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
 	var pl: Array[PackedVector2Array] = []
@@ -157,22 +189,28 @@ func _ready() -> void:
 	hud.minimap.paths = pl
 	apply_weather(hud.weather)
 	spawn()
+	_loaded = true
+	if _load_layer: _load_layer.queue_free()
 	if q_arg != "": _screenshot_mode(q_arg)
 	if _selftest: _run_selftest()
 	if _apstest: _run_apstest()
 
 # ------------------------------------------------------------------ world
 func _build_world() -> void:
+	await _stage("Reading the valley", 0.05)
 	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
 	add_child(terrain)
 	terrain.load_world()
+	await _stage("Shaping the ground", 0.18)
 	terrain.build()
+	await _stage("Planting the trees", 0.3)
 	world = World.new()
 	add_child(world)
 	world.build(terrain, touch_dev)
 	home = world.home
+	await _stage("Growing the grass", 0.7)
 	grass = Grass.new()
 	add_child(grass)
 	if not "nograss" in dev_args: grass.build(terrain, "low" if touch_dev else "high", world.exclusions, home)
@@ -445,6 +483,7 @@ func _read_sticks() -> Vector4:
 	return Vector4(clampf(th, -1, 1), clampf(yw, -1, 1), clampf(pt, -1, 1), clampf(rl, -1, 1))
 
 func _physics_process(_delta: float) -> void:
+	if not _loaded: return
 	if paused: return
 	var st := _read_sticks()
 	var p := quad.position()
@@ -463,7 +502,7 @@ func _apply_pose() -> void:
 	drone_node.global_transform = Transform3D(Basis(quad.attitude()), quad.position())
 
 func _process(delta: float) -> void:
-	if quad == null: return
+	if quad == null or not _loaded: return
 	if _gallery_cam:
 		return
 	_tick_clock(delta)
@@ -516,6 +555,7 @@ func _process(delta: float) -> void:
 	_update_sensor_and_osd(delta)
 
 func _unhandled_key_input(event: InputEvent) -> void:
+	if not _loaded: return
 	if not (event is InputEventKey and event.pressed and not event.echo): return
 	match event.keycode:
 		KEY_MINUS: sensor.ev_comp = clampf(sensor.ev_comp - 0.33, -3.0, 3.0)

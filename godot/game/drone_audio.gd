@@ -148,7 +148,7 @@ func _build_buses() -> void:
 	if AudioServer.get_bus_effect_count(0) == 0: AudioServer.add_bus_effect(0, lim)
 	_ground_lp = AudioEffectLowPassFilter.new(); _ground_lp.cutoff_hz = 8000.0
 	_bus("Ground", "Master", [_ground_lp])
-	_delay = AudioEffectDelay.new(); _delay.dry = 1.0; _delay.tap1_active = true; _delay.tap1_delay_ms = 25.0; _delay.tap1_level_db = -80.0; _delay.tap2_active = false; _delay.feedback_active = true; _delay.feedback_level_db = -9.0
+	_delay = AudioEffectDelay.new(); _delay.dry = 1.0; _delay.tap1_active = true; _delay.tap1_delay_ms = 25.0; _delay.tap1_level_db = -80.0; _delay.tap2_active = false; _delay.feedback_active = false
 	var on_lp := AudioEffectLowPassFilter.new(); on_lp.cutoff_hz = 5200.0
 	_bus("Onboard", "Master", [on_lp, _delay])
 	_bus("SlapG", "Ground", [_bandpass(210.0, 1.4)])
@@ -394,7 +394,7 @@ func update(a: Dictionary, dt: float) -> void:
 	var agl: float = a["agl"]
 	if agl < 12.0:
 		_delay.tap1_delay_ms = clampf(2.0 * agl / 343.0, 0.015, 0.035) * 1000.0
-		_delay.tap1_level_db = linear_to_db(maxf(0.28 * (1.0 - agl / 12.0), 1e-4))
+		_delay.tap1_level_db = linear_to_db(maxf(0.12 * (1.0 - agl / 12.0), 1e-4))
 	else:
 		_delay.tap1_level_db = -80.0
 	# wind in the trees

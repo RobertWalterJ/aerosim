@@ -52,7 +52,7 @@ void vertex() {
 	vec2 oc = MODEL_MATRIX[3].xz;
 	float h1 = fract(sin(dot(oc, vec2(12.9898, 78.233))) * 43758.5453);
 	float h2 = fract(sin(dot(oc, vec2(39.346, 11.135))) * 24634.6345);
-	vVar = vec3(0.88 + 0.24 * h1 + 0.06 * (h2 - 0.5), 0.9 + 0.2 * h1, 0.86 + 0.28 * h2);
+	vVar = mix(vec3(1.0), vec3(0.88 + 0.24 * h1 + 0.06 * (h2 - 0.5), 0.9 + 0.2 * h1, 0.86 + 0.28 * h2), g_fx.y);
 }
 
 void fragment() {

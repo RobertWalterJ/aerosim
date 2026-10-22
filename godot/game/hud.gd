@@ -26,6 +26,7 @@ signal sound_changed(on: bool)
 signal listening_changed(i: int)
 signal volume_changed(v: float)
 signal light_changed(on: bool)
+signal grass_changed(on: bool)
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
@@ -48,6 +49,8 @@ var video_mode := false
 var airborne := false
 var rth_active := false
 var light_on := false
+var fx_cloud := true
+var fx_trees := true
 var sound_on := true
 var listening := 2
 var sound_vol := 0.8
@@ -443,6 +446,9 @@ func _build_camera_tab() -> void:
 	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_choice(p, "Video link effects", ["On", "Off"], func(): return 0 if link_fx else 1, func(i): link_fx = i == 0; link_changed.emit(link_fx))
 
+func _apply_fx() -> void:
+	RenderingServer.global_shader_parameter_set("g_fx", Vector4(1.0 if fx_cloud else 0.0, 1.0 if fx_trees else 0.0, 0.0, 0.0))
+
 func _build_display_tab() -> void:
 	var p := _page("Display")
 	_choice(p, "Data overlay", ["On", "Off"], func(): return 0 if osd_on else 1, func(i): osd_on = i == 0; osd_changed.emit(osd_on))
@@ -450,6 +456,10 @@ func _build_display_tab() -> void:
 	_choice(p, "Listening position", ["Ground (the pilot)", "Onboard microphone", "Cinematic mix"], func(): return listening, func(i): listening = i; listening_changed.emit(i))
 	_gslider(p, "Volume", 0.0, 1.0, 0.05, func(): return sound_vol, func(x): sound_vol = x; volume_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_choice(p, "Frame rate", ["60 fps", "30 fps"], func(): return 0 if Engine.max_fps in [0, 60] else 1, func(i): Engine.max_fps = 60 if i == 0 else 30)
+	_heading(p, "Graphics (if the picture looks wrong on a phone, try these)")
+	_choice(p, "Cloud shadows on the land", ["On", "Off"], func(): return 0 if fx_cloud else 1, func(i): fx_cloud = i == 0; _apply_fx())
+	_choice(p, "Tree colour variety", ["On", "Off"], func(): return 0 if fx_trees else 1, func(i): fx_trees = i == 0; _apply_fx())
+	_choice(p, "Grass", ["On", "Off"], func(): return 0, func(i): grass_changed.emit(i == 0))
 	_heading(p, "Screen")
 	_action(p, "Full screen", func():
 		var m := DisplayServer.window_get_mode()
