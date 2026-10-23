@@ -756,6 +756,7 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
 		if c.begins_with("look"): sensor.look = int(c.substr(4))   # camera A3 stage 1.2 test hook: colour look 0/1/2
+		if c == "nobloom": sensor.bloom_on = false   # camera A3 stage 1.1 test hook: bloom off for the A/B
 		if c == "armed": quad.armed = true
 		if c == "landing": _show_landing()
 		if c == "landingfly":

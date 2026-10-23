@@ -14,7 +14,8 @@ void fragment() {
 	c += T(uScene, vUv + uTexel * vec2(-1.0, 1.0)).rgb; c += T(uScene, vUv + uTexel * vec2(1.0, 1.0)).rgb;
 	c *= 0.25 * e;
 	float l = max(c.r, max(c.g, c.b));
-	float soft = clamp(l - uKnee + 0.5, 0.0, 1.0); soft = soft * soft * 0.5;
-	float w = max(soft, l - uKnee) / max(l, 1e-4);
+	// a narrow knee: only highlights above the scene's exposed white bloom, so the bloom never fogs the picture
+	float soft = smoothstep(uKnee, uKnee + 0.3, l); soft = soft * soft * 0.5;
+	float w = soft / max(l, 1e-4);
 	COLOR = vec4(min(c * w, vec3(300.0)), 1.0);
 }
