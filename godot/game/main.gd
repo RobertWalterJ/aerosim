@@ -23,6 +23,7 @@ var drone_shadow := DroneShadow.new()
 var env := Environment.new()
 var sky_mat := ShaderMaterial.new()
 var _sky_quality := 1            # cloud quality: 0 low, 1 medium, 2 high (set in _build_world)
+var _aurora := 0.0               # aurora strength 0..1 (sky A1 test hook)
 var wx := WeatherSystem.new()
 var rain_fx: GPUParticles3D
 var rain_mat: ParticleProcessMaterial
@@ -550,6 +551,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	var fog_c := Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey).lerp(Color(1.0, 0.66, 0.40), warm * 0.75)
 	env.fog_light_color = fog_c * lerpf(0.03 + 0.12 * moon_f, 1.0, _daylight)
 	sky_mat.set_shader_parameter("haze_col", Vector3(env.fog_light_color.r, env.fog_light_color.g, env.fog_light_color.b))   # sky horizon shares the fog colour (g_haze)
+	sky_mat.set_shader_parameter("aurora", _aurora)   # sky A1: aurora strength (set by the aurora test token)
 	RenderingServer.global_shader_parameter_set("g_water", Vector4(env.fog_light_color.r, env.fog_light_color.g, env.fog_light_color.b, 1.0 - 0.35 * grey))   # session B: the lake mirrors this
 	env.fog_sun_scatter = 0.35 + 0.5 * warm
 	env.ambient_light_color = Color(0.78, 0.82, 0.62).lerp(Color(0.52, 0.62, 0.95), warm * 0.8)
@@ -825,6 +827,8 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
 		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
+		if c == "aurora": _aurora = 1.0   # sky A1 test hook: aurora on
+		if c == "noaurora": _aurora = 0.0
 		if c.begins_with("stormcell"):   # sky test hook: storm cell at x_z (sets the funnel anchor and strength for session B)
 			var sv := c.substr(9).split("_")
 			RenderingServer.global_shader_parameter_set("g_storm", Vector4(float(sv[0]), float(sv[1]), 1.0, 0.0))
