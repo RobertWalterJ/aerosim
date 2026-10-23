@@ -17,6 +17,7 @@ var stick_throttle := 0.0
 var cruise_assist := false
 var _cruise_alt := 0.0
 var _cruise_i := 0.0
+var _cruise_set := false
 
 # RTH state machine: 0 off, 1 climb, 2 cruise home, 3 circle down, 4 land
 var rth := 0
@@ -34,7 +35,7 @@ func set_airframe(airframe: Dictionary) -> void:
 	af = airframe
 
 func reset_state() -> void:
-	_i_pitch = 0.0; _i_bank = 0.0; _cruise_i = 0.0
+	_i_pitch = 0.0; _i_bank = 0.0; _cruise_i = 0.0; _cruise_set = false
 	_launch_t = 3.0   # hold a gentle climb after a hand launch until the sticks take over
 
 func set_step(_dt: float) -> void:
@@ -72,6 +73,10 @@ func update(dt: float, throttle: float, yaw: float, pitch: float, roll: float) -
 		plane.cmd[2] = clampf(-_angles().y * 1.2, -1.0, 1.0)
 		plane.cmd[3] = 0.0
 		return
+	# cruise assist first engaged here: hold the altitude the plane is at now
+	if cruise_assist and not _cruise_set:
+		_cruise_set = true
+		_cruise_alt = plane.position().y
 	# RTH overrides the sticks
 	if rth > 0:
 		_rth_step(dt)
@@ -91,10 +96,9 @@ func update(dt: float, throttle: float, yaw: float, pitch: float, roll: float) -
 			pitch_sp += _cruise_hold(dt)
 		var ep := pitch_sp - pt
 		_i_pitch = clampf(_i_pitch + ep * dt * 0.6, -0.4, 0.4)
-		elev = 1.8 * ep + _i_pitch - 0.25 * w.x
+		elev = 0.8 * ep + _i_pitch - 0.2 * w.x
 		var eb := bank_sp - bk
-		_i_bank = clampf(_i_bank + eb * dt * 0.6, -0.4, 0.4)
-		ail = 1.4 * eb + _i_bank - 0.15 * w.z
+		ail = 0.6 * eb - 0.3 * w.z
 		# a little rudder to coordinate the turn into the bank
 		rud = 0.5 * bk
 	else:
@@ -110,12 +114,11 @@ func update(dt: float, throttle: float, yaw: float, pitch: float, roll: float) -
 	plane.cmd[3] = clampf(rud, -1.0, 1.0)
 
 func _cruise_hold(dt: float) -> float:
-	# hold altitude with a pitch correction and a slow throttle trim
+	# pitch holds altitude, throttle holds airspeed (the classic split, which also damps the phugoid)
 	var p := plane.position()
 	var alt := p.y
-	_cruise_i = clampf(_cruise_i + (_cruise_alt - alt) * dt * 0.15, -0.2, 0.2)
-	stick_throttle = clampf(0.42 + _cruise_i, 0.25, 0.75)
-	return clampf((_cruise_alt - alt) * 0.03 - plane.s[4] * 0.08, -0.25, 0.25)
+	stick_throttle = clampf(0.5 + (15.0 - plane.airspeed) * 0.08, 0.3, 0.8)
+	return clampf((_cruise_alt - alt) * 0.015 - plane.s[4] * 0.04, -0.15, 0.15)
 
 ## RTH: climb to a safe height, fly to home, circle down, belly-land. Called from update() when rth > 0.
 func _rth_step(dt: float) -> void:
@@ -125,33 +128,35 @@ func _rth_step(dt: float) -> void:
 	var dist := to_home.length()
 	var w := plane.rates()
 	var a := _angles()
+	var fwd := plane.attitude() * Vector3(0, 0, -1)
+	var hdg := atan2(-fwd.x, -fwd.z)
+	var target := atan2(-to_home.x, -to_home.y)
+	var err := wrapf(target - hdg, -PI, PI)
 	match rth:
-		1:  # climb to a safe height (about 80 m)
+		1:  # climb to the RTH cruise height, wings level
 			plane.cmd[0] = 0.7
-			plane.cmd[1] = clampf(-(a.x - 0.25) * 1.5 - 0.25 * w.x, -1.0, 1.0)
-			plane.cmd[2] = clampf(-a.y * 1.4 - 0.15 * w.z, -1.0, 1.0)
+			plane.cmd[1] = clampf((0.15 - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)
+			plane.cmd[2] = clampf((0.0 - a.y) * 1.2 - 0.3 * w.z, -1.0, 1.0)
 			plane.cmd[3] = 0.0
-			if alt > 80.0: rth = 2
-		2:  # fly to home, then circle down
-			var target := atan2(to_home.x, to_home.y)   # world heading toward home (home heading convention)
-			var fwd := plane.attitude() * Vector3(0, 0, -1)
-			var hdg := atan2(-fwd.x, -fwd.z)
-			var err := wrapf(target - hdg, -PI, PI)
-			plane.cmd[0] = 0.55
-			plane.cmd[1] = clampf(-(a.x - 0.08) * 1.5 - 0.25 * w.x, -1.0, 1.0)
-			plane.cmd[2] = clampf(-err * 0.9 - 0.15 * w.z, -1.0, 1.0)
-			plane.cmd[3] = clampf(err * 0.8, -1.0, 1.0)
-			if dist < 90.0: rth = 3
+			if alt > _cruise_alt: rth = 2
+		2:  # fly toward home: reuse the cruise assist's altitude and throttle hold, with a bank-limited turn
+			var alt_hold := _cruise_hold(dt)
+			var bank_sp := clampf(-err * 1.2, -0.7, 0.7)   # bank into the turn, capped at 40 degrees
+			plane.cmd[0] = stick_throttle
+			plane.cmd[1] = clampf((alt_hold - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)
+			plane.cmd[2] = clampf((bank_sp - a.y) * 1.2 - 0.3 * w.z, -1.0, 1.0)
+			plane.cmd[3] = clampf(-err * 0.5, -1.0, 1.0)
+			if dist < 100.0: rth = 3
 		3:  # circle down over home
 			plane.cmd[0] = 0.35
-			plane.cmd[1] = clampf(-(a.x - 0.06) * 1.5 - 0.25 * w.x, -1.0, 1.0)
-			plane.cmd[2] = clampf(-0.55 - a.y * 1.2 - 0.15 * w.z, -1.0, 1.0)   # hold a steady left bank to circle
-			plane.cmd[3] = 0.3
-			if alt < 4.0: rth = 4
+			plane.cmd[1] = clampf((0.05 - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)
+			plane.cmd[2] = clampf((-0.5 - a.y) * 1.2 - 0.3 * w.z, -1.0, 1.0)   # hold a steady left bank to circle
+			plane.cmd[3] = 0.2
+			if alt < 5.0: rth = 4
 		_:  # final belly landing
 			plane.cmd[0] = 0.0
-			plane.cmd[1] = clampf(-(a.x - 0.12) * 1.6 - 0.3 * w.x, -1.0, 1.0)
-			plane.cmd[2] = clampf(-a.y * 1.6 - 0.2 * w.z, -1.0, 1.0)
+			plane.cmd[1] = clampf((0.12 - a.x) * 1.6 - 0.3 * w.x, -1.0, 1.0)
+			plane.cmd[2] = clampf((0.0 - a.y) * 1.6 - 0.3 * w.z, -1.0, 1.0)
 			plane.cmd[3] = 0.0
 			if plane.on_ground and plane.s[4] > -0.3:
 				plane.cmd[1] = 0.6   # flare and hold

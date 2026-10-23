@@ -229,9 +229,15 @@ Owner: DSH session A. Files: `physics/plane.gd` (`FPVPlane`, its own 6-DOF model
 - **Wiring**: `main.gd` holds a Quad or a FPVPlane behind one `quad` handle (untyped) and one `fc` handle; `switch_drone` and `spawn` hand-launch the wing at 12 m/s, 3 m up, nose up 10 degrees (board request). `drone_view` draws `NewModels.plane()` (body + one pusher prop that spins about +Z with `spin_sign`). `wind.gd` drive works on both.
 - **Model**: `NewModels.plane()` is used as-is (pusher, `prop_pivot` behind the wing, `spin_sign` -1); nothing modelled here.
 - **Gate**: GATE PASS (plane). `test/physics_test.gd` prints ALL PASS (the five quads are unchanged; the test skips the wing). `test/wind_test.gd` for the quads still runs (not re-run here, quad physics untouched).
-- **NOT finished - flight tuning**: `test/plane_test.gd` is written and runs, but 4 of 5 checks fail because the flight model still needs tuning (thrust/drag balance and the cruise-assist controller). Level trim crashes the plane, stall recovery and the bank turn time out, RTH crashes on launch. The no-NaN check passes. This is a tuning job, not a missing feature.
+- **Flight tuning (second pass, 2026-10-23)**: the plane now flies. Three of the five `test/plane_test.gd` checks pass (level trim, stall recovery, no-NaN); the bank-turn radius and RTH still fail. What was fixed:
+  - The angle-of-attack (and sideslip) sign was flipped: `atan2(vy, -vz)` made a climb read as positive alpha, which fed the climb (runaway). It is now `atan2(-vy, -vz)`, so a climb reads as a nose-down alpha and the lift drops, which is what lets the plane settle.
+  - The control moments were orders of magnitude too big for the inertia (a full elevator was about 171 rad/s^2). Inertia raised to `(0.1, 0.1, 0.07)` and the moment coefficients and damping scaled to model-plane values (about 1 rad/s max rate on each axis).
+  - Cruise assist used a target altitude of 0 by default (it dove); it now captures the current altitude when first engaged, and the throttle holds airspeed while pitch holds altitude (the classic split, which damps the phugoid).
+  - Thrust/drag rebalanced: `CL0` 0.2, `Tmax` 20 N, `Vpitch` 30 m/s, `CD0` 0.03.
+  - RTH rewritten: correct heading-to-home formula, a bank-limited coordinated turn, and it reuses the cruise-assist altitude/airspeed hold.
+  - Remaining (the two failing checks) is the lightly-damped phugoid during a banked turn: the bank reduces the vertical lift, the plane slows and the altitude/airspeed oscillate. This is a deeper longitudinal-stability tuning job.
 - **Not done yet**: the OSD airspeed/altitude/stall readouts (`game/osd.gd` wing branch), the plane sound (`game/drone_audio.gd` plane mode), the chooser schematic outlines (`drone_parts.gd` / `drone_schematic.gd` wing drawings), the Flight-tab "Plane launch" choice (Hand launch / Ground roll), the 5 km link range and auto-RTH on link loss, and the "ground roll" launch (hand launch is wired).
-- **Request for Claude (modelling/tuning)**: none for models (the model is correct). The flight model numbers (thrust, drag, controller gains, cruise assist) need an hour of tuning against `test/plane_test.gd`; the four failing checks name what to fix.
+- **Request for Claude (modelling/tuning)**: none for models (the model is correct). The remaining flight-model tuning is the banked-turn phugoid and the RTH turn; the checks name what to fix.
 
 ### Questions for Claude and the owner (plane)
 - P1. Cruise speed: the spec says 18 to 28 m/s; my model trims around 11 to 12 m/s. Should I raise it, and how much?

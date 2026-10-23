@@ -11,7 +11,7 @@ static func make(id: String) -> Dictionary:
 		"wing":
 			return {
 				"id": "wing", "name": "FPV plane", "blurb": "900 g. Fixed wing. Cruises fast, banks to turn, and glides home.",
-				"mass": 0.9, "armD": 0.55, "I": Vector3(0.06, 0.06, 0.008),
+				"mass": 0.9, "armD": 0.55, "I": Vector3(0.1, 0.1, 0.07),
 				"R": 0.127, "sigma": 0.1, "a": 5.0, "Cd0": 0.03, "nBlades": 2, "Jr": 1.2e-5, "kH": 0.01,
 				"twr": 1.4, "omegaMax": 1800.0, "tauUp": 0.05, "tauDown": 0.03, "motorEff": 0.8,
 				"cells": 3, "capacityAh": 2.2, "rInt": 0.04,
@@ -23,9 +23,9 @@ static func make(id: String) -> Dictionary:
 					"N": {"vH": 20.0, "bank": 45 * DEG, "vUp": 6.0, "vDown": 6.0, "yawRate": 1.4, "kv": 1.0},
 					"S": {"vH": 30.0, "bank": 60 * DEG, "vUp": 10.0, "vDown": 10.0, "yawRate": 2.0, "kv": 0.8},
 				},
-				"S": 0.25, "cbar": 0.23, "span": 1.104, "CL0": 0.5, "CLa": 5.0, "CD0": 0.03, "kD": 0.08,
-				"stallA": 12 * DEG, "CLmax": 1.3, "Cm_a": -0.5, "Cm_e": 0.9, "Cl_a": 0.6, "Cn_r": 0.4, "Cn_adv": 0.12,
-				"Vpitch": 24.0, "Tmax": 14.0,
+				"S": 0.25, "cbar": 0.23, "span": 1.104, "CL0": 0.2, "CLa": 5.0, "CD0": 0.03, "kD": 0.08,
+				"stallA": 12 * DEG, "CLmax": 1.3, "Cm_a": -0.03, "Cm_e": 0.4, "Cl_a": 0.25, "Cn_r": 0.3, "Cn_adv": 0.02,
+				"Vpitch": 30.0, "Tmax": 20.0,
 			}
 		"freestyle":
 			return {

@@ -132,8 +132,8 @@ func _deriv(sv: PackedFloat64Array, out: PackedFloat64Array) -> void:
 	var b: float = af["span"]
 	var qd := 0.5 * rho * V * V
 	var fwd := -v_rel_b.z               # forward airspeed along -z
-	alpha = atan2(v_rel_b.y, fwd) if V > 1.0 else 0.0
-	var beta := atan2(v_rel_b.x, fwd) if V > 1.0 else 0.0
+	alpha = atan2(-v_rel_b.y, fwd) if V > 1.0 else 0.0   # + = nose up relative to the airflow (air from below)
+	var beta := atan2(-v_rel_b.x, fwd) if V > 1.0 else 0.0   # + = air from the left (weathervanes the nose into the wind)
 	var cl := _cl(alpha)
 	var stalled := absf(alpha) > float(af["stallA"])
 	var cd := float(af["CD0"]) + float(af["kD"]) * cl * cl + (0.35 if stalled else 0.0)
@@ -152,9 +152,9 @@ func _deriv(sv: PackedFloat64Array, out: PackedFloat64Array) -> void:
 	tau.x += qd * S * cbar * (float(af["Cm_a"]) * alpha + float(af["Cm_e"]) * el)   # + = nose up
 	tau.z += qd * S * b * (-float(af["Cl_a"]) * ai)                                  # + = roll left
 	tau.y += qd * S * b * (-float(af["Cn_r"]) * rd + float(af["Cn_adv"]) * ai)       # rudder yaw + adverse yaw
-	tau.x -= qd * S * cbar * 1.4 * w.x       # pitch damping
-	tau.y -= qd * S * b * 0.9 * w.y          # yaw damping
-	tau.z -= qd * S * b * 0.7 * w.z          # roll damping
+	tau.x -= qd * S * cbar * 0.4 * w.x       # pitch damping
+	tau.y -= qd * S * b * 0.3 * w.y          # yaw damping
+	tau.z -= qd * S * b * 0.25 * w.z         # roll damping
 	tau += gust_tau
 	# weight and integrate
 	var fw := q * F

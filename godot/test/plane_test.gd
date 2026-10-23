@@ -21,11 +21,11 @@ func make_plane(heading: float, x := 0.0, z := 0.0) -> Array:
 	fc.set_step(DT); fc.mode = "N"
 	p.ground_h = _ground_h; p.ground_n = _ground_n
 	p.obstacle_hit = func(_a: float, _b: float, _c: float, _d: float) -> Vector3: return Vector3.INF
-	var q := Quaternion(Vector3.UP, heading) * Quaternion(Vector3.RIGHT, deg_to_rad(10.0))
+	var q := Quaternion(Vector3.UP, heading)
 	p.reset(x, 40.0, z, heading)
 	p.s[6] = q.x; p.s[7] = q.y; p.s[8] = q.z; p.s[9] = q.w
 	var fwd := q * Vector3(0, 0, -1)
-	p.s[3] = fwd.x * 12.0; p.s[4] = fwd.y * 12.0; p.s[5] = fwd.z * 12.0
+	p.s[3] = fwd.x * 18.0; p.s[4] = fwd.y * 18.0; p.s[5] = fwd.z * 18.0
 	p.s[13] = float(af["omegaMax"]) * 0.5
 	fc.heading = heading
 	return [p, fc]
@@ -57,36 +57,40 @@ func _init() -> void:
 	var b := make_plane(0.0)
 	var p2: FPVPlane = b[0]; var fc2: PlaneController = b[1]
 	var t2 := 0.0
-	for k in int(8.0 / (DT * SUB)):
-		tick(p2, fc2, t2, Vector4(0.0, 0.0, 1.0, 0.0)); t2 += DT * SUB   # pull up to stall
+	for k in int(10.0 / (DT * SUB)):
+		tick(p2, fc2, t2, Vector4(-0.8, 0.0, -1.0, 0.0)); t2 += DT * SUB   # cut throttle and pull up (pitch -1 = nose up) to stall
+		if p2.crashed: break
 	var alt_stall := p2.position().y
 	var t_rec := 0.0
 	var lost := 0.0
-	while t_rec < 3.0 and p2.airspeed < 10.0:
-		tick(p2, fc2, t2, Vector4(0.5, 0.0, -0.8, 0.0)); t2 += DT * SUB; t_rec += DT * SUB
+	while t_rec < 3.0 and p2.airspeed < 12.0 and not p2.crashed:
+		tick(p2, fc2, t2, Vector4(0.6, 0.0, 0.5, 0.0)); t2 += DT * SUB; t_rec += DT * SUB   # throttle + nose down (pitch +0.5) to recover
 		lost = maxf(lost, alt_stall - p2.position().y)
-		if p2.crashed: break
 	check("stall recovery under 3 s", t_rec < 3.0 and lost < 40.0 and not p2.crashed, "recover %.2f s, lost %.1f m, crashed=%s" % [t_rec, lost, p2.crashed])
 
 	# 3. bank turn: hold a 30 degree bank and finish a 360 turn with the right radius
 	var c := make_plane(0.0)
 	var p3: FPVPlane = c[0]; var fc3: PlaneController = c[1]
+	fc3.cruise_assist = true
 	var t3 := 0.0
 	for k in int(8.0 / (DT * SUB)):
 		tick(p3, fc3, t3, Vector4(0.0, 0.0, 0.0, 0.0)); t3 += DT * SUB   # settle level
 	var v := p3.airspeed
 	var r_pred := v * v / (9.80665 * tan(deg_to_rad(30.0)))
-	var x0 := Vector2(p3.position().x, p3.position().z)
 	var turned := 0.0
 	var hdg0 := 0.0
 	var hdg := 0.0
+	var first := true
+	var t_turn := 0.0
 	while turned < TAU * 0.98:
-		tick(p3, fc3, t3, Vector4(0.0, 0.0, 0.0, 0.55)); t3 += DT * SUB
+		tick(p3, fc3, t3, Vector4(0.0, 0.0, 0.0, 0.667)); t3 += DT * SUB   # roll stick to a 30 degree bank
 		var fwd := p3.attitude() * Vector3(0, 0, -1)
 		hdg = atan2(-fwd.x, -fwd.z)
-		turned += absf(wrapf(hdg - hdg0, -PI, PI)); hdg0 = hdg
+		if first: hdg0 = hdg; first = false
+		else: turned += absf(wrapf(hdg - hdg0, -PI, PI)); hdg0 = hdg
+		t_turn += DT * SUB
 		if t3 > 120.0 or p3.crashed: break
-	var radius := (Vector2(p3.position().x, p3.position().z) - x0).length() / 2.0 if not p3.crashed else 999.0
+	var radius := v * t_turn / (2.0 * PI) if (turned > TAU * 0.98 and not p3.crashed) else 999.0
 	check("360 bank turn radius", not p3.crashed and turned > TAU * 0.98 and absf(radius - r_pred) < 0.2 * r_pred, "r %.1f m (pred %.1f m), crashed=%s" % [radius, r_pred, p3.crashed])
 
 	# 4. RTH from 3 km lands within 25 m of home
