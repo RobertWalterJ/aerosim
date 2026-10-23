@@ -78,6 +78,16 @@ var _wind_now := Vector3.ZERO
 var _loaded := false
 var _gimbal_rate := 0.0
 
+## Phone-safe camera: the plain 3D picture with an ordinary tone map, in place of the HDR sensor passes.
+func _apply_simple(on: bool) -> void:
+	sensor.set_simple(on)
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC if on else Environment.TONE_MAPPER_LINEAR
+	env.tonemap_exposure = 1.0
+	env.glow_enabled = on
+	env.glow_intensity = 0.25
+	env.glow_bloom = 0.02
+	hud.toast("Plain camera" if on else "Full sensor camera")
+
 ## The drone's shadow is sized to this airframe.
 func _after_drone_built() -> void:
 	if terrain: drone_shadow.setup(af, terrain)
@@ -156,6 +166,7 @@ func _ready() -> void:
 	hud.light_changed.connect(func(on: bool): drone_light.visible = on)
 	hud.grass_changed.connect(func(on: bool): grass.visible = on)
 	hud.ambient_changed.connect(func(on: bool): ambient.set_enabled(on))
+	hud.simple_changed.connect(_apply_simple)
 	hud.gimbal_changed.connect(func(r: float): gimbal_pitch = r)
 	hud.set_airframe(airframe_id)
 	sticks = TouchSticks.new()
@@ -182,6 +193,8 @@ func _ready() -> void:
 	sensor = SensorPipeline.new()
 	add_child(sensor)
 	var touch_device := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
+	sensor.simple = touch_device or "simple" in OS.get_cmdline_user_args()      # phones start in the plain picture; the Display tab can switch
+	hud.simple_on = sensor.simple
 	sensor.setup(cam, 540 if touch_device else 720, Viewport.MSAA_DISABLED if touch_device else Viewport.MSAA_2X)
 	sensor.focus_message.connect(func(t: String): hud.toast(t))
 	var video := CanvasLayer.new(); video.layer = 1; add_child(video); video.add_child(sensor.screen)
@@ -209,6 +222,8 @@ func _ready() -> void:
 	apply_weather(hud.weather)
 	spawn()
 	drone_shadow.setup(af, terrain)
+	if sensor.simple:
+		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC; env.glow_enabled = true; env.glow_intensity = 0.25; env.glow_bloom = 0.02
 	_loaded = true
 	if _load_layer: _load_layer.queue_free()
 	_make_drone_pictures()
@@ -585,6 +600,7 @@ func _process(delta: float) -> void:
 		cam.fov = 84.0
 	drone_view.visible = true
 	drone_view.set_fpv(not chase)
+	if sensor.simple and not chase: cam.fov = 52.0
 	# the shadow follows the light that is up: the sun by day, the moon (much fainter) by night
 	var lit_dir := _sun_dir
 	var lit_k := float(wx.cur["sun"]) * smoothstep(0.0, 6.0, _sun_el)

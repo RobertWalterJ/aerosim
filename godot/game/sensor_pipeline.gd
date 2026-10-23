@@ -38,6 +38,7 @@ var sun_vis := 1.0                 # 0..1, set by the caller (line of sight to t
 
 var camera: Camera3D
 var scene_vp: SubViewport
+var simple := false               # phone-safe mode: the 3D picture goes straight to the screen, none of the sensor passes
 var screen: ColorRect              # letterboxed output, add it to a CanvasLayer
 
 var _holder: Node
@@ -67,6 +68,12 @@ func setup(cam: Camera3D, height: int, msaa_mode: int) -> void:
 			if v.size() == 2: _test_tap = Vector2(float(v[0]), float(v[1]))
 	_build()
 	_setup_dof()
+
+## Switch between the full sensor camera and the phone-safe plain picture.
+func set_simple(on: bool) -> void:
+	if on == simple: return
+	simple = on
+	_build()
 
 func lens_info() -> Dictionary:
 	return LENSES[lens]
@@ -142,6 +149,23 @@ func _build() -> void:
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT
 	camera.fov = rad_to_deg(2.0 * atan(tan_half.y * s_over))
 	camera.current = true
+	if simple:
+		# no HDR, no post passes: the scene viewport is the picture (the game sets a normal tone map on the environment)
+		scene_vp.size = Vector2i(out_w, out_h)
+		scene_vp.use_hdr_2d = false
+		camera.fov = 52.0
+		if screen == null:
+			screen = ColorRect.new()
+			screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+			screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			screen.material = ShaderMaterial.new()
+			(screen.material as ShaderMaterial).shader = load(SHADER_DIR + "blit.gdshader")
+		var sbm: ShaderMaterial = screen.material
+		sbm.set_shader_parameter("uSrc", scene_vp.get_texture())
+		var ssz := screen.get_viewport_rect().size
+		sbm.set_shader_parameter("uAspectScreen", ssz.x / maxf(ssz.y, 1.0))
+		sbm.set_shader_parameter("uAspectSrc", float(out_w) / float(out_h))
+		return
 	# exposure
 	var meter := _pass("meter", "meter", Vector2i(32, 32))
 	var reduce := _pass("reduce", "reduce", Vector2i(1, 1))
@@ -219,6 +243,12 @@ func _build() -> void:
 ## Inputs: dt and time in seconds; the camera's angular velocity in its own frame (x pitch up, y yaw left, z roll),
 ## vibration 0..1, blade-pass frequency in Hz, and the video-link quality (rf_bad 0 good .. 1 lost).
 func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: float, motor_hz: float, rf_bad: float) -> void:
+	if simple:
+		_frame += 1
+		var sz0 := screen.get_viewport_rect().size
+		var sbm2: ShaderMaterial = screen.material
+		sbm2.set_shader_parameter("uAspectScreen", sz0.x / maxf(sz0.y, 1.0))
+		return
 	_frame += 1
 	var tan_half := _tan_half()
 	# stage 2: metering and adaptation. Two 1x1 viewports take turns, each reading the other's result.
@@ -306,6 +336,7 @@ func frame_rect() -> Rect2:
 	return Rect2((sz.x - w) * 0.5, (sz.y - h) * 0.5, w, h)
 
 func _readback() -> void:
+	if simple: return
 	if DisplayServer.get_name() == "headless": return   # no real textures to read
 	# metering: the weighted mean log luminance of the scene is in the red channel of the 1x1 reduce viewport
 	var img: Image = null
@@ -335,6 +366,7 @@ func _readback() -> void:
 
 ## The finished video frame as an image (what a photo saves), or null when there is nothing to read.
 func capture() -> Image:
+	if simple: return scene_vp.get_texture().get_image()
 	if DisplayServer.get_name() == "headless" or _codec.is_empty(): return null
 	return _codec[_codec_idx].get_texture().get_image()
 

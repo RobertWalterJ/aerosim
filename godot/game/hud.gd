@@ -28,6 +28,7 @@ signal volume_changed(v: float)
 signal light_changed(on: bool)
 signal grass_changed(on: bool)
 signal ambient_changed(on: bool)
+signal simple_changed(on: bool)
 signal dof_changed(mode: int)
 signal focus_changed(manual: bool, distance_m: float)
 
@@ -60,6 +61,7 @@ var _subtitle: Label
 var fx_cloud := true
 var fx_trees := true
 var ambient_on := true
+var simple_on := false
 var sound_on := true
 var listening := 2
 var sound_vol := 0.8
@@ -571,6 +573,7 @@ func _build_display_tab() -> void:
 	_choice(p, "Cloud shadows on the land", ["On", "Off"], func(): return 0 if fx_cloud else 1, func(i): fx_cloud = i == 0; _apply_fx())
 	_choice(p, "Tree colour variety", ["On", "Off"], func(): return 0 if fx_trees else 1, func(i): fx_trees = i == 0; _apply_fx())
 	_choice(p, "Grass", ["On", "Off"], func(): return 0, func(i): grass_changed.emit(i == 0))
+	_choice(p, "Camera effects", ["Full sensor look", "Simple (phone safe)"], func(): return 1 if simple_on else 0, func(i): simple_on = i == 1; simple_changed.emit(simple_on))
 	_choice(p, "Drifting leaves and dust", ["On", "Off"], func(): return 0 if ambient_on else 1, func(i): ambient_on = i == 0; ambient_changed.emit(ambient_on))
 	_heading(p, "Screen")
 	_action(p, "Full screen", func():
