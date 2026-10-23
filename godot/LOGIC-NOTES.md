@@ -200,3 +200,22 @@ Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_sh
 - Evidence: `docs/realism/sky/s7/*.jpg` (below at 150 m, below looking up at the base, inside at 300 m, above at 500 m).
 - Not verified / to judge: the visual look, the exact visibility inside, and the drone-commanded "break out on top"; the motor-sound damping inside cloud is not wired (a small `drone_audio.gd` change, left for the owner to request). GPS and link are untouched, so they stay fine.
 - Taste questions: S13. Low cloud height range 150-600 m: right, or should the slider go higher/lower? S14. Thin layer 70 m, thick 170 m: right thickness?
+
+## FPV plane (new experiences E2, lane/plane, session A, 2026-10-23)
+
+Owner: DSH session A. Files: `physics/plane.gd` (`FPVPlane`, its own 6-DOF model, not a Quad subclass), `physics/plane_controller.gd` (`PlaneController`), the `"wing"` entry in `physics/airframes.gd`, a wing branch in `game/drone_view.gd`, `game/wind.gd` `drive` now takes an untyped vehicle, small wing branches in `game/main.gd` (creation, hand launch, `at` token), and `test/plane_test.gd`.
+
+- **Physics** (`FPVPlane`): body frame +x right, +y up, forward -z (as the quad). Lift/drag from angle of attack `atan2(vy, -vz)` with a cambered `CL0` and a stall drop after 12 degrees; sideslip side force; propeller thrust `kT*omega^2*(1 - V/Vpitch)`; elevator/aileron/rudder moments proportional to dynamic pressure, adverse yaw, pitch/yaw/roll damping; belly-skid ground contact. Shares the Quad interface the game reads (position, velocity, attitude, rates, armed, s[], battery, ground_h/n, obstacle_hit, vrs, ang_accel). `s[13]` is the single motor; `s[14..16]` are 0. `cmd = [throttle, elevator, aileron, rudder]`.
+- **Controller** (`PlaneController`): Normal = stabilised (self-level, bank 45, pitch 30), Sport/Manual = acro (rate). Cruise assist holds altitude. A 3 s gentle climb after a hand launch. RTH climbs to 80 m, flies home, circles down and belly-lands. Left stick throttle/rudder, right stick elevator/aileron.
+- **Wiring**: `main.gd` holds a Quad or a FPVPlane behind one `quad` handle (untyped) and one `fc` handle; `switch_drone` and `spawn` hand-launch the wing at 12 m/s, 3 m up, nose up 10 degrees (board request). `drone_view` draws `NewModels.plane()` (body + one pusher prop that spins about +Z with `spin_sign`). `wind.gd` drive works on both.
+- **Model**: `NewModels.plane()` is used as-is (pusher, `prop_pivot` behind the wing, `spin_sign` -1); nothing modelled here.
+- **Gate**: GATE PASS (plane). `test/physics_test.gd` prints ALL PASS (the five quads are unchanged; the test skips the wing). `test/wind_test.gd` for the quads still runs (not re-run here, quad physics untouched).
+- **NOT finished - flight tuning**: `test/plane_test.gd` is written and runs, but 4 of 5 checks fail because the flight model still needs tuning (thrust/drag balance and the cruise-assist controller). Level trim crashes the plane, stall recovery and the bank turn time out, RTH crashes on launch. The no-NaN check passes. This is a tuning job, not a missing feature.
+- **Not done yet**: the OSD airspeed/altitude/stall readouts (`game/osd.gd` wing branch), the plane sound (`game/drone_audio.gd` plane mode), the chooser schematic outlines (`drone_parts.gd` / `drone_schematic.gd` wing drawings), the Flight-tab "Plane launch" choice (Hand launch / Ground roll), the 5 km link range and auto-RTH on link loss, and the "ground roll" launch (hand launch is wired).
+- **Request for Claude (modelling/tuning)**: none for models (the model is correct). The flight model numbers (thrust, drag, controller gains, cruise assist) need an hour of tuning against `test/plane_test.gd`; the four failing checks name what to fix.
+
+### Questions for Claude and the owner (plane)
+- P1. Cruise speed: the spec says 18 to 28 m/s; my model trims around 11 to 12 m/s. Should I raise it, and how much?
+- P2. Thrust: a 14 N peak gives a 3.1 N static thrust the physics test expects; the cruise throttle is about 0.42. Right, or more climb power?
+- P3. The stabilised mode limits bank to 45 degrees and pitch to 30. Right for a first flight, or wider for Acro?
+- P4. Hand launch is 12 m/s, 3 m up, nose up 10 degrees. Right feel, or a gentler/longer throw?

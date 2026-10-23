@@ -4,10 +4,29 @@ extends RefCounted
 ## Axes: Ixx is pitch, Iyy is yaw, Izz is roll. Angles are in radians.
 
 const DEG := PI / 180.0
-const IDS: Array[String] = ["mini", "freestyle", "race", "cinewhoop", "cinema"]
+const IDS: Array[String] = ["mini", "freestyle", "race", "cinewhoop", "cinema", "wing"]
 
 static func make(id: String) -> Dictionary:
 	match id:
+		"wing":
+			return {
+				"id": "wing", "name": "FPV plane", "blurb": "900 g. Fixed wing. Cruises fast, banks to turn, and glides home.",
+				"mass": 0.9, "armD": 0.55, "I": Vector3(0.06, 0.06, 0.008),
+				"R": 0.127, "sigma": 0.1, "a": 5.0, "Cd0": 0.03, "nBlades": 2, "Jr": 1.2e-5, "kH": 0.01,
+				"twr": 1.4, "omegaMax": 1800.0, "tauUp": 0.05, "tauDown": 0.03, "motorEff": 0.8,
+				"cells": 3, "capacityAh": 2.2, "rInt": 0.04,
+				"dragCd": Vector3(0.3, 0.4, 0.3), "dragA": Vector3(0.06, 0.15, 0.06),
+				"hasGimbal": false, "camTilt": 0.0, "camOffset": Vector3(0, 0.06, 0.52),
+				"ratesRc": 0.5, "ratesSuper": 0.6, "ratesExpo": 0.25,
+				"gain": {"rateP": 20.0, "rateI": 8.0, "rateD": 0.02, "yawP": 16.0, "attP": 8.0},
+				"limits": {
+					"N": {"vH": 20.0, "bank": 45 * DEG, "vUp": 6.0, "vDown": 6.0, "yawRate": 1.4, "kv": 1.0},
+					"S": {"vH": 30.0, "bank": 60 * DEG, "vUp": 10.0, "vDown": 10.0, "yawRate": 2.0, "kv": 0.8},
+				},
+				"S": 0.25, "cbar": 0.23, "span": 1.104, "CL0": 0.5, "CLa": 5.0, "CD0": 0.03, "kD": 0.08,
+				"stallA": 12 * DEG, "CLmax": 1.3, "Cm_a": -0.5, "Cm_e": 0.9, "Cl_a": 0.6, "Cn_r": 0.4, "Cn_adv": 0.12,
+				"Vpitch": 24.0, "Tmax": 14.0,
+			}
 		"freestyle":
 			return {
 				"id": "freestyle", "name": "5-inch Freestyle", "blurb": "750 g. Fast and powerful. Made for flips, rolls and tricks.",

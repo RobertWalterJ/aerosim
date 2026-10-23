@@ -13,6 +13,9 @@ var _omega_max := 1.0
 var _fpv := false
 var _phase := PackedFloat64Array([0.0, 1.1, 2.3, 3.7])
 var _last_t := 0.0
+var _wing := false
+var _wing_spin := 1.0
+var _wing_radius := 0.127
 
 # Each airframe is modelled once and kept: its meshes, where its props and lights go, and the outlines of every part
 # (for the technical drawing in the drone chooser). Building the same drone again only places nodes.
@@ -43,6 +46,11 @@ func build(af: Dictionary, _record := false) -> void:
 	_props.clear(); _discs.clear()
 	_af = af
 	_omega_max = af["omegaMax"]
+	_wing = af["id"] == "wing"
+	if _wing:
+		_build_wing(af)
+		set_fpv(_fpv)
+		return
 	var md := model(af)
 	var body := MeshInstance3D.new(); body.mesh = md["body"]; add_child(body)
 	_gimbal = Node3D.new()
@@ -79,6 +87,28 @@ func build(af: Dictionary, _record := false) -> void:
 		led.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(led)
 	set_fpv(_fpv)
+
+## The FPV plane model comes from NewModels.plane(): one pusher prop that spins about +Z.
+func _build_wing(af: Dictionary) -> void:
+	var pm: Dictionary = NewModels.plane()
+	var body := MeshInstance3D.new(); body.mesh = pm["body"]; add_child(body)
+	_wing_spin = float(pm["spin_sign"])
+	_wing_radius = float(pm["prop_radius"])
+	var dshader: Shader = load("res://game/shaders/prop_blur.gdshader")
+	var prop := Node3D.new(); prop.position = pm["prop_pivot"]
+	var propm := MeshInstance3D.new(); propm.mesh = pm["prop"]; prop.add_child(propm)
+	add_child(prop); _props.append(prop)
+	var disc := MeshInstance3D.new()
+	var dm := CylinderMesh.new(); dm.top_radius = _wing_radius; dm.bottom_radius = _wing_radius; dm.height = 0.001; dm.radial_segments = 32
+	var dmat := ShaderMaterial.new()
+	dmat.shader = dshader
+	dmat.set_shader_parameter("radius", _wing_radius); dmat.set_shader_parameter("n_blades", float(af["nBlades"]))
+	dmat.set_shader_parameter("chord", float(pm["prop_chord"]))
+	dmat.set_shader_parameter("body_col", Color(0.14, 0.15, 0.17)); dmat.set_shader_parameter("tip_col", Color(0.92, 0.92, 0.92))
+	disc.mesh = dm; disc.material_override = dmat; disc.position = (pm["prop_pivot"] as Vector3) + Vector3(0, 0.001, 0)
+	disc.rotation.x = -PI * 0.5   # the cylinder axis becomes +Z, matching the pusher prop
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; disc.visible = false
+	add_child(disc); _discs.append(disc)
 
 ## Model the airframe: everything that does not change from one build to the next.
 func _make(af: Dictionary) -> Dictionary:
@@ -132,12 +162,14 @@ func update_props(motor_omega: PackedFloat64Array, t: float, armed: bool) -> voi
 	_last_t = t
 	for i in _props.size():
 		var w := motor_omega[13 + i]
-		var spin := 1.0 if i % 2 == 1 else -1.0
+		var spin := _wing_spin if _wing else (1.0 if i % 2 == 1 else -1.0)
 		var blur: bool = armed and w > 45.0       # above about 7 turns a second the blades are only ever seen smeared
 		_props[i].visible = not blur
 		_discs[i].visible = blur
 		if not blur:
-			if armed: _props[i].rotation.y = fmod(t * w * 0.05 * spin, TAU)
+			if armed:
+				if _wing: _props[i].rotation.z = fmod(t * w * 0.05 * spin, TAU)
+				else: _props[i].rotation.y = fmod(t * w * 0.05 * spin, TAU)
 			continue
 		_phase[i] = fmod(_phase[i] + spin * w * dt, TAU)
 		var m := _discs[i].material_override as ShaderMaterial
