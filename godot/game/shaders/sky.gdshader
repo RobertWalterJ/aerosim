@@ -12,6 +12,8 @@ uniform float dark : hint_range(0.0, 1.0) = 0.0;      // 0 white cloud .. 1 stor
 uniform float cirrus : hint_range(0.0, 1.0) = 0.3;
 uniform float haze : hint_range(0.0, 1.0) = 0.2;      // dust and moisture: washes out the blue
 uniform float fog : hint_range(0.0, 1.0) = 0.0;       // ground fog: the whole lower sky goes milky
+uniform float rain : hint_range(0.0, 1.0) = 0.0;      // rain or storm: lowers the deck and draws rain curtains
+uniform float snow : hint_range(0.0, 1.0) = 0.0;      // snowfall: flat bright grey sky
 uniform vec2 drift = vec2(0.6, 0.2);                  // cloud movement in metres per second (wind)
 uniform float flash : hint_range(0.0, 1.0) = 0.0;     // lightning
 uniform vec3 moon_dir = vec3(0.0, -1.0, 0.0);          // unit vector towards the moon
@@ -43,8 +45,11 @@ float fbmn(vec3 p, int oct) {
 const float CBASE = 1500.0;    // cloud base, world metres
 const float CTHICK = 2000.0;   // slab thickness, so the top is 3500 m
 
+// storm and rain lower the deck
+float cloud_base() { return CBASE * (1.0 - 0.4 * dark); }
+
 float cloud_density(vec3 p, float t) {
-	float h = (p.y - CBASE) / CTHICK;
+	float h = (p.y - cloud_base()) / CTHICK;
 	if (h < 0.0 || h > 1.0) return 0.0;
 	int oct = 5; if (cloud_quality == 1) oct = 4; else if (cloud_quality == 0) oct = 2;
 	// the shared coverage (the same noise and drift the ground shadows use)
@@ -63,7 +68,7 @@ float cloud_density(vec3 p, float t) {
 
 // how much direct sun reaches a point in the cloud (0 shaded .. 1 lit)
 float cloud_light(vec3 p, vec3 sd, int lsteps, float t) {
-	float h = (p.y - CBASE) / CTHICK;
+	float h = (p.y - cloud_base()) / CTHICK;
 	if (lsteps <= 0) {
 		// phones fake the light with the height gradient (bases darker, tops lighter)
 		return 0.30 + 0.70 * smoothstep(0.0, 0.6, h);
@@ -81,8 +86,8 @@ float cloud_light(vec3 p, vec3 sd, int lsteps, float t) {
 // raymarch the slab: returns rgb (scattered light, HDR) and a (coverage 0..1)
 vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, int steps, int lsteps) {
 	if (rd.y < 0.02) return vec4(0.0);
-	float tb = (CBASE - ro.y) / rd.y;
-	float tt = (CBASE + CTHICK - ro.y) / rd.y;
+	float tb = (cloud_base() - ro.y) / rd.y;
+	float tt = (cloud_base() + CTHICK - ro.y) / rd.y;
 	if (tt < 0.0) return vec4(0.0);
 	float t0 = max(tb, 0.0);
 	float t1 = min(tt, 30000.0);   // distant clouds fade into the haze
@@ -227,7 +232,16 @@ void sky() {
 		vec3 g = mix(vec3(0.08, 0.09, 0.08), vec3(0.30, 0.31, 0.26), day);
 		sky_col = mix(sky_col, g, smoothstep(0.0, -0.08, dir.y));
 	}
-	// lightning lights the whole cloud deck for an instant
-	sky_col += vec3(0.7, 0.75, 1.0) * flash * (0.4 + 0.8 * cloud_a) * 3.0;
+	// rain curtains: soft vertical streaks toward the horizon (the air itself reads as falling rain)
+	if (rain > 0.01 && dir.y > 0.0) {
+		float curtain = fbm(vec3(dir.x * 16.0, dir.z * 16.0, TIME * 0.5));
+		curtain = smoothstep(0.52, 0.82, curtain);
+		float rfade = smoothstep(0.0, 0.10, dir.y) * (1.0 - smoothstep(0.08, 0.42, dir.y));
+		sky_col = mix(sky_col, milk, curtain * rain * rfade * 0.5);
+	}
+	// snow: a flat bright grey sky, low contrast
+	sky_col = mix(sky_col, vec3(0.74, 0.76, 0.80) * (0.85 + 0.15 * day), snow * 0.85);
+	// lightning lights the cloud volume from inside: the deck glows, the clear sky barely
+	sky_col += vec3(0.7, 0.75, 1.0) * flash * 3.0 * (0.2 + 2.6 * cloud_a);
 	COLOR = sky_col;
 }

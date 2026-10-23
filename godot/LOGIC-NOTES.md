@@ -131,3 +131,11 @@ Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_sh
 - Evidence: `docs/realism/sky/s4/*.jpg` (sun-side aerial at 150 m, aerial at 300 m, overcast at 300 m). Overcast shows the flat, patch-free ground.
 - Not verified: the visual "shadow lines up with its cloud" (this model cannot view images); the mechanism is that both now call the same `cloud_shape`.
 - Taste question: S10. The sun offset caps at 3000 m, so at low sun the shadow stays within 3 km of its cloud. Right, or should it stretch further at sunset?
+
+### S5 weather integration (done, gate green)
+- Rain and storm: the cumulus deck lowers as `dark` rises (`cloud_base() = CBASE * (1 - 0.4 * dark)`, so storm base about 950 m), stays grey and ragged, and soft vertical rain curtains appear toward the horizon (a screen-space streak field mixed toward the fog colour, scaled by the new `rain` uniform).
+- Lightning now lights the cloud volume from inside: `flash` adds `3.0 * (0.2 + 2.6 * cloud_a)`, so a thick deck glows while clear sky barely changes.
+- Snow: a flat bright grey, low-contrast sky (mixed by the new `snow` uniform), which the metrics confirm (saturation about 0.07 and spread 27 vs 40 for clear).
+- Smooth transitions: `apply_weather` now takes a `snap` flag (default false), so a menu weather change eases `cover`/`dark`/`haze` over about 10 to 20 s (the existing 5 s time constant in `weather.gd`, kept); start-up and the screenshot tokens pass `snap = true` so they stay deterministic. Added a `skyto<n>` token (before `sky<n>`, which now excludes `skyto`) for filming a transition.
+- Evidence: `docs/realism/sky/s5/*.jpg` (storm, snow, rain shots; a clear-to-storm filmstrip at frames 15, 60, 120, 240, 420, 600 showing saturation easing 0.25 -> 0.13 over about 10 s).
+- Taste questions: S11. Storm deck at about 950 m (lowered from 1500 m): low enough, or lower still? S12. Snow sky grey level (0.74, 0.76, 0.80): bright enough, or too dull?

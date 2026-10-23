@@ -257,7 +257,7 @@ func _ready() -> void:
 		for q in p["pts"]: pts.append(Vector2(q[0], q[1]))
 		pl.append(pts)
 	hud.minimap.paths = pl
-	apply_weather(hud.weather)
+	apply_weather(hud.weather, true)   # snap at start-up so the game begins at the saved weather
 	spawn()
 	drone_shadow.setup(af, terrain)
 	if sensor.simple:
@@ -411,7 +411,7 @@ func _snow_mesh() -> Mesh:
 	return qm
 
 # ------------------------------------------------------------------ weather
-func apply_weather(w: Dictionary) -> void:
+func apply_weather(w: Dictionary, snap := false) -> void:
 	_base_wind = float(w["wind"]); _base_gust = float(w["gust"])
 	wind.from_deg = float(w["from"])
 	var hour := float(w.get("hour", 16.0))
@@ -424,7 +424,7 @@ func apply_weather(w: Dictionary) -> void:
 	_tick_clock(0.0)
 	_update_celestial()
 	wx.set_condition(int(w["sky"]), float(w["intensity"]))
-	_apply_weather_state(0.0, true)
+	_apply_weather_state(0.0, snap)
 
 ## The calendar day: today's, or one of the season presets.
 func _apply_date() -> void:
@@ -486,6 +486,8 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sky_mat.set_shader_parameter("haze", float(c["haze"]))
 	sky_mat.set_shader_parameter("fog", float(c["fog"]))
 	sky_mat.set_shader_parameter("flash", storm_flash)
+	sky_mat.set_shader_parameter("rain", float(c["rain"]))
+	sky_mat.set_shader_parameter("snow", float(c["snow"]))
 	var wd := wind.toward()
 	sky_mat.set_shader_parameter("cam_pos", cam.global_position)   # the volumetric clouds need the camera height
 	sky_mat.set_shader_parameter("cloud_quality", _sky_quality)
@@ -711,9 +713,9 @@ func _screenshot_mode(arg: String) -> void:
 			if av.size() == 3: _air_test = Vector3(float(av[0]), float(av[1]), float(av[2]))
 		if c == "simple": hud.simple_on = true; _apply_simple(true)
 		if c.begins_with("clock"):     # test hook: freeze the clock at that hour (clock7.5), on the date picked with date1..4
-			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)
+			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather, true); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)
 		if c.begins_with("date"):
-			hud.weather["date"] = int(c.substr(4)); apply_weather(hud.weather)
+			hud.weather["date"] = int(c.substr(4)); apply_weather(hud.weather, true)
 		if c == "light": drone_light.visible = true
 		if c.begins_with("cd"): _chase_d = float(c.substr(2))
 		if c == "climb":
@@ -735,9 +737,10 @@ func _screenshot_mode(arg: String) -> void:
 			_build_gallery()
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
-		if c.begins_with("sky"):
-			hud.weather["sky"] = int(c.substr(3)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true
-		if c.begins_with("windms"): hud.weather["wind"] = float(c.substr(6)); hud.weather["gust"] = 1.0; apply_weather(hud.weather)   # wind lane test hook: menu wind in m/s, gusty
+		if c.begins_with("skyto"): hud.weather["sky"] = int(c.substr(5)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true   # sky test hook: smooth transition (no snap)
+		if c.begins_with("sky") and not c.begins_with("skyto"):
+			hud.weather["sky"] = int(c.substr(3)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather, true); _auto_climb = true
+		if c.begins_with("windms"): hud.weather["wind"] = float(c.substr(6)); hud.weather["gust"] = 1.0; apply_weather(hud.weather, true)   # wind lane test hook: menu wind in m/s, gusty
 		if c == "hover": _auto_climb = false   # wind lane test hook: hold the hover (put it after sky<n>)
 		if c == "nowindfx": wind.struggle = false   # wind lane test hook: wind effects Off
 	await get_tree().create_timer(0.1).timeout
