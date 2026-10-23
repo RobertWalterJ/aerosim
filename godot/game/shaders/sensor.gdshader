@@ -43,12 +43,14 @@ vec4 T(sampler2D s, vec2 v) { return texture(s, vec2(v.x, 1.0 - v.y)); }
 float hash(vec2 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973).xy); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
 const vec3 ghostCol = vec3(0.0513, 1.0, 0.402);
 
-// faint dirt and smudges on the lens: a slow, static speckle that only lights up near the sun or a bright point
-float dirt_noise(vec2 p) {
+// faint dirt and smudges on the lens: smooth value noise (no raw hash, which would read as blocky patches)
+float vnoise2(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
 	float a = hash(i); float b = hash(i + vec2(1.0, 0.0)); float c = hash(i + vec2(0.0, 1.0)); float d = hash(i + vec2(1.0, 1.0));
-	float n = mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-	return n * 0.6 + hash(p * 2.3 + 5.0) * 0.28 + hash(p * 5.1 + 9.0) * 0.12;
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+float dirt_noise(vec2 p) {
+	return vnoise2(p) * 0.6 + vnoise2(p * 2.7 + 5.0) * 0.28 + vnoise2(p * 7.3 + 9.0) * 0.12;
 }
 
 vec3 flare(vec2 uvS, float gSunVis) {
