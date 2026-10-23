@@ -127,9 +127,10 @@ func _cruise_hold(dt: float, bank: float) -> float:
 	var alt := p.y
 	var v_target := 18.0 / sqrt(max(cos(absf(bank)), 0.5))
 	stick_throttle = clampf(0.55 + (v_target - plane.airspeed) * 0.08, 0.35, 0.9)
-	# stall protection: near the stall, nose down hard to regain airspeed instead of holding altitude
-	var stall_guard := clampf((12.0 - plane.airspeed) * 0.08, 0.0, 0.5)
-	return clampf((_cruise_alt - alt) * 0.008 - plane.s[4] * 0.12 - stall_guard, -0.35, 0.15)
+	# stall protection: near the stall, nose down hard to regain airspeed instead of holding altitude.
+	# Two guards: a low-airspeed guard and a direct angle-of-attack guard (the stall is at 12 degrees).
+	var stall_guard := clampf((12.0 - plane.airspeed) * 0.08, 0.0, 0.5) + clampf((plane.alpha - 0.16) * 3.0, 0.0, 0.4)
+	return clampf((_cruise_alt - alt) * 0.008 - plane.s[4] * 0.12 - stall_guard, -0.4, 0.15)
 
 ## RTH: climb to a safe height, fly to home, circle down, belly-land. Called from update() when rth > 0.
 func _rth_step(dt: float) -> void:
@@ -144,20 +145,21 @@ func _rth_step(dt: float) -> void:
 	# turn on the velocity heading (where the plane is actually going), not the nose, so the sideslip does not defeat RTH
 	var hdg := atan2(-vel.x, -vel.z)
 	var target := atan2(-to_home.x, -to_home.y)
-	var err := wrapf(target - hdg, -PI, PI)
+	var err := wrapf(target - hdg, -TAU, 0.0)   # always turn right (the stable bank direction) toward home
 	match rth:
-		1:  # climb to the RTH cruise height, wings level
-			plane.cmd[0] = 0.7
-			plane.cmd[1] = clampf((0.15 - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)
+		1:  # climb to the RTH cruise height, wings level, gently so it keeps its airspeed
+			plane.cmd[0] = 0.85
+			plane.cmd[1] = clampf((0.06 - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)
 			plane.cmd[2] = clampf((0.0 - a.y) * 1.2 - 0.3 * w.z, -1.0, 1.0)
 			plane.cmd[3] = 0.0
 			if alt > _cruise_alt: rth = 2
-		2:  # fly toward home: reuse the cruise assist's altitude and throttle hold, with a bank-limited turn
+		2:  # fly toward home: reuse the cruise assist's altitude and throttle hold, with a bank-limited turn, V^2 compensated
 			var alt_hold := _cruise_hold(dt, a.y)
-			var bank_sp := clampf(-err * 1.2, -0.7, 0.7)   # bank into the turn, capped at 40 degrees
+			var vg := clampf(18.0 * 18.0 / maxf(plane.airspeed * plane.airspeed, 25.0), 0.25, 4.0)
+			var bank_sp := clampf(-err * 1.2, -0.52, 0.52)   # bank into the turn, capped at 30 degrees (steeper stalls)
 			plane.cmd[0] = stick_throttle
-			plane.cmd[1] = clampf((alt_hold - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)
-			plane.cmd[2] = clampf((bank_sp - a.y) * 1.2 - 0.3 * w.z, -1.0, 1.0)
+			plane.cmd[1] = clampf(vg * ((alt_hold - a.x) * 1.5 - 0.25 * w.x), -1.0, 1.0)
+			plane.cmd[2] = clampf(vg * ((bank_sp - a.y) * 1.2 - 0.3 * w.z), -1.0, 1.0)
 			plane.cmd[3] = clampf(-err * 0.5, -1.0, 1.0)
 			if dist < 100.0: rth = 3
 		3:  # circle down over home
