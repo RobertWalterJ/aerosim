@@ -61,6 +61,8 @@ var _alarm: AudioStreamWAV
 var _flutter: AudioStreamWAV
 var _crow: AudioStreamWAV
 var _hawk: AudioStreamWAV
+var _honk: AudioStreamWAV          # session B: Canada goose honk for the flying flocks
+var _gull_call: AudioStreamWAV     # session B: gull cry over the lake
 var _time := 0.0
 var _listener: Camera3D   # the pilot's ears: a camera in the window itself (it draws nothing; the 3D view is rendered elsewhere)
 
@@ -360,6 +362,17 @@ func _build_birds(trees: Array, home: Vector2) -> void:
 	var hb := _buffer(1.8)
 	_note(hb, 0.0, 3600, 1900, 1.6, 0.35, "saw", 0.01)
 	_hawk = _wav(hb, RATE)
+	# session B: a Canada goose honk, two nasal notes gliding down, then a gull's cry
+	var gsb := _buffer(0.62)
+	for i in 2:
+		var t0: float = float(i) * 0.28
+		_note(gsb, t0, 350.0 - 20.0 * float(i), 245.0, 0.22, 0.5, "saw", 0.02)
+		_note(gsb, t0 + 0.05, 470.0, 320.0, 0.16, 0.22, "saw")
+	_honk = _wav(gsb, RATE)
+	var glb := _buffer(0.95)
+	for i in 3:
+		_note(glb, float(i) * 0.24, 1950.0 + 130.0 * float(i), 1050.0, 0.20, 0.25, "sine", 0.015)
+	_gull_call = _wav(glb, RATE)
 	for i in POOL:
 		var p := AudioStreamPlayer3D.new()
 		p.bus = "Birds"; p.unit_size = 5.0; p.max_distance = 600.0
@@ -383,6 +396,27 @@ func _voice(pos: Vector3, stream: AudioStream) -> void:
 	var p := _pool[_pool_i % POOL]
 	_pool_i += 1
 	p.stream = stream; p.global_position = pos; p.play()
+
+# session B: the flying flocks ask for their own calls (birds.gd). All of these go through the same 3D voice pool on
+# the Birds bus, so they are heard from the pilot's ears and the Listening position switch applies as before.
+func honk_at(pos: Vector3) -> void:
+	if _honk != null: _voice(pos, _honk)
+
+func gull_at(pos: Vector3) -> void:
+	if _gull_call != null: _voice(pos, _gull_call)
+
+func flush_at(pos: Vector3) -> void:
+	if _flutter != null: _voice(pos, _flutter)
+
+## The soaring birds' circles (kind, centre, radius, angle, angular speed, height), so birds.gd can draw the hawks
+## in the same places the hawk call comes from.
+func soaring() -> Array:
+	return _soarers
+
+## How many one-shot voices (bird calls, honks, flushes) have been played since start: proof that the flock sound
+## really fires in a test run.
+func voices_played() -> int:
+	return _pool_i
 
 # ------------------------------------------------------------------ per frame
 ## a: motor_omega (4, rad/s), blades, thrust (0..1), vz, jerk, vrs, air_speed, drone_pos, drone_vel, agl, wash, wind, conifer, gust.
