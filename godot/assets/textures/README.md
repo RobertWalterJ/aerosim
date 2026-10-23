@@ -60,3 +60,8 @@ The four photographed sets were also added to the shared library (`texture/bark_
 
 The leaf atlases (`assets/trees/leaves_*.webp`, 512 px, four cells each) are painted by `tools/tree_gen.ts`
 (`paintLeafAtlas`, `paintConiferAtlas`): own work, CC0. A cell is about 1.25 m of leaf spray on the tree.
+
+## Park path surface (replaces the dark asphalt_02 on the paths, 2026-10-23)
+`path_diff.jpg`, `path_nor.jpg`, `path_arm.jpg` (R = ambient occlusion, G = roughness, B = 0) come from Poly Haven `asphalt_floor`
+(https://polyhaven.com/a/asphalt_floor), 1k, CC0. A pale, even, chip-seal style surface with fine aggregate. One tile is about 2.35 m
+(the shader divides by 2.35). The old `asphalt_*.jpg` files stay in the folder, unused.

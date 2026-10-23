@@ -146,10 +146,10 @@ void fragment() {
 		rough_edge = mix(mix(0.96, 0.9, grav), carm.g, kerb);
 		nd = mix(nd, 1.0, max(kerb, grav));
 	}
-	vec3 acol = texture(uAsphalt, xz / 5.0).rgb * (0.85 + 0.3 * gfbm(xz * 0.6));
-	if (asph > 0.0) arm = texture(uAsphaltARM, xz / 5.0).rgb;
+	vec3 acol = texture(uAsphalt, xz / 2.35).rgb * (0.85 + 0.3 * gfbm(xz * 0.6));
+	if (asph > 0.0) arm = texture(uAsphaltARM, xz / 2.35).rgb;
 	g = mix(g, acol * mix(1.0, 0.85, smoothstep(0.0, 0.6, gn(xz * 0.9) * gfbm(xz * 0.08))), asph);
-	nm = mix(nm, texture(uAsphaltN, xz / 5.0).rgb, asph);
+	nm = mix(nm, texture(uAsphaltN, xz / 2.35).rgb, asph);
 	nd = mix(nd, 0.8, asph);
 	float hard = max(asph, kerb);
 	// steep banks show rock and soil
