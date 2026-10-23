@@ -96,6 +96,8 @@ static func build(world: World, touch_device: bool) -> Array:
 			stats["meshes"] += 1
 			stats["tris%d" % lod] += (b["i"] as PackedInt32Array).size() / 3
 	print("hedgerow: %d rows, %d runs, %d meshes, %d near tris, %d far tris, %d colliders, %d ms" % [stats["rows"], stats["segments"], stats["meshes"], stats["tris0"], stats["tris1"], cyls.size(), Time.get_ticks_msec() - t0])
+	# the extra graves and the chapel's details (game/graveyard.gd) need the hedges placed first; their colliders ride along
+	cyls.append_array(Graveyard.build(world, cyls))
 	return cyls
 
 ## Lookup of where the old hedge pieces stood, for is_piece_collider().

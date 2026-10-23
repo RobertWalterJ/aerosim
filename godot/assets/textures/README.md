@@ -22,3 +22,17 @@ published by Poly Haven, and is what the shader uses.
 Downloaded 2026-10-22 as the 1k JPEGs (`diff`, `nor_gl`, `arm`) and re-saved at 1024 px with Python PIL (quality 85,
 normals 90). The 1k sets were also added to the shared library (`texture/rubble`, `texture/mossrock`,
 `texture/limestone`, `texture/ashlar`).
+
+## Path edges and leaf litter (October 2026, ground pass)
+
+Three more sets for the park ground, read by `game/shaders/ground.gdshader` through `game/ground_detail.gd`. Same format
+as above: 1024 px JPEGs, `_diff` albedo, `_nor` OpenGL normal, `_arm` occlusion, roughness, metal. All CC0.
+
+| Files | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `cobble_*` | Poly Haven `cobblestone_floor_08`, https://polyhaven.com/a/cobblestone_floor_08 (1k files from https://api.polyhaven.com/files/cobblestone_floor_08) | Rob Tuytel | CC0 | 2.0 m (as published) | the 30 cm cobble kerb along every path |
+| `gravel_*` | Poly Haven `gravel_floor`, https://polyhaven.com/a/gravel_floor, by way of the shared library (`texture/gravel`, 2k) downscaled to 1k | Matterfield (photography), Jenelle van Heerden (processing) | CC0 | 2.0 m | the ragged gravel verge between kerb and lawn |
+| `soil_leaves_*` | Poly Haven `brown_mud_leaves_01`, https://polyhaven.com/a/brown_mud_leaves_01, by way of the shared library (`texture/soil_leaves`, 2k) downscaled to 1k | Rob Tuytel | CC0 | 2.5 m (published 1.3 m; the library and this game show it larger so the leaves read at drone height) | leaf litter on the ground under the tree crowns |
+
+Downloaded or copied 2026-10-23 and re-saved at 1024 px with Python PIL (quality 85, normals 90). The cobble set was also
+added to the shared library as `texture/cobble` (1k).
