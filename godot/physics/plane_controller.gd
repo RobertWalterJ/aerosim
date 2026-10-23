@@ -153,7 +153,7 @@ func _rth_step(dt: float) -> void:
 			plane.cmd[0] = clampf(0.55 + (18.0 - plane.airspeed) * 0.08, 0.35, 0.9)
 			plane.cmd[1] = clampf(vg * ((0.0 - a.x) * 1.5 - 0.25 * w.x), -1.0, 1.0)
 			plane.cmd[2] = clampf(vg * ((bank_sp - a.y) * 1.2 - 0.3 * w.z), -1.0, 1.0)
-			plane.cmd[3] = clampf(-err * 0.5, -1.0, 1.0)
+			plane.cmd[3] = clampf(-err * 0.5 - 0.5 * w.y, -1.0, 1.0)
 			if dist < 100.0: rth = 3
 		3:  # circle down over home
 			plane.cmd[0] = 0.35
