@@ -238,6 +238,7 @@ func _ready() -> void:
 	await _stage("Setting up the camera", 0.82)
 	sensor = SensorPipeline.new()
 	add_child(sensor)
+	if fireworks: fireworks.set_sensor(sensor)   # session B: bursts flash the lens and nudge the exposure
 	var touch_device := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	# real phones start in the plain picture; a laptop with a touch screen keeps the full camera (the Display tab can switch either way)
 	sensor.simple = OS.has_feature("mobile") or "simple" in OS.get_cmdline_user_args()
@@ -263,6 +264,7 @@ func _ready() -> void:
 	fireworks = Fireworks.new()
 	add_child(fireworks)
 	fireworks.setup(terrain, home)
+	fireworks.set_sensor(sensor)   # session B: bursts flash the lens and nudge the exposure
 	hud.fireworks_changed.connect(func(i: int): fireworks.request_show(i))
 	hud.surprise_changed.connect(func(on: bool): fireworks.surprise_on = on)
 	fireworks.show_ended.connect(func(): hud.fireworks_show = 0; hud._sync())
@@ -307,6 +309,8 @@ func _build_world() -> void:
 	await _stage("Reading the valley", 0.05)
 	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # cloud-shadow sun offset (before the world shaders compile)
+	RenderingServer.global_shader_parameter_add("g_storm", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # storm cell: xz funnel anchor, y strength (session B hangs the funnel here)
+	RenderingServer.global_shader_parameter_add("g_sky_dark", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)   # other effects darken the sky
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
 	add_child(terrain)
@@ -801,6 +805,10 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
 		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
+		if c.begins_with("stormcell"):   # sky test hook: storm cell at x_z (sets the funnel anchor and strength for session B)
+			var sv := c.substr(9).split("_")
+			RenderingServer.global_shader_parameter_set("g_storm", Vector4(float(sv[0]), float(sv[1]), 1.0, 0.0))
+		if c == "stormoff": RenderingServer.global_shader_parameter_set("g_storm", Vector4(0.0, 0.0, 0.0, 0.0))
 		if c.begins_with("lowcloudh"): hud.weather["lowcloud_h"] = float(c.substr(10))   # sky test hook: low cloud height above the valley floor
 		if c.begins_with("lowcloud") and not c.begins_with("lowcloudh"): hud.weather["lowcloud"] = int(c.substr(8))   # sky test hook: low cloud 0 off / 1 thin / 2 thick
 		if c.begins_with("skyto"): hud.weather["sky"] = int(c.substr(5)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true   # sky test hook: smooth transition (no snap)
@@ -822,6 +830,12 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.force_show(fidx)
 		elif c.begins_with("fwskip"):
 			fireworks.skip_to(float(c.substr(6)))
+		elif c == "fwlaunch":     # dev: one shell rising 240 m ahead, to photograph the launch, smoke trail and burst
+			fireworks.test_launch(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c.begins_with("fwbig"):     # dev: one big burst close enough to study its flash on the lens and metering
+			fireworks.test_big(int(c.substr(5)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c == "fwfar":     # dev: one break 1.6 km from the pilot, for the far distance sound and delay
+			fireworks.test_far()
 		elif c == "fwwall":     # dev: one burst of every type in a row, to judge the shapes
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
@@ -869,6 +883,7 @@ func _screenshot_mode(arg: String) -> void:
 	img.save_png(path)
 	print("saved ", path)
 	print("fireworks: ", fireworks.stats())
+	print("camera: exposure %.2f iso %d shutter 1/%d over %.2f meanlog %.2f burstwash %.3f" % [sensor.exposure, sensor.iso_shown, int(round(1.0 / maxf(sensor.shutter_shown, 1e-6))), sensor._over, sensor._mean_log, sensor._burst_wash])
 	print("birds: ", birds.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
@@ -960,6 +975,8 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var dist := dpos.distance_to(home_p)
 	var dbm := -45.0 - 20.0 * log(maxf(dist, 10.0) / 10.0) / log(10.0)
 	if not _terrain_clear(home_p, dpos): dbm -= 28.0
+	# weather: heavy rain and storms degrade the link a little (moderate, never fatal)
+	dbm -= float(wx.cur["rain"]) * 14.0 + (14.0 if wx.kind == WeatherSystem.Kind.STORM else 0.0)
 	_rf_dbm += (dbm - _rf_dbm) * clampf(delta * 3.0, 0.0, 1.0)
 	var bars := 5 if _rf_dbm > -60.0 else (4 if _rf_dbm > -70.0 else (3 if _rf_dbm > -78.0 else (2 if _rf_dbm > -86.0 else 1)))
 	var rf_bad := smoothstep(-80.0, -97.0, _rf_dbm)

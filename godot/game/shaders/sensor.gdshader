@@ -31,6 +31,11 @@ uniform vec3 uWB = vec3(1.0);   // white balance gain from the camera's auto whi
 uniform float uRain = 0.0;     // water on the lens, 0 dry .. 1 streaming
 uniform float uWash = 0.0;      // rotor wash over the lens, 0..1
 uniform vec3 uAir = vec3(0.0);  // air moving over the lens, in the camera's own axes (m/s): sideways, up, and head-on speed
+// session B (fireworks): up to four recent bursts in the lens, fed by game/fireworks.gd through SensorPipeline.burst_glare
+uniform vec2 uBurstS[4];
+uniform vec3 uBurstC[4];
+uniform float uBurstK[4];
+uniform float uBurstWash = 0.0;
 vec4 T(sampler2D s, vec2 v) { return texture(s, vec2(v.x, 1.0 - v.y)); }
 float hash(vec2 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973).xy); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
 const vec3 ghostCol = vec3(0.0513, 1.0, 0.402);
@@ -51,6 +56,27 @@ vec3 flare(vec2 uvS, float gSunVis) {
 	c += ghostCol * ring * 0.55 * gSunVis * uFlareI * (0.35 + fadeG);
 	vec2 gp2 = -0.28 * sf; float r2 = length(((uvS - 0.5) * uS - gp2) * vec2(uAspect, 1.0));
 	c += vec3(0.9, 0.5, 0.35) * exp(-pow((r2 - 0.03) / 0.005, 2.0)) * 0.25 * gSunVis * uFlareI * fadeG;
+	return c;
+}
+
+// A firework burst in the lens: a hot core, a wide halo, a faint anamorphic streak and a ghost ring on the far side of
+// the frame centre. Colour comes linear from the burst; strength fades on the CPU over about a second.
+vec3 burst_flare(vec2 uvS) {
+	vec3 c = vec3(0.0);
+	for (int i = 0; i < 4; i++) {
+		float k = uBurstK[i];
+		if (k < 0.002) { continue; }
+		vec2 d = (uvS - uBurstS[i]) * uS * vec2(uAspect, 1.0);
+		float r2 = dot(d, d);
+		c += uBurstC[i] * k * (2.2 * exp(-r2 / (2.0 * 0.006 * 0.006)) + 0.30 * exp(-r2 / (2.0 * 0.06 * 0.06)));
+		float st = exp(-d.y * d.y / (2.0 * 0.0038 * 0.0038)) * exp(-d.x * d.x / (2.0 * 0.22 * 0.22));
+		c += uBurstC[i] * k * 0.55 * st;
+		vec2 gp = -(uBurstS[i] - 0.5) * 0.95;
+		vec2 gd = ((uvS - 0.5) - gp) * vec2(uAspect, 1.0);
+		float gr = length(gd);
+		float ring = exp(-pow((gr - 0.055) / 0.005, 2.0)) + 0.6 * exp(-pow((gr - 0.085) / 0.007, 2.0));
+		c += uBurstC[i] * k * 0.16 * ring;
+	}
 	return c;
 }
 
@@ -135,6 +161,8 @@ void fragment() {
 	col += bl * uBloomK;
 	// anamorphic streak, cyan ghost and veiling glare
 	col += flare(sG, gSunVis);
+	col += burst_flare(sG);                                      // session B: firework bursts in the lens
+	col += vec3(0.9, 0.85, 0.8) * uBurstWash * 0.035;
 	col += vec3(0.020, 0.022, 0.026) * uGlare * (0.4 + 0.6 * gSunVis) * 3.0;
 	// optical vignette
 	float vr = length(a) * 0.7071; col *= 1.0 - uVig * vr * vr;

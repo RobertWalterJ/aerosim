@@ -38,6 +38,28 @@ var shutter_shown := 1.0 / 200.0
 var histogram := PackedFloat32Array()
 var sun_vis := 1.0                 # 0..1, set by the caller (line of sight to the sun)
 
+# session B (fireworks): up to four recent bursts in the lens. game/fireworks.gd calls burst_glare() for each burst;
+# the lens gets a flash, an anamorphic streak, a ghost ring, a short exposure dip and a little veiling light.
+const BURST_N := 4
+var _burst_p: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO]
+var _burst_c: Array[Color] = [Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0)]
+var _burst_k: Array[float] = [0.0, 0.0, 0.0, 0.0]
+var _burst_wash := 0.0
+
+## A firework burst seen by this camera: a short lens flash, a streak and a ghost, and it nudges the auto exposure.
+## `strength` 0..1.6 (a big shell is about 1.0). The effect fades over about 1.2 s. Called from game/fireworks.gd.
+func burst_glare(world_pos: Vector3, colour: Color, strength: float) -> void:
+	var slot := 0
+	var weakest := 1e9
+	for i in BURST_N:
+		if _burst_k[i] < weakest:
+			weakest = _burst_k[i]
+			slot = i
+	_burst_p[slot] = world_pos
+	_burst_c[slot] = colour
+	_burst_k[slot] = clampf(strength, 0.0, 1.6)
+
+
 var camera: Camera3D
 var scene_vp: SubViewport
 var simple := false               # phone-safe mode: the 3D picture goes straight to the screen, none of the sensor passes
@@ -253,6 +275,23 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 		return
 	_frame += 1
 	var tan_half := _tan_half()
+	# session B: firework bursts on the lens (fade, project, and a small metering bias so the exposure flashes)
+	var bpos := PackedVector2Array()
+	var bcol := PackedVector3Array()
+	var bk := PackedFloat32Array()
+	var bwash := 0.0
+	for i in BURST_N:
+		_burst_k[i] = maxf(0.0, _burst_k[i] - dt * (0.55 + 0.35 * _burst_k[i]))
+		var buv := _project(_burst_p[i])
+		var kv: float = _burst_k[i]
+		if buv.x < -1.7 or buv.x > 1.7 or buv.y < -1.7 or buv.y > 1.7:
+			kv = 0.0
+		# _project gives -1..1 with +y up; the sensor shader wants 0..1 screen uv with +y up (T() flips it itself)
+		bpos.append(buv * 0.5 + Vector2(0.5, 0.5))
+		bcol.append(Vector3(_burst_c[i].r, _burst_c[i].g, _burst_c[i].b))
+		bk.append(kv)
+		bwash += kv
+	_burst_wash += (minf(bwash, 2.5) * 0.30 - _burst_wash) * clampf(dt * 5.0, 0.0, 1.0)
 	# stage 2: metering and adaptation. Two 1x1 viewports take turns, each reading the other's result.
 	# the sun in the picture: it washes the frame out, then the camera stops down and its auto white balance swings cooler
 	var cb0 := camera.global_transform.basis
@@ -262,7 +301,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	wb_kelvin += (wb_target - wb_kelvin) * (1.0 - exp(-minf(dt, 0.1) / (0.9 if wb_target < wb_kelvin else 2.0)))
 	# the camera's exposure follows the metered scene, slowly: it opens up quickly in the dark, and is slow to stop down
 	# when bright light arrives, so the picture stays washed out for a moment before it settles. Worked out here, not in a shader.
-	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt, log(0.1) / log(2.0), log(1.6) / log(2.0))
+	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt - 0.35 * minf(bwash, 1.2), log(0.1) / log(2.0), log(1.6) / log(2.0))
 	var tau := 0.9 if tgt < _log_e else 0.45
 	_log_e += (tgt - _log_e) * (1.0 - exp(-minf(dt, 0.1) / tau))
 	_over = clampf((_log_e - tgt) / 1.5, 0.0, 1.0)     # how far the picture is still over-exposed: the haze lasts only while it is
@@ -299,7 +338,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	sm.set_shader_parameter("uVibFreq", TAU * (motor_hz * 0.071 + 17.0))
 	sm.set_shader_parameter("uFrame", float(_frame))
 	var glare := smoothstep(0.8, 0.98, fwd_dot) * (1.0 if in_view else 0.5)
-	var wash := maxf(glare * 0.6, _sun_amt) * lerpf(0.3, 1.0, _over)
+	var wash := maxf(maxf(glare * 0.6, _sun_amt), _burst_wash * 0.8) * lerpf(0.3, 1.0, _over)
 	sm.set_shader_parameter("uGlare", wash)
 	var wbt := clampf((wb_kelvin - 5600.0) / 5600.0, -0.6, 0.6) * 0.62
 	sm.set_shader_parameter("uWB", Vector3(1.0 + wbt, 1.0, 1.0 - wbt))
@@ -310,6 +349,11 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	sm.set_shader_parameter("uAir", lens_air)
 	sm.set_shader_parameter("uWash", lens_wash)
 	sm.set_shader_parameter("uInView", 1.0 if in_view else 0.0)
+	# session B: the firework bursts in the lens (see burst_glare)
+	sm.set_shader_parameter("uBurstS", bpos)
+	sm.set_shader_parameter("uBurstC", bcol)
+	sm.set_shader_parameter("uBurstK", bk)
+	sm.set_shader_parameter("uBurstWash", _burst_wash)
 	# stages 5 and 6
 	var ip: ShaderMaterial = _passes["isp"]
 	ip.set_shader_parameter("uGlare", wash)

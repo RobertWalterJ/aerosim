@@ -9,6 +9,7 @@ global uniform vec4 g_fire;      // xyz = the strongest burst colour, w = its st
 uniform float px_per_m = 0.0016;
 uniform vec3 tint = vec3(0.55, 0.55, 0.58);
 uniform float opacity = 0.05;
+uniform float self_light = 0.03;   // a little light of its own for launch smoke, which has no burst to light it yet
 
 varying float v_alpha;
 varying float v_depth;
@@ -35,7 +36,7 @@ void fragment() {
 	// a slow curl in the UV makes the puff uneven instead of a clean circle
 	float n = sin(uv.x * 5.0 + v_phase + TIME * 0.10) * sin(uv.y * 4.0 - v_phase * 0.7 + TIME * 0.07);
 	float a = soft * v_alpha * opacity * (0.65 + 0.35 * n);
-	vec3 lit = tint * (0.03 + 1.5 * g_fire.rgb * g_fire.a) + tint * 0.05;
+	vec3 lit = tint * (self_light + 0.28 * g_fire.rgb * g_fire.a) + tint * 0.05;
 	ALBEDO = lit;
 	ALPHA = clamp(a * smoothstep(2.5, 22.0, v_depth), 0.0, 0.5);
 }

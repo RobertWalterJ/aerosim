@@ -23,6 +23,9 @@ uniform float moon_illum : hint_range(0.0, 1.0) = 0.5; // fraction of the moon's
 uniform vec3 cam_pos = vec3(0.0, 100.0, 0.0);         // camera world position (for the cloud raymarch)
 uniform int cloud_quality = 1;                        // 0 low, 1 medium, 2 high
 uniform vec3 haze_col = vec3(0.62, 0.70, 0.80);       // horizon haze colour (set from env.fog_light_color, = g_haze)
+uniform vec3 bolt_dir = vec3(0.0, -1.0, 0.0);         // lightning bolt direction (unit, from the sky toward the ground)
+global uniform vec4 g_storm;                          // storm cell: xz funnel anchor, y strength 0..1
+global uniform float g_sky_dark;                      // other effects darken the sky (0..1)
 
 float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 float vnoise(vec3 p) {
@@ -86,6 +89,12 @@ float cloud_light(vec3 p, vec3 sd, int lsteps, float t) {
 	return exp(-tau * 1.25);
 }
 
+// cloud iridescence: pastel diffraction colours in thin cloud near the sun (clear skies, and seen from
+// above the deck where the layer is thin). The hue cycles as the angle from the sun grows.
+vec3 irid_color(float a) {
+	return 0.5 + 0.5 * cos(a * 80.0 + vec3(0.0, 2.1, 4.2));
+}
+
 // raymarch the slab: returns rgb (scattered light, HDR) and a (coverage 0..1)
 vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, int steps, int lsteps) {
 	if (rd.y < 0.02) return vec4(0.0);
@@ -100,6 +109,8 @@ vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, i
 	vec3 acc = vec3(0.0);
 	float trans = 1.0;
 	const float SIGMA = 0.0033;
+	float sun_ang = acos(clamp(dot(rd, normalize(sun_dir)), -1.0, 1.0));
+	vec3 irid = irid_color(sun_ang) * exp(-sun_ang * sun_ang * 30.0);
 	for (int i = 0; i < 12; i++) {
 		if (i >= steps) break;
 		vec3 p = ro + rd * step_t;
@@ -110,6 +121,7 @@ vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, i
 			vec3 lc = sun_c * light + fill;                        // sun plus blue sky fill in the shade
 			lc = mix(lc, grey * (0.4 + 0.6 * light), dark);        // storm greys and darkens the shade
 			vec3 sc = lc + sun_c * powder * light * 1.4;           // silver lining on lit edges
+			sc += irid * (1.0 - dens) * 0.55;                      // thin edges near the sun iridesce
 			float step_ext = exp(-dens * dt * SIGMA);
 			acc += sc * trans * (1.0 - step_ext);
 			trans *= step_ext;
@@ -141,6 +153,8 @@ vec4 march_low_cloud(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
 	vec3 acc = vec3(0.0);
 	float trans = 1.0;
 	const float SIGMA = 0.016;
+	float sun_ang = acos(clamp(dot(rd, normalize(sun_dir)), -1.0, 1.0));
+	vec3 irid = irid_color(sun_ang) * exp(-sun_ang * sun_ang * 30.0);
 	for (int i = 0; i < 10; i++) {
 		if (i >= steps) break;
 		vec3 p = ro + rd * step_t;
@@ -158,9 +172,56 @@ vec4 march_low_cloud(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
 			float lit = exp(-depth * 1.8);
 			vec3 lc = grey * (0.30 + 0.28 * depth);                 // grey base, a little darker deep inside
 			lc += sun_c * lit * 1.7;                                 // bright sunlit, rolling top
+			lc += irid * (1.0 - dens) * 0.55;                       // thin top and edges near the sun iridesce
 			float step_ext = exp(-dens * dt * SIGMA);
 			acc += lc * trans * (1.0 - step_ext);
 			trans *= step_ext;
+		}
+		if (trans < 0.02) break;
+		step_t += dt;
+	}
+	return vec4(acc, 1.0 - trans);
+}
+
+// ------------------------------------------------------------------ storm cell (A2): a dark rotating base with a lowered wall cloud, where the funnel hangs
+vec4 march_storm_cell(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
+	float strength = g_storm.z;
+	if (strength < 0.01 || rd.y < 0.02) return vec4(0.0);
+	vec2 anchor = g_storm.xy;
+	float cy = 900.0;
+	float thick = 700.0;
+	float tb = (cy - ro.y) / rd.y;
+	float tt = (cy + thick - ro.y) / rd.y;
+	if (tt < 0.0) return vec4(0.0);
+	float t0 = max(tb, 0.0);
+	float t1 = min(tt, 22000.0);
+	if (t0 >= t1) return vec4(0.0);
+	int steps = 6;
+	float dt = (t1 - t0) / float(steps);
+	float step_t = t0 + dt * 0.5;
+	vec3 acc = vec3(0.0);
+	float trans = 1.0;
+	const float SIGMA = 0.009;
+	float radius = 1700.0 * strength;
+	for (int i = 0; i < 8; i++) {
+		if (i >= steps) break;
+		vec3 p = ro + rd * step_t;
+		vec2 rel = p.xz - anchor;
+		float r = length(rel);
+		if (r < radius) {
+			float h = clamp((p.y - cy) / thick, 0.0, 1.0);
+			float ang = atan(rel.y, rel.x) + TIME * 0.12;   // slow rotation about the anchor
+			float cov = fbmn(vec3(r * 0.0011, ang * 1.5, TIME * 0.008), 3);
+			float wall = smoothstep(420.0, 30.0, r) * (1.0 - h * 1.2);   // the lowered wall cloud at the anchor
+			float prof = smoothstep(0.0, 0.18, h) * (1.0 - smoothstep(0.6, 1.0, h));
+			float dens = mix(0.25, 0.9, cov) * prof * (0.55 + 0.75 * wall) * strength * (1.0 - smoothstep(radius * 0.6, radius, r));
+			if (dens > 0.002) {
+				vec3 lc = grey * (0.16 + 0.12 * (1.0 - h)) + vec3(0.07, 0.11, 0.09);   // dark green-grey
+				lc += sun_c * 0.06 * smoothstep(0.6, 1.0, h);   // a faint sun on the top
+				float step_ext = exp(-dens * dt * SIGMA);
+				acc += lc * trans * (1.0 - step_ext);
+				trans *= step_ext;
+			}
 		}
 		if (trans < 0.02) break;
 		step_t += dt;
@@ -269,6 +330,8 @@ void sky() {
 			ci *= 0.55 + 0.45 * smoothstep(0.5, 0.75, bands);   // mostly where a broad band sits
 			ci = clamp(ci, 0.0, 1.0) * cirrus * (1.0 - cloud_a) * smoothstep(0.02, 0.28, dir.y) * (1.0 - 0.7 * dark);
 			vec3 ci_col = mix(vec3(0.88, 0.92, 1.0), vec3(1.0, 0.66, 0.42), warm * day * (0.4 + 0.6 * smoothstep(0.0, 0.7, mu)));
+			// iridescence: thin cirrus near the sun shows pastel colours
+			ci_col += irid_color(acos(clamp(mu, -1.0, 1.0))) * exp(-acos(clamp(mu, -1.0, 1.0)) * acos(clamp(mu, -1.0, 1.0)) * 30.0) * 0.5;
 			cloud_col = mix(cloud_col, ci_col, ci / max(cloud_a + ci, 1e-3));
 			cloud_a = clamp(cloud_a + ci * 0.65, 0.0, 1.0);
 		}
@@ -288,6 +351,16 @@ void sky() {
 	vec3 sky_col = col + vec3(1.0, 0.95, 0.85) * disc * (1.0 - occl) + night_extra * (1.0 - occl);
 	sky_col = mix(sky_col, cloud_col, cloud_a);
 	sky_col = mix(sky_col, low_col, low_a);
+	// storm cell (A2): a dark rotating base with a wall cloud, hanging the funnel
+	vec3 storm_col = vec3(0.0);
+	float storm_a = 0.0;
+	if (g_storm.z > 0.01) {
+		vec4 sc2 = march_storm_cell(cam_pos, dir, sun_c, grey);
+		storm_col = sc2.rgb; storm_a = clamp(sc2.a, 0.0, 1.0);
+	}
+	sky_col = mix(sky_col, storm_col, storm_a);
+	// green-grey sky tint while the cell is active
+	sky_col = mix(sky_col, vec3(0.16, 0.20, 0.18), g_storm.z * 0.35);
 	// below the horizon: ground haze colour
 	if (dir.y < 0.0) {
 		vec3 g = mix(vec3(0.08, 0.09, 0.08), vec3(0.30, 0.31, 0.26), day);
@@ -302,7 +375,10 @@ void sky() {
 	}
 	// snow: a flat bright grey sky, low contrast
 	sky_col = mix(sky_col, vec3(0.74, 0.76, 0.80) * (0.85 + 0.15 * day), snow * 0.85);
-	// lightning lights the cloud volume from inside: the deck glows, the clear sky barely
-	sky_col += vec3(0.7, 0.75, 1.0) * flash * 3.0 * (0.2 + 2.6 * cloud_a);
+	// lightning lights the cloud volume from inside; a bolt flashes brighter in its own direction
+	float bolt = max(dot(dir, normalize(bolt_dir)), 0.0);
+	sky_col += vec3(0.7, 0.75, 1.0) * flash * 3.0 * (0.2 + 2.6 * cloud_a) * (1.0 + 2.0 * bolt);
+	// other effects can darken the sky (fireworks nights, storms)
+	sky_col *= (1.0 - 0.55 * g_sky_dark);
 	COLOR = sky_col;
 }
