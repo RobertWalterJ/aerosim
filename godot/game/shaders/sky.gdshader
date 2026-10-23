@@ -23,6 +23,7 @@ uniform float moon_illum : hint_range(0.0, 1.0) = 0.5; // fraction of the moon's
 uniform vec3 cam_pos = vec3(0.0, 100.0, 0.0);         // camera world position (for the cloud raymarch)
 uniform int cloud_quality = 1;                        // 0 low, 1 medium, 2 high
 uniform vec3 haze_col = vec3(0.62, 0.70, 0.80);       // horizon haze colour (set from env.fog_light_color, = g_haze)
+uniform float aurora : hint_range(0.0, 1.0) = 0.0;    // aurora strength: green ribbon in the night sky
 global uniform vec4 g_bolt;                           // lightning bolt: xyz = unit direction (sky toward ground), w = strength 0..1
 global uniform vec4 g_storm;                          // storm cell: x = anchor x, y = anchor z, z = strength 0..1, w unused
 global uniform float g_sky_dark;                      // other effects darken the sky (0..1)
@@ -246,9 +247,21 @@ void sky() {
 	// brighten toward the sun (forward scattering), so the sky and the far hills share one haze colour
 	vec3 milk = haze_col * (1.15 + 0.7 * pow(max(mu, 0.0), 3.0) * day);
 	col = mix(col, milk, clamp(haze * 0.6 + fog * (0.55 + 0.45 * (1.0 - up)), 0.0, 1.0));
+	// smoke haze at sunset: a warm brown haze low in the sky while the sun is low
+	float smoke = warm * day * (1.0 - up) * (0.5 + 0.5 * pow(max(mu, 0.0), 2.0));
+	col = mix(col, vec3(0.55, 0.40, 0.28), smoke * 0.22);
 	// Mie glow and sun disc
 	float glow = pow(max(mu, 0.0), 6.0) * 0.35 + pow(max(mu, 0.0), 64.0) * 0.8;
 	col += vec3(1.0, 0.82, 0.58) * glow * day * (1.0 - 0.8 * cover);
+	// 22-degree halo: a faint white ring from ice crystals in thin cirrus, only in daylight
+	float halo_ang = acos(clamp(mu, -1.0, 1.0));
+	float halo = exp(-pow((halo_ang - 0.38397) / 0.016, 2.0));
+	col += vec3(1.0, 0.96, 0.90) * halo * 0.10 * day * cirrus;
+	// rainbow: a colour arc opposite the sun during a sun shower, red outside and violet inside
+	float ra = acos(clamp(-mu, -1.0, 1.0));
+	float band = exp(-pow((ra - 0.716) / 0.02, 2.0));
+	vec3 rcol = 0.5 + 0.5 * cos((0.733 - ra) * 80.0 + vec3(0.0, 2.09, 4.19));
+	col += rcol * band * rain * day * 0.25 * (1.0 - cover);
 	// distant ridges beyond the edge of the modelled land: two hazy silhouettes, the far one paler
 	float az = atan(dir.x, dir.z);
 	float ridge_far = 0.010 + 0.042 * vnoise(vec3(az * 1.7, 0.5, 0.5)) + 0.014 * vnoise(vec3(az * 6.0, 2.0, 0.5));
@@ -304,6 +317,14 @@ void sky() {
 		// a soft halo around the moon
 		night_extra += vec3(0.6, 0.7, 0.9) * exp(-pow(acos(clamp(mu_m, -1.0, 1.0)) / 0.06, 2.0)) * 0.05 * moon_illum * moon_up;
 		night_extra *= night;
+		// aurora: a green wavy ribbon with a faint purple lower edge, high in the night sky
+		if (aurora > 0.01) {
+			float ay = dir.y;
+			float aribbon = exp(-pow((ay - 0.5) / 0.16, 2.0));
+			float awave = 0.5 + 0.5 * sin(dir.x * 6.0 + vnoise(vec3(dir.z * 1.5, 0.5, TIME * 0.05)) * 9.0);
+			night_extra += vec3(0.05, 0.75, 0.35) * aribbon * awave * aurora * 0.55;
+			night_extra += vec3(0.45, 0.15, 0.75) * aribbon * (1.0 - awave) * aurora * 0.2;
+		}
 	}
 	// ---- volumetric clouds
 	vec3 sun_c = mix(vec3(1.0, 1.0, 1.0), vec3(1.0, 0.60, 0.34), warm * day) * day;
