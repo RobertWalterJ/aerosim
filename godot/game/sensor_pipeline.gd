@@ -46,6 +46,15 @@ var _burst_c: Array[Color] = [Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0), Color(
 var _burst_k: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _burst_wash := 0.0
 
+# session A (camera): storm/funnel exposure dip. Session B's storm and funnel call event_dim() to darken the scene.
+var _event_dim := 0.0
+var _event_dim_target := 0.0
+
+## A storm or funnel darkening the scene: an exposure dip. `strength` 0..1, where 1.0 is about 1.2 stops darker.
+## It fades over about 1.5 s. Called from session B's storm and funnel runtime.
+func event_dim(strength: float) -> void:
+	_event_dim_target = clampf(strength, 0.0, 1.0)
+
 ## A firework burst seen by this camera: a short lens flash, a streak and a ghost, and it nudges the auto exposure.
 ## `strength` 0..1.6 (a big shell is about 1.0). The effect fades over about 1.2 s. Called from game/fireworks.gd.
 func burst_glare(world_pos: Vector3, colour: Color, strength: float) -> void:
@@ -301,7 +310,8 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	wb_kelvin += (wb_target - wb_kelvin) * (1.0 - exp(-minf(dt, 0.1) / (0.9 if wb_target < wb_kelvin else 2.0)))
 	# the camera's exposure follows the metered scene, slowly: it opens up quickly in the dark, and is slow to stop down
 	# when bright light arrives, so the picture stays washed out for a moment before it settles. Worked out here, not in a shader.
-	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt - 0.35 * minf(bwash, 1.2), log(0.1) / log(2.0), log(1.6) / log(2.0))
+	_event_dim += (_event_dim_target - _event_dim) * (1.0 - exp(-minf(dt, 0.1) / 1.5))
+	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt - 0.35 * minf(bwash, 1.2) - 1.2 * _event_dim, log(0.1) / log(2.0), log(1.6) / log(2.0))
 	var tau := 0.9 if tgt < _log_e else 0.45
 	_log_e += (tgt - _log_e) * (1.0 - exp(-minf(dt, 0.1) / tau))
 	_over = clampf((_log_e - tgt) / 1.5, 0.0, 1.0)     # how far the picture is still over-exposed: the haze lasts only while it is
