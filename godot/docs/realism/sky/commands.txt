@@ -27,3 +27,7 @@ S2 cirrus, haze, horizon. After images: docs/realism/sky/s2/.
   hazy_horizon:   sky1,clock16.0,date3,at-18_150_36_190_-20
   fog_horizon:    sky3,clock16.0,date3,at-18_150_36_190_-20
   sunset_cirrus:  sky0,clock18.6,date3,facesun,at-18_150_36_190_-20
+
+S3 sun, sunset, twilight, night. Time series: docs/realism/sky/s3/.
+  t5_5..t19_2 (daytime):  sky0,date3,clock<h>,facesun,at-18_150_36_190_-20
+  t5_5, t20_5, t23_0 (night, sky up): sky0,date3,clock<h>,at-18_150_36_270_30

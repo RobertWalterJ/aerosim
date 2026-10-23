@@ -109,3 +109,16 @@ Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_sh
 - Cirrus rebuilt: a broad-band layer plus a fine wisp layer (two anisotropic fbm octaves), thresholded so streaks sit mostly on the bands, and warm pink at sunset when the low sun lights them.
 - Evidence: `docs/realism/sky/s2/*.jpg` (clear, hazy, foggy horizon from 150 m, sunset cirrus). Fog desaturates and softens the horizon as intended (saturation 0.31 clear -> 0.10 fog, edge sharpness 7.1 -> 3.5).
 - Not verified: the exact look and the visual "no seam" (this model cannot view images); the mechanism is that the sky and the hills read the same `env.fog_light_color`.
+
+### S3 sun, sunset, twilight, night (done, gate green)
+- The day/night and warm transitions already followed `sun_dir.y` (solar position). S3 adds the missing night pieces and tunes the cloud light.
+- Sunset reds on cloud undersides: the cloud shade colour (`fill`) now warms toward orange-brown at low sun (`warm * day * 0.55`), instead of staying blue.
+- Night clouds: a faint cool moonlight term (`0.10, 0.14, 0.22` scaled by moon illumination, moon height and `1 - day`) lifts the cloud tops at night.
+- Moon halo: a soft Gaussian halo (`exp(-(angle/0.06)^2)`, amplitude 0.05) around the moon, on top of the existing tight glow.
+- Dimmed the bright night elements toward "darker than now": star brightness 1.6 -> 1.25, moon disc 0.22 -> 0.18.
+- Evidence: `docs/realism/sky/s3/*.jpg` (time series clock 5.5, 6.5, 7.5, 12.5, 17.5, 18.5, 19.2, 20.5, 23.0 on date3, clear; daytime shots face the sun, the three night shots look up at 30 degrees). Sun elevation at each: -18.1, -7.5, 3.3, 44.9, 17.3, 6.7, -0.9, -14.9, -38.2 degrees.
+- Not verified / to judge: the raw night sky is already very dark (zenith about 0.004-0.018), but the Full camera auto-exposure meters the scene to mid-grey, so night screenshots read bright (mean luma about 108-128 looking up). The sky lane can only make the raw sky dark, which it is; if Robert wants darker night footage the lever is the sensor exposure floor at night, which is the camera lane's `sensor_pipeline.gd`.
+- Taste questions for Claude and the owner:
+  - S7. Sunset cloud colour: the cloud shade now goes orange at low sun. Strong enough, or more red?
+  - S8. Night sky: with auto-exposure it still reads bright. Want the sensor to hold the night darker (a camera-lane change), or is the current moonlit look right?
+  - S9. Star and moon brightness: dimmed about 20% from before. Right, or dimmer?

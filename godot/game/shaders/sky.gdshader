@@ -156,7 +156,7 @@ void sky() {
 		float mag = pow((h - 0.80) / 0.20, 2.0) * 3.0 + 0.4;
 		vec3 starc = mix(vec3(0.75, 0.85, 1.0), vec3(1.0, 0.88, 0.7), fract(h * 91.7));
 		float hide = smoothstep(0.0, 0.1, dir.y) * (1.0 - 0.9 * haze) * (1.0 - fog) * (1.0 - 0.8 * moon_illum * moon_up);
-		night_extra += starc * star * mag * tw * hide * 1.6;
+		night_extra += starc * star * mag * tw * hide * 1.25;
 		float band = exp(-pow(dot(dir, normalize(vec3(0.3, 0.8, -0.5))) * 4.0, 2.0));
 		night_extra += vec3(0.30, 0.34, 0.46) * band * (0.25 + 0.75 * fbm(dir * 7.0)) * 0.05 * hide;
 		col += vec3(0.0035, 0.0055, 0.012) * moon_illum * moon_up * night * (1.0 - 0.5 * up);
@@ -179,15 +179,19 @@ void sky() {
 				float lit = smoothstep(-0.04, 0.10, dot(nrm, lgt));
 				float maria = 0.55 + 0.45 * fbm(vec3(pm * 2.2, 3.0));
 				float shade = (lit * maria + 0.02) * smoothstep(1.0, 0.92, r2);
-				night_extra += vec3(1.0, 0.97, 0.9) * shade * 0.22 * moon_up;
+				night_extra += vec3(1.0, 0.97, 0.9) * shade * 0.18 * moon_up;
 			}
 		}
 		night_extra += vec3(0.55, 0.65, 1.0) * (pow(max(mu_m, 0.0), 220.0) * 0.12 + pow(max(mu_m, 0.0), 24.0) * 0.012) * moon_illum * moon_up;
+		// a soft halo around the moon
+		night_extra += vec3(0.6, 0.7, 0.9) * exp(-pow(acos(clamp(mu_m, -1.0, 1.0)) / 0.06, 2.0)) * 0.05 * moon_illum * moon_up;
 		night_extra *= night;
 	}
 	// ---- volumetric clouds
 	vec3 sun_c = mix(vec3(1.0, 1.0, 1.0), vec3(1.0, 0.60, 0.34), warm * day) * day;
-	vec3 fill = mix(vec3(0.03, 0.04, 0.07), vec3(0.30, 0.42, 0.62), day) * (0.4 + 0.6 * day);
+	vec3 fill = mix(vec3(0.03, 0.04, 0.07), vec3(0.30, 0.42, 0.62), day);
+	fill = mix(fill, vec3(0.55, 0.36, 0.20), warm * day * 0.55);   // sunset warms the cloud shade (reds on the undersides)
+	fill *= (0.4 + 0.6 * day);
 	vec3 grey = mix(vec3(0.30, 0.32, 0.36), vec3(0.09, 0.10, 0.14), dark);
 	vec3 cloud_col = vec3(0.0);
 	float cloud_a = 0.0;
@@ -212,6 +216,8 @@ void sky() {
 			cloud_a = clamp(cloud_a + ci * 0.65, 0.0, 1.0);
 		}
 	}
+	// faint moonlight lifts the clouds at night
+	cloud_col += vec3(0.10, 0.14, 0.22) * moon_illum * moon_up * (1.0 - day) * cloud_a;
 	// the sun is hidden by cloud
 	vec3 sky_col = col + vec3(1.0, 0.95, 0.85) * disc * (1.0 - cloud_a) + night_extra * (1.0 - cloud_a);
 	sky_col = mix(sky_col, cloud_col, cloud_a);
