@@ -143,7 +143,7 @@ func _build_airliner() -> void:
 		_airliner.visible = true
 		return
 	_airliner = MeshInstance3D.new()
-	_airliner.mesh = NewModels2.airliner_far()
+	_airliner.mesh = NewModels2.airliner_far()["mesh"]   # airliner_far() returns a Dictionary since models4 (mesh, mesh_far, length, wingspan, height, gear)
 	_airliner.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_airliner)
 	_airliner.position = Vector3(0.0, 950.0, 0.0)
