@@ -234,6 +234,7 @@ func _ready() -> void:
 	await _stage("Setting up the camera", 0.82)
 	sensor = SensorPipeline.new()
 	add_child(sensor)
+	if fireworks: fireworks.set_sensor(sensor)   # session B: bursts flash the lens and nudge the exposure
 	var touch_device := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	# real phones start in the plain picture; a laptop with a touch screen keeps the full camera (the Display tab can switch either way)
 	sensor.simple = OS.has_feature("mobile") or "simple" in OS.get_cmdline_user_args()
@@ -259,6 +260,7 @@ func _ready() -> void:
 	fireworks = Fireworks.new()
 	add_child(fireworks)
 	fireworks.setup(terrain, home)
+	fireworks.set_sensor(sensor)   # session B: bursts flash the lens and nudge the exposure
 	hud.fireworks_changed.connect(func(i: int): fireworks.request_show(i))
 	hud.surprise_changed.connect(func(on: bool): fireworks.surprise_on = on)
 	fireworks.show_ended.connect(func(): hud.fireworks_show = 0; hud._sync())
@@ -806,6 +808,12 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.force_show(fidx)
 		elif c.begins_with("fwskip"):
 			fireworks.skip_to(float(c.substr(6)))
+		elif c == "fwlaunch":     # dev: one shell rising 240 m ahead, to photograph the launch, smoke trail and burst
+			fireworks.test_launch(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c.begins_with("fwbig"):     # dev: one big burst close enough to study its flash on the lens and metering
+			fireworks.test_big(int(c.substr(5)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c == "fwfar":     # dev: one break 1.6 km from the pilot, for the far distance sound and delay
+			fireworks.test_far()
 		elif c == "fwwall":     # dev: one burst of every type in a row, to judge the shapes
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
@@ -853,6 +861,7 @@ func _screenshot_mode(arg: String) -> void:
 	img.save_png(path)
 	print("saved ", path)
 	print("fireworks: ", fireworks.stats())
+	print("camera: exposure %.2f iso %d shutter 1/%d over %.2f meanlog %.2f burstwash %.3f" % [sensor.exposure, sensor.iso_shown, int(round(1.0 / maxf(sensor.shutter_shown, 1e-6))), sensor._over, sensor._mean_log, sensor._burst_wash])
 	print("birds: ", birds.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
