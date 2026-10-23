@@ -185,6 +185,9 @@ void fragment() {
 	float vr = length(a) * 0.7071; col *= 1.0 - uVig * vr * vr;
 	// sensor ISO noise (shot + read), luminance and chroma, scaled by analogue gain
 	float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+	// fixed-pattern noise: a stable per-pixel offset (does not move frame to frame), faint at low ISO
+	float fp = hash(FRAGCOORD.xy * 1.31) - 0.5;
+	col += vec3(fp) * (0.002 + 0.010 * max(lum, 0.0)) * uIso * 0.5;
 	vec2 np = FRAGCOORD.xy + vec2(uFrame * 17.0, uFrame * 31.0);
 	float n1 = hash(np) - 0.5; float n2 = hash(np + 7.7) - 0.5; float n3 = hash(np + 13.1) - 0.5;
 	float amp = (0.004 + 0.045 * sqrt(max(lum, 0.0))) * uIso * 0.45;

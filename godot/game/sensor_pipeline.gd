@@ -377,6 +377,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	var cn := 1 - _codec_idx
 	var cm: ShaderMaterial = _passes["codec%d" % cn]
 	cm.set_shader_parameter("uBad", rf_bad if link_effects else 0.0); cm.set_shader_parameter("uFrame", float(_frame))
+	cm.set_shader_parameter("uLink", 1.0 if link_effects else 0.0)
 	_codec[cn].render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_codec[_codec_idx].render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_codec_idx = cn
