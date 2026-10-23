@@ -270,7 +270,8 @@ Natural sky events, each tied to its own conditions (no manual toggle yet; the E
 - **Sun halo** (done, gate PASS skyhalo): a faint 22-degree white ring around the sun, gated by `cirrus` (ice crystals) and daylight. `halo` in `sky.gdshader`.
 - **Rainbow** (done, gate PASS skyrainbow): a colour arc opposite the sun during a sun shower (`rain > 0` and daylight), red outside, violet inside, suppressed by heavy cloud. Evidence `docs/realism/sky/halo/halo.jpg`.
 - **Aurora** (done, gate PASS skyaurora): a green wavy ribbon with a faint purple lower edge high in the night sky, driven by an `aurora` uniform (0..1) with `aurora`/`noaurora` test tokens. Evidence `docs/realism/sky/aurora/aurora.jpg`.
-- Remaining A1 events: smoke haze at sunset, and heat shimmer. Contrails were reassigned to session B.
+- **Smoke haze at sunset** (done, gate PASS skysmoke): a warm brown haze low in the sky while the sun is low (`warm * day * (1 - up)` mixed toward `vec3(0.55, 0.40, 0.28)` at 0.22). The heat shimmer is deferred (it is a ground-level refraction effect, not a sky-colour effect, and needs a screen-space distortion pass).
+- Contrails were reassigned to session B.
 - Not verified by eye (this model cannot view images). Taste question S18: the halo is very faint (0.10) and the rainbow appears only in rain with the sun out; right strength, or stronger?
 ## Models batch 2 (lane/models2, Claude, 2026-10-23)
 - **Where:** `game/new_models2.gd` (class `NewModels2`), contract rows in `game/README-models.md` under "Batch 2". Nothing is wired into the game yet: DSH wires them, Claude models them (same rule as batch 1).
