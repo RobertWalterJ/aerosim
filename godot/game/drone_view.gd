@@ -150,6 +150,37 @@ func _mat(c: Color, rough: float, metal: float) -> StandardMaterial3D:
 	m.albedo_color = c; m.roughness = rough; m.metallic = metal
 	return m
 
+static var _wear: ImageTexture
+
+## Roughness wear map: 0.8 almost everywhere (so the material keeps its own roughness), with faint mottling, fine
+## straight scratches and a few scuffs that are rougher, so they catch the light as dull lines on glossy parts.
+static func _wear_tex() -> ImageTexture:
+	if _wear != null: return _wear
+	var n := 256
+	var img := Image.create(n, n, true, Image.FORMAT_L8)
+	var rng := RandomNumberGenerator.new(); rng.seed = 515
+	var fn := FastNoiseLite.new(); fn.frequency = 0.035; fn.seed = 3
+	for y in n:
+		for x in n:
+			img.set_pixel(x, y, Color(0.8 + 0.05 * fn.get_noise_2d(x, y), 0, 0))
+	for s in 70:
+		var p := Vector2(rng.randf() * n, rng.randf() * n)
+		var a := rng.randf() * TAU if s % 3 != 0 else rng.randf_range(-0.3, 0.3)     # many run roughly the same way, as wiping does
+		var L := rng.randf_range(8.0, 60.0)
+		var v := rng.randf_range(0.9, 1.0)
+		for t in int(L):
+			var q := p + Vector2(cos(a), sin(a)) * t
+			img.set_pixel(posmod(int(q.x), n), posmod(int(q.y), n), Color(v, 0, 0))
+	for s in 12:
+		var c := Vector2(rng.randf() * n, rng.randf() * n)
+		var r := rng.randf_range(2.0, 6.0)
+		for y in range(int(c.y - r), int(c.y + r) + 1):
+			for x in range(int(c.x - r), int(c.x + r) + 1):
+				if Vector2(x, y).distance_to(c) < r and rng.randf() < 0.6: img.set_pixel(posmod(x, n), posmod(y, n), Color(0.95, 0, 0))
+	img.generate_mipmaps()
+	_wear = ImageTexture.create_from_image(img)
+	return _wear
+
 func _make_materials(id: String) -> void:
 	var accent_col: Color = {"freestyle": Color(1.0, 0.42, 0.08), "race": Color(0.25, 0.95, 0.45), "cinewhoop": Color(0.2, 0.6, 1.0),
 		"mini": Color(0.55, 0.57, 0.6), "cinema": Color(0.9, 0.22, 0.16)}.get(id, Color(1.0, 0.5, 0.1))
@@ -176,9 +207,94 @@ func _make_materials(id: String) -> void:
 	var bm := StandardMaterial3D.new()
 	bm.vertex_color_use_as_albedo = true; bm.vertex_color_is_srgb = true; bm.roughness = 0.38; bm.metallic = 0.05
 	_m["blade"] = bm
+	_m["gold"] = _mat(Color(0.83, 0.66, 0.32), 0.3, 0.95)
+	var dm := StandardMaterial3D.new()        # stickers and printed marks, coloured per vertex
+	dm.vertex_color_use_as_albedo = true; dm.vertex_color_is_srgb = true; dm.roughness = 0.55
+	_m["decal"] = dm
+	# light wear: fine scratches and scuffs vary the roughness, projected from three sides (the parts have no UVs)
+	for key in ["carbon", "carbon_edge", "metal", "dark_metal", "shell", "shell_dark", "plastic", "battery", "accent", "black"]:
+		var sm: StandardMaterial3D = _m[key]
+		sm.roughness_texture = _wear_tex()
+		sm.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		sm.uv1_triplanar = true
+		sm.uv1_world_triplanar = false
+		sm.uv1_scale = Vector3(14.0, 14.0, 14.0)
+		sm.roughness = minf(1.0, sm.roughness * 1.25)
 
 func _xf(pos: Vector3, rot := Vector3.ZERO) -> Transform3D:
 	return Transform3D(Basis.from_euler(rot), pos)
+
+# ------------------------------------------------------------------ small details: screws, bolts, cables, labels, fittings
+# All go into the body kit with outline "none", so the chooser drawings are unchanged, and they reuse the drone's own
+# materials (one extra surface at most: the vertex-coloured "decal" material for stickers and printed marks).
+
+## A frame turned so its +y points along `up`.
+func _orient(p: Vector3, up: Vector3) -> Transform3D:
+	var y := up.normalized()
+	if y.dot(Vector3.UP) > 0.9999: return Transform3D(Basis.IDENTITY, p)
+	if y.dot(Vector3.UP) < -0.9999: return Transform3D(Basis(Vector3.RIGHT, PI), p)
+	return Transform3D(Basis(Quaternion(Vector3.UP, y)), p)
+
+## A button-head screw (or a hex bolt head when hex is true) standing on a surface with normal `up`.
+func _screw(p: Vector3, r := 0.0014, up := Vector3.UP, mat_key := "dark_metal", hex := false) -> void:
+	var prof := DroneParts.crisp(PackedVector2Array([Vector2(0, 0), Vector2(r, 0), Vector2(r, r * 0.4), Vector2(r * 0.75, r * 0.72), Vector2(0, r * 0.72)])) if not hex \
+		else DroneParts.crisp(PackedVector2Array([Vector2(0, 0), Vector2(r, 0), Vector2(r, r * 0.7), Vector2(0, r * 0.7)]))
+	_kit.add(_m[mat_key], DroneParts.lathe(prof, 6 if hex else 8), _orient(p, up), Color.WHITE, "none")
+
+## A cable from a to b that sags a little in the middle (motor leads, camera and antenna leads).
+func _cable(a: Vector3, b: Vector3, r: float, sag: float, mat_key := "black") -> void:
+	var m := (a + b) * 0.5 + Vector3(0, -sag, 0)
+	_kit.add(_m[mat_key], DroneParts.tube(a, m, r, r, 6), Transform3D.IDENTITY, Color.WHITE, "none")
+	_kit.add(_m[mat_key], DroneParts.tube(m, b, r, r, 6), Transform3D.IDENTITY, Color.WHITE, "none")
+
+## A flat rectangle (w along the frame's x, l along its z) lying on a surface: stickers and printed marks.
+func _rect(xf: Transform3D, w: float, l: float, col: Color) -> void:
+	var a := Vector3(-w * 0.5, 0, -l * 0.5); var b := Vector3(w * 0.5, 0, -l * 0.5)
+	var c := Vector3(w * 0.5, 0, l * 0.5); var d := Vector3(-w * 0.5, 0, l * 0.5)
+	var pos := PackedVector3Array([a, c, b, a, d, c])
+	var nrm := PackedVector3Array(); nrm.resize(6); nrm.fill(Vector3.UP)
+	var cols := PackedColorArray(); cols.resize(6); cols.fill(col)
+	_kit.add(_m["decal"], [pos, nrm, cols], xf, col, "none")
+
+## A plain sticker: a pale label with lines of tiny dark "print" and a short bar-code, no words and no brand marks.
+func _sticker(xf: Transform3D, w: float, l: float, bg := Color(0.86, 0.86, 0.84), ink := Color(0.08, 0.08, 0.09)) -> void:
+	_rect(xf, w, l, bg)
+	var lift := Transform3D(Basis.IDENTITY, Vector3(0, 0.00012, 0))
+	var rows := 3
+	for i in rows:
+		var lw := w * (0.75 - 0.18 * i)
+		_rect(xf * lift * Transform3D(Basis.IDENTITY, Vector3(-w * 0.5 + 0.08 * w + lw * 0.5, 0, -l * 0.5 + l * (0.18 + 0.16 * i))), lw, l * 0.07, ink)
+	var bars := 9
+	for j in bars:
+		var bw := w * (0.012 if j % 3 == 0 else 0.022)
+		_rect(xf * lift * Transform3D(Basis.IDENTITY, Vector3(-w * 0.38 + w * 0.085 * j, 0, l * 0.3)), bw, l * 0.26, ink)
+
+## Motor leads along the top of an arm: from the motor's foot back towards the body.
+func _motor_leads(p: Vector3, y: float, motor_r: float, inner: float) -> void:
+	var dir := Vector3(p.x, 0, p.z).normalized()
+	var side := Vector3(-dir.z, 0, dir.x)
+	var start := Vector3(p.x, y, p.z) - dir * (motor_r * 1.05)
+	var end := Vector3(dir.x * inner, y, dir.z * inner)
+	for s in [-1.0, 0.0, 1.0]:
+		_cable(start + side * (0.0016 * s), end + side * (0.0016 * s), 0.0007, 0.0004, "black")
+	_kit.add(_m["black"], DroneParts.tube(start.lerp(end, 0.35), start.lerp(end, 0.55), 0.0027, 0.0027, 8), _xf(Vector3(0, 0.0005, 0)), Color.WHITE, "none")   # heat-shrink sleeve
+
+## Two arm bolts where an arm leaves the body, and screws on the motor mount round the motor.
+func _arm_bolts(p: Vector3, y: float, near: float, motor_r: float) -> void:
+	var dir := Vector3(p.x, 0, p.z).normalized()
+	var side := Vector3(-dir.z, 0, dir.x)
+	for s in [-1.0, 1.0]:
+		_screw(Vector3(dir.x * near, y, dir.z * near) + side * (0.0045 * s), 0.0019, Vector3.UP, "metal", true)
+	for k in 4:
+		var a := TAU * (k + 0.5) / 4.0
+		var q := Vector3(p.x, y, p.z) + (dir * cos(a) + side * sin(a)) * (motor_r * 1.18)
+		_screw(q, 0.0011, Vector3.UP, "dark_metal")
+
+## The coaxial fitting at the foot of an antenna: a gold hex nut and a short black sleeve.
+func _sma(p: Vector3, axis: Vector3) -> void:
+	var xf := _orient(p, axis)
+	_kit.add(_m["gold"], DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, 0), Vector2(0.0034, 0), Vector2(0.0034, 0.0035), Vector2(0, 0.0035)])), 6), xf, Color.WHITE, "none")
+	_kit.add(_m["gold"], DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, 0.0035), Vector2(0.0022, 0.0035), Vector2(0.0022, 0.007), Vector2(0, 0.007)])), 10), xf, Color.WHITE, "none")
 
 ## A motor sitting on `base` (the top of its mount): a stator base, the bell with a coloured band, a shaft.
 ## Returns the height of the top of the bell.
@@ -226,6 +342,11 @@ func _battery(c: Vector3, size: Vector3, straps: Array, strap_mat: Material, lea
 	_kit.add(_m["label"], DroneParts.rbox(Vector3(size.x * 1.015, size.y * 1.015, size.z * 0.42), 9.0), _xf(c + Vector3(0, 0, -size.z * 0.05)), Color.WHITE, "none")
 	for sz in straps:
 		_kit.add(strap_mat, DroneParts.rbox(Vector3(size.x * 1.04, size.y * 1.05, 0.011), 9.0), _xf(c + Vector3(0, -size.y * 0.02, float(sz))), Color.WHITE, "none")
+		# the strap's metal buckle on top
+		_kit.add(_m["dark_metal"], DroneParts.rbox(Vector3(0.009, 0.0022, 0.0135), 6.0, 8), _xf(c + Vector3(size.x * 0.18, size.y * 0.5 + 0.0016, float(sz))), Color.WHITE, "none")
+	# a black grip pad under the pack, and a plain cell label on its side
+	_kit.add(_m["rubber"], DroneParts.rbox(Vector3(size.x * 0.9, 0.0016, size.z * 0.8), 8.0, 8), _xf(c + Vector3(0, -size.y * 0.5 - 0.0008, 0)), Color.WHITE, "none")
+	_sticker(Transform3D(Basis(Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(0, -1, 0)).orthonormalized(), c + Vector3(size.x * 0.5 + 0.0004, size.y * 0.05, size.z * 0.12)), size.z * 0.42, size.y * 0.6)
 	if lead:
 		var back := c + Vector3(0, -size.y * 0.25, size.z * 0.5)
 		_kit.add(_m["red"], DroneParts.tube(back + Vector3(0.004, 0, -0.002), back + Vector3(0.006, 0.004, 0.014), 0.0016, 0.0016, 8), Transform3D.IDENTITY, Color.WHITE, "none")
@@ -269,6 +390,18 @@ func _freestyle(af: Dictionary) -> Dictionary:
 	for p in pos:
 		top_y = _motor(_kit, p + Vector3(0, yb, 0), 0.0142, 0.0185, _m["metal"], _m["accent"])
 		_kit.add(_m["rubber"], DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, -0.03), Vector2(0.0052, -0.03), Vector2(0.0058, -0.0285), Vector2(0.0068, ya), Vector2(0, ya)])), 14), _xf(p))
+	# small details: arm bolts, motor screws and leads, top-plate screws, the antenna's fitting and a frame sticker
+	for p in pos:
+		_arm_bolts(p, yb, 0.034, 0.0142)
+		_motor_leads(p, yb + 0.0008, 0.0142, 0.03)
+	for sx in [-1.0, 1.0]:
+		for sz in [-0.042, 0.04]:
+			_screw(Vector3(sx * 0.0165, 0.028, sz), 0.0018, Vector3.UP, "dark_metal", true)
+	_sma(Vector3(0, 0.034, 0.054), Vector3(0, 0.032, 0.03))
+	for sx in [-1.0, 1.0]:
+		_kit.add(_m["tpu"], DroneParts.tube(Vector3(sx * 0.0285, 0.0353, 0.081), Vector3(sx * 0.0302, 0.0362, 0.0855), 0.0014, 0.0014, 6), Transform3D.IDENTITY, Color.WHITE, "none")   # receiver aerial tips
+	_cable(Vector3(0.006, 0.0, 0.02), Vector3(0.004, 0.025, 0.05), 0.0011, 0.002, "black")         # video lead up to the transmitter
+	_sticker(_xf(Vector3(0.0, 0.0281, 0.012)), 0.014, 0.024, Color(0.82, 0.82, 0.8))
 	return {
 		"yp": top_y + 0.0038, "led": func(p: Vector3) -> Vector3: return p + Vector3(0, yb - 0.003, 0) + Vector3(signf(p.x), 0, signf(p.z)) * 0.0118,
 		"spec": {"R": af["R"], "n": af["nBlades"], "root": 0.0045, "c_root": 0.15, "c_max": 0.245, "t_max": 0.42, "c_tip": 0.15, "sweep": 0.06, "pd": 0.8, "tc": 0.15,
@@ -301,6 +434,14 @@ func _race(af: Dictionary) -> Dictionary:
 	for p in pos:
 		top_y = _motor(_kit, p + Vector3(0, yb, 0), 0.0145, 0.0175, _m["black"], _m["accent"])
 		_kit.add(_m["rubber"], DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, -0.03), Vector2(0.0048, -0.03), Vector2(0.006, ya), Vector2(0, ya)])), 12), _xf(p))
+	for p in pos:
+		_arm_bolts(p, yb, 0.03, 0.0145)
+		_motor_leads(p, yb + 0.0008, 0.0145, 0.026)
+	for sx in [-1.0, 1.0]:
+		for sz in [-0.03, 0.032]:
+			_screw(Vector3(sx * 0.011, 0.024, sz), 0.0016, Vector3.UP, "metal", true)
+	_sma(Vector3(0, 0.024, 0.05), Vector3(0, 0.022, 0.014))
+	_sticker(_xf(Vector3(0.0, 0.0242, -0.022)), 0.012, 0.02, Color(0.15, 0.16, 0.17), Color(0.75, 0.95, 0.8))
 	return {
 		"yp": top_y + 0.0036, "led": func(p: Vector3) -> Vector3: return p + Vector3(0, yb - 0.003, 0) + Vector3(signf(p.x), 0, signf(p.z)) * 0.011,
 		"spec": {"R": af["R"], "n": af["nBlades"], "root": 0.0045, "c_root": 0.13, "c_max": 0.205, "t_max": 0.5, "c_tip": 0.12, "sweep": 0.09, "pd": 0.92, "tc": 0.13,
@@ -354,6 +495,16 @@ func _cinewhoop(af: Dictionary) -> Dictionary:
 	var top_y := 0.0
 	for p in pos:
 		top_y = _motor(_kit, p + Vector3(0, yb, 0), 0.0098, 0.0118, _m["black"], _m["accent"])
+		_motor_leads(p, yb + 0.0007, 0.0098, 0.022)
+		for sa in [0.6, -0.6]:      # screws holding each duct to the frame
+			var dd := Vector3(-p.x, 0, -p.z).normalized().rotated(Vector3.UP, float(sa))
+			_screw(p + dd * 0.0125 + Vector3(0, yb, 0), 0.0012, Vector3.UP, "dark_metal")
+	for sx in [-1.0, 1.0]:
+		for sz in [-0.03, 0.03]:
+			_screw(Vector3(sx * 0.0115, 0.002, sz), 0.0015, Vector3.UP, "dark_metal", true)
+	_sma(Vector3(0, 0.002, 0.045), Vector3(0, 0.022, 0.017))
+	_sticker(ac * Transform3D(Basis(Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(0, -1, 0)), Vector3(0.0292, 0.0, 0.0)), 0.016, 0.012)     # the action camera's side label
+	_cable(Vector3(-0.012, 0.004, -0.03), Vector3(-0.014, 0.012, -0.024), 0.0009, 0.001, "black")
 	return {
 		"yp": top_y + 0.003, "led": func(p: Vector3) -> Vector3: return p + Vector3(0, -0.018, 0) + Vector3(signf(p.x), 0, signf(p.z)).normalized() * (ri + 0.0072),
 		"spec": {"R": r, "n": af["nBlades"], "root": 0.004, "c_root": 0.2, "c_max": 0.34, "t_max": 0.45, "c_tip": 0.27, "sweep": 0.05, "pd": 1.0, "tc": 0.14,
@@ -396,6 +547,18 @@ func _mini(af: Dictionary) -> Dictionary:
 			# a slim landing foot under each front motor
 			_kit.add(shell, DroneParts.tube(Vector3(p.x, pod_bot + 0.002, p.z), Vector3(p.x * 1.03, -0.027, p.z * 1.03), 0.0042, 0.0028, 10))
 			_kit.add(_m["rubber"], DroneParts.sphere(0.003, 10), _xf(Vector3(p.x * 1.03, -0.027, p.z * 1.03)))
+	# small details: hinge pins at the arm roots, cooling vents on top, a status light strip, plain printed marks
+	for i in 4:
+		var p2 := pos[i]
+		var front2 := p2.z < 0.0
+		var root2 := Vector3(signf(p2.x) * 0.024, 0.017, -0.036) if front2 else Vector3(signf(p2.x) * 0.022, -0.012, 0.046)
+		_screw(root2 + Vector3(0, 0.0055, 0), 0.0021, Vector3.UP, "metal")
+	for k in 5:
+		_kit.add(_m["shell_dark"], DroneParts.rbox(Vector3(0.014, 0.0012, 0.0016), 6.0, 6), _xf(Vector3(0, 0.0278, 0.026 + 0.0034 * k)), Color.WHITE, "none")
+	_kit.add(_m["glass"], DroneParts.rbox(Vector3(0.012, 0.0022, 0.0012), 6.0, 6), _xf(Vector3(0, 0.0175, 0.0742)), Color.WHITE, "none")
+	_rect(_xf(Vector3(-0.012, 0.02815, -0.012)), 0.006, 0.0012, Color(0.45, 0.46, 0.48))
+	_rect(_xf(Vector3(-0.012, 0.02815, -0.0095)), 0.009, 0.0012, Color(0.45, 0.46, 0.48))
+	_sticker(Transform3D(Basis(Vector3.RIGHT, PI), Vector3(0, -0.0202, 0.01)), 0.016, 0.022)       # a plain rating label underneath
 	# the gimbal: a small camera head hung from the nose on a side arm, with its lens looking forward
 	_gkit.add(_m["shell_dark"], DroneParts.rbox(Vector3(0.022, 0.019, 0.019), 5.0), _xf(Vector3(0, 0, 0.001)))
 	_gkit.add(_m["dark_metal"], DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, 0), Vector2(0.0078, 0), Vector2(0.0078, 0.003), Vector2(0.0066, 0.0038), Vector2(0, 0.0038)])), 20), _xf(Vector3(0, 0, -0.0085), Vector3(-PI * 0.5, 0, 0)))
@@ -440,6 +603,24 @@ func _cinema(af: Dictionary) -> Dictionary:
 		for sz in [-1.0, 1.0]:
 			var mpos := Vector3(sx * float(af["armD"]), 0.0, sz * float(af["armD"]))
 			_kit.add(_m["carbon"], DroneParts.tube(sh, Vector3(mpos.x, 0.036, mpos.z), 0.0082, 0.0072, 14))
+	# tube clamps where each arm leaves the shoulder, a bolt on each
+	for sx in [-1.0, 1.0]:
+		var sh2 := Vector3(sx * 0.084, 0.034, 0.0)
+		for sz in [-1.0, 1.0]:
+			var mpos2 := Vector3(sx * float(af["armD"]), 0.036, sz * float(af["armD"]))
+			var dir2 := (mpos2 - sh2).normalized()
+			var cpos := sh2 + dir2 * 0.022
+			_kit.add(_m["dark_metal"], DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0.0084, -0.005), Vector2(0.0098, -0.005), Vector2(0.0098, 0.005), Vector2(0.0084, 0.005)])), 16), _orient(cpos, dir2), Color.WHITE, "none")
+			_screw(cpos + Vector3(0, 0.0098, 0), 0.0016, Vector3.UP, "metal", true)
+		# a fin antenna on each rear leg, a plain service label on each battery door, a yellow and black lift mark
+		var side_b := Basis(Vector3(0, 0, sx), Vector3(sx, 0, 0), Vector3(0, -1, 0)).orthonormalized()
+		_kit.add(_m["shell_dark"], DroneParts.rbox(Vector3(0.003, 0.03, 0.014), 6.0, 8), _xf(Vector3(sx * 0.11, 0.0, 0.07), Vector3(0, 0, sx * 0.25)), Color.WHITE, "none")
+		_sticker(Transform3D(side_b, Vector3(sx * 0.0513, 0.012, 0.04)), 0.026, 0.014, Color(0.78, 0.79, 0.8), Color(0.12, 0.12, 0.13))
+		for k in 4:
+			_rect(Transform3D(side_b, Vector3(sx * 0.0514, 0.022, -0.03 + 0.0032 * k)), 0.0016, 0.004, Color(0.95, 0.75, 0.1) if k % 2 == 0 else Color(0.05, 0.05, 0.05))
+	for k in 4:
+		_screw(Vector3((-1.0 if k < 2 else 1.0) * 0.03, 0.0428, (-1.0 if k % 2 == 0 else 1.0) * 0.045), 0.0017, Vector3.UP, "dark_metal")
+	_cable(Vector3(0.01, 0.0, -0.11), Vector3(0.026, -0.012, -0.12), 0.0016, 0.002, "black")      # gimbal lead from the nose
 	for p in pos:
 		_kit.add(shell, DroneParts.lathe(PackedVector2Array([Vector2(0, 0.022), Vector2(0.008, 0.0225), Vector2(0.0145, 0.028), Vector2(0.0175, 0.036), Vector2(0.0178, 0.042), Vector2(0, 0.042)]), 24), _xf(Vector3(p.x, 0, p.z)))
 		var top_y := _motor(_kit, Vector3(p.x, 0.042, p.z), 0.0172, 0.0155, _m["dark_metal"], _m["accent"])

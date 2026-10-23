@@ -209,7 +209,10 @@ static func _park_stone_walk(n: Node) -> void:
 			elif sz.y < 0.4 and sz.x > 1.5 and absf(sz.x - sz.z) < 0.05 and r >= 0.5 and r < 0.7: look = "ashlar"   # memorial steps
 			elif sz.y > 3.0 and sz.y < 4.0 and sz.x < 1.2 and r >= 0.5 and r < 0.7: look = "ashlar"           # gate piers
 			elif r < 0.7: look = "granite"                                                                     # pedestal, plaques, obelisks
-			if look != "": mesh.surface_set_material(i, _stone_mat(b, look))
+			if look != "":
+				var sm := _stone_mat(b, look)
+				sm.set_shader_parameter("base_y", mesh.get_aabb().position.y)   # one-off pieces: their own ground line
+				mesh.surface_set_material(i, sm)
 	for c in n.get_children(): _park_stone_walk(c)
 
 static func _tint_far(name: String, out: Array) -> void:

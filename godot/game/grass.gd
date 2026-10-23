@@ -57,6 +57,11 @@ func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Ve
 		mat.set_shader_parameter("uExcl", ex)
 		mat.set_shader_parameter("uExclN", mini(excl.size(), 16))
 		mat.set_shader_parameter("uPad", pad_centre)
+		mat.set_shader_parameter("uCanopy", GroundDetail.canopy_tex(terrain))
+		mat.set_shader_parameter("uCanopySpan", GroundDetail.CANOPY_SPAN)
+		mat.set_shader_parameter("uDesire", GroundDetail.desire_array())
+		mat.set_shader_parameter("uDesireN", GroundDetail.DESIRE.size())
+		mat.set_shader_parameter("uPathT", terrain.path_tex)
 		var mi := MultiMeshInstance3D.new()
 		mi.multimesh = mm
 		mi.material_override = mat
