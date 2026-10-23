@@ -97,15 +97,17 @@ func update(dt: float, throttle: float, yaw: float, pitch: float, roll: float) -
 		var bank_sp := roll * 0.785                # about 45 degrees
 		if cruise_assist:
 			pitch_sp += _cruise_hold(dt, bk)
+		# the aero moments scale with V^2, so compensate the gains to keep control effective at low speed
+		var vg := clampf(18.0 * 18.0 / maxf(plane.airspeed * plane.airspeed, 25.0), 0.25, 4.0)
 		var ep := pitch_sp - pt
 		_i_pitch = clampf(_i_pitch + ep * dt * 0.6, -0.4, 0.4)
-		elev = 0.8 * ep + _i_pitch - 0.2 * w.x
+		elev = vg * (0.8 * ep + _i_pitch - 0.2 * w.x)
 		var eb := bank_sp - bk
-		ail = 0.6 * eb - 0.3 * w.z
+		ail = vg * (0.6 * eb - 0.3 * w.z)
 		# coordinated turn: the rudder drives the yaw rate to match the bank (g tan bank / v), so the nose
 		# follows the velocity and the sideslip stays small
 		var yaw_sp: float = -G * tan(bk) / maxf(plane.airspeed, 1.0)
-		rud = 0.9 * (yaw_sp - w.y)
+		rud = vg * 0.9 * (yaw_sp - w.y)
 	else:
 		# acro: rate control
 		var p_rate := -pitch * 2.4                # rad/s, +stick = nose down
