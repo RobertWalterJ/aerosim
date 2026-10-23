@@ -372,3 +372,21 @@ Robert's note: keep the drone view full screen, make it the Android style he pre
   - N13. The centre shows every message with its in-game clock; keep the clock, or drop it and show only "now" on the latest?
   - N14. Avatar as a coloured initial on the right is the large icon. Enough, or do you want real faces (the Claude request is still open)?
   - N15. Should the centre also show the drone's own warnings (strong wind, link lost) or stay strictly the DroneBudz group chat?
+
+## How real phones handle this, and what the notification layer now copies (lane/notify, session B, 2026-10-23)
+Robert asked to note the way real apps and phone operating systems deal with multiple messages and keep a notification centre. Here is the model, and what of it is implemented in `game/phone_notes.gd`.
+- **Real Android behaviour being copied:**
+  1. A notification is a record owned by the app, with a channel (importance), a timestamp and a conversation thread, not just a floating banner.
+  2. Messages from the same conversation are grouped. A heads-up banner shows only the newest while the group is young; the group carries a summary ("DroneBudz · N notifications") and can be expanded to the individual notifications.
+  3. The heads-up banner is temporary, but the notification itself is not: after the banner times out it stays in the notification shade until the player dismisses it or clears it. It is not marked read by the banner going away.
+  4. The shade is the notification centre: the group summary, the expandable list of individual notifications, exact timestamps, per-notification dismissal, and a Clear all action. Dismissing one decrements the group count; clearing removes the group from the shade.
+  5. While anything is unread, a small persistent app indicator (the status bar icon on a phone) stays on screen after the banner has gone, with the count, and tapping it opens the centre.
+  6. New messages in the same thread update the existing group instead of stacking banners forever; the group count goes up and the newest preview changes.
+- **Implemented here:** each message is stored with a sender, title, body, urgency, id and the in-game clock time. The heads-up card is Material and grouped ("· N notifications", latest message, large avatar, expand chevron only for groups). The notification centre opens by tapping the card or pressing N, shows the DroneBudz group with a count, collapses to a summary with the latest line and expands to every message with its clock time, a dismiss X per message, right-click dismissal, and Clear all. A small persistent DroneBudz status pill with the unread count appears at the top right once the heads-up has gone, and opens the centre. Dismissing the heads-up with a right click removes only the banner, the notification stays in the centre. New messages while the centre is open update the group live. Nothing reappears after Clear all.
+- **Deliberately not copied (kept out because Robert does not want other phone furniture):** notification sounds and vibration (the drone audio is the event sound), do not disturb, per-app channel settings, notification actions (reply, mark read), snooze, lock screen, status bar clock/battery, home indicator, device frame, app drawer. The only phone surfaces on screen are the heads-up banner, the shade and the small status pill.
+- **Evidence:** docs/realism/notify/00 the grouped heads-up banner, 01 a single notification, 02 the notification centre expanded with six notifications, 03 the centre collapsed to the group summary, 04 the persistent status pill after the banner has gone.
+- **Questions that follow from this:**
+  - N16. Should the status pill show the unread count, or just the app icon like a real status bar icon?
+  - N17. Should the centre auto-expand the group when there are only one or two messages, and stay collapsed when there are many (current default is expanded)?
+  - N18. A right click on the heads-up banner dismisses only the banner and keeps the notification; is a swipe style gesture worth adding on touch, or is the current tap and keys enough?
+  - N19. Should Clear all also stop the status pill and any unread count immediately (it does now), or keep a "recent" history list like Android's notification history?

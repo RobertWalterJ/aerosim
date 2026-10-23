@@ -888,6 +888,8 @@ func _screenshot_mode(arg: String) -> void:
 			phone_notes.debug_one("storm")
 		elif c == "notesshade":     # session B dev hook: fill the notification centre and open it
 			phone_notes.debug_shade()
+		elif c == "notesshadefold":
+			phone_notes.debug_shade(true)
 		elif c == "notesempty":
 			phone_notes.debug_clear()
 		elif c == "notestorm":

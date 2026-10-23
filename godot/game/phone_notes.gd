@@ -129,6 +129,7 @@ func setup(h: Hud) -> void:
 	bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
 	_root.add_child(bbc)
 	_build_shade()
+	_build_pill()
 
 func _process(_delta: float) -> void:
 	pass   # main.gd calls update once a frame
@@ -145,10 +146,12 @@ func update(delta: float, paused: bool) -> void:
 	if _shade_open and (not enabled or paused):
 		close_shade()
 	_animate_shade(delta)
+	var vp0 := get_viewport().get_visible_rect().size
+	_update_pill(vp0)
 	_root.visible = enabled and not _shade_open and (not _cards.is_empty() or not _demo_queue.is_empty())
 	if not _root.visible:
 		return
-	var vp := get_viewport().get_visible_rect().size
+	var vp := vp0
 	_card_w = clampf(vp.x * (0.335 if _style == 0 else 0.35), 360.0, 470.0)
 	if not _demo_queue.is_empty():
 		_demo_t += delta
@@ -196,11 +199,11 @@ func _post_kind(kind: String) -> void:
 	_add({"sender": m[0], "title": m[1], "body": m[2], "urgency": int(m[3])})
 
 func _add(msg: Dictionary) -> void:
-	var rec := {"msg": msg, "clock": _clock_str(), "id": _history.size()}
+	var rec := {"msg": msg, "clock": _clock_str(), "hour": _clock_hour(), "id": _history.size()}
 	_history.append(rec)
 	if _history.size() > MAX_HISTORY:
 		_history.pop_front()
-	_group_n += 1
+	_group_n = mini(_history.size(), 9)
 	_clear_heads_up()
 	if _style == 1:
 		# Android: one grouped heads-up card showing the latest message and the group count
@@ -421,8 +424,13 @@ func _make_clickable(c: Dictionary) -> void:
 	var holder: Control = c["holder"]
 	holder.mouse_filter = Control.MOUSE_FILTER_STOP
 	holder.gui_input.connect(func(ev: InputEvent):
-		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
-			open_shade()
+		if ev is InputEventMouseButton and ev.pressed:
+			if ev.button_index == MOUSE_BUTTON_LEFT:
+				open_shade()
+			elif ev.button_index == MOUSE_BUTTON_RIGHT:
+				# dismissing the heads-up is like swiping it away: it leaves the screen but the notification stays in
+				# the notification centre, exactly like a real phone
+				_clear_heads_up()
 	)
 
 ## Size the holder and the shader to the content height (the group count changes it).
@@ -443,9 +451,13 @@ var _shade_root: Control
 var _shade_dim: ColorRect
 var _shade_panel: PanelContainer
 var _shade_list: VBoxContainer
+var _shade_scroll: ScrollContainer
 var _shade_open := false
 var _shade_h := 420.0
 var _shade_total: Label
+var _shade_expanded := true
+var _pill: PanelContainer
+var _pill_count: Label
 
 func _build_shade() -> void:
 	_shade_root = Control.new()
@@ -531,7 +543,8 @@ func _build_shade() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size = Vector2(0, 300)
+	scroll.custom_minimum_size = Vector2(0, 60)
+	_shade_scroll = scroll
 	col.add_child(scroll)
 	_shade_list = VBoxContainer.new()
 	_shade_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -542,80 +555,236 @@ func _build_shade() -> void:
 func _build_click_through_shade() -> void:
 	pass
 
+## The notification centre, built the way Android presents a grouped conversation: one DroneBudz group summary that
+## can be expanded into the individual messages. The summary shows the latest message while collapsed; expanding lists
+## every message with its time and a dismiss control, and the group can be cleared as a whole.
 func _rebuild_shade() -> void:
 	if _shade_list == null:
 		return
 	for ch in _shade_list.get_children():
 		ch.queue_free()
-	var items := _history.duplicate()
-	for i in range(items.size() - 1, -1, -1):
-		var rec: Dictionary = items[i]
-		var card := PanelContainer.new()
-		card.mouse_filter = Control.MOUSE_FILTER_STOP
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.155, 0.155, 0.17, 0.96)
-		sb.set_corner_radius_all(18)
-		card.add_theme_stylebox_override("panel", sb)
-		var pad := MarginContainer.new()
-		for side in ["left", "right"]:
-			pad.add_theme_constant_override("margin_" + side, 14)
-		for side in ["top", "bottom"]:
-			pad.add_theme_constant_override("margin_" + side, 12)
-		card.add_child(pad)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-		pad.add_child(row)
-		var msg: Dictionary = rec["msg"]
-		var sender := str(msg["sender"])
-		var av := Avatar.new()
-		av.letter = sender.substr(0, 1).to_upper()
-		av.col = SENDER_COL.get(sender, Color(0.4, 0.5, 0.6))
-		av.custom_minimum_size = Vector2(34, 34)
-		av.size = Vector2(34, 34)
-		av.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		row.add_child(av)
-		var v := VBoxContainer.new()
-		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		v.add_theme_constant_override("separation", 2)
-		row.add_child(v)
-		var top := HBoxContainer.new()
-		v.add_child(top)
-		var name_l := Label.new()
-		name_l.text = "%s: %s" % [sender, str(msg["title"])]
-		name_l.add_theme_font_override("font", _f_bold)
-		name_l.add_theme_font_size_override("font_size", 15)
-		name_l.add_theme_color_override("font_color", Color(0.95, 0.95, 0.96))
-		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		top.add_child(name_l)
-		var clock := Label.new()
-		clock.text = str(rec.get("clock", "now"))
-		clock.add_theme_font_size_override("font_size", 12)
-		clock.add_theme_color_override("font_color", Color(0.62, 0.64, 0.68))
-		top.add_child(clock)
-		var body_l := Label.new()
-		body_l.text = str(msg["body"])
-		body_l.add_theme_font_override("font", _f_regular)
-		body_l.add_theme_font_size_override("font_size", 13)
-		body_l.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78))
-		body_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		v.add_child(body_l)
-		var ix := i
-		card.gui_input.connect(func(ev: InputEvent):
-			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT:
-				_history.remove_at(ix)
-				_rebuild_shade()
-		)
-		_shade_list.add_child(card)
 	if _shade_total:
 		_shade_total.text = "  %d notifications" % _history.size() if not _history.is_empty() else ""
+	if _history.is_empty():
+		var empty := Label.new()
+		empty.text = "No notifications"
+		empty.add_theme_font_override("font", _f_regular)
+		empty.add_theme_font_size_override("font_size", 14)
+		empty.add_theme_color_override("font_color", Color(0.60, 0.62, 0.66))
+		_shade_list.add_child(empty)
+		return
+	# the group summary card
+	var group := PanelContainer.new()
+	group.mouse_filter = Control.MOUSE_FILTER_STOP
+	var gsb := StyleBoxFlat.new()
+	gsb.bg_color = Color(0.16, 0.16, 0.175, 0.97)
+	gsb.set_corner_radius_all(20)
+	group.add_theme_stylebox_override("panel", gsb)
+	var gpad := MarginContainer.new()
+	for side in ["left", "right"]:
+		gpad.add_theme_constant_override("margin_" + side, 14)
+	for side in ["top", "bottom"]:
+		gpad.add_theme_constant_override("margin_" + side, 12)
+	group.add_child(gpad)
+	var gcol := VBoxContainer.new()
+	gcol.add_theme_constant_override("separation", 6)
+	gpad.add_child(gcol)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 8)
+	gcol.add_child(head)
+	var icon := AppIcon.new()
+	icon.custom_minimum_size = Vector2(22, 22)
+	icon.size = Vector2(22, 22)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(icon)
+	var name_l := Label.new()
+	name_l.text = "DroneBudz"
+	name_l.add_theme_font_override("font", _f_bold)
+	name_l.add_theme_font_size_override("font_size", 15)
+	name_l.add_theme_color_override("font_color", Color(0.95, 0.95, 0.96))
+	name_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(name_l)
+	var count_l := Label.new()
+	count_l.text = "· %d" % _history.size()
+	count_l.add_theme_font_override("font", _f_regular)
+	count_l.add_theme_font_size_override("font_size", 13)
+	count_l.add_theme_color_override("font_color", Color(0.62, 0.64, 0.68))
+	count_l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(count_l)
+	var stretch := Control.new()
+	stretch.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(stretch)
+	var chev := Chevron.new()
+	chev.custom_minimum_size = Vector2(18, 18)
+	chev.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if _shade_expanded:
+		chev.rotation = PI
+	head.add_child(chev)
+	group.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			_shade_expanded = not _shade_expanded
+			_rebuild_shade()
+	)
+	var latest: Dictionary = _history.back()
+	if not _shade_expanded:
+		var msg: Dictionary = latest["msg"]
+		var prev := Label.new()
+		prev.text = "%s: %s" % [str(msg["sender"]), str(msg["body"])]
+		prev.add_theme_font_override("font", _f_regular)
+		prev.add_theme_font_size_override("font_size", 13)
+		prev.add_theme_color_override("font_color", Color(0.70, 0.72, 0.76))
+		prev.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		prev.autowrap_mode = TextServer.AUTOWRAP_OFF
+		prev.custom_minimum_size = Vector2(200, 0)
+		gcol.add_child(prev)
+	_shade_list.add_child(group)
+	if not _shade_expanded:
+		return
+	# the individual messages inside the group, newest first, each dismissible like a real notification
+	var items := _history.duplicate()
+	for i in range(items.size() - 1, -1, -1):
+		_shade_list.add_child(_shade_child(items[i]))
+	if _shade_scroll:
+		# the centre grows with the content, and only scrolls when the group is long
+		var rows := _history.size() if _shade_expanded else 0
+		_shade_scroll.custom_minimum_size = Vector2(0, clampf(8.0 + 88.0 * float(mini(rows, 4)), 24.0, 330.0))
+
+func _shade_child(rec: Dictionary) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.155, 0.155, 0.17, 0.97)
+	sb.set_corner_radius_all(16)
+	card.add_theme_stylebox_override("panel", sb)
+	var pad := MarginContainer.new()
+	for side in ["left", "right"]:
+		pad.add_theme_constant_override("margin_" + side, 14)
+	for side in ["top", "bottom"]:
+		pad.add_theme_constant_override("margin_" + side, 10)
+	card.add_child(pad)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	pad.add_child(row)
+	var msg: Dictionary = rec["msg"]
+	var sender := str(msg["sender"])
+	var av := Avatar.new()
+	av.letter = sender.substr(0, 1).to_upper()
+	av.col = SENDER_COL.get(sender, Color(0.4, 0.5, 0.6))
+	av.custom_minimum_size = Vector2(32, 32)
+	av.size = Vector2(32, 32)
+	av.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(av)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_theme_constant_override("separation", 2)
+	row.add_child(v)
+	var top := HBoxContainer.new()
+	v.add_child(top)
+	var name_l := Label.new()
+	name_l.text = "%s: %s" % [sender, str(msg["title"])]
+	name_l.add_theme_font_override("font", _f_bold)
+	name_l.add_theme_font_size_override("font_size", 14)
+	name_l.add_theme_color_override("font_color", Color(0.95, 0.95, 0.96))
+	name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	top.add_child(name_l)
+	var clock := Label.new()
+	clock.text = str(rec.get("clock", "now"))
+	clock.add_theme_font_size_override("font_size", 12)
+	clock.add_theme_color_override("font_color", Color(0.62, 0.64, 0.68))
+	top.add_child(clock)
+	var body_l := Label.new()
+	body_l.text = str(msg["body"])
+	body_l.add_theme_font_override("font", _f_regular)
+	body_l.add_theme_font_size_override("font_size", 13)
+	body_l.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78))
+	body_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(body_l)
+	var dismiss := Button.new()
+	dismiss.text = "×"
+	dismiss.flat = true
+	dismiss.custom_minimum_size = Vector2(28, 28)
+	dismiss.add_theme_font_size_override("font_size", 18)
+	dismiss.add_theme_color_override("font_color", Color(0.66, 0.68, 0.72))
+	dismiss.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var gid := int(rec.get("id", -1))
+	dismiss.pressed.connect(func(): _dismiss_id(gid))
+	row.add_child(dismiss)
+	return card
+
+func _dismiss_id(id: int) -> void:
+	for i in _history.size():
+		if int(_history[i].get("id", -1)) == id:
+			_history.remove_at(i)
+			break
+	_group_n = mini(_history.size(), 9)
+	if _history.is_empty():
+		_clear_heads_up()
+	_rebuild_shade()
+
+## A small persistent DroneBudz icon with the unread count, like the status bar icon a phone keeps after the heads-up
+## banner has gone: it stays until the notifications are dismissed or cleared, and tapping it opens the centre.
+func _build_pill() -> void:
+	_pill = PanelContainer.new()
+	_pill.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.10, 0.10, 0.115, 0.93)
+	sb.set_corner_radius_all(15)
+	sb.border_width_left = 1; sb.border_width_top = 1; sb.border_width_right = 1; sb.border_width_bottom = 1
+	sb.border_color = Color(1, 1, 1, 0.10)
+	sb.shadow_color = Color(0, 0, 0, 0.35)
+	sb.shadow_size = 10
+	_pill.add_theme_stylebox_override("panel", sb)
+	var margin := MarginContainer.new()
+	for side in ["left", "right"]:
+		margin.add_theme_constant_override("margin_" + side, 9)
+	for side in ["top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 6)
+	_pill.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	margin.add_child(row)
+	var icon := AppIcon.new()
+	icon.custom_minimum_size = Vector2(18, 18)
+	icon.size = Vector2(18, 18)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(icon)
+	_pill_count = Label.new()
+	_pill_count.add_theme_font_override("font", _f_bold)
+	_pill_count.add_theme_font_size_override("font_size", 12)
+	_pill_count.add_theme_color_override("font_color", Color(0.92, 0.93, 0.95))
+	_pill_count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_pill_count)
+	_pill.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			open_shade()
+	)
+	_pill.visible = false
+	add_child(_pill)
+
+func _update_pill(vp: Vector2) -> void:
+	if _pill == null:
+		return
+	var show := enabled and not _shade_open and _cards.is_empty() and not _history.is_empty()
+	_pill.visible = show
+	if not show:
+		return
+	_pill_count.text = str(_history.size())
+	_pill.reset_size()
+	_pill.position = Vector2(vp.x - _pill.size.x - 18.0, 30.0)
 
 func open_shade() -> void:
 	_shade_open = true
 	_rebuild_shade()
-	_shade_h = maxf(400.0, _shade_panel.get_combined_minimum_size().y + 40.0)
+	_shade_h = _shade_content_h()
 	_shade_panel.offset_top = -_shade_h
 	_shade_panel.offset_bottom = 0.0
 	_shade_root.visible = true
+
+func _shade_content_h() -> float:
+	var vp := get_viewport().get_visible_rect().size
+	return clampf(_shade_panel.get_combined_minimum_size().y + 18.0, 150.0, vp.y * 0.72)
 
 func close_shade() -> void:
 	_shade_open = false
@@ -630,14 +799,16 @@ func toggle_shade() -> void:
 func _animate_shade(delta: float) -> void:
 	if _shade_root == null or not _shade_open:
 		return
+	_shade_h = _shade_content_h()
 	_shade_panel.offset_top = lerpf(_shade_panel.offset_top, 0.0, clampf(delta * 12.0, 0.0, 1.0))
 	if _shade_panel.offset_top > -1.0:
 		_shade_panel.offset_top = 0.0
 	_shade_panel.offset_bottom = _shade_panel.offset_top + _shade_h
+func _clock_hour() -> float:
+	return float(hud.weather.get("hour", 21.0)) if hud != null else 21.0
+
 func _clock_str() -> String:
-	var hour := 21.0
-	if hud != null:
-		hour = float(hud.weather.get("hour", 21.0))
+	var hour := _clock_hour()
 	var h := int(hour) % 24
 	var m := int((hour - floorf(hour)) * 60.0) % 60
 	return "%02d:%02d" % [h, m]
@@ -649,10 +820,11 @@ func debug_demo() -> void:
 func debug_one(kind: String) -> void:
 	_post_kind(kind)
 
-## Fill the history and open the notification centre, for a shot.
-func debug_shade() -> void:
+## Fill the history and open the notification centre, for a shot. `folded` shows the collapsed group summary.
+func debug_shade(folded := false) -> void:
 	for k in ["show_start", "storm", "waterspout", "fogbank", "thermals", "show_over"]:
 		_post_kind(k)
+	_shade_expanded = not folded
 	open_shade()
 
 func debug_clear() -> void:
