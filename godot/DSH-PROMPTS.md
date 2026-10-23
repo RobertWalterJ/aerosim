@@ -93,3 +93,68 @@ Rules: never push, never delete files, only edit your lane's files, one Godot wi
 no timers or em dashes in player-facing text. Do not stop to ask taste questions: choose, record, continue. Name the check or
 image that proves each claim. Finish with ONE report: what changed, gate result, numbers, what you could not verify, questions.
 ```
+
+---
+
+## DSH task 4: fireworks
+
+```
+You are working on AeroSim, a Godot 4.7.2 drone simulator. First read, in this folder:
+C:\Users\Robert Walter-Joseph\Documents\RWJ Coding Projects\AeroSim\godot
+HANDOFF-TO-DSH.md, COORDINATION.md, LOGIC-NOTES.md, then SPEC-NEW-EXPERIENCES.md section E1 (Fireworks).
+Create your worktree from the current main and work ONLY there (branch lane/fireworks):
+  git -C "C:\Users\Robert Walter-Joseph\Documents\RWJ Coding Projects\AeroSim" worktree add ..\AeroSim-fireworks -b lane/fireworks
+  then work in C:\Users\Robert Walter-Joseph\Documents\RWJ Coding Projects\AeroSim-fireworks\godot (run the headless --import once).
+If lane/models is already merged into main (check game/new_models.gd exists), you may use NewModels.barge(); otherwise use a
+plain box as a stand-in barge and note it.
+Build E1 in order: (1) shell types and bursts with particles, (2) light and smoke, (3) synthesised sound with distance delay,
+(4) shows and the menu entry, (5) night-time handling and the test token. Gate after each step:
+powershell -ExecutionPolicy Bypass -File tools\gate.ps1 -Tag fireworks (must print GATE PASS), evidence images in
+docs\realism\fireworks\, LOGIC-NOTES.md entry, one local commit per step.
+Rules: do not model anything, never push, never delete files, only edit files in your lane (new files plus small commented
+insertions in main.gd and hud.gd; re-read them right before editing), one Godot window at a time (timeout 250, always close it),
+no em dashes or timers in player text, do not change the Simple camera path. Do not ask taste questions: choose, record under
+"Questions for Claude and the owner", continue. Finish with ONE report (what is done, gate result, frame times, what you could not verify).
+```
+
+---
+
+## DSH task 5: birds
+
+```
+Same setup as task 4, but your branch and worktree are lane/birds and AeroSim-birds. Read SPEC-NEW-EXPERIENCES.md section E4
+(Birds). You need lane/models merged into main (game/new_models.gd with NewModels.bird); if it is not there yet, wait: do a
+different task, or stop and report. Build: flock placement and flight (geese V, starling murmuration, gulls, hawks at their
+existing sound positions), wing-flap animation from the baked poses with MultiMesh, avoid-the-drone behaviour, weather and season
+rules, the Display > Graphics "Birds" setting, and bird sound hookups (honk) in drone_audio.gd (small insertions). Gate tag:
+birds. Evidence images in docs\realism\birds\. Same rules and the same single final report as task 4.
+```
+
+---
+
+## DSH task 6: FPV plane
+
+```
+Same setup as task 4, but your branch and worktree are lane/plane and AeroSim-plane. Read SPEC-NEW-EXPERIENCES.md section E2
+(The fixed-wing FPV plane) and game/README-models.md. You need lane/models merged into main (NewModels.plane); if not there yet,
+build physics/plane.gd, physics/plane_controller.gd and test/plane_test.gd first (they need no model), then wire the model when it
+arrives. Read physics/quad.gd, physics/flight_controller.gd, game/autopilot.gd and game/main.gd (search for "quad.") before you
+start. Gate tag: plane. Also run the existing physics test (Godot ... --headless --path . -s test/physics_test.gd must print
+ALL PASS) and test/wind_test.gd parts for the quads after your wiring (they must still pass). Evidence in docs\realism\plane\.
+Same rules and single final report as task 4.
+```
+
+---
+
+## DSH task 7: the integrator (run after other tasks have commits)
+
+```
+You are the integrator for AeroSim. Read HANDOFF-TO-DSH.md section "How merging works without Claude" in
+C:\Users\Robert Walter-Joseph\Documents\RWJ Coding Projects\AeroSim\godot and follow it exactly. Work in the main checkout
+C:\Users\Robert Walter-Joseph\Documents\RWJ Coding Projects\AeroSim (branch main). For each lane branch that has new commits
+since its last merge (git log main..lane/<x> --oneline), in the order given there: merge it, run the gate, and push only on GATE
+PASS. If a merge or the gate fails, abort the merge, record the exact error in LOGIC-NOTES.md under "Integration problems", and
+move on to the next lane. After the pushes, merge main into every lane worktree that has no uncommitted changes. Do not edit
+code except to resolve merge conflicts (keep both sides of insertions). Do not release a phone build: report to the owner that
+lanes were merged and that tools\release.ps1 is ready to run. Finish with ONE report listing merged lanes, skipped lanes and why.
+```
