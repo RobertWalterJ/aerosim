@@ -143,17 +143,15 @@ func _rth_step(dt: float) -> void:
 	var fwd := plane.attitude() * Vector3(0, 0, -1)
 	var vel := plane.velocity()
 	# turn on the velocity heading (where the plane is actually going), not the nose, so the sideslip does not defeat RTH
-	var hdg := atan2(-vel.x, -vel.z)
+	var hdg := atan2(-fwd.x, -fwd.z)   # nose heading (stable) — the velocity heading oscillates in the Dutch roll
 	var target := atan2(-to_home.x, -to_home.y)
 	var err := wrapf(target - hdg, -TAU, 0.0)   # always turn right (the stable bank direction) toward home
 	match rth:
-		1:  # climb and turn toward home together, using the cruise hold (altitude + speed) with a bank-limited turn
-			var stall_guard := clampf((12.0 - plane.airspeed) * 0.08, 0.0, 0.5) + clampf((plane.alpha - 0.19) * 1.5, 0.0, 0.4)
-			var alt_hold := clampf((_cruise_alt - alt) * 0.008 - plane.s[4] * 0.12 - stall_guard, -0.4, 0.15)
+		1:  # climb and turn toward home: hold a gentle nose-up pitch (no altitude hold, which feeds the phugoid)
 			var vg := clampf(18.0 * 18.0 / maxf(plane.airspeed * plane.airspeed, 25.0), 0.25, 4.0)
 			var bank_sp := clampf(-err * 1.2, -0.52, 0.52)   # bank into the turn, capped at 30 degrees (steeper stalls)
 			plane.cmd[0] = clampf(0.55 + (18.0 - plane.airspeed) * 0.08, 0.35, 0.9)
-			plane.cmd[1] = clampf(vg * ((alt_hold - a.x) * 1.5 - 0.25 * w.x), -1.0, 1.0)
+			plane.cmd[1] = clampf(vg * ((0.0 - a.x) * 1.5 - 0.25 * w.x), -1.0, 1.0)
 			plane.cmd[2] = clampf(vg * ((bank_sp - a.y) * 1.2 - 0.3 * w.z), -1.0, 1.0)
 			plane.cmd[3] = clampf(-err * 0.5, -1.0, 1.0)
 			if dist < 100.0: rth = 3
