@@ -155,7 +155,7 @@ func _rth_step(dt: float) -> void:
 			_rth_v += (plane.airspeed - _rth_v) * minf(1.0, dt * 1.5)   # low-pass so the throttle does not chase the short-period
 			plane.cmd[0] = clampf(0.55 + (18.0 - _rth_v) * 0.08, 0.35, 0.9)
 			var stall_guard := clampf((plane.alpha - 0.16) * 3.0, 0.0, 0.4)   # pitch down when alpha passes 9 deg (prevents the stall)
-			var pitch_sp := -stall_guard
+			var pitch_sp := (_cruise_alt - alt) * 0.002 - stall_guard   # a weak altitude hold, too gentle to feed the phugoid
 			plane.cmd[1] = clampf(vg * ((pitch_sp - a.x) * 1.5 - 0.25 * w.x), -1.0, 1.0)
 			plane.cmd[2] = clampf(vg * ((bank_sp - a.y) * 1.2 - 0.3 * w.z), -1.0, 1.0)
 			plane.cmd[3] = clampf(-err * 0.5 - 0.5 * w.y, -1.0, 1.0)
