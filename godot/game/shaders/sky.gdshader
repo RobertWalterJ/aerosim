@@ -249,6 +249,10 @@ void sky() {
 	// Mie glow and sun disc
 	float glow = pow(max(mu, 0.0), 6.0) * 0.35 + pow(max(mu, 0.0), 64.0) * 0.8;
 	col += vec3(1.0, 0.82, 0.58) * glow * day * (1.0 - 0.8 * cover);
+	// 22-degree halo: a faint white ring from ice crystals in thin cirrus, only in daylight
+	float halo_ang = acos(clamp(mu, -1.0, 1.0));
+	float halo = exp(-pow((halo_ang - 0.38397) / 0.016, 2.0));
+	col += vec3(1.0, 0.96, 0.90) * halo * 0.10 * day * cirrus;
 	// distant ridges beyond the edge of the modelled land: two hazy silhouettes, the far one paler
 	float az = atan(dir.x, dir.z);
 	float ridge_far = 0.010 + 0.042 * vnoise(vec3(az * 1.7, 0.5, 0.5)) + 0.014 * vnoise(vec3(az * 6.0, 2.0, 0.5));
