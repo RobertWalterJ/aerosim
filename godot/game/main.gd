@@ -538,6 +538,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	var fog_c := Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey).lerp(Color(1.0, 0.66, 0.40), warm * 0.75)
 	env.fog_light_color = fog_c * lerpf(0.03 + 0.12 * moon_f, 1.0, _daylight)
 	sky_mat.set_shader_parameter("haze_col", Vector3(env.fog_light_color.r, env.fog_light_color.g, env.fog_light_color.b))   # sky horizon shares the fog colour (g_haze)
+	RenderingServer.global_shader_parameter_set("g_water", Vector4(env.fog_light_color.r, env.fog_light_color.g, env.fog_light_color.b, 1.0 - 0.35 * grey))   # session B: the lake mirrors this
 	env.fog_sun_scatter = 0.35 + 0.5 * warm
 	env.ambient_light_color = Color(0.78, 0.82, 0.62).lerp(Color(0.52, 0.62, 0.95), warm * 0.8)
 	sun.light_energy = maxf(sun.light_energy, 0.0) * (1.0 + 0.5 * warm)
@@ -842,6 +843,8 @@ func _screenshot_mode(arg: String) -> void:
 				(sc as ScrollContainer).scroll_vertical = 100000
 		elif c.begins_with("dof"):
 			hud.dof_mode = int(c.substr(3)); sensor.dof_mode = hud.dof_mode
+		elif c == "nowaterfx":     # session B dev hook: the "Water detail" switch Off, for an A/B picture
+			RenderingServer.global_shader_parameter_set("g_fx", Vector4(1.0, 1.0, 1.0, 0.0))
 		elif c == "fwsmoke":
 			fireworks.test_smoke(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
 		elif c == "fwmenu":
