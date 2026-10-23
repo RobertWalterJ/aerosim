@@ -61,9 +61,10 @@ float cloud_density(vec3 p, float t) {
 	float cov = clamp((shape - lo) / max(cover, 1e-3), 0.0, 1.0);
 	// flat-ish base, rounded tops: density where the coverage exceeds the height
 	float d = cov - h;
-	// ragged undersides (sky-only detail)
+	// ragged undersides (sky-only detail) and a puffed upper surface, so the body reads as a volume
 	vec3 q = vec3((p.xz - drift * t) * (1.0 / 950.0), t * 0.002);
 	d -= fbmn(q * 2.4 + 13.0, oct) * 0.16 * (1.0 - smoothstep(0.0, 0.4, h));
+	d += fbmn(q * 3.7 + 23.0, 3) * 0.12 * smoothstep(0.3, 1.0, h);
 	d = smoothstep(0.0, 0.26, d);
 	return clamp(d, 0.0, 1.0);
 }
@@ -76,13 +77,13 @@ float cloud_light(vec3 p, vec3 sd, int lsteps, float t) {
 		return 0.30 + 0.70 * smoothstep(0.0, 0.6, h);
 	}
 	float tau = 0.0; float ld = 0.0;
-	const float LST = 70.0;
+	const float LST = 110.0;
 	for (int i = 0; i < 4; i++) {
 		if (i >= lsteps) break;
 		ld += LST;
 		tau += cloud_density(p + sd * ld, t);
 	}
-	return exp(-tau * 1.1);
+	return exp(-tau * 1.25);
 }
 
 // raymarch the slab: returns rgb (scattered light, HDR) and a (coverage 0..1)
@@ -108,7 +109,7 @@ vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, i
 			float powder = 1.0 - exp(-dens * 2.0);
 			vec3 lc = sun_c * light + fill;                        // sun plus blue sky fill in the shade
 			lc = mix(lc, grey * (0.4 + 0.6 * light), dark);        // storm greys and darkens the shade
-			vec3 sc = lc + sun_c * powder * light * 1.1;           // silver lining on lit edges
+			vec3 sc = lc + sun_c * powder * light * 1.4;           // silver lining on lit edges
 			float step_ext = exp(-dens * dt * SIGMA);
 			acc += sc * trans * (1.0 - step_ext);
 			trans *= step_ext;
@@ -124,7 +125,7 @@ const float LOW_FLOOR = 76.0;   // valley floor world Y (Lake.LEVEL)
 
 vec4 march_low_cloud(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
 	float cy = LOW_FLOOR + low_cloud_h;
-	float thick = mix(70.0, 170.0, low_cloud);
+	float thick = mix(80.0, 180.0, low_cloud);
 	float y0 = cy - thick * 0.5;
 	float y1 = cy + thick * 0.5;
 	if (rd.y < 0.01) return vec4(0.0);
@@ -134,22 +135,29 @@ vec4 march_low_cloud(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
 	float t0 = max(tb, 0.0);
 	float t1 = min(tt, 18000.0);
 	if (t0 >= t1) return vec4(0.0);
-	int steps = 6;
+	int steps = 8;
 	float dt = (t1 - t0) / float(steps);
 	float step_t = t0 + dt * 0.5;
 	vec3 acc = vec3(0.0);
 	float trans = 1.0;
-	const float SIGMA = 0.018;
-	for (int i = 0; i < 8; i++) {
+	const float SIGMA = 0.016;
+	for (int i = 0; i < 10; i++) {
 		if (i >= steps) break;
 		vec3 p = ro + rd * step_t;
-		float hh = clamp((p.y - y0) / max(y1 - y0, 1.0), 0.0, 1.0);
-		float prof = smoothstep(0.0, 0.18, hh) * (1.0 - smoothstep(0.82, 1.0, hh));
+		float hh = (p.y - cy) / thick;                              // -0.5 at the base .. 0.5 at the top
+		// a rolling top and a ragged base: two slow drifting noise fields displace the surfaces
+		vec3 q = vec3((p.xz - drift * TIME) * (1.0 / 450.0), TIME * 0.004);
+		float top_s = 0.5 + (fbmn(q, 3) - 0.5) * 0.55;             // upper surface, undulating
+		float base_s = -0.5 + (fbmn(q * 1.9 + 11.0, 3) - 0.5) * 0.7;   // ragged underside
+		float dens = smoothstep(base_s, base_s + 0.10, hh) * (1.0 - smoothstep(top_s - 0.10, top_s, hh));
 		float patch = cloud_shape(p.xz, drift, TIME, 2);
-		float dens = prof * mix(0.4, 0.95, low_cloud) * (0.55 + 0.45 * patch);
+		dens *= mix(0.45, 0.95, low_cloud) * (0.55 + 0.45 * patch);
 		if (dens > 0.002) {
-			float top = smoothstep(0.35, 1.0, hh);   // 0 at the base, 1 at the top
-			vec3 lc = grey * (0.30 + 0.30 * top) + sun_c * top * 1.35;   // grey base, bright sunlit top
+			// depth below the sunlit top: light falls through the deck, so the top glows and the base is grey
+			float depth = clamp((top_s - hh) / max(top_s - base_s, 1e-3), 0.0, 1.0);
+			float lit = exp(-depth * 1.8);
+			vec3 lc = grey * (0.30 + 0.28 * depth);                 // grey base, a little darker deep inside
+			lc += sun_c * lit * 1.7;                                 // bright sunlit, rolling top
 			float step_ext = exp(-dens * dt * SIGMA);
 			acc += lc * trans * (1.0 - step_ext);
 			trans *= step_ext;
