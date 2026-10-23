@@ -5,6 +5,7 @@ extends SceneTree
 ## Run: Godot_console.exe --headless --path godot -s res://test/new_models2_test.gd
 
 var fails := 0
+const TF := 0.025          # wheel flange depth below the tread
 
 func check(name: String, ok: bool, info: String) -> void:
 	print(("PASS " if ok else "FAIL ") + name + "  " + info)
@@ -114,41 +115,55 @@ func _initialize() -> void:
 	check("wind pump wheel", near(wh["size"].x, 3.5, 3.75), "%.2f m across" % wh["size"].x)
 	# ---- freight train and track
 	var tr := NewModels2.freight_train(12)
-	# with the far wheelsets a vehicle may cost at most 150 triangles more than in batch 2 (when the wheels were drums in
-	# the body); close up the flanged wheelsets add more (counted below), on the few cars near the camera
-	var old_tris := {"locomotive": 1392, "boxcar": 606, "hopper": 640, "tanker": 670, "flatcar": 504, "flatcar_empty": 408}
+	# models4: the locomotive body (with its trucks) is at most 2500 triangles; every car body under 1500. The wheelsets come
+	# in three levels: close (counted per wheelset), middle and far, and a whole vehicle on far wheels stays cheap.
 	var wheels: Dictionary = tr["wheels"]
 	for kind in ["locomotive", "boxcar", "hopper", "tanker", "flatcar", "flatcar_empty"]:
 		var wd: Dictionary = wheels[kind]
 		var parts: Array = [[tr[kind], I]]
 		var far_parts: Array = [[tr[kind], I]]
+		var mid_parts: Array = [[tr[kind], I]]
 		for p: Vector3 in wd["positions"]:
 			parts.append([wd["mesh"], Transform3D(Basis.IDENTITY, p)])
+			mid_parts.append([wd["mesh_mid"], Transform3D(Basis.IDENTITY, p)])
 			far_parts.append([wd["mesh_far"], Transform3D(Basis.IDENTITY, p)])
 		var cm := measure(parts)
 		var body := measure([[tr[kind], I]])
+		var mid := measure(mid_parts)
 		var far := measure(far_parts)
 		var ws := measure([[wd["mesh"], I]])
-		basic(kind, cm, (2900 if kind == "locomotive" else 1700))
-		check(kind + " triangles with far wheels", int(far["tris"]) <= int(old_tris[kind]) + 150, "%d <= %d + 150 (body %d; close wheelsets %d x %d)" % [far["tris"], old_tris[kind], body["tris"], (wd["positions"] as PackedVector3Array).size(), ws["tris"]])
-		check(kind + " far wheels", bool(far["finite"]) and int(far["flipped"]) == 0 and absf(float(far["lo"].y)) < 0.01, "")
+		var nw := (wd["positions"] as PackedVector3Array).size()
+		basic(kind + " body", body, (2500 if kind == "locomotive" else 1500))
+		check(kind + " close", bool(cm["finite"]) and int(cm["flipped"]) == 0, "%d triangles with %d close wheelsets of %d" % [cm["tris"], nw, ws["tris"]])
+		check(kind + " middle and far wheels", bool(mid["finite"]) and int(mid["flipped"]) == 0 and bool(far["finite"]) and int(far["flipped"]) == 0 and absf(float(far["lo"].y)) < 0.01 and int(far["tris"]) < int(body["tris"]) + nw * 60,
+			"%d triangles on middle wheels, %d on far wheels" % [mid["tris"], far["tris"]])
 		check(kind + " body clear of the rails", float(body["lo"].y) > 0.05, "lowest body point %.2f m above the rail" % body["lo"].y)
 		if kind == "locomotive":
-			check("locomotive size", near(cm["size"].z, 20.8, 22.0) and near(cm["hi"].y, 4.5, 4.95) and absf(float(cm["lo"].y)) < 0.04, "%.2f m long, %.2f m high, flanges to %.3f" % [cm["size"].z, cm["hi"].y, cm["lo"].y])
+			check("locomotive size", near(cm["size"].z, 21.4, 22.2) and near(cm["hi"].y, 4.55, 4.8) and absf(float(cm["lo"].y) + TF) < 0.004, "%.2f m long, %.2f m high, flanges to %.3f" % [cm["size"].z, cm["hi"].y, cm["lo"].y])
 		else:
-			check(kind + " size", near(cm["size"].z, 15.0, 17.0) and cm["size"].x < 3.35 and absf(float(cm["lo"].y)) < 0.04, "%.2f m long, %.2f wide, flanges to %.3f" % [cm["size"].z, cm["size"].x, cm["lo"].y])
+			check(kind + " size", near(cm["size"].z, 15.0, 17.0) and cm["size"].x < 3.35 and absf(float(cm["lo"].y) + TF) < 0.004, "%.2f m long, %.2f wide, flanges to %.3f" % [cm["size"].z, cm["size"].x, cm["lo"].y])
 	for kind in ["locomotive", "boxcar"]:
 		var wd2: Dictionary = wheels[kind]
 		var r: float = wd2["radius"]
 		var wm2 := measure([[wd2["mesh"], I]])
-		check(kind + " wheelset", (wd2["positions"] as PackedVector3Array).size() == (6 if kind == "locomotive" else 4) and near(wm2["size"].y, 2.0 * r + 0.05, 2.0 * r + 0.07) and near(wm2["size"].x, 1.6, 1.75),
-			"%d axles, %.2f m over the flanges (wheel radius %.2f), %.2f m along the axle" % [(wd2["positions"] as PackedVector3Array).size(), wm2["size"].y, r, wm2["size"].x])
-		# the running surface (vertices at the full tread radius) must sit over the rail heads
+		var dia := 1.016 if kind == "locomotive" else 0.9144
+		check(kind + " wheelset", (wd2["positions"] as PackedVector3Array).size() == (6 if kind == "locomotive" else 4) and absf(2.0 * r - dia) < 0.002 and near(wm2["size"].y, 2.0 * r + 2.0 * TF - 0.002, 2.0 * r + 2.0 * TF + 0.002) and near(wm2["size"].x, 2.1, 2.2),
+			"%d axles, wheel %.3f m across the tread, %.3f m over the flanges, %.2f m along the axle with the bearings" % [(wd2["positions"] as PackedVector3Array).size(), 2.0 * r, wm2["size"].y, wm2["size"].x])
+		# the wheel itself, measured from its vertices: where the rim begins and ends across the track, where the full tread
+		# radius runs, and the thin plate between the rim and the hub
 		var arr := (wd2["mesh"] as ArrayMesh).surface_get_arrays(0)
-		var tread_ok := true
+		var rim_lo := INF; var rim_hi := 0.0; var tread_lo := INF; var tread_hi := 0.0; var plate_lo := INF; var plate_hi := 0.0
 		for v: Vector3 in (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array):
-			if absf(Vector2(v.y, v.z).length() - r) < 0.005 and not near(absf(v.x), 0.7, 0.83): tread_ok = false
-		check(kind + " treads on the rails", tread_ok, "gauge %.3f m" % tr["gauge"])
+			var rad := Vector2(v.y, v.z).length(); var ax := absf(v.x)
+			if ax > 1.0: continue
+			if rad > r - 0.06: rim_lo = minf(rim_lo, ax); rim_hi = maxf(rim_hi, ax)
+			if absf(rad - r) < 0.008: tread_lo = minf(tread_lo, ax); tread_hi = maxf(tread_hi, ax)
+			if rad > 0.28 and rad < r - 0.14: plate_lo = minf(plate_lo, ax); plate_hi = maxf(plate_hi, ax)
+		check(kind + " wheel tread", tread_lo > 0.7 and tread_hi < 0.84 and tread_hi - tread_lo < 0.16 and rim_hi - rim_lo < 0.16,
+			"tread %.1f cm wide (%.3f to %.3f m from the centre line), rim with the flange %.1f cm" % [(tread_hi - tread_lo) * 100.0, tread_lo, tread_hi, (rim_hi - rim_lo) * 100.0])
+		check(kind + " wheel flange inside the rails", rim_lo > 0.67 and rim_lo < NewModels2.TR_GAUGE * 0.5, "back of the flange %.3f m from the centre line (back to back %.3f m), rail head from %.4f m" % [rim_lo, 2.0 * rim_lo, NewModels2.TR_GAUGE * 0.5])
+		check(kind + " wheel plate thin", plate_hi - plate_lo < 0.06, "the plate web spans %.1f cm across (dished)" % ((plate_hi - plate_lo) * 100.0))
+	check("gauge", absf(float(tr["gauge"]) - 1.435) < 0.0005, "%.3f m" % tr["gauge"])
 	check("wheel spin axis", tr["wheel_axis"] == Vector3.RIGHT, "")
 	check("consist", (tr["consist"] as Array).size() == 13 and absf(float(tr["car_length"]) - 16.6) < 0.01, "%d entries" % (tr["consist"] as Array).size())
 	var tm := measure([[NewModels2.track_section(), I]])
@@ -157,16 +172,31 @@ func _initialize() -> void:
 	# ---- helicopter and far airliner
 	var hc := NewModels2.helicopter()
 	var hmm := measure([[hc["body"], I], [hc["main_rotor"], Transform3D(Basis.IDENTITY, hc["rotor_pivot"])], [hc["tail_rotor"], Transform3D(Basis.IDENTITY, hc["tail_pivot"])]])
-	basic("helicopter", hmm, 3500)
+	basic("helicopter", hmm, 5000)
 	var hb := measure([[hc["body"], I]])
-	check("helicopter body", near(hb["size"].z, 10.5, 11.5) and absf(float(hb["lo"].y)) < 0.02, "%.2f m long, skids at %.3f" % [hb["size"].z, hb["lo"].y])
+	check("helicopter body", near(hb["size"].z, 10.8, 11.3) and absf(float(hb["lo"].y)) < 0.02 and near(hb["size"].x, 2.7, 3.0), "%.2f m long, %.2f m wide over the stabiliser, skids at %.3f" % [hb["size"].z, hb["size"].x, hb["lo"].y])
+	var see_through := false
+	for s in (hc["body"] as ArrayMesh).get_surface_count():
+		var hm := (hc["body"] as ArrayMesh).surface_get_material(s) as StandardMaterial3D
+		if hm and hm.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA and hm.albedo_color.a < 0.7: see_through = true
+	check("helicopter cockpit glass see-through", see_through, "")
 	var mr := measure([[hc["main_rotor"], I]])
-	check("helicopter main rotor", near(mr["hi"].x, 4.9, 5.1) and mr["size"].y < 0.4, "blade tip %.2f m from the hub (10 m across)" % mr["hi"].x)
+	check("helicopter main rotor", near(mr["hi"].x, 5.05, 5.15) and mr["size"].y < 0.4 and near(mr["size"].z, 10.1, 10.3), "blade tip %.2f m from the hub, %.2f m across" % [mr["hi"].x, mr["size"].z])
 	var trm := measure([[hc["tail_rotor"], I]])
-	check("helicopter tail rotor", near(trm["size"].y, 1.8, 1.95) and trm["size"].x < 0.2, "%.2f m across, %.2f m thick along +x" % [trm["size"].y, trm["size"].x])
-	var am := measure([[NewModels2.airliner_far(), I]])
-	basic("airliner (far)", am, 600)
-	check("airliner size", near(am["size"].z, 37.5, 38.5) and near(am["size"].x, 35.5, 36.2), "%.2f m long, %.2f m span" % [am["size"].z, am["size"].x])
+	check("helicopter tail rotor", near(trm["size"].y, 1.9, 1.98) and trm["size"].x < 0.2, "%.2f m across, %.2f m thick along +x" % [trm["size"].y, trm["size"].x])
+	var tp: Vector3 = hc["tail_pivot"]
+	check("helicopter tail rotor clears the boom and ground", tp.y - float(hc["tail_radius"]) > 1.5 and tp.x < -0.2, "lowest tip %.2f m up, hub %.2f m left of the fin" % [tp.y - float(hc["tail_radius"]), -tp.x])
+	for gear in [false, true]:
+		var al := NewModels2.airliner_far(gear)
+		var am := measure([[al["mesh"], I]])
+		basic("airliner gear %s" % ("down" if gear else "up"), am, 2200)
+		check("airliner size %s" % gear, near(am["size"].z, 37.8, 38.2) and near(am["size"].x, 33.6, 34.4) and absf(float(am["size"].x) - float(al["wingspan"])) < 0.15,
+			"%.2f m long, %.2f m span (wingspan key %.2f), %.2f m high" % [am["size"].z, am["size"].x, al["wingspan"], am["size"].y])
+		if gear:
+			check("airliner gear reaches down", float(am["lo"].y) < -4.0, "wheels down to %.2f m below the fuselage axis" % am["lo"].y)
+		var af := measure([[al["mesh_far"], I]])
+		basic("airliner far mesh", af, 320)
+		check("airliner far outline", near(af["size"].z, 37.8, 38.2) and near(af["size"].x, 33.6, 34.4), "%.2f x %.2f m" % [af["size"].z, af["size"].x])
 	# ---- kites and flag
 	for kind in 2:
 		var km := measure([[NewModels2.kite(kind), I]])
@@ -174,17 +204,26 @@ func _initialize() -> void:
 		check("kite %d span" % kind, near(km["size"].x, 0.95, 1.05), "%.2f m across" % km["size"].x)
 	var lnm := measure([[NewModels2.kite_line(), I]])
 	check("kite line", near(lnm["size"].z, 0.999, 1.001) and int(lnm["tris"]) == 4, "%.3f m along +z, %d tris" % [lnm["size"].z, lnm["tris"]])
-	for sc in 4:
+	for sc in 5:
 		var fl := NewModels2.flag(sc)
 		var fm := measure([[fl["pole"], I], [fl["cloth"], Transform3D(Basis.IDENTITY, fl["cloth_origin"])]])
+		var cl := measure([[fl["cloth"], I]])
+		var arr := (fl["cloth"] as ArrayMesh).surface_get_arrays(0)
+		var uvs: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV]
+		var cps: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var uv_ok := true
+		for k in uvs.size():
+			var uvk := uvs[k]
+			if uvk.x < -0.001 or uvk.x > 1.001 or uvk.y < -0.001 or uvk.y > 1.001: uv_ok = false
+			# UV follows the cloth: x / 1.8 along the fly (the hoist rope sits just outside x = 0)
+			if cps[k].x > 0.0 and absf(uvk.x - cps[k].x / 1.8) > 0.002: uv_ok = false
+		basic("flag %d" % sc, fm, 6000)
+		check("flag %d cloth" % sc, int(cl["tris"]) >= 2 * 40 * 24 and uv_ok and near(cl["size"].x, 1.8, 1.83) and near(cl["size"].y, 0.9, 1.1) and cl["size"].z < 0.1 and int(cl["flipped"]) == 0,
+			"%d tris, %d vertices, UV ok %s, %.2f x %.2f m, %.3f m deep at rest" % [cl["tris"], uvs.size(), uv_ok, cl["size"].x, cl["size"].y, cl["size"].z])
 		if sc == 0:
-			basic("flag", fm, 800)
-			var cl := measure([[fl["cloth"], I]])
-			var arr := (fl["cloth"] as ArrayMesh).surface_get_arrays(0)
-			var uvs: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV]
-			check("flag cloth grid", int(cl["tris"]) == 480 and uvs.size() == 21 * 13, "%d tris, %d vertices with UV" % [cl["tris"], uvs.size()])
-			check("flag pole height", near(fm["hi"].y, 9.0, 9.2) and absf(float(fm["lo"].y)) < 0.01, "%.2f m" % fm["hi"].y)
-		check("flag %d finite" % sc, fm["finite"], "")
+			var pm2 := measure([[fl["pole"], I]])
+			check("flag pole", near(pm2["hi"].y, 9.1, 9.2) and absf(float(pm2["lo"].y)) < 0.01 and int(pm2["tris"]) < 1500, "%.2f m to the top of the ball, %d tris" % [pm2["hi"].y, pm2["tris"]])
+			check("flag grid key", fl["grid"] == Vector2i(40, 24), "")
 	# ---- debris and funnels
 	var deb := NewModels2.debris_pieces()
 	check("debris count", deb.size() == 6, "%d pieces" % deb.size())

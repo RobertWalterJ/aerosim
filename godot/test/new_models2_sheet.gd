@@ -53,11 +53,12 @@ func _entries() -> Array:
 	out.append(["rescue helicopter", [[hp, Vector3(0.8, 0.35, -1.0)], [hp, Vector3(-1.0, 0.1, 0.1)], [hp, Vector3(0.3, 1.0, 0.3)]]])
 	var hb := [[hc["body"], I]]
 	out.append(["helicopter body, close", [[hb, Vector3(0.6, 0.2, -1.0)], [hb, Vector3(1.0, 0.15, 0.2)], [hb, Vector3(-0.8, 0.4, 1.0)]]])
-	var al := [[NewModels2.airliner_far(), I]]
-	out.append(["airliner (far, 38 m)", [[al, Vector3(0.7, 0.4, -1.0)], [al, Vector3(0.3, -1.0, 0.25)], [al, Vector3(1.0, 0.05, 0.0)]]])
+	var al := [[NewModels2.airliner_far()["mesh"], I]]
+	var alg := [[NewModels2.airliner_far(true)["mesh"], I]]
+	out.append(["airliner (38 m), gear down, far", [[al, Vector3(0.7, 0.4, -1.0)], [alg, Vector3(1.0, -0.3, -0.6)], [[[NewModels2.airliner_far()["mesh_far"], I]], Vector3(0.3, -1.0, 0.25)]]])
 	var k0 := [[NewModels2.kite(0), I]]; var k1 := [[NewModels2.kite(1), I]]
 	out.append(["kites: diamond, delta", [[k0, Vector3(0.3, 0.2, -1.0)], [k0, Vector3(1.0, 0.1, 0.3)], [k1, Vector3(0.3, 0.2, -1.0)]]])
-	var fl := NewModels2.flag(0); var fl1 := NewModels2.flag(1)
+	var fl := NewModels2.flag(1); var fl1 := NewModels2.flag(3)
 	var fp := [[fl["pole"], I], [fl["cloth"], Transform3D(Basis.IDENTITY, fl["cloth_origin"])]]
 	out.append(["flag (9 m), cloth, kite line", [[fp, Vector3(0.4, 0.15, -1.0)], [[[fl1["cloth"], I]], Vector3(0.2, 0.2, 1.0)],
 		[[[NewModels2.kite(1), I], [NewModels2.kite_line(), Transform3D(Basis.IDENTITY.scaled(Vector3(1, 1, 3)), Vector3.ZERO)]], Vector3(1.0, 0.4, 0.2)]]])
