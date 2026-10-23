@@ -405,3 +405,19 @@ Robert's direction: gameplay and story must not take away the sandbox. A player 
   - G3. Should discoveries reward anything at all (a message, a note count), or stay purely as a list of places found?
   - G4. Photos are now kept in the game. Is a gallery in the pause menu enough, or should it also be reachable from the DroneBudz app side (the phone notification centre) so it feels like the drone app's album?
   - G5. The farm sits about 500 m south-east of the start pad. Is that the right sort of distance for somewhere to explore, or should it be further out?
+
+## Opt-in DroneBudz jobs and story foundation (lane/notify, session B, 2026-10-23)
+Robert's direction: the story and gameplay must not cost the sandbox. This pass adds a small optional jobs layer on top of the world and photo work, and it can be ignored entirely.
+- **Where:** `game/jobs.gd` (class `Jobs`, the job state, the photo checking and the Jobs page), wired in `main.gd` and `hud.gd` (Flight > DroneBudz jobs, the jobs page opened there or with J while paused; Display > Overlay and sound > Story and jobs Off/On). State persists in `user://story.cfg`.
+- **How a job arrives:** a DroneBudz message from one of the group, with the brief and a pointer to Flight > DroneBudz jobs. The Jobs page lists offers with Accept job or Not now, active jobs with their objectives, and completed jobs with the followers earned. There is no deadline or failure: leaving a job alone changes nothing.
+- **Three starter jobs:** Maya asks for the lake at golden hour, Riley asks for the chapel for the heritage page, and Jo asks for a firework burst during a night show. Each pays followers into the little channel and the next one opens when the previous is submitted.
+- **Photo objectives are real:** the photo library now emits a signal for every saved photo, and the job layer checks its metadata: the places in frame and their distance, the in-game clock, night or day, whether a fireworks show or a storm was running. A qualifying photo is attached to the objective and the friend replies; when every objective is ticked, Submit pays out and the next job arrives. The photo for an objective is shown as a thumbnail on the Jobs page.
+- **Sandbox guarantee:** the free flight, all five quads, the plane, the events, the courses, the photo gallery and the discoveries are untouched. The jobs switch off cleanly from the menu, and no job ever moves the drone, forces the camera or restricts where the player flies.
+- **Evidence (docs/realism/jobs/):** 00 the Jobs page with Maya's first offer, 01 the same job accepted with its objective ticked and Submit enabled. (The demo shot completes the objective directly; a real photo fills in the thumbnail.)
+- **Not verified:** a real photo completing an objective end to end in a normal flight (the matching code was exercised with the demo hook), the followers story across restarts, and the firework objective with a real night show.
+- **Questions for Robert:**
+  - J1. Are three starter jobs with followers the right first step, or should the story wait until the weather/event director can drive the jobs (storm chase, show coverage)?
+  - J2. Should the Jobs page live in the pause menu, or inside the DroneBudz app (opened from the phone notification centre) so the whole phone reads as one app?
+  - J3. Should a job ever fail or expire, or stay open forever as it does now?
+  - J4. Should the channel have a name separate from the group, and should followers unlock anything (gear, locations, cosmetics) or stay a score?
+  - J5. The first job asked for the lake at golden hour but the check only required the lake in frame within 900 m. Should the conditions be stricter (time of day, light, framing, subject size), or is "get the shot" enough for now?

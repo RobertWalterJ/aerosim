@@ -16,6 +16,7 @@ signal gimbal_changed(pitch_rad: float)
 signal lens_changed(lens: String)
 signal photo_requested
 signal gallery_requested
+signal jobs_requested
 signal takeoff_land_requested
 signal rth_requested
 signal ev_changed(ev: float)
@@ -74,6 +75,8 @@ var simple_on := false
 var landing_mode := false          # the welcome screen is up: the flight controls stay hidden
 var lens_rain_k := 0.6             # how much rain gathers on the lens: 0 off, 0.6 light, 1.0 natural
 var sound_on := true
+## session B: the DroneBudz jobs and story layer are opt-in; Off leaves the whole sandbox exactly as it is.
+var story_on := true
 ## session B: the phone-style DroneBudz notifications for world events (game/phone_notes.gd). Off hides all of them.
 var phone_notes := true
 ## session B: 0 iPhone style, 1 Android style (Android is the default; Robert picked it)
@@ -452,6 +455,10 @@ func _build_flight_tab() -> void:
 	# the run, never counted down on screen.
 	_heading(p, "Courses")
 	_choice(p, "Ring course", Courses.NAMES, func(): return int(events.get("course", 0)), func(i): events["course"] = i)
+	# session B: the optional story and jobs layer, fed by the DroneBudz group
+	_heading(p, "DroneBudz")
+	_action(p, "DroneBudz jobs", func(): jobs_requested.emit())
+	_sub(p, "Optional photo jobs from the group. Ignore them and the sandbox is unchanged.")
 
 func _build_drone_tab() -> void:
 	var p := _page("Drone")
@@ -628,6 +635,7 @@ func _build_display_tab() -> void:
 	_choice(p, "Sound", ["On", "Off"], func(): return 0 if sound_on else 1, func(i): sound_on = i == 0; sound_changed.emit(sound_on))
 	_choice(p, "Phone messages", ["Off", "On"], func(): return 0 if phone_notes else 1, func(i): phone_notes = i == 0)
 	_choice(p, "Phone style", ["Android", "iPhone"], func(): return 0 if phone_style == 1 else 1, func(i): phone_style = 1 if i == 0 else 0)
+	_choice(p, "Story and jobs", ["Off", "On"], func(): return 1 if story_on else 0, func(i): story_on = i == 1)
 	_choice(p, "Listening position", ["Ground (the pilot)", "Onboard microphone", "Cinematic mix"], func(): return listening, func(i): listening = i; listening_changed.emit(i))
 	_gslider(p, "Volume", 0.0, 1.0, 0.05, func(): return sound_vol, func(x): sound_vol = x; volume_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_heading(p, "Performance")

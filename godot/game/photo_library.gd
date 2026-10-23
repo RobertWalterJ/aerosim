@@ -14,6 +14,9 @@ const DIR := "user://gallery"
 const INDEX := "user://gallery/index.json"
 const MAX_PHOTOS := 120
 
+## Emitted for every saved photo, with its metadata. The jobs layer listens to this to check photo objectives.
+signal photo_saved(id: int, meta: Dictionary)
+
 var hud: Hud
 var world_life: WorldLife
 var _index: Array = []
@@ -65,7 +68,15 @@ func capture(img: Image, meta: Dictionary) -> int:
 		world_life.mark_discovered(names)
 	if hud != null:
 		hud.toast("Saved to the photo gallery")
+	photo_saved.emit(id, meta)
 	return id
+
+## The thumbnail texture for a photo id, for the jobs page and any other in-game use.
+func texture_for(photo_id: int) -> Texture2D:
+	for rec in _index:
+		if int(rec.get("id", -1)) == photo_id:
+			return _thumb_texture(rec)
+	return null
 
 func _remove_files(rec: Dictionary) -> void:
 	for key in ["full", "thumb"]:

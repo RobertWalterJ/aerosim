@@ -55,6 +55,7 @@ var hud: Hud
 var phone_notes: PhoneNotes        # session B: the DroneBudz phone notification bundle (game/phone_notes.gd)
 var world_life: WorldLife          # session B: the farm, turning mill and discoverable places (game/world_life.gd)
 var photo_library: PhotoLibrary    # session B: the in-game photo gallery (game/photo_library.gd)
+var jobs: Jobs                     # session B: the opt-in DroneBudz jobs and story layer (game/jobs.gd)
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
@@ -319,6 +320,12 @@ func _ready() -> void:
 	add_child(photo_library)
 	photo_library.setup(hud, world_life)
 	hud.gallery_requested.connect(func(): photo_library.open_gallery())
+	# session B: the opt-in jobs and story layer, fed by the photo metadata. Ignoring it changes nothing in the sandbox.
+	jobs = Jobs.new()
+	add_child(jobs)
+	jobs.setup(hud, photo_library, phone_notes)
+	photo_library.photo_saved.connect(jobs.on_photo)
+	hud.jobs_requested.connect(func(): jobs.open_page())
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
@@ -786,6 +793,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_H: osd.show_osd = not osd.show_osd
 		KEY_N: phone_notes.toggle_shade()   # session B: open or close the phone notification centre
 		KEY_G: if hud.paused: photo_library.toggle()   # session B: photo gallery from the menu
+		KEY_J: if hud.paused: jobs.toggle()   # session B: DroneBudz jobs page from the menu
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
@@ -925,6 +933,10 @@ func _screenshot_mode(arg: String) -> void:
 			_photodetail = true
 		elif c == "discoverall":
 			world_life.debug_discover_all()
+		elif c == "jobsopen":     # session B dev hook: the DroneBudz jobs page
+			jobs.open_page()
+		elif c == "jobsdemo":     # session B dev hook: accept a job, complete it with the newest photo, open the page
+			jobs.debug_demo()
 		elif c == "notestorm":
 			phone_notes.debug_one("storm")
 		elif c == "notetornado":
@@ -998,6 +1010,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("phone notes: ", phone_notes.stats())
 	print("world life: ", world_life.stats())
 	print("photo library: ", photo_library.stats())
+	print("jobs: ", jobs.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
@@ -1220,7 +1233,10 @@ func _photo_meta() -> Dictionary:
 	return {"clock": clock, "weather": weather_name, "weather_i": weather_i,
 		"pos": [p.x, p.y, p.z], "agl": agl, "drone": hud.airframe_id if hud != null else "drone",
 		"lens": hud.lens if hud != null else "standard", "exposure": sensor.exposure,
-		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "subjects": subjects}
+		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "subjects": subjects,
+		"night": _sun_el < 0.0,
+		"fireworks": fireworks != null and bool(fireworks.stats().get("running", false)),
+		"storm": weather_events != null and bool(weather_events.stats().get("storm", false))}
 
 var _apstest := false
 
