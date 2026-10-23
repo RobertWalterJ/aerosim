@@ -8,7 +8,20 @@ extends Node3D
 
 const CELL := 80.0
 const FAR_CELL := 300.0
-const TREE_NAMES := ["spruce_a", "spruce_b", "maple_red", "maple_gold", "oak"]
+const TREE_NAMES := ["spruce_a", "spruce_b", "maple_red", "maple_gold", "oak", "beech", "birch", "poplar", "pine"]
+## Per species: conifer, height and trunk radius at scale 1 (for the trunk colliders), largest scale, and its colour when
+## seen far off (times the far model's tint in Assets._tint_far).
+const TREE_INFO := [
+	[true, 21.0, 0.3, 1.5, Color(1.0, 1.0, 1.0)],
+	[true, 19.0, 0.3, 1.5, Color(0.95, 1.0, 0.95)],
+	[false, 13.0, 0.4, 1.5, Color(1.3, 0.62, 0.62)],
+	[false, 12.5, 0.4, 1.5, Color(1.45, 1.35, 0.9)],
+	[false, 14.0, 0.5, 1.5, Color(0.95, 0.88, 0.9)],
+	[false, 15.0, 0.45, 1.4, Color(1.15, 0.95, 0.9)],
+	[false, 15.0, 0.22, 1.2, Color(1.5, 1.5, 1.2)],
+	[false, 22.0, 0.4, 1.15, Color(1.45, 1.42, 1.0)],
+	[true, 18.0, 0.32, 1.3, Color(0.3, 0.8, 1.05)],
+]
 const TREE_NEAR_END := 110.0
 const TREE_MID_END := 430.0
 const CELL_PAD := 57.0           # half a cell's diagonal: a cell is shown while any of its props could be in range
@@ -41,30 +54,86 @@ func build(t: Terrain, touch_device: bool) -> void:
 	_colliders()
 
 # ------------------------------------------------------------------ trees
+## The layout plants spruce, maple and oak (variants 0..4). Some are swapped for the newer species by where they stand,
+## never moved: open lawn gets spreading single trees (oak, beech), woods get a mix with birches and the odd poplar, and
+## a lone conifer is often a Scots pine. Spruce clumps stay spruce. Positions, and so the trunk colliders, are unchanged.
+func _species(x: float, z: float, vi: int, crowd: int) -> int:
+	var h := _hash2(x, z, 0.0)
+	if vi < 2:
+		if crowd <= 2 and h < 0.5: return 8
+		if crowd <= 5 and h < 0.15: return 8
+		return vi
+	if crowd <= 1:                 # open lawn
+		if h < 0.2: return 4
+		if h < 0.38: return 5
+		return vi
+	if crowd >= 5:                 # woodland
+		if h < 0.15: return 6
+		if h < 0.21: return 5
+		return vi
+	if h < 0.1: return 6           # woodland edge and groups
+	if h < 0.16: return 5
+	if h < 0.25: return 7
+	return vi
+
+func _hash2(x: float, z: float, k: float) -> float:
+	var v := sin(x * (12.9898 + k) + z * (78.233 - k)) * 43758.5453
+	return v - floorf(v)
+
 func _trees() -> void:
-	var cells := {}    # Vector2i -> variant -> Array[Transform3D]
+	var cells := {}    # Vector2i -> variant -> [Array[Transform3D], Array[Color]]
+	# how crowded each tree is: neighbours within 14 m (decides lawn, edge or woodland)
+	var grid := {}
+	for tr in layout["trees"]:
+		var gk := Vector2i(floori(float(tr[0]) / 14.0), floori(float(tr[2]) / 14.0))
+		if not grid.has(gk): grid[gk] = []
+		grid[gk].append(Vector2(float(tr[0]), float(tr[2])))
+	var counts := []
+	counts.resize(TREE_NAMES.size()); counts.fill(0)
 	for tr in layout["trees"]:
 		var x: float = tr[0]; var y: float = tr[1]; var z: float = tr[2]
-		var s: float = tr[4]
-		var vi: int = int(tr[5])
 		if Lake.is_wet(x, z): continue          # no tree stands in the lake or on its edge
-		var xf := Transform3D(Basis(Vector3.UP, float(tr[3])).scaled(Vector3(s, s, s)), Vector3(x, y, z))
+		var p := Vector2(x, z)
+		var gk := Vector2i(floori(x / 14.0), floori(z / 14.0))
+		var crowd := 0
+		for a in range(-1, 2):
+			for b in range(-1, 2):
+				for q in grid.get(Vector2i(gk.x + a, gk.y + b), []):
+					if (q as Vector2).distance_squared_to(p) < 196.0: crowd += 1
+		crowd -= 1
+		var vi := _species(x, z, int(tr[5]), crowd)
+		counts[vi] += 1
+		var info: Array = TREE_INFO[vi]
+		var conifer: bool = info[0]
+		var s: float = minf(float(tr[4]), float(info[3]))
+		# every tree its own: a slightly oval crown, a little taller or squatter, and a lean of a few degrees
+		var sx := 0.9 + 0.2 * _hash2(x, z, 1.7)
+		var sz := 0.9 + 0.2 * _hash2(x, z, 2.9)
+		var sy := 0.92 + 0.16 * _hash2(x, z, 4.3)
+		var la := TAU * _hash2(x, z, 5.1)
+		var lean := deg_to_rad(1.5 if conifer else 3.5) * _hash2(x, z, 6.7)
+		var basis := Basis(Vector3(cos(la), 0.0, sin(la)), lean) * Basis(Vector3.UP, float(tr[3])) * Basis.from_scale(Vector3(s * sx, s * sy, s * sz))
+		var xf := Transform3D(basis, Vector3(x, y, z))
 		var key := Vector2i(floori(x / CELL), floori(z / CELL))
 		if not cells.has(key): cells[key] = {}
-		if not cells[key].has(vi): cells[key][vi] = [] as Array[Transform3D]
-		cells[key][vi].append(xf)
-		var conifer := vi < 2
+		if not cells[key].has(vi): cells[key][vi] = [[] as Array[Transform3D], [] as Array[Color]]
+		cells[key][vi][0].append(xf)
+		var shade := 0.88 + 0.24 * _hash2(x, z, 8.3)
+		var fc: Color = info[4]
+		cells[key][vi][1].append(Color(fc.r * shade, fc.g * shade, fc.b * shade))
 		var tk := Vector2i(floori(x / GRID), floori(z / GRID))
 		if not _trunks.has(tk): _trunks[tk] = []
-		_trunks[tk].append([x, y, z, (0.3 if conifer else 0.4) * s, (21.0 if conifer else 13.0) * s])
+		_trunks[tk].append([x, y, z, float(info[2]) * s, float(info[1]) * s * sy])
 		tree_count += 1
+	print("trees: ", tree_count, " by species ", counts)
 	for key in cells:
 		for vi in cells[key]:
-			var xfs: Array[Transform3D] = cells[key][vi]
+			var xfs: Array[Transform3D] = cells[key][vi][0]
+			var cols: Array[Color] = cells[key][vi][1]
 			var n: String = TREE_NAMES[vi]
 			Assets.scatter(self, "trees/%s_l0" % n, xfs, true, 0.0, TREE_NEAR_END + CELL_PAD)
 			Assets.scatter(self, "trees/%s_l1" % n, xfs, true, TREE_NEAR_END, TREE_MID_END + CELL_PAD)
-			Assets.scatter(self, "trees/far_%s" % ("conifer" if vi < 2 else "broadleaf"), xfs, false, TREE_MID_END, 0.0)
+			Assets.scatter(self, "trees/far_%s" % ("conifer" if TREE_INFO[vi][0] and vi != 8 else "broadleaf"), xfs, false, TREE_MID_END, 0.0, cols)
 
 func _far_trees(touch_device: bool) -> void:
 	for kind in ["conifer", "broad"]:
