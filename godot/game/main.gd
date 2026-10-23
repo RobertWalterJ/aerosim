@@ -328,7 +328,7 @@ func _build_world() -> void:
 	await _stage("Growing the grass", 0.7)
 	grass = Grass.new()
 	add_child(grass)
-	if not "nograss" in dev_args: grass.build(terrain, "low" if touch_dev else "high", world.exclusions, home)
+	if not "nograss" in dev_args: grass.build(terrain, "low" if OS.has_feature("mobile") else "high", world.exclusions, home)
 	# sun, sky and atmosphere
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
