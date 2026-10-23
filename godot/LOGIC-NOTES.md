@@ -220,3 +220,8 @@ Owner's aim: the lake should look like a real lake in the park: the sky and the 
   - W4. The mirrored sky is fairly strong at low angles (it is the honest fresnel of water). Keep it, or dim it so the lake stays darker from the park?
   - W5. "Water detail" is On by default, also on a phone. Keep it on for the phone, or default Off on touch devices?
   - W6. Floating leaves near the shore (the optional extra) were not added. Do you want them?
+## Models batch 2 (lane/models2, Claude, 2026-10-23)
+- **Where:** `game/new_models2.gd` (class `NewModels2`), contract rows in `game/README-models.md` under "Batch 2". Nothing is wired into the game yet: DSH wires them, Claude models them (same rule as batch 1).
+- **What:** barn, silo, Dutch windmill (spinning sails), wind pump (spinning wheel, yawing head), freight train (locomotive and five car meshes plus a consist list) and a 20 m track piece, rescue helicopter (main and tail rotors), far airliner, two kites and a kite line, a flag with a 20 x 12 cloth grid for a wind shader, six debris pieces, the funnel tube and the spray ring disc for the tornado and waterspout shaders.
+- **Evidence:** `docs/realism/models/new_models2_sheet.jpg`; `test/new_models2_test.gd` passes (finite, every triangle wound with its normals, budgets, real sizes).
+- **Wiring notes:** cars and the track share an origin at the rail top, so a car at the track's y sits on the rails; the track foot is 0.62 m below. Rotors, sails and the pump wheel each say which own axis they turn about and give a spin sign. The funnel and ring have no material on purpose.
