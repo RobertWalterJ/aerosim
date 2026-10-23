@@ -32,6 +32,8 @@ signal simple_changed(on: bool)
 signal dof_changed(mode: int)
 signal focus_changed(manual: bool, distance_m: float)
 signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects on the drone" and "Camera shake"
+signal fireworks_changed(show: int)                  # session B: "Fireworks show" in the Weather tab
+signal surprise_changed(on: bool)                    # session B: "Surprise shows"
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
@@ -70,6 +72,8 @@ var listening := 2
 var sound_vol := 0.8
 var wind_fx := true                # wind lane: the drone wobbles, drifts and works harder in gusts
 var cam_shake := true              # wind lane: the picture shakes a little in rough air
+var fireworks_show := 0            # session B: 0 off, 1 build up, 2 quiet night, 3 finale
+var surprise_shows := false        # session B: a show starts by itself on a few set evenings
 
 var minimap: MiniMap
 
@@ -524,6 +528,10 @@ func _build_weather_tab() -> void:
 	# wind lane: how the wind treats the drone and the picture
 	_choice(p, "Wind effects on the drone", ["Off", "Natural"], func(): return 1 if wind_fx else 0, func(i): wind_fx = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
 	_choice(p, "Camera shake", ["Off", "Natural"], func(): return 1 if cam_shake else 0, func(i): cam_shake = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
+	_heading(p, "Fireworks")
+	# session B: a show over the lake. Off stops a running show; the other three start one.
+	_choice(p, "Fireworks show", Fireworks.SHOW_NAMES, func(): return fireworks_show, func(i): fireworks_show = i; fireworks_changed.emit(i))
+	_choice(p, "Surprise shows", ["Off", "On"], func(): return 1 if surprise_shows else 0, func(i): surprise_shows = i == 1; surprise_changed.emit(surprise_shows))
 	_action(p, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
 
 func _build_camera_tab() -> void:

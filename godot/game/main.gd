@@ -54,6 +54,7 @@ var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
 var audio: DroneAudio
+var fireworks: Fireworks           # session B: firework shows over the lake (game/fireworks.gd)
 var _canopy_wind := Vector3.ZERO
 var _wash_now := 0.0
 var recording := false
@@ -166,6 +167,7 @@ func _ready() -> void:
 		if a == "selftest": _selftest = true
 		if a == "apstest": _apstest = true
 	Grass.add_globals()
+	Fireworks.add_globals()        # session B: the burst light colour that the smoke and the lake read (g_fire)
 	await _build_world()
 	af = Airframes.make(airframe_id)
 	quad = Quad.new(af)
@@ -247,6 +249,21 @@ func _ready() -> void:
 	if touch_device: hud.listening = 1
 	audio.perspective = hud.listening
 	audio.setup(drone_node, Vector3(home.x, terrain.height(home.x, home.y) + 1.7, home.y), tl, float(af["armD"]), home)
+	# session B: fireworks over the lake. The pause menu starts a show; the game moves the clock for it in daylight
+	# (21:30 on the same date) and puts the menu choice back to Off when the show ends.
+	fireworks = Fireworks.new()
+	add_child(fireworks)
+	fireworks.setup(terrain, home)
+	hud.fireworks_changed.connect(func(i: int): fireworks.request_show(i))
+	hud.surprise_changed.connect(func(on: bool): fireworks.surprise_on = on)
+	fireworks.show_ended.connect(func(): hud.fireworks_show = 0; hud._sync())
+	fireworks.toast.connect(func(t: String): hud.toast(t))
+	fireworks.night_needed.connect(func():
+		hud.weather["hour"] = 21.5
+		hud.weather["clock_mode"] = 1
+		hud.weather["clock_speed"] = 2
+		apply_weather(hud.weather)
+	)
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
@@ -667,6 +684,8 @@ func _process(delta: float) -> void:
 	_update_sensor_and_osd(delta)
 	ambient.update(delta, cam, wind.toward() * wind.speed, wind.gust, _sun_el, _sun_dir, _daylight, wx, quad.position(), quad.armed, _wash_now, float(af["armD"]))
 
+	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
 	if not (event is InputEventKey and event.pressed and not event.echo): return
@@ -731,13 +750,53 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("windms"): hud.weather["wind"] = float(c.substr(6)); hud.weather["gust"] = 1.0; apply_weather(hud.weather)   # wind lane test hook: menu wind in m/s, gusty
 		if c == "hover": _auto_climb = false   # wind lane test hook: hold the hover (put it after sky<n>)
 		if c == "nowindfx": wind.struggle = false   # wind lane test hook: wind effects Off
+	# session B test hooks: `fireworks<1..3|build|quiet|finale>` starts a show even in daylight and `fwskip<seconds>`
+	# jumps the show clock forward, so one screenshot can catch a burst that would take a minute of waiting.
+	for c in parts.slice(3):
+		if c.begins_with("fireworks"):
+			var nm := c.substr(9)
+			var fidx := 1
+			if nm.begins_with("build"): fidx = 1
+			elif nm.begins_with("quiet"): fidx = 2
+			elif nm.begins_with("finale"): fidx = 3
+			elif nm.is_valid_int(): fidx = int(nm)
+			fireworks.force_show(fidx)
+		elif c.begins_with("fwskip"):
+			fireworks.skip_to(float(c.substr(6)))
+		elif c == "fwwall":     # dev: one burst of every type in a row, to judge the shapes
+			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
+		elif c.begins_with("fwburst"):
+			fireworks.test_burst(int(c.substr(7)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c == "nosmoke":
+			fireworks.set_smoke(false)
+		elif c.begins_with("dof"):
+			hud.dof_mode = int(c.substr(3)); sensor.dof_mode = hud.dof_mode
+		elif c == "fwsmoke":
+			fireworks.test_smoke(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c == "fwmenu":
+			# press the real menu buttons, so the Weather tab "Fireworks show" wiring is what is being tested
+			hud.set_paused(true)
+			for b in hud.find_children("*", "Button", true, false):
+				var bb := b as Button
+				if bb != null and bb.text == "Weather":
+					bb.pressed.emit()
+					break
+			await get_tree().process_frame
+			for sc in hud.find_children("Weather", "ScrollContainer", true, false):
+				(sc as ScrollContainer).scroll_vertical = 100000
+			for b in hud.find_children("*", "Button", true, false):
+				var bf := b as Button
+				if bf != null and bf.text == "Finale":
+					bf.pressed.emit()
+					break
 	await get_tree().create_timer(0.1).timeout
 	for i in frames: await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)
 	print("saved ", path)
+	print("fireworks: ", fireworks.stats())
 	var peaks := []
-	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds"]:
+	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
 		peaks.append("%s %.0f dB" % [bn, AudioServer.get_bus_peak_volume_left_db(AudioServer.get_bus_index(bn), 0)])
 	print("audio peaks ", ", ".join(peaks))
 	get_tree().quit()
@@ -758,7 +817,7 @@ func _run_selftest() -> void:
 	print("selftest: alt %.1f m over ground, crashed=%s, sim_time=%.2f s, wall=%d ms" % [p.y - terrain.height(p.x, p.z), quad.crashed, sim_time, Time.get_ticks_msec() - t0])
 	print("selftest: wind %.2f m/s, battery %.0f%%" % [_wind_now.length(), quad.battery.soc * 100.0])
 	var peaks := []
-	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds"]:
+	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
 		var bi := AudioServer.get_bus_index(bn)
 		peaks.append("%s %.0f dB" % [bn, AudioServer.get_bus_peak_volume_left_db(bi, 0)])
 	print("selftest: audio peaks ", ", ".join(peaks))

@@ -5,6 +5,7 @@ render_mode specular_schlick_ggx, depth_draw_always;
 global uniform float g_time;
 global uniform vec3 g_wind;
 global uniform float g_snow;
+global uniform vec4 g_fire;       // session B: the strongest firework burst colour and its strength, for the glints
 
 uniform float uLevel = 76.0;
 uniform vec3 deep : source_color = vec3(0.03, 0.12, 0.15);
@@ -39,4 +40,9 @@ void fragment() {
 	ROUGHNESS = mix(0.03, 0.12, w);
 	SPECULAR = mix(0.55, 1.0, fres);
 	METALLIC = 0.0;
+	// session B: a firework burst over the lake glints on the ripples, strongest at low angles; the glitter mask
+	// keeps it as scattered points of light instead of a flat wash of colour
+	float fire = clamp(g_fire.a, 0.0, 1.0);
+	float glitter = 0.22 + 0.78 * smoothstep(0.55, 0.95, vn(wp.xz * 3.5 + g_time * 0.6));
+	EMISSION = g_fire.rgb * fire * (0.06 + 0.45 * fres) * glitter * 0.25;
 }
