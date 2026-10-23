@@ -193,7 +193,8 @@ func _ready() -> void:
 	sensor = SensorPipeline.new()
 	add_child(sensor)
 	var touch_device := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
-	sensor.simple = touch_device or "simple" in OS.get_cmdline_user_args()      # phones start in the plain picture; the Display tab can switch
+	# real phones start in the plain picture; a laptop with a touch screen keeps the full camera (the Display tab can switch either way)
+	sensor.simple = OS.has_feature("mobile") or "simple" in OS.get_cmdline_user_args()
 	hud.simple_on = sensor.simple
 	sensor.setup(cam, 540 if touch_device else 720, Viewport.MSAA_DISABLED if touch_device else Viewport.MSAA_2X)
 	sensor.focus_message.connect(func(t: String): hud.toast(t))
@@ -643,6 +644,7 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
 		if c == "armed": quad.armed = true
+		if c == "simple": hud.simple_on = true; _apply_simple(true)
 		if c.begins_with("clock"):     # test hook: freeze the clock at that hour (clock7.5), on the date picked with date1..4
 			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)
 		if c.begins_with("date"):
