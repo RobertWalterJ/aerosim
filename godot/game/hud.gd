@@ -35,9 +35,10 @@ signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects 
 signal fireworks_changed(show: int)                  # session B: "Fireworks show" in the Weather tab
 signal surprise_changed(on: bool)                    # session B: "Surprise shows"
 signal birds_changed(on: bool)                       # session B: Display > Graphics "Birds"
+signal sky_quality_changed(i: int)                   # sky lane: cloud raymarch quality
 
 const WEATHER_FILE := "user://weather.cfg"
-const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
+const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0, "lowcloud": 0, "lowcloud_h": 300.0}
 const PRESETS := [["Still", 0.0, 0.0], ["Calm", 1.0, 0.45], ["Light", 3.0, 0.65], ["Breezy", 5.0, 0.85], ["Strong", 7.5, 1.0]]
 const COMPASS := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 const TABS := ["Flight", "Drone", "Weather", "Camera", "Display", "Controls"]
@@ -76,6 +77,7 @@ var cam_shake := true              # wind lane: the picture shakes a little in r
 var fireworks_show := 0            # session B: 0 off, 1 build up, 2 quiet night, 3 finale
 var surprise_shows := false        # session B: a show starts by itself on a few set evenings
 var birds_on := true               # session B: the flocks over the valley
+var sky_quality := 1               # sky lane: cloud quality 0 low, 1 medium, 2 high
 
 var minimap: MiniMap
 
@@ -512,6 +514,8 @@ func _build_weather_tab() -> void:
 	_heading(p, "Sky")
 	_choice(p, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
 	_slider(p, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
+	_choice(p, "Low cloud layer", ["Off", "Thin", "Thick"], func(): return int(weather["lowcloud"]), func(i): weather["lowcloud"] = i; _weather_edited())
+	_slider(p, "lowcloud_h", "Low cloud height", 150.0, 600.0, 10.0)
 	_heading(p, "Time of day")
 	_choice(p, "Clock", ["Real clock", "Set the time"], func(): return int(weather["clock_mode"]), func(i): weather["clock_mode"] = i; _weather_edited())
 	_slider(p, "hour", "Hour of day (moving this sets the time)", 0.0, 23.99, 0.05)
@@ -591,6 +595,7 @@ func _build_display_tab() -> void:
 	_sub(p, "If the picture looks wrong on a phone, try switching these off.")
 	_choice(p, "Cloud shadows on the land", ["On", "Off"], func(): return 0 if fx_cloud else 1, func(i): fx_cloud = i == 0; _apply_fx())
 	_choice(p, "Tree colour variety", ["On", "Off"], func(): return 0 if fx_trees else 1, func(i): fx_trees = i == 0; _apply_fx())
+	_choice(p, "Sky quality", ["Low", "Medium", "High"], func(): return sky_quality, func(i): sky_quality = i; sky_quality_changed.emit(i))
 	_choice(p, "Grass", ["On", "Off"], func(): return 0, func(i): grass_changed.emit(i == 0))
 	_choice(p, "Camera effects", ["Full sensor look", "Simple (phone safe)"], func(): return 1 if simple_on else 0, func(i): simple_on = i == 1; simple_changed.emit(simple_on))
 	_choice(p, "Drifting leaves and dust", ["On", "Off"], func(): return 0 if ambient_on else 1, func(i): ambient_on = i == 0; ambient_changed.emit(ambient_on))
@@ -626,6 +631,7 @@ func _sync() -> void:
 			"from": _slider_labels[k].text = "%s (%d°)" % [COMPASS[int(round(v / 45.0)) % 8], int(v)]
 			"hour": _slider_labels[k].text = "%02d:%02d" % [int(v), int((v - floorf(v)) * 60.0)]
 			"intensity": _slider_labels[k].text = "Light" if v < 0.34 else ("Moderate" if v < 0.7 else "Heavy")
+			"lowcloud_h": _slider_labels[k].text = "%d m" % int(v)
 
 ## Welcome screen on or off: the flight controls are hidden while it is up.
 func set_landing(on: bool) -> void:

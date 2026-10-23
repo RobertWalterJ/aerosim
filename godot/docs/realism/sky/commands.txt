@@ -1,0 +1,57 @@
+Sky lane screenshot commands (run from the godot folder; one Godot window at a time, always close it).
+
+Binary: C:\Users\Robert Walter-Joseph\Documents\RWJ Coding Projects\_tools\godot-4.7.2\Godot_v4.7.2-stable_win64_console.exe
+Form: <godot> --path . -- "shot=<png>,300,fpv,<tokens>"    (save JPEGs under 400 KB afterwards)
+
+S1 volumetric cumulus. Before images: docs/realism/sky/before/. After: docs/realism/sky/s1/.
+  clear_toward:   sky0,clock16.0,date3,facesun,at-18_150_36_190_-20
+  clear_away:     sky0,clock16.0,date3,at-18_150_36_90_-20
+  partly:         sky1,clock16.0,date3,at-18_150_36_190_-20
+  overcast:       sky2,clock16.0,date3,at-18_150_36_190_-20
+  storm:          sky5,clock16.0,date3,at-18_150_36_190_-20
+  sunset_toward:  sky0,clock18.6,date3,facesun,at-18_150_36_190_-20
+  sunset_away:    sky0,clock18.6,date3,at-18_150_36_90_-20
+  clear_20m:      sky0,clock16.0,date3,facesun,at-18_20_36_190_-20
+  night:          sky0,clock23.0,date3,at-18_150_36_190_-20
+
+Tokens: sky0..6 (clear, partly, overcast, fog, rain, storm, snow), clock<hour>, date1..4 (season),
+facesun (point the camera at the sun), at<x>_<height above ground>_<z>_<yaw>_<gimbal>, simple, drone<id>, cd<m>.
+
+Frame time: add --print-fps before the -- and read the "Project FPS" lines over the last 4 s.
+Look change: python tools\look_metrics.py before.png after.png
+
+S1 result (150 m partly-cloudy shot, last 4 s): before about 49-54 fps, after about 50-56 fps (no regression).
+
+S2 cirrus, haze, horizon. After images: docs/realism/sky/s2/.
+  clear_horizon:  sky0,clock16.0,date3,at-18_150_36_190_-20
+  hazy_horizon:   sky1,clock16.0,date3,at-18_150_36_190_-20
+  fog_horizon:    sky3,clock16.0,date3,at-18_150_36_190_-20
+  sunset_cirrus:  sky0,clock18.6,date3,facesun,at-18_150_36_190_-20
+
+S3 sun, sunset, twilight, night. Time series: docs/realism/sky/s3/.
+  t5_5..t19_2 (daytime):  sky0,date3,clock<h>,facesun,at-18_150_36_190_-20
+  t5_5, t20_5, t23_0 (night, sky up): sky0,date3,clock<h>,at-18_150_36_270_30
+
+S4 cloud shadows match the sky. After images: docs/realism/sky/s4/.
+  sunside_150:   sky1,clock16.0,date3,facesun,at-18_150_36_190_-20
+  aerial_300:    sky1,clock16.0,date3,at-18_300_36_190_-30
+  overcast_300:  sky2,clock16.0,date3,at-18_300_36_190_-30
+
+S5 weather integration. After images: docs/realism/sky/s5/.
+  storm:  sky5,clock16.0,date3,at-18_150_36_190_-20
+  snow:   sky6,clock16.0,date3,at-18_150_36_190_-20
+  rain:   sky4,clock16.0,date3,at-18_150_36_190_-20
+  transition filmstrip (clear -> storm, no snap): clock16.0,date3,at-18_150_36_190_-20,skyto5
+    captured at frames 15, 60, 120, 240, 420, 600 (trans_<frames>.jpg)
+
+S6 phone and cost. After images: docs/realism/sky/s6/.
+  q0_low / q1_medium / q2_high: cloudq0|1|2,sky1,clock16.0,date3,at-18_150_36_190_-20
+  simple:  simple,sky1,clock16.0,date3,at-18_150_36_190_-20
+  mobile:  sky1,clock16.0,date3,at-18_150_36_190_-20  (with --rendering-method mobile)
+Frame times (--print-fps, last 4 s): Low 59-64 fps, Medium 41-47 fps, High 39-48 fps.
+
+S7 low cloud layer (E3). After images: docs/realism/sky/s7/.
+  below_150:     sky0,clock16.0,date3,lowcloudh300,lowcloud2,at-18_150_36_190_-20
+  below_lookup:  sky0,clock16.0,date3,lowcloudh300,lowcloud2,at-18_150_36_190_25
+  inside_300:    sky0,clock16.0,date3,lowcloudh300,lowcloud2,at-18_300_36_190_-20
+  above_500:     sky0,clock16.0,date3,lowcloudh300,lowcloud2,at-18_500_36_190_-20

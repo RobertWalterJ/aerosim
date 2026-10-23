@@ -22,6 +22,7 @@ var drone_light := SpotLight3D.new()
 var drone_shadow := DroneShadow.new()
 var env := Environment.new()
 var sky_mat := ShaderMaterial.new()
+var _sky_quality := 1            # cloud quality: 0 low, 1 medium, 2 high (set in _build_world)
 var wx := WeatherSystem.new()
 var rain_fx: GPUParticles3D
 var rain_mat: ParticleProcessMaterial
@@ -77,6 +78,7 @@ var _fps_acc := 0.0
 var _fps := 60.0
 var _wind_now := Vector3.ZERO
 var cam_shake := CamShake.new()   # wind lane: camera buffeting in rough air (game/shake.gd)
+var _low_cloud_inside := 0.0      # sky lane (E3): 0 outside the low cloud, 1 fully inside
 
 var _loaded := false
 var _air_test := Vector3.ZERO      # test hook: `air<x>_<y>_<head-on>` pins the air speed over the lens
@@ -227,6 +229,7 @@ func _ready() -> void:
 	hud.takeoff_land_requested.connect(_takeoff_or_land)
 	hud.rth_requested.connect(_toggle_rth)
 	hud.wind_fx_changed.connect(func(e: bool, s: bool): wind.struggle = e; cam_shake.enabled = s)   # wind lane
+	hud.sky_quality_changed.connect(func(i: int): _sky_quality = i)   # sky lane: cloud quality from the menu
 	# the camera renders into the sensor pipeline's overscan viewport; the window itself only shows the video frame and the HUD
 	await _stage("Setting up the camera", 0.82)
 	sensor = SensorPipeline.new()
@@ -235,6 +238,7 @@ func _ready() -> void:
 	# real phones start in the plain picture; a laptop with a touch screen keeps the full camera (the Display tab can switch either way)
 	sensor.simple = OS.has_feature("mobile") or "simple" in OS.get_cmdline_user_args()
 	hud.simple_on = sensor.simple
+	hud.sky_quality = _sky_quality   # sky lane: show the phone/desktop cloud-quality default in the menu
 	sensor.setup(cam, 540 if touch_device else 720, Viewport.MSAA_DISABLED if touch_device else Viewport.MSAA_2X)
 	sensor.focus_message.connect(func(t: String): hud.toast(t))
 	var video := CanvasLayer.new(); video.layer = 1; add_child(video); video.add_child(sensor.screen)
@@ -281,7 +285,7 @@ func _ready() -> void:
 		for q in p["pts"]: pts.append(Vector2(q[0], q[1]))
 		pl.append(pts)
 	hud.minimap.paths = pl
-	apply_weather(hud.weather)
+	apply_weather(hud.weather, true)   # snap at start-up so the game begins at the saved weather
 	spawn()
 	drone_shadow.setup(af, terrain)
 	if sensor.simple:
@@ -298,6 +302,7 @@ func _ready() -> void:
 func _build_world() -> void:
 	await _stage("Reading the valley", 0.05)
 	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
+	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # cloud-shadow sun offset (before the world shaders compile)
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
 	add_child(terrain)
@@ -336,6 +341,7 @@ func _build_world() -> void:
 	sky_mat.shader = load("res://game/shaders/sky.gdshader")   # weather-driven sky: clear-sky colour, sun, clouds
 	var sky := Sky.new(); sky.sky_material = sky_mat
 	sky.process_mode = Sky.PROCESS_MODE_REALTIME
+	_sky_quality = 0 if (touch_dev or RenderingServer.get_current_rendering_method() == "mobile") else 1   # cheap clouds on phones and the mobile renderer
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
@@ -433,7 +439,7 @@ func _snow_mesh() -> Mesh:
 	return qm
 
 # ------------------------------------------------------------------ weather
-func apply_weather(w: Dictionary) -> void:
+func apply_weather(w: Dictionary, snap := false) -> void:
 	_base_wind = float(w["wind"]); _base_gust = float(w["gust"])
 	wind.from_deg = float(w["from"])
 	var hour := float(w.get("hour", 16.0))
@@ -446,7 +452,7 @@ func apply_weather(w: Dictionary) -> void:
 	_tick_clock(0.0)
 	_update_celestial()
 	wx.set_condition(int(w["sky"]), float(w["intensity"]))
-	_apply_weather_state(0.0, true)
+	_apply_weather_state(0.0, snap)
 
 ## The calendar day: today's, or one of the season presets.
 func _apply_date() -> void:
@@ -508,8 +514,18 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sky_mat.set_shader_parameter("haze", float(c["haze"]))
 	sky_mat.set_shader_parameter("fog", float(c["fog"]))
 	sky_mat.set_shader_parameter("flash", storm_flash)
+	sky_mat.set_shader_parameter("rain", float(c["rain"]))
+	sky_mat.set_shader_parameter("snow", float(c["snow"]))
+	# low cloud layer (E3): the sky draws the stratus, and the world fog does the inside effect
+	var lc_i := int(hud.weather.get("lowcloud", 0))
+	var lc_amt := 0.0
+	if lc_i == 1: lc_amt = 0.5
+	elif lc_i == 2: lc_amt = 1.0
+	sky_mat.set_shader_parameter("low_cloud", lc_amt)
+	sky_mat.set_shader_parameter("low_cloud_h", float(hud.weather.get("lowcloud_h", 300.0)))
 	var wd := wind.toward()
-	sky_mat.set_shader_parameter("drift", Vector2(wd.x, wd.z) * (0.5 + 0.6 * wind.speed))
+	sky_mat.set_shader_parameter("cam_pos", cam.global_position)   # the volumetric clouds need the camera height
+	sky_mat.set_shader_parameter("cloud_quality", _sky_quality)
 	# fog: thicker and greyer in rain, snow and mist
 	var grey := clampf(float(c["haze"]) * 0.9 + float(c["fog"]) * 0.4, 0.0, 1.0)
 	env.fog_density = 0.00012 * float(c["fogd"])
@@ -517,14 +533,27 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	var warm := (1.0 - smoothstep(3.0, 24.0, _sun_el)) * smoothstep(-2.0, 3.0, _sun_el) * (1.0 - 0.7 * float(c["cover"]))
 	var fog_c := Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey).lerp(Color(1.0, 0.66, 0.40), warm * 0.75)
 	env.fog_light_color = fog_c * lerpf(0.03 + 0.12 * moon_f, 1.0, _daylight)
+	sky_mat.set_shader_parameter("haze_col", Vector3(env.fog_light_color.r, env.fog_light_color.g, env.fog_light_color.b))   # sky horizon shares the fog colour (g_haze)
 	env.fog_sun_scatter = 0.35 + 0.5 * warm
 	env.ambient_light_color = Color(0.78, 0.82, 0.62).lerp(Color(0.52, 0.62, 0.95), warm * 0.8)
 	sun.light_energy = maxf(sun.light_energy, 0.0) * (1.0 + 0.5 * warm)
 	env.fog_sky_affect = 0.05 + 0.6 * float(c["fog"])
 	env.fog_height_density = 0.0003 * float(c["fogd"])
+	# inside the low cloud the view goes bright soft white-grey with a short visibility, blended over 20 m
+	var lc_world := 76.0 + float(hud.weather.get("lowcloud_h", 300.0))   # valley floor (Lake.LEVEL) plus the slider
+	var lc_thick := lerpf(70.0, 170.0, lc_amt)
+	_low_cloud_inside = clampf((lc_thick * 0.5 - absf(cam.global_position.y - lc_world)) / 20.0, 0.0, 1.0)
+	if _low_cloud_inside > 0.0:
+		env.fog_density = lerpf(env.fog_density, 0.055, _low_cloud_inside)   # about 20 to 60 m visibility
+		env.fog_light_color = env.fog_light_color.lerp(Color(0.90, 0.92, 0.95), _low_cloud_inside)
+		env.fog_sun_scatter = 0.15
 	# wind follows the condition
 	wind.speed = _base_wind * float(c["wind"])
-	RenderingServer.global_shader_parameter_set("g_cloud", Vector4(float(c["cover"]), wd.x * (4.0 + 2.0 * wind.speed), wd.z * (4.0 + 2.0 * wind.speed), sim_time))
+	var cloud_drift := Vector2(wd.x, wd.z) * (2.0 + 2.4 * wind.speed)   # world m/s: the clouds and their shadows move together
+	sky_mat.set_shader_parameter("drift", cloud_drift)
+	RenderingServer.global_shader_parameter_set("g_cloud", Vector4(float(c["cover"]), cloud_drift.x, cloud_drift.y, sim_time))
+	var sun_off := Vector2(_sun_dir.x, _sun_dir.z) * clampf(1500.0 / maxf(_sun_dir.y, 0.1), 0.0, 3000.0)   # cloud base 1500 m, matches sky.gdshader CBASE
+	RenderingServer.global_shader_parameter_set("g_csun", Vector4(sun_off.x, sun_off.y, 0.0, 0.0))
 	wind.gust = clampf(_base_gust + (0.35 if wx.kind == WeatherSystem.Kind.STORM else 0.0), 0.0, 1.0)
 	# precipitation
 	var rain := float(c["rain"])
@@ -532,7 +561,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	rain_fx.emitting = rain > 0.03
 	# water collects on the lens in rain and dries slowly once it stops
 	_lens_water = move_toward(_lens_water, clampf(rain * 1.0, 0.0, 0.55) if rain > 0.03 else 0.0, delta * (0.25 if rain > 0.03 else 0.03))
-	sensor.rain_lens = _lens_water * hud.lens_rain_k if not chase else 0.0
+	sensor.rain_lens = (_lens_water * hud.lens_rain_k + _low_cloud_inside * 0.18) if not chase else 0.0
 	# the air the lens moves through: the drone's velocity against the wind, in the camera's own axes (the drops follow it)
 	sensor.lens_wash = clampf(_wash_now * 1.6 + 0.3 * fc.thrust_fraction(), 0.0, 1.0) if quad.armed else 0.0
 	var rel_air := cam.global_transform.basis.inverse() * (quad.velocity() - _wind_now)
@@ -730,9 +759,9 @@ func _screenshot_mode(arg: String) -> void:
 			if av.size() == 3: _air_test = Vector3(float(av[0]), float(av[1]), float(av[2]))
 		if c == "simple": hud.simple_on = true; _apply_simple(true)
 		if c.begins_with("clock"):     # test hook: freeze the clock at that hour (clock7.5), on the date picked with date1..4
-			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)
+			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather, true); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)
 		if c.begins_with("date"):
-			hud.weather["date"] = int(c.substr(4)); apply_weather(hud.weather)
+			hud.weather["date"] = int(c.substr(4)); apply_weather(hud.weather, true)
 		if c == "light": drone_light.visible = true
 		if c.begins_with("cd"): _chase_d = float(c.substr(2))
 		if c == "climb":
@@ -754,9 +783,13 @@ func _screenshot_mode(arg: String) -> void:
 			_build_gallery()
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
-		if c.begins_with("sky"):
-			hud.weather["sky"] = int(c.substr(3)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true
-		if c.begins_with("windms"): hud.weather["wind"] = float(c.substr(6)); hud.weather["gust"] = 1.0; apply_weather(hud.weather)   # wind lane test hook: menu wind in m/s, gusty
+		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
+		if c.begins_with("lowcloudh"): hud.weather["lowcloud_h"] = float(c.substr(10))   # sky test hook: low cloud height above the valley floor
+		if c.begins_with("lowcloud") and not c.begins_with("lowcloudh"): hud.weather["lowcloud"] = int(c.substr(8))   # sky test hook: low cloud 0 off / 1 thin / 2 thick
+		if c.begins_with("skyto"): hud.weather["sky"] = int(c.substr(5)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true   # sky test hook: smooth transition (no snap)
+		if c.begins_with("sky") and not c.begins_with("skyto"):
+			hud.weather["sky"] = int(c.substr(3)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather, true); _auto_climb = true
+		if c.begins_with("windms"): hud.weather["wind"] = float(c.substr(6)); hud.weather["gust"] = 1.0; apply_weather(hud.weather, true)   # wind lane test hook: menu wind in m/s, gusty
 		if c == "hover": _auto_climb = false   # wind lane test hook: hold the hover (put it after sky<n>)
 		if c == "nowindfx": wind.struggle = false   # wind lane test hook: wind effects Off
 	# session B test hooks: `fireworks<1..3|build|quiet|finale>` starts a show even in daylight and `fwskip<seconds>`

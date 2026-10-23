@@ -10,7 +10,7 @@ Update this in the same commit as any logic change. Realism pass stages are list
 | 1.1 Bloom and glare, 1.2 Colour looks | not started |
 | 1.3 Compression, 1.4 Lens character | not started |
 | 2.1 Contact shadows, 2.2 Cheap GI | not started |
-| 2.3 Volumetric light, 2.4 Sky clouds | not started |
+| 2.3 Volumetric light, 2.4 Sky clouds | 2.4 S1 volumetric cumulus done on lane/sky (2026-10-23); 2.3 not started |
 | 2.5 Water | not started |
 | 3.1 Trees | done on lane/trees, merged into main 2026-10-23 |
 | 3.2 Far hills forest, 3.3 Grass and ground | built on lane/ground (2026-10-23), gate green, awaiting the owner's look review (questions G1 to G6) |
@@ -128,3 +128,75 @@ Owner's aim: the valley feels alive from the air: geese crossing in a V, gulls o
   - E4.3. The murmuration is a noise-driven cloud, not boids; it flows and breathes rather than splitting around the drone like real starlings. Enough for now?
   - E4.4. Gulls stay at the lake shore all day. Should some also follow the drone or sit on the water?
   - E4.5. Bird sound: honks and gull cries every few seconds when a flock is near. Too busy, or right?
+
+## Sky and clouds (SPEC-SKY-CLOUDS S1..S7, lane/sky, 2026-10-23)
+
+Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_shadow.gdshaderinc` (cloud part), the sky/weather block in `game/main.gd` (`_build_world` sky setup, `_apply_weather_state`). `game/weather.gd` keeps its public interface; fields are added, never renamed.
+
+### S1 volumetric cumulus (done, gate green)
+- `sky.gdshader` raymarches a cumulus slab (base 1500 m, top 3500 m, `CBASE`/`CTHICK`) instead of the flat 2D plane. Density = normalised 3D fbm coverage remapped by `cover` (lower threshold = fuller sky) minus a height gradient (flat-ish base, rounded tops), with base erosion for ragged undersides. Lighting: Beer-Lambert single scatter with a powder term, a sun-direction light march (self-shadowing and silver lining), warm sun colour at low sun, blue sky fill in shade, `dark` greying toward storm.
+- New uniforms: `cam_pos` (vec3, the render camera position, set every frame in `_apply_weather_state`) and `cloud_quality` (int 0/1/2: 4/8/12 steps, 0/2/3 light steps, 2/4/5 octaves). Desktop defaults to 1 (medium); touch devices and `--rendering-method mobile` default to 0 (low) in `_build_world`.
+- Clouds drift with the wind (`drift`, about 4 m/s per unit of menu wind) and morph slowly with time.
+- Frame time (same 150 m partly-cloudy shot, `--print-fps`, last 4 s): before about 49-54 fps, after about 50-56 fps, so no measurable regression (shared-GPU noise is about 5 fps; budget under 1.5 ms holds).
+- Evidence: `docs/realism/sky/before/*.jpg` and `docs/realism/sky/s1/*.jpg` (clear toward and away from the sun, partly, overcast, storm, sunset toward and away, 20 m, night). Mean abs diff vs before: clear 1.3-2.4 grey levels (nearly unchanged), partly 8.7, overcast 8.6, storm 10.4 (darker), sunset 1.3-3.3, night 4.2.
+- Not verified: the look (this model cannot view images), the phone (S23), and cloud-shadow alignment (that is S4).
+- Taste questions for Claude and the owner:
+  - S1. Cloud height (base 1500 m, top 3500 m): too high and far, or right for a drone at 20 to 150 m?
+  - S2. Cloud size (about 950 m per noise cell, so clouds about 1 to 2 km wide): right, bigger, smaller?
+  - S3. Cloud brightness and contrast (lit tops near white, shaded bases blue-grey): right, brighter, darker?
+  - S4. Storm darkness (storm clouds are now clearly darker than overcast): right amount, too dark, not dark enough?
+  - S5. Cloud drift speed (about 4 m/s for each unit of menu wind): right, faster, slower?
+  - S6. At medium quality (8 steps) the clouds may show faint stepping or banding. Acceptable, or should desktop default to high (12 steps)?
+
+### S2 cirrus, haze, horizon (done, gate green)
+- New sky uniform `haze_col`, set each frame in `_apply_weather_state` from `env.fog_light_color` (the same colour `far_hills.gd` copies into the global `g_haze`), so the sky horizon, the distant ridge silhouettes and the far hills now share one haze colour with no new seam.
+- Horizon haze: the sky washes toward `haze_col`, thickening with `haze` and `fog` and brightening toward the sun (forward scatter `pow(max(mu,0),3)`).
+- Distant ridge silhouettes now fade to `haze_col` instead of two hardcoded blues.
+- Cirrus rebuilt: a broad-band layer plus a fine wisp layer (two anisotropic fbm octaves), thresholded so streaks sit mostly on the bands, and warm pink at sunset when the low sun lights them.
+- Evidence: `docs/realism/sky/s2/*.jpg` (clear, hazy, foggy horizon from 150 m, sunset cirrus). Fog desaturates and softens the horizon as intended (saturation 0.31 clear -> 0.10 fog, edge sharpness 7.1 -> 3.5).
+- Not verified: the exact look and the visual "no seam" (this model cannot view images); the mechanism is that the sky and the hills read the same `env.fog_light_color`.
+
+### S3 sun, sunset, twilight, night (done, gate green)
+- The day/night and warm transitions already followed `sun_dir.y` (solar position). S3 adds the missing night pieces and tunes the cloud light.
+- Sunset reds on cloud undersides: the cloud shade colour (`fill`) now warms toward orange-brown at low sun (`warm * day * 0.55`), instead of staying blue.
+- Night clouds: a faint cool moonlight term (`0.10, 0.14, 0.22` scaled by moon illumination, moon height and `1 - day`) lifts the cloud tops at night.
+- Moon halo: a soft Gaussian halo (`exp(-(angle/0.06)^2)`, amplitude 0.05) around the moon, on top of the existing tight glow.
+- Dimmed the bright night elements toward "darker than now": star brightness 1.6 -> 1.25, moon disc 0.22 -> 0.18.
+- Evidence: `docs/realism/sky/s3/*.jpg` (time series clock 5.5, 6.5, 7.5, 12.5, 17.5, 18.5, 19.2, 20.5, 23.0 on date3, clear; daytime shots face the sun, the three night shots look up at 30 degrees). Sun elevation at each: -18.1, -7.5, 3.3, 44.9, 17.3, 6.7, -0.9, -14.9, -38.2 degrees.
+- Not verified / to judge: the raw night sky is already very dark (zenith about 0.004-0.018), but the Full camera auto-exposure meters the scene to mid-grey, so night screenshots read bright (mean luma about 108-128 looking up). The sky lane can only make the raw sky dark, which it is; if Robert wants darker night footage the lever is the sensor exposure floor at night, which is the camera lane's `sensor_pipeline.gd`.
+- Taste questions for Claude and the owner:
+  - S7. Sunset cloud colour: the cloud shade now goes orange at low sun. Strong enough, or more red?
+  - S8. Night sky: with auto-exposure it still reads bright. Want the sensor to hold the night darker (a camera-lane change), or is the current moonlit look right?
+  - S9. Star and moon brightness: dimmed about 20% from before. Right, or dimmer?
+
+### S4 cloud shadows match the sky (done, gate green)
+- New shared include `game/shaders/cloud_coverage.gdshaderinc` (`cc_hash`/`cc_noise`/`cc_fbm`/`cloud_shape`), included by both `sky.gdshader` and `cloud_shadow.gdshaderinc`, so the ground shadow samples the exact same coverage map, scale (950 m per cell) and drift as the sky clouds.
+- `sky.gdshader` now gets its coverage from `cloud_shape(...)`; the old `CLOUD_SPEED` constant is gone and `drift` is now world metres per second directly.
+- `cloud_shadow.gdshaderinc` `cloud_shade` samples `cloud_shape` at the ground point plus a sun offset (`g_csun`, set each frame in `_apply_weather_state` from `_sun_dir` and the 1500 m cloud base, clamped to 3000 m), so a shadow is displaced along the sun's angle and lines up with its cloud. Overcast still fades the patches out.
+- `main.gd`: one `cloud_drift` value (`wd * (2 + 2.4 * wind.speed)`, world m/s) now feeds both the sky `drift` uniform and the `g_cloud` shadow uniform, so they move together; `g_csun` is registered in `_build_world` before the world shaders compile.
+- Evidence: `docs/realism/sky/s4/*.jpg` (sun-side aerial at 150 m, aerial at 300 m, overcast at 300 m). Overcast shows the flat, patch-free ground.
+- Not verified: the visual "shadow lines up with its cloud" (this model cannot view images); the mechanism is that both now call the same `cloud_shape`.
+- Taste question: S10. The sun offset caps at 3000 m, so at low sun the shadow stays within 3 km of its cloud. Right, or should it stretch further at sunset?
+
+### S5 weather integration (done, gate green)
+- Rain and storm: the cumulus deck lowers as `dark` rises (`cloud_base() = CBASE * (1 - 0.4 * dark)`, so storm base about 950 m), stays grey and ragged, and soft vertical rain curtains appear toward the horizon (a screen-space streak field mixed toward the fog colour, scaled by the new `rain` uniform).
+- Lightning now lights the cloud volume from inside: `flash` adds `3.0 * (0.2 + 2.6 * cloud_a)`, so a thick deck glows while clear sky barely changes.
+- Snow: a flat bright grey, low-contrast sky (mixed by the new `snow` uniform), which the metrics confirm (saturation about 0.07 and spread 27 vs 40 for clear).
+- Smooth transitions: `apply_weather` now takes a `snap` flag (default false), so a menu weather change eases `cover`/`dark`/`haze` over about 10 to 20 s (the existing 5 s time constant in `weather.gd`, kept); start-up and the screenshot tokens pass `snap = true` so they stay deterministic. Added a `skyto<n>` token (before `sky<n>`, which now excludes `skyto`) for filming a transition.
+- Evidence: `docs/realism/sky/s5/*.jpg` (storm, snow, rain shots; a clear-to-storm filmstrip at frames 15, 60, 120, 240, 420, 600 showing saturation easing 0.25 -> 0.13 over about 10 s).
+- Taste questions: S11. Storm deck at about 950 m (lowered from 1500 m): low enough, or lower still? S12. Snow sky grey level (0.74, 0.76, 0.80): bright enough, or too dull?
+
+### S6 phone and cost (done, gate green)
+- Quality tiers (from S1) measured on this PC (shared GPU, about 5 fps noise, 150 m partly-cloudy shot, `--print-fps` last 4 s): Low 59-64 fps (about 15.6 ms), Medium 41-47 fps (about 22 ms), High 39-48 fps (about 22-25 ms). Low is the phone tier and is clearly cheapest; High adds little over Medium.
+- Simple camera path and `--rendering-method mobile` both render the sky correctly (gate green; evidence in `docs/realism/sky/s6/simple.jpg` and `mobile.jpg`).
+- New pause-menu setting Display > Graphics > "Sky quality" (Low / Medium / High), following the `_choice` pattern; default Medium on desktop, Low on phones (and the mobile renderer). `hud.sky_quality` -> signal `sky_quality_changed` -> `main._sky_quality`, and `main` writes `hud.sky_quality` back at start-up so the menu shows the phone default. Added a `cloudq<n>` screenshot token to film the tiers.
+- Evidence: `docs/realism/sky/s6/*.jpg` (q0_low, q1_medium, q2_high, simple, mobile).
+- Not verified: a real phone (S23); only the Mobile renderer and Simple mode on this PC.
+
+### S7 low cloud layer, flying into it (E3, done, gate green)
+- Weather tab now has "Low cloud layer" (Off / Thin / Thick) and a "Low cloud height" slider (150 to 600 m above the valley floor, default 300 m), stored in `hud.weather["lowcloud"]` and `["lowcloud_h"]` (persisted like the rest of the weather).
+- Sky shader: a new `march_low_cloud` raymarch draws a stratus slab at world Y = 76 + height (76 m is the valley floor, `Lake.LEVEL`), thin 70 m / thick 170 m, with a grey base and a bright sunlit top (`grey*(0.3+0.3*top) + sun_c*top*1.35`). New uniforms `low_cloud` (0..1) and `low_cloud_h`.
+- Inside effect in `main.gd` (`_apply_weather_state`): when the camera is inside the layer (blended over 20 m of altitude), `env.fog_density` rises toward 0.055 (about 20 to 60 m visibility), `env.fog_light_color` goes bright white-grey, and a small amount of lens droplets is added (`sensor.rain_lens += _low_cloud_inside * 0.18`). The existing CPU auto-exposure follows the bright scene, so the picture darkens and recovers on exit.
+- Evidence: `docs/realism/sky/s7/*.jpg` (below at 150 m, below looking up at the base, inside at 300 m, above at 500 m).
+- Not verified / to judge: the visual look, the exact visibility inside, and the drone-commanded "break out on top"; the motor-sound damping inside cloud is not wired (a small `drone_audio.gd` change, left for the owner to request). GPS and link are untouched, so they stay fine.
+- Taste questions: S13. Low cloud height range 150-600 m: right, or should the slider go higher/lower? S14. Thin layer 70 m, thick 170 m: right thickness?
