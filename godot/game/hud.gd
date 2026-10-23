@@ -75,6 +75,8 @@ var lens_rain_k := 0.6             # how much rain gathers on the lens: 0 off, 0
 var sound_on := true
 ## session B: the phone-style DroneBudz notifications for world events (game/phone_notes.gd). Off hides all of them.
 var phone_notes := true
+## session B: 0 iPhone style, 1 Android style
+var phone_style := 0
 var listening := 2
 var sound_vol := 0.8
 var wind_fx := true                # wind lane: the drone wobbles, drifts and works harder in gusts
@@ -620,6 +622,7 @@ func _build_display_tab() -> void:
 	_choice(p, "Data overlay", ["On", "Off"], func(): return 0 if osd_on else 1, func(i): osd_on = i == 0; osd_changed.emit(osd_on))
 	_choice(p, "Sound", ["On", "Off"], func(): return 0 if sound_on else 1, func(i): sound_on = i == 0; sound_changed.emit(sound_on))
 	_choice(p, "Phone messages", ["Off", "On"], func(): return 0 if phone_notes else 1, func(i): phone_notes = i == 0)
+	_choice(p, "Phone style", ["iPhone", "Android"], func(): return phone_style, func(i): phone_style = i)
 	_choice(p, "Listening position", ["Ground (the pilot)", "Onboard microphone", "Cinematic mix"], func(): return listening, func(i): listening = i; listening_changed.emit(i))
 	_gslider(p, "Volume", 0.0, 1.0, 0.05, func(): return sound_vol, func(x): sound_vol = x; volume_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_heading(p, "Performance")

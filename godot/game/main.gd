@@ -879,6 +879,12 @@ func _screenshot_mode(arg: String) -> void:
 			weather_events.debug_course(int(c.substr(6)))
 		elif c == "notesdemo":     # session B dev hook: a bundle of three DroneBudz notifications
 			phone_notes.debug_demo()
+		elif c == "notesios":
+			hud.phone_style = 0
+		elif c == "notesandroid":
+			hud.phone_style = 1
+		elif c == "notesstorm":
+			phone_notes.debug_one("storm")
 		elif c == "notestorm":
 			phone_notes.debug_one("storm")
 		elif c == "notetornado":
