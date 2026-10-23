@@ -102,8 +102,10 @@ func update(dt: float, throttle: float, yaw: float, pitch: float, roll: float) -
 		elev = 0.8 * ep + _i_pitch - 0.2 * w.x
 		var eb := bank_sp - bk
 		ail = 0.6 * eb - 0.3 * w.z
-		# a little rudder to coordinate the turn into the bank
-		rud = 0.4 * bk
+		# coordinated turn: the rudder drives the yaw rate to match the bank (g tan bank / v), so the nose
+		# follows the velocity and the sideslip stays small
+		var yaw_sp: float = -G * tan(bk) / maxf(plane.airspeed, 1.0)
+		rud = 0.9 * (yaw_sp - w.y)
 	else:
 		# acro: rate control
 		var p_rate := -pitch * 2.4                # rad/s, +stick = nose down
@@ -123,9 +125,9 @@ func _cruise_hold(dt: float, bank: float) -> float:
 	var alt := p.y
 	var v_target := 18.0 / sqrt(max(cos(absf(bank)), 0.5))
 	stick_throttle = clampf(0.55 + (v_target - plane.airspeed) * 0.08, 0.35, 0.9)
-	# stall protection: near the stall, nose down to regain airspeed instead of holding altitude
-	var stall_guard := clampf((10.0 - plane.airspeed) * 0.06, 0.0, 0.3)
-	return clampf((_cruise_alt - alt) * 0.015 - plane.s[4] * 0.04 - stall_guard, -0.2, 0.15)
+	# stall protection: near the stall, nose down hard to regain airspeed instead of holding altitude
+	var stall_guard := clampf((12.0 - plane.airspeed) * 0.08, 0.0, 0.5)
+	return clampf((_cruise_alt - alt) * 0.008 - plane.s[4] * 0.05 - stall_guard, -0.35, 0.15)
 
 ## RTH: climb to a safe height, fly to home, circle down, belly-land. Called from update() when rth > 0.
 func _rth_step(dt: float) -> void:
