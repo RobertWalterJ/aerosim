@@ -53,6 +53,8 @@ var snow_mat: ParticleProcessMaterial
 var ambient: AmbientParticles     # drifting leaves, dust motes and rotor-wash debris
 var hud: Hud
 var phone_notes: PhoneNotes        # session B: the DroneBudz phone notification bundle (game/phone_notes.gd)
+var world_life: WorldLife          # session B: the farm, turning mill and discoverable places (game/world_life.gd)
+var photo_library: PhotoLibrary    # session B: the in-game photo gallery (game/photo_library.gd)
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
@@ -307,6 +309,16 @@ func _ready() -> void:
 	add_child(weather_events)
 	weather_events.setup(terrain, wind, hud, wx, sensor, birds)
 	weather_events.set_notes(phone_notes)   # session B: event notices arrive as DroneBudz phone messages
+	# session B: the inhabited valley (farm, turning mill, discoverable places) and the in-game photo library.
+	# Both are passive: they add life and discovery without touching the sandbox or forcing any objective.
+	world_life = WorldLife.new()
+	add_child(world_life)
+	world_life.setup(terrain, wind)
+	world_life.notes = phone_notes
+	photo_library = PhotoLibrary.new()
+	add_child(photo_library)
+	photo_library.setup(hud, world_life)
+	hud.gallery_requested.connect(func(): photo_library.open_gallery())
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
@@ -761,6 +773,7 @@ func _process(delta: float) -> void:
 	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
 	if weather_events: weather_events.update(delta, cam, quad.position(), quad.velocity(), _sun_el, _daylight, paused)   # session B: events and courses
 	if phone_notes: phone_notes.update(delta, paused)   # session B: the DroneBudz notification bundle
+	if world_life: world_life.update(delta, quad.position(), paused)   # session B: mill turning and place discovery
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
@@ -772,6 +785,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_V: hud.listening = (hud.listening + 1) % 3; audio.set_perspective(hud.listening); hud.toast("Sound: " + audio.perspective_name())
 		KEY_H: osd.show_osd = not osd.show_osd
 		KEY_N: phone_notes.toggle_shade()   # session B: open or close the phone notification centre
+		KEY_G: if hud.paused: photo_library.toggle()   # session B: photo gallery from the menu
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
@@ -892,6 +906,25 @@ func _screenshot_mode(arg: String) -> void:
 			phone_notes.debug_shade(true)
 		elif c == "notesempty":
 			phone_notes.debug_clear()
+		elif c == "farm":     # session B dev hook: look at the old farm and its turning mill from the south
+			var fp := world_life.farm_pos
+			var fpx := fp.x
+			var fpz := fp.z + 120.0
+			var fpy := terrain.height(fpx, fpz) + 70.0
+			quad.reset(fpx, fpy, fpz, 0.0)
+			var whf: float = float(af["omegaMax"]) * sqrt(1.0 / float(af["twr"]))
+			for i in 4:
+				quad.s[13 + i] = whf
+				quad.cmd[i] = whf
+			fc.heading = 0.0
+			gimbal_pitch = deg_to_rad(-8.0)
+			_apply_pose()
+		elif c == "phototest":     # session B dev hook: take three photos and open the gallery
+			_phototest = true
+		elif c == "photodetail":     # session B dev hook: open the newest photo's detail
+			_photodetail = true
+		elif c == "discoverall":
+			world_life.debug_discover_all()
 		elif c == "notestorm":
 			phone_notes.debug_one("storm")
 		elif c == "notetornado":
@@ -941,6 +974,20 @@ func _screenshot_mode(arg: String) -> void:
 					break
 	await get_tree().create_timer(0.1).timeout
 	for i in frames: await get_tree().process_frame
+	if _phototest:     # the frame has rendered by now, so the capture is the picture the player would take
+		for k in 3:
+			var pimg := sensor.capture()
+			if pimg:
+				photo_library.capture(pimg, _photo_meta())
+		photo_library.open_gallery()
+		_phototest = false
+		await get_tree().process_frame
+		await get_tree().process_frame
+	if _photodetail:
+		photo_library.open_detail_first()
+		_photodetail = false
+		await get_tree().process_frame
+		await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)
 	print("saved ", path)
@@ -949,6 +996,8 @@ func _screenshot_mode(arg: String) -> void:
 	print("birds: ", birds.stats())
 	print("weather events: ", weather_events.stats())
 	print("phone notes: ", phone_notes.stats())
+	print("world life: ", world_life.stats())
+	print("photo library: ", photo_library.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
@@ -980,6 +1029,8 @@ func _run_selftest() -> void:
 	get_tree().quit()
 
 var _gallery_cam := false
+var _phototest := false
+var _photodetail := false
 
 ## Development view: every tree variant and a row of cemetery pieces, close up, to judge the models.
 func _build_gallery() -> void:
@@ -1140,11 +1191,36 @@ func _shutter_pressed() -> void:
 	hud.flash_photo()
 	if img == null:
 		hud.toast("Photo taken"); return
-	DirAccess.make_dir_recursive_absolute("user://photos")
-	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
-	var path := "user://photos/AeroSim_%s.png" % stamp
-	img.save_png(path)
-	hud.toast("Photo saved")
+	# session B: the photo goes into the in-game gallery with its metadata. Nothing is written to the player's
+	# Downloads or Pictures; Export copy in the gallery is the only way a photo leaves the game.
+	if photo_library != null:
+		photo_library.capture(img, _photo_meta())
+	else:
+		hud.toast("Photo taken")
+
+## The facts a photo carries into the gallery and, later, into photo objectives.
+func _photo_meta() -> Dictionary:
+	var p := quad.position()
+	var agl := p.y - terrain.height(p.x, p.z)
+	var clock := "21:00"
+	if hud != null:
+		var hour := float(hud.weather.get("hour", 21.0))
+		clock = "%02d:%02d" % [int(hour) % 24, int((hour - floorf(hour)) * 60.0) % 60]
+	var weather_name := ""
+	var weather_i := 0.0
+	if wx != null:
+		weather_name = str(WeatherSystem.NAMES[wx.kind])
+		weather_i = wx.intensity
+	var subjects: Array = []
+	if world_life != null:
+		# only places that are actually close and large in the frame count as in the photo, not the whole horizon
+		for s in world_life.subjects_in_frame(cam):
+			if float(s.get("dist", 9999.0)) < 700.0 and float(s.get("size", 0.0)) > 14.0:
+				subjects.append(s)
+	return {"clock": clock, "weather": weather_name, "weather_i": weather_i,
+		"pos": [p.x, p.y, p.z], "agl": agl, "drone": hud.airframe_id if hud != null else "drone",
+		"lens": hud.lens if hud != null else "standard", "exposure": sensor.exposure,
+		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "subjects": subjects}
 
 var _apstest := false
 

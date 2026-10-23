@@ -15,6 +15,7 @@ signal weather_changed(w: Dictionary)
 signal gimbal_changed(pitch_rad: float)
 signal lens_changed(lens: String)
 signal photo_requested
+signal gallery_requested
 signal takeoff_land_requested
 signal rth_requested
 signal ev_changed(ev: float)
@@ -587,6 +588,10 @@ func _build_camera_tab() -> void:
 	_choice(p, "Depth of field", ["Off", "Natural", "Cinematic"], func(): return dof_mode, func(i): dof_mode = i; dof_changed.emit(i))
 	_choice(p, "Focus", ["Auto (tap the picture to pick a spot)", "Manual"], func(): return 1 if manual_focus else 0, func(i): manual_focus = i == 1; focus_changed.emit(manual_focus, _mf_metres(mf_ring)))
 	_gslider(p, "Manual focus distance", 0.0, 1.0, 0.01, func(): return mf_ring, func(x): mf_ring = x; focus_changed.emit(manual_focus, _mf_metres(x)), func(v): return "Infinity" if _mf_metres(v) > 1000.0 else ("%.1f m" % _mf_metres(v) if _mf_metres(v) < 10.0 else "%d m" % int(round(_mf_metres(v)))))
+	# session B: the photos themselves, kept in the game rather than dumped into a folder
+	_heading(p, "Gallery")
+	_action(p, "Photo gallery", func(): gallery_requested.emit())
+	_sub(p, "Photos stay in the game gallery with their time, weather and settings. Export copy there is the only way one leaves.")
 
 func _mf_metres(ring: float) -> float:
 	return 1.0 / maxf((1.0 - ring) * 2.0, 1e-6)
