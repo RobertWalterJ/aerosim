@@ -16,7 +16,8 @@ kit and reports exactly what is missing.
 | `CHAPTER-1-ARCHITECTURE-TERRAIN.md` | Architecture, world pack format 1.0 with JSON examples, data sources and licences, terrain algorithms, 2D and 3D views, the 11-phase build plan P0 to P10, migration of AeroSim, ProceduralMainStreet and Squall Cove |
 | `CHAPTER-2-ENVIRONS-SLOPES-ASSETS.md` | Settlement grading, Toronto built-form rules as formulas, siting and street growth, biomes (13 Great Lakes, 16 world), slope classes S0 to S8 and cliffs, 26-row landform table, the asset catalogue by slot, the gap finder, the style file |
 | `CHAPTER-3-SUBURBS-RURAL-WILD.md` | Seven suburb morphologies, plazas and commercial, farmland and the Ontario concession grid, forests and wilderness, highways, interchanges and utilities, about 60 discoveries and events, the surprise budget per km2, the land-use layer (about 90 classes) |
-| `SOURCES-1.md`, `SOURCES-2.md`, `SOURCES-3.md` | Every source, what was taken, and how well it was read |
+| `CHAPTER-4-TRANSPORT-UTILITIES-OSM.md` | Railways (own graph file), transit (subway, LRT, streetcar, BRT, bus, GO) as route references, ferries and harbours, air, utility and service corridors, the complete OSM-to-pack translation (Overpass queries, rule engine, 22 quality checks, Appendix A `osm_rules.json` with 262 rules), the drawn-map equivalents, asset slots, 18 changes to Chapters 1 to 3 (pack format 1.1) |
+| `SOURCES-1.md` to `SOURCES-4.md` | Every source, what was taken, and how well it was read |
 
 ## 3. Decisions that settle the disagreements between chapters
 1. **Core:** one TypeScript library. It runs as the command-line tool `wb` (build, validate, render, convert, gap-find) and inside a browser
@@ -39,6 +40,13 @@ kit and reports exactly what is missing.
    (D) and (V) values by looking at output, not by argument.
 9. **Defaults tuned by test:** siting weights, biome thresholds, discovery budget (about 24 discoveries on AeroSim's 16 km2). Expose them in
    a recipe file so they can be changed without code.
+
+## 3b. Chapter 4 decisions that now apply
+- Pack format is **1.1**: Chapter 4 section 9 lists 18 changes to Chapters 1 to 3. Where Chapter 4 and an earlier chapter differ on rail, transit, ferries, utilities, land-use ids 191 to 230 or urban id numbering, Chapter 4 wins (Robert may confirm the urban ids 60 to 79 numbering, change 15).
+- Rail has its own graph `network/rail.json`; transit routes are references to road or rail edges in `network/transit.json` (OSM and GTFS shaped); `infra/structures.geojson` and `infra/aerodromes.json` are new; airport height limits are a raster `limits/height_cap.u16.zlib` the building generator must respect.
+- Corridor widths come from voltage (Hydro One: 115 kV 30 to 37 m, 230 kV about 46 m, 500 kV at least 64 m); pipelines 30 m each side.
+- The OSM importer is a rule engine using `osm_rules.json` (Appendix A of Chapter 4); confirm its values against Ontario `taginfo` before the importer is finalised.
+- ODbL exposure is larger than Chapter 1 assumed (transit routes and stops are an extractable database): keep OSM layers separate and get the legal check before any public release.
 
 ## 4. Where it lives and how it is built
 - **Project folder:** `C:\Users\Robert Walter-Joseph\Documents\RWJ Coding Projects\Worldsmith` (its own git repo; later pushed to GitHub by
