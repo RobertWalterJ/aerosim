@@ -37,6 +37,8 @@ var iso_shown := 100
 var shutter_shown := 1.0 / 200.0
 var histogram := PackedFloat32Array()
 var sun_vis := 1.0                 # 0..1, set by the caller (line of sight to the sun)
+var drone_speed := 0.0             # m/s, set by the caller (forward-motion blur)
+var look := 0                      # colour look: 0 Natural, 1 Flat (D-Cinelike), 2 Vivid
 
 # session B (fireworks): up to four recent bursts in the lens. game/fireworks.gd calls burst_glare() for each burst;
 # the lens gets a flash, an anamorphic streak, a ghost ring, a short exposure dip and a little veiling light.
@@ -45,6 +47,15 @@ var _burst_p: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Vector
 var _burst_c: Array[Color] = [Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0)]
 var _burst_k: Array[float] = [0.0, 0.0, 0.0, 0.0]
 var _burst_wash := 0.0
+
+# session A (camera): storm/funnel exposure dip. Session B's storm and funnel call event_dim() to darken the scene.
+var _event_dim := 0.0
+var _event_dim_target := 0.0
+
+## A storm or funnel darkening the scene: an exposure dip. `strength` 0..1, where 1.0 is about 1.2 stops darker.
+## It fades over about 1.5 s. Called from session B's storm and funnel runtime.
+func event_dim(strength: float) -> void:
+	_event_dim_target = clampf(strength, 0.0, 1.0)
 
 ## A firework burst seen by this camera: a short lens flash, a streak and a ghost, and it nudges the auto exposure.
 ## `strength` 0..1.6 (a big shell is about 1.0). The effect fades over about 1.2 s. Called from game/fireworks.gd.
@@ -301,7 +312,8 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	wb_kelvin += (wb_target - wb_kelvin) * (1.0 - exp(-minf(dt, 0.1) / (0.9 if wb_target < wb_kelvin else 2.0)))
 	# the camera's exposure follows the metered scene, slowly: it opens up quickly in the dark, and is slow to stop down
 	# when bright light arrives, so the picture stays washed out for a moment before it settles. Worked out here, not in a shader.
-	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt - 0.35 * minf(bwash, 1.2), log(0.1) / log(2.0), log(1.6) / log(2.0))
+	_event_dim += (_event_dim_target - _event_dim) * (1.0 - exp(-minf(dt, 0.1) / 1.5))
+	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt - 0.35 * minf(bwash, 1.2) - 1.2 * _event_dim, log(0.1) / log(2.0), log(1.6) / log(2.0))
 	var tau := 0.9 if tgt < _log_e else 0.45
 	_log_e += (tgt - _log_e) * (1.0 - exp(-minf(dt, 0.1) / tau))
 	_over = clampf((_log_e - tgt) / 1.5, 0.0, 1.0)     # how far the picture is still over-exposed: the haze lasts only while it is
@@ -354,13 +366,18 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	sm.set_shader_parameter("uBurstC", bcol)
 	sm.set_shader_parameter("uBurstK", bk)
 	sm.set_shader_parameter("uBurstWash", _burst_wash)
+	sm.set_shader_parameter("uShutter", shutter_shown)
+	sm.set_shader_parameter("uSpeed", drone_speed)
+	sm.set_shader_parameter("uMotionBlur", 0.0 if simple else 1.0)
 	# stages 5 and 6
 	var ip: ShaderMaterial = _passes["isp"]
 	ip.set_shader_parameter("uGlare", wash)
+	ip.set_shader_parameter("uLook", look)
 	# stage 7: two codec viewports take turns so the previous frame is available for stale macroblocks
 	var cn := 1 - _codec_idx
 	var cm: ShaderMaterial = _passes["codec%d" % cn]
 	cm.set_shader_parameter("uBad", rf_bad if link_effects else 0.0); cm.set_shader_parameter("uFrame", float(_frame))
+	cm.set_shader_parameter("uLink", 1.0 if link_effects else 0.0)
 	_codec[cn].render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_codec[_codec_idx].render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_codec_idx = cn

@@ -31,6 +31,7 @@ signal ambient_changed(on: bool)
 signal simple_changed(on: bool)
 signal dof_changed(mode: int)
 signal focus_changed(manual: bool, distance_m: float)
+signal look_changed(i: int)                             # camera A3 stage 1.2: colour look
 signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects on the drone" and "Camera shake"
 signal fireworks_changed(show: int)                  # session B: "Fireworks show" in the Weather tab
 signal surprise_changed(on: bool)                    # session B: "Surprise shows"
@@ -51,6 +52,7 @@ var airframe_id := "mini"
 var lens := "standard"
 var ev_comp := 0.0
 var bloom := true
+var look := 0                       # colour look: 0 Natural, 1 Flat, 2 Vivid -- camera A3 stage 1.2
 var noise := 1.0
 var link_fx := true
 var dof_mode := 1                  # depth of field: 0 off, 1 natural, 2 cinematic
@@ -574,6 +576,7 @@ func _build_camera_tab() -> void:
 	_heading(p, "Picture")
 	_gslider(p, "Exposure compensation", -3.0, 3.0, 0.33, func(): return ev_comp, func(x): ev_comp = x; ev_changed.emit(x), func(v): return "%+.1f EV" % v)
 	_choice(p, "Bloom", ["On", "Off"], func(): return 0 if bloom else 1, func(i): bloom = i == 0; bloom_changed.emit(bloom))
+	_choice(p, "Colour look", ["Natural", "Flat (D-Cinelike)", "Vivid"], func(): return look, func(i): look = i; look_changed.emit(i))   # camera A3 stage 1.2
 	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_choice(p, "Rain on the lens", ["Off", "Light", "Natural"], func(): return 0 if lens_rain_k < 0.05 else (1 if lens_rain_k < 0.8 else 2), func(i): lens_rain_k = [0.0, 0.6, 1.0][i])
 	_choice(p, "Video link effects", ["On", "Off"], func(): return 0 if link_fx else 1, func(i): link_fx = i == 0; link_changed.emit(link_fx))

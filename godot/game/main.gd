@@ -217,6 +217,7 @@ func _ready() -> void:
 	hud.lens_changed.connect(func(l: String): sensor.set_lens(l))
 	hud.ev_changed.connect(func(v: float): sensor.ev_comp = v)
 	hud.bloom_changed.connect(func(on: bool): sensor.bloom_on = on)
+	hud.look_changed.connect(func(i: int): sensor.look = i)   # camera A3 stage 1.2
 	hud.noise_changed.connect(func(v: float): sensor.noise_scale = v)
 	hud.link_changed.connect(func(on: bool): sensor.link_effects = on)
 	hud.dof_changed.connect(func(m: int): sensor.dof_mode = m)
@@ -761,6 +762,8 @@ func _screenshot_mode(arg: String) -> void:
 	for c in parts.slice(3):
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
+		if c.begins_with("look"): sensor.look = int(c.substr(4))   # camera A3 stage 1.2 test hook: colour look 0/1/2
+		if c == "nobloom": sensor.bloom_on = false   # camera A3 stage 1.1 test hook: bloom off for the A/B
 		if c == "armed": quad.armed = true
 		if c == "landing": _show_landing()
 		if c == "landingfly":
@@ -982,6 +985,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	sun_target *= smoothstep(0.12, 0.5, float(wx.cur["sun"])) * smoothstep(0.0, 3.0, _sun_el)
 	_sun_vis += (sun_target - _sun_vis) * clampf(delta * 8.0, 0.0, 1.0)
 	sensor.sun_vis = _sun_vis
+	sensor.drone_speed = quad.velocity().length()   # forward-motion blur (camera A3 stage 1.5)
 	# video link: free-space loss with distance, plus a penalty when the terrain blocks the line of sight
 	var dpos := quad.position()
 	var home_p := Vector3(home.x, terrain.height(home.x, home.y) + 1.6, home.y)
