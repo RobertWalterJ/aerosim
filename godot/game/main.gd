@@ -79,6 +79,39 @@ var cam_shake := CamShake.new()   # wind lane: camera buffeting in rough air (ga
 var _loaded := false
 var _air_test := Vector3.ZERO      # test hook: `air<x>_<y>_<head-on>` pins the air speed over the lens
 var _gimbal_rate := 0.0
+var landing: Landing
+var _landing_on := false
+var _landing_t := 0.0
+
+## The welcome screen: the valley behind a slowly circling camera, with a short menu. Fly starts the flight.
+func _show_landing() -> void:
+	if _landing_on: return
+	_landing_on = true; _landing_t = 0.0; paused = true
+	hud.set_landing(true)
+	osd.visible = false
+	if sticks: sticks.enabled = false
+	landing = Landing.new()
+	add_child(landing)
+	landing.build(str(af["name"]))
+	landing.fly_pressed.connect(_start_flight)
+	landing.drone_pressed.connect(func(): hud.set_paused(true); hud.open_tab(1))
+	landing.settings_pressed.connect(func(): hud.set_paused(true); hud.open_tab(3))
+	landing.controls_pressed.connect(func(): hud.set_paused(true); hud.open_tab(5))
+	landing.quit_pressed.connect(func(): get_tree().quit())
+	landing.look_chosen.connect(func(h: float, s: int):
+		hud.weather["hour"] = h; hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 0; hud.weather["sky"] = s
+		hud.apply_look())
+
+func _start_flight() -> void:
+	if not _landing_on: return
+	_landing_on = false
+	if landing: landing.queue_free(); landing = null
+	hud.set_landing(false)
+	osd.visible = true
+	if sticks: sticks.enabled = true
+	paused = false
+	spawn()
+	hud.toast("Take off with the button on the left, or push the left stick up.")
 
 ## Phone-safe camera: the plain 3D picture with an ordinary tone map, in place of the HDR sensor passes.
 func _apply_simple(on: bool) -> void:
@@ -159,7 +192,7 @@ func _ready() -> void:
 	cam.near = 0.03; cam.far = 26000.0; cam.fov = 84.0; cam.current = true
 	hud = Hud.new()
 	add_child(hud)
-	hud.pause_changed.connect(func(p: bool): paused = p; if sticks: sticks.release_all(); sticks.enabled = not p; osd.visible = not p)
+	hud.pause_changed.connect(func(p: bool): paused = p or _landing_on; if sticks: sticks.release_all(); sticks.enabled = not p and not _landing_on; osd.visible = not p and not _landing_on)
 	hud.reset_requested.connect(spawn)
 	hud.drone_picked.connect(switch_drone)
 	hud.mode_changed.connect(func(m: String): fc.mode = m; fc.reset_state())
@@ -229,6 +262,7 @@ func _ready() -> void:
 	if sensor.simple:
 		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC; env.glow_enabled = true; env.glow_intensity = 0.25; env.glow_bloom = 0.02
 	_loaded = true
+	if q_arg == "" and not _apstest and not _selftest and not "nolanding" in OS.get_cmdline_user_args(): _show_landing()
 	if _load_layer: _load_layer.queue_free()
 	_make_drone_pictures()
 	if q_arg != "": _screenshot_mode(q_arg)
@@ -510,6 +544,7 @@ func switch_drone(id: String) -> void:
 	drone_view.build(af)
 	_after_drone_built()
 	audio.set_arm(float(af["armD"]))
+	if landing: landing.set_drone_name(str(af["name"]))
 	hud.set_airframe(id)
 	hud.show_gimbal(af["hasGimbal"])
 	spawn()
@@ -609,8 +644,12 @@ func _process(delta: float) -> void:
 		cam.fov = 84.0
 		if not sensor.simple: cam_shake.apply(cam, delta, wind.turb, wind.burst, quad.rates(), af["hasGimbal"])   # wind lane: buffeting (Full camera only)
 	drone_view.visible = true
-	drone_view.set_fpv(not chase)
-	if sensor.simple and not chase: cam.fov = 52.0
+	if _landing_on:
+		_landing_t += delta
+		cam.global_transform = Landing.orbit(pos, _landing_t, terrain.height(pos.x, pos.z), float(af["armD"]))
+		cam.fov = 55.0
+	drone_view.set_fpv(not chase and not _landing_on)
+	if sensor.simple and not chase and not _landing_on: cam.fov = 52.0
 	# the shadow follows the light that is up: the sun by day, the moon (much fainter) by night
 	var lit_dir := _sun_dir
 	var lit_k := float(wx.cur["sun"]) * smoothstep(0.0, 6.0, _sun_el)
@@ -653,6 +692,11 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
 		if c == "armed": quad.armed = true
+		if c == "landing": _show_landing()
+		if c == "landingfly":
+			_show_landing()
+			for i in 40: await get_tree().process_frame
+			_start_flight()
 		if c.begins_with("air"):
 			var av := c.substr(3).split("_")
 			if av.size() == 3: _air_test = Vector3(float(av[0]), float(av[1]), float(av[2]))
@@ -787,7 +831,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var mean_om := (quad.s[13] + quad.s[14] + quad.s[15] + quad.s[16]) * 0.25
 	var vib := clampf(0.12 + quad.vrs * 0.8 + fc.thrust_fraction() * 0.25 + quad.ang_accel.length() / 600.0, 0.0, 1.0)
 	if not chase: vib = clampf(vib + cam_shake.vibration, 0.0, 1.0)   # wind lane: buffeting shakes the sensor too
-	sensor.update_focus(delta, terrain, world, airframe_id, chase, quad.position())
+	sensor.update_focus(delta, terrain, world, airframe_id, chase or _landing_on, quad.position())
 	sensor.process_frame(delta, sim_time, ang, vib, mean_om / TAU * float(af["nBlades"]), rf_bad)
 	osd.frame = sensor.frame_rect()
 	hud.layout_for(osd.frame)

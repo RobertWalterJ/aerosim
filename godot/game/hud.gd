@@ -63,6 +63,7 @@ var fx_cloud := true
 var fx_trees := true
 var ambient_on := true
 var simple_on := false
+var landing_mode := false          # the welcome screen is up: the flight controls stay hidden
 var lens_rain_k := 0.6             # how much rain gathers on the lens: 0 off, 0.6 light, 1.0 natural
 var sound_on := true
 var listening := 2
@@ -615,13 +616,28 @@ func _sync() -> void:
 			"hour": _slider_labels[k].text = "%02d:%02d" % [int(v), int((v - floorf(v)) * 60.0)]
 			"intensity": _slider_labels[k].text = "Light" if v < 0.34 else ("Moderate" if v < 0.7 else "Heavy")
 
+## Welcome screen on or off: the flight controls are hidden while it is up.
+func set_landing(on: bool) -> void:
+	landing_mode = on
+	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _crash_box]:
+		(c as CanvasItem).visible = not on and not paused
+
+## Open the settings page on a tab (0 Flight, 1 Drone, 2 Weather, 3 Camera, 4 Display, 5 Controls).
+func open_tab(i: int) -> void:
+	_tabs.current_tab = i
+	_sync()
+
+## Apply the weather and time that were just changed from outside the settings page (the welcome screen's quick looks).
+func apply_look() -> void:
+	_weather_edited()
+
 func set_paused(on: bool) -> void:
 	paused = on
 	if _quit_btn: _quit_btn.text = "Exit game"
 	_menu_dim.visible = on
 	# the settings page covers the flight screen the way an app's settings page does
 	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _crash_box]:
-		(c as CanvasItem).visible = not on
+		(c as CanvasItem).visible = not on and not landing_mode
 	if on: _sync()
 	pause_changed.emit(on)
 
