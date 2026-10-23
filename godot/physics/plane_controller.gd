@@ -96,14 +96,14 @@ func update(dt: float, throttle: float, yaw: float, pitch: float, roll: float) -
 		var pitch_sp := -pitch * 0.52              # +pitch stick = nose down; about 30 degrees
 		var bank_sp := roll * 0.785                # about 45 degrees
 		if cruise_assist:
-			pitch_sp += _cruise_hold(dt)
+			pitch_sp += _cruise_hold(dt, bk)
 		var ep := pitch_sp - pt
 		_i_pitch = clampf(_i_pitch + ep * dt * 0.6, -0.4, 0.4)
 		elev = 0.8 * ep + _i_pitch - 0.2 * w.x
 		var eb := bank_sp - bk
 		ail = 0.6 * eb - 0.3 * w.z
 		# a little rudder to coordinate the turn into the bank
-		rud = 0.5 * bk
+		rud = 0.15 * bk
 	else:
 		# acro: rate control
 		var p_rate := -pitch * 2.4                # rad/s, +stick = nose down
@@ -116,11 +116,13 @@ func update(dt: float, throttle: float, yaw: float, pitch: float, roll: float) -
 	plane.cmd[2] = clampf(ail, -1.0, 1.0)
 	plane.cmd[3] = clampf(rud, -1.0, 1.0)
 
-func _cruise_hold(dt: float) -> float:
-	# pitch holds altitude, throttle holds airspeed (the classic split, which also damps the phugoid)
+func _cruise_hold(dt: float, bank: float) -> float:
+	# pitch holds altitude, throttle holds airspeed (the classic split, which also damps the phugoid);
+	# the airspeed target rises in a bank so the wing keeps the lift it needs without over-pitching
 	var p := plane.position()
 	var alt := p.y
-	stick_throttle = clampf(0.55 + (18.0 - plane.airspeed) * 0.08, 0.35, 0.85)
+	var v_target := 18.0 / sqrt(max(cos(absf(bank)), 0.5))
+	stick_throttle = clampf(0.55 + (v_target - plane.airspeed) * 0.08, 0.35, 0.9)
 	# stall protection: near the stall, nose down to regain airspeed instead of holding altitude
 	var stall_guard := clampf((10.0 - plane.airspeed) * 0.06, 0.0, 0.3)
 	return clampf((_cruise_alt - alt) * 0.015 - plane.s[4] * 0.04 - stall_guard, -0.2, 0.15)
@@ -145,7 +147,7 @@ func _rth_step(dt: float) -> void:
 			plane.cmd[3] = 0.0
 			if alt > _cruise_alt: rth = 2
 		2:  # fly toward home: reuse the cruise assist's altitude and throttle hold, with a bank-limited turn
-			var alt_hold := _cruise_hold(dt)
+			var alt_hold := _cruise_hold(dt, a.y)
 			var bank_sp := clampf(-err * 1.2, -0.7, 0.7)   # bank into the turn, capped at 40 degrees
 			plane.cmd[0] = stick_throttle
 			plane.cmd[1] = clampf((alt_hold - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)

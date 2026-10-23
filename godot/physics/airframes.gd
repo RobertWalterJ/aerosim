@@ -24,7 +24,7 @@ static func make(id: String) -> Dictionary:
 					"S": {"vH": 30.0, "bank": 60 * DEG, "vUp": 10.0, "vDown": 10.0, "yawRate": 2.0, "kv": 0.8},
 				},
 				"S": 0.25, "cbar": 0.23, "span": 1.104, "CL0": 0.15, "CLa": 5.0, "CD0": 0.03, "kD": 0.08,
-				"stallA": 12 * DEG, "CLmax": 1.3, "Cm_a": -0.03, "Cm_e": 0.4, "Cl_a": 0.25, "Cn_r": 0.3, "Cn_adv": 0.02,
+				"stallA": 12 * DEG, "CLmax": 1.3, "Cm_a": -0.03, "Cm_e": 0.4, "Cl_a": 0.25, "Cn_r": 0.3, "Cn_adv": 0.02, "Cn_beta": 0.25,
 				"Vpitch": 30.0, "Tmax": 20.0,
 			}
 		"freestyle":

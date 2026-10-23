@@ -140,7 +140,7 @@ func _deriv(sv: PackedFloat64Array, out: PackedFloat64Array) -> void:
 	var ca := cos(alpha); var sa := sin(alpha)
 	F.y += qd * S * (cl * ca - cd * sa)     # lift (mostly up) minus the drag's vertical part
 	F.z += qd * S * (cl * sa + cd * ca)     # drag (backward, +z) plus the lift's rearward part
-	F.x -= qd * S * 0.35 * beta            # sideslip side force (nose into the wind)
+	F.x -= qd * S * 0.12 * beta            # sideslip side force (nose into the wind)
 	# propeller thrust along -z, falling with airspeed
 	var om := sv[13]
 	var kT: float = float(af["Tmax"]) / (float(af["omegaMax"]) * float(af["omegaMax"]))
@@ -151,7 +151,7 @@ func _deriv(sv: PackedFloat64Array, out: PackedFloat64Array) -> void:
 	var el := cmd[1]; var ai := cmd[2]; var rd := cmd[3]
 	tau.x += qd * S * cbar * (float(af["Cm_a"]) * alpha + float(af["Cm_e"]) * el)   # + = nose up
 	tau.z += qd * S * b * (-float(af["Cl_a"]) * ai)                                  # + = roll left
-	tau.y += qd * S * b * (-float(af["Cn_r"]) * rd + float(af["Cn_adv"]) * ai)       # rudder yaw + adverse yaw
+	tau.y += qd * S * b * (-float(af["Cn_r"]) * rd + float(af["Cn_adv"]) * ai - float(af["Cn_beta"]) * beta)   # rudder yaw + adverse yaw + weathervane
 	tau.x -= qd * S * cbar * 0.4 * w.x       # pitch damping
 	tau.y -= qd * S * b * 0.3 * w.y          # yaw damping
 	tau.z -= qd * S * b * 0.25 * w.z         # roll damping
