@@ -56,6 +56,8 @@ var phone_notes: PhoneNotes        # session B: the DroneBudz phone notification
 var world_life: WorldLife          # session B: the farm, turning mill and discoverable places (game/world_life.gd)
 var photo_library: PhotoLibrary    # session B: the in-game photo gallery (game/photo_library.gd)
 var jobs: Jobs                     # session B: the opt-in DroneBudz jobs and story layer (game/jobs.gd)
+var chat_data: ChatData            # session B: the DroneBudz Discord-style server (game/chat_data.gd)
+var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
@@ -330,6 +332,16 @@ func _ready() -> void:
 	jobs.setup(hud, photo_library, phone_notes)
 	photo_library.photo_saved.connect(jobs.on_photo)
 	hud.jobs_requested.connect(func(): jobs.open_page())
+	# session B: the phone. The chat server is the story spine; the phone hosts the apps (chat, studio, photos, jobs).
+	chat_data = ChatData.new()
+	jobs.set_chat(chat_data)
+	phone_os = PhoneOS.new()
+	add_child(phone_os)
+	phone_os.setup(hud, jobs, photo_library, chat_data)
+	# a notification's "Open DroneBudz" button goes straight into the chat app
+	phone_notes.app_requested.connect(func(app: String):
+		phone_os.open()
+		phone_os._open_app(app))
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
@@ -814,6 +826,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_V: hud.listening = (hud.listening + 1) % 3; audio.set_perspective(hud.listening); hud.toast("Sound: " + audio.perspective_name())
 		KEY_H: osd.show_osd = not osd.show_osd
 		KEY_N: phone_notes.toggle_shade()   # session B: open or close the phone notification centre
+		KEY_TAB: if phone_os != null: phone_os.toggle()   # session B: the in-game phone home screen
 		KEY_G: if hud.paused: photo_library.toggle()   # session B: photo gallery from the menu
 		KEY_J: if hud.paused: jobs.toggle()   # session B: DroneBudz jobs page from the menu
 		KEY_R: spawn()
@@ -965,6 +978,27 @@ func _screenshot_mode(arg: String) -> void:
 			jobs.open_page()
 		elif c == "jobsdemo":     # session B dev hook: accept a job, complete it with the newest photo, open the page
 			jobs.debug_demo()
+		elif c == "phone":        # session B dev hook: the phone home screen
+			phone_os.open()
+		elif c == "phonechat":    # session B dev hook: straight into the DroneBudz chat
+			phone_os.open()
+			phone_os._open_app("chat")
+		elif c == "phonestudio":  # session B dev hook: the channel studio app
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "phonerecents": # session B dev hook: the app switcher
+			phone_os.open()
+			phone_os._show_switcher()
+		elif c == "phonestory":   # session B dev hook: finish the first job so chat, money, followers and events are populated
+			jobs.debug_demo()
+			jobs.submit("lake")
+			jobs.close_page()
+			phone_os.open()
+			phone_os._open_app("chat")
+		elif c == "phonejobs":    # session B dev hook: the chat open on the jobs channel
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("jobs")
 		elif c == "notestorm":
 			phone_notes.debug_one("storm")
 		elif c == "notetornado":
@@ -1039,6 +1073,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("world life: ", world_life.stats())
 	print("photo library: ", photo_library.stats())
 	print("jobs: ", jobs.stats())
+	print("phone: ", phone_os.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:

@@ -19,19 +19,19 @@ const JOBS := [
 	{
 		"id": "lake", "from": "Maya", "title": "The lake at golden hour",
 		"brief": "First video for the channel. Get me the lake with the light low over the water, something with the hills in it. Any drone will do.",
-		"reward": 35, "next": "chapel",
+		"reward": 35, "money": 60, "next": "chapel",
 		"objectives": [{"kind": "photo", "subject": "lake", "max_dist": 900.0, "text": "Photograph the lake"}],
 	},
 	{
 		"id": "chapel", "from": "Riley", "title": "The chapel for the heritage page",
 		"brief": "The trust is restoring the chapel and wants a clean photograph of it from the air for their page. Please keep clear of the graves on the way in.",
-		"reward": 30, "next": "fireworks",
+		"reward": 30, "money": 45, "next": "fireworks",
 		"objectives": [{"kind": "photo", "subject": "chapel", "max_dist": 400.0, "text": "Photograph the chapel"}],
 	},
 	{
 		"id": "fireworks", "from": "Jo", "title": "Fireworks coverage",
 		"brief": "The festival needs one good burst for the poster. Wait for a show, get up high and catch a shell while the show is running. Night only, obviously.",
-		"reward": 80, "next": "",
+		"reward": 80, "money": 140, "next": "",
 		"objectives": [{"kind": "photo", "fireworks": true, "night": true, "text": "Photograph a burst during a night show"}],
 	},
 ]
@@ -43,6 +43,8 @@ var _offers: Array = []          # job ids offered but not accepted
 var _active: Array = []          # accepted job ids
 var _done: Array = []            # completed job ids
 var _followers := 0
+var _money := 0
+var _chat: ChatData              # the DroneBudz server; job events are posted there when it exists
 var _obj_done := {}              # job id -> Array of completed objective indices
 var _obj_photo := {}             # "job:index" -> photo id
 var _root: Control
@@ -69,6 +71,7 @@ func _story_on() -> bool:
 func _save_state() -> void:
 	var cf := ConfigFile.new()
 	cf.set_value(FOLLOWERS, "count", _followers)
+	cf.set_value("economy", "money", _money)
 	cf.set_value("jobs", "offers", _offers)
 	cf.set_value("jobs", "active", _active)
 	cf.set_value("jobs", "done", _done)
@@ -81,6 +84,7 @@ func _load_state() -> void:
 	if cf.load(STATE) != OK:
 		return
 	_followers = int(cf.get_value(FOLLOWERS, "count", 0))
+	_money = int(cf.get_value("economy", "money", 0))
 	_offers = cf.get_value("jobs", "offers", [])
 	_active = cf.get_value("jobs", "active", [])
 	_done = cf.get_value("jobs", "done", [])
@@ -89,6 +93,13 @@ func _load_state() -> void:
 
 func followers() -> int:
 	return _followers
+
+func money() -> int:
+	return _money
+
+## The DroneBudz server: job events are also posted as chat messages there, so the story lives in one place.
+func set_chat(c: ChatData) -> void:
+	_chat = c
 
 # ------------------------------------------------------------------ job flow
 func _job(id: String) -> Dictionary:
@@ -103,6 +114,8 @@ func _announce_offer(job_id: String) -> void:
 		return
 	notes.post_text(str(job["from"]), "New job: " + str(job["title"]),
 		str(job["brief"]) + "  Open Flight > DroneBudz jobs to take it.", 0)
+	if _chat != null:
+		_chat.post("jobs", str(job["from"]), "New job on the board: %s. %s" % [str(job["title"]), str(job["brief"])], true)
 
 func accept(job_id: String) -> void:
 	if not job_id in _offers:
@@ -114,6 +127,8 @@ func accept(job_id: String) -> void:
 	if notes != null:
 		var job := _job(job_id)
 		notes.post_text(str(job["from"]), "On it", "Thanks! Send it over when it is done.", 0)
+		if _chat != null:
+			_chat.post("jobs", "You", "Accepted: " + str(job["title"]), false, true)
 	_refresh()
 
 func decline(job_id: String) -> void:
@@ -174,11 +189,25 @@ func submit(job_id: String) -> void:
 		return
 	_active.erase(job_id)
 	_done.append(job_id)
+	var before_followers := _followers
+	var before_money := _money
 	_followers += int(job.get("reward", 0))
+	_money += int(job.get("money", 0))
 	_save_state()
 	if notes != null:
-		notes.post_text(str(job["from"]), "Paid: +%d followers" % int(job.get("reward", 0)),
-			"The channel is at %d followers now. Nice work." % _followers, 0)
+		notes.post_text(str(job["from"]), "Paid: +%d followers, +%d money" % [int(job.get("reward", 0)), int(job.get("money", 0))],
+			"The channel is at %d followers and we are %d up. Nice work." % [_followers, _money], 0)
+	if _chat != null:
+		_chat.post("jobs", str(job["from"]),
+			"Job done: %s. Paid %d money and %d followers to the pilot." % [str(job.get("title", "")), int(job.get("money", 0)), int(job.get("reward", 0))],
+			true)
+		# the story marks the numbers that matter to the crew, once each
+		for th in [30, 60, 120, 250]:
+			if before_followers < th and _followers >= th:
+				_chat.post("clips", "Maya", "%d followers! That is the biggest week this channel has had. Keep the shots coming." % th, false)
+		for th in [100, 250, 500]:
+			if before_money < th and _money >= th:
+				_chat.post("general", "Alex", "%d in the channel pot. That is the new props paid for, and maybe a second battery." % th, false)
 	var nxt := str(job.get("next", ""))
 	if nxt != "" and not nxt in _done and not nxt in _active and not nxt in _offers:
 		_offers.append(nxt)
@@ -281,7 +310,7 @@ func _refresh() -> void:
 	for jid in _done:
 		var job := _job(str(jid))
 		var l := Label.new()
-		l.text = "Done: %s  (+%d followers)" % [str(job.get("title", "")), int(job.get("reward", 0))]
+		l.text = "Done: %s  (+%d followers, +%d money)" % [str(job.get("title", "")), int(job.get("reward", 0)), int(job.get("money", 0))]
 		l.add_theme_font_size_override("font_size", 14)
 		l.add_theme_color_override("font_color", Color(0.62, 0.74, 0.66))
 		_list.add_child(l)
@@ -334,7 +363,7 @@ func _offer_card(jid: String) -> PanelContainer:
 	row.add_theme_constant_override("separation", 8)
 	col.add_child(row)
 	var reward := Label.new()
-	reward.text = "+%d followers" % int(job.get("reward", 0))
+	reward.text = "+%d followers, +%d money" % [int(job.get("reward", 0)), int(job.get("money", 0))]
 	reward.add_theme_font_size_override("font_size", 14)
 	reward.add_theme_color_override("font_color", Color(0.66, 0.82, 0.70))
 	reward.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -385,7 +414,7 @@ func _active_card(jid: String) -> PanelContainer:
 	row2.add_theme_constant_override("separation", 8)
 	col.add_child(row2)
 	var reward := Label.new()
-	reward.text = "+%d followers when submitted" % int(job.get("reward", 0))
+	reward.text = "+%d followers, +%d money when submitted" % [int(job.get("reward", 0)), int(job.get("money", 0))]
 	reward.add_theme_font_size_override("font_size", 13)
 	reward.add_theme_color_override("font_color", Color(0.66, 0.82, 0.70))
 	reward.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -416,7 +445,7 @@ func is_open() -> bool:
 
 func stats() -> Dictionary:
 	return {"offers": _offers.size(), "active": _active.size(), "done": _done.size(),
-		"followers": _followers, "open": _open}
+		"followers": _followers, "money": _money, "open": _open}
 
 ## Dev hook: take the first offer, mark its objectives done with the newest photo if there is one, and open the page.
 func debug_demo() -> void:

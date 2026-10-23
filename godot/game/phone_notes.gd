@@ -1,5 +1,8 @@
 class_name PhoneNotes
 extends CanvasLayer
+
+## Emitted when the player asks to open the DroneBudz app from the notification shade.
+signal app_requested(app: String)
 ## Android style notifications for the DroneBudz group chat (session B).
 ##
 ## The drone view stays full screen. When something happens, an Android heads-up notification drops from the top of the
@@ -520,6 +523,13 @@ func _build_shade() -> void:
 	var stretch := Control.new()
 	stretch.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(stretch)
+	var open_btn := Button.new()
+	open_btn.text = "Open DroneBudz"
+	open_btn.flat = true
+	open_btn.add_theme_font_size_override("font_size", 14)
+	open_btn.add_theme_color_override("font_color", Color(0.55, 0.80, 0.95))
+	open_btn.pressed.connect(func(): app_requested.emit("chat"); close_shade())
+	head.add_child(open_btn)
 	var clear_btn := Button.new()
 	clear_btn.text = "Clear all"
 	clear_btn.flat = true
