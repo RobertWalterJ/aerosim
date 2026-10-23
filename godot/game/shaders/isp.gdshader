@@ -37,7 +37,10 @@ void fragment() {
 	blur += 0.7071 * (sat(curve(T(uSrc, vUv + o).rgb)) + sat(curve(T(uSrc, vUv - o).rgb)) + sat(curve(T(uSrc, vUv + vec2(o.x, -o.y)).rgb)) + sat(curve(T(uSrc, vUv + vec2(-o.x, o.y)).rgb)));
 	blur /= 4.0 + 4.0 * 0.7071;
 	vec3 hp = c0 - blur;
-	vec3 res = c0 + uSharp * hp;
+	// corner softness: the unsharp mask fades toward the corners, so the lens is softer at the edges
+	float rr = length(vUv - 0.5) * 2.0;
+	float edge_soft = smoothstep(0.6, 1.3, rr);
+	vec3 res = c0 + uSharp * (1.0 - 0.55 * edge_soft) * hp;
 	res = clamp(res, vec3(-0.02), vec3(1.02));
 	COLOR = vec4(clamp(res, vec3(0.0), vec3(1.0)), 1.0);
 }
