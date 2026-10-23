@@ -20,6 +20,9 @@ uniform vec2 uWRS = vec2(0.0);
 uniform float uSunVis = 0.0;
 uniform float uInView = 0.0;
 uniform float uWRoll = 0.0;
+uniform float uShutter = 0.005;   // shutter time (s) from the auto-exposure
+uniform float uSpeed = 0.0;       // drone speed (m/s) for forward-motion radial blur
+uniform float uMotionBlur = 1.0;  // 0 disables motion blur (Simple camera mode)
 uniform float uGlare = 0.0;
 uniform float uIso = 1.0;
 uniform float uCA = 0.004;
@@ -154,7 +157,21 @@ void fragment() {
 	vec2 dr = drops.xy;
 	sR += dr; sG += dr; sB += dr;
 	float e = exp2(uExpV);
-	vec3 col = vec3(T(uScene, sR).r, T(uScene, sG).g, T(uScene, sB).b) * e;
+	vec3 col;
+	if (uMotionBlur > 0.5) {
+		// motion blur: camera rotation (uWRS) and forward motion (uSpeed) smear the scene during the shutter.
+		// Near objects (far from the focus of expansion, here the centre) blur more radially.
+		vec2 mblur = vec2(uWRS.x, uWRS.y) * uShutter / (2.0 * uTan);
+		mblur += normalize(a) * length(a) * uSpeed * uShutter * 0.12;
+		col = vec3(0.0);
+		for (int i = 0; i < 8; i++) {
+			vec2 off = mblur * (float(i) / 7.0 - 0.5);
+			col += T(uScene, sG + off).rgb;
+		}
+		col *= e / 8.0;
+	} else {
+		col = vec3(T(uScene, sR).r, T(uScene, sG).g, T(uScene, sB).b) * e;
+	}
 	vec3 bl = vec3(T(uBloom, sR).r, T(uBloom, sG).g, T(uBloom, sB).b);
 	col *= uWB;
 	col = col * (1.0 - 0.10 * drops.z) + vec3(0.9, 0.95, 1.0) * drops.w * 0.035 * (0.3 + dot(col, vec3(0.33)));

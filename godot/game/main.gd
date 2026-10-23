@@ -954,6 +954,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	sun_target *= smoothstep(0.12, 0.5, float(wx.cur["sun"])) * smoothstep(0.0, 3.0, _sun_el)
 	_sun_vis += (sun_target - _sun_vis) * clampf(delta * 8.0, 0.0, 1.0)
 	sensor.sun_vis = _sun_vis
+	sensor.drone_speed = quad.velocity().length()   # forward-motion blur (camera A3 stage 1.5)
 	# video link: free-space loss with distance, plus a penalty when the terrain blocks the line of sight
 	var dpos := quad.position()
 	var home_p := Vector3(home.x, terrain.height(home.x, home.y) + 1.6, home.y)
