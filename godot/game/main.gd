@@ -993,13 +993,16 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var vcam: Vector3 = cb.inverse() * quad.velocity()
 	var agl := dpos.y - terrain.height(dpos.x, dpos.z)
 	var dfwd: Vector3 = quad.attitude() * Vector3(0, 0, -1)
+	# plane (wing) airspeed for the OSD; -1 on the quads (they show ground speed instead) -- session A plane branch
+	var _plane_as := -1.0
+	if quad.get("airspeed") != null: _plane_as = float(quad.get("airspeed"))
 	osd.t = {
 		"mode": fc.mode, "sats": 14 + (3 if agl > 2.0 else 0), "rfDbm": _rf_dbm, "rfBars": bars,
 		"battPct": quad.battery.soc * 100.0, "cellV": quad.battery.cell_v(), "battA": quad.battery.current,
 		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "ev": sensor.ev_comp, "wb": int(round(sensor.wb_kelvin / 100.0)) * 100,
 		"pitch": asin(clampf(fwd.y, -1.0, 1.0)), "roll": -asin(clampf(cb.x.y, -1.0, 1.0)),
 		"heading": atan2(dfwd.x, -dfwd.z), "velBody": vcam, "fov": cam.fov, "aglM": agl, "mslM": dpos.y,
-		"gs": sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5]), "vs": quad.s[4],
+		"gs": sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5]), "vs": quad.s[4], "as": _plane_as,
 		"homeDist": sqrt((dpos.x - home.x) * (dpos.x - home.x) + (dpos.z - home.y) * (dpos.z - home.y)),
 		"gimbalDeg": rad_to_deg(gimbal_pitch) if af["hasGimbal"] else rad_to_deg(float(af["camTilt"])),
 		"histogram": sensor.histogram, "lensName": sensor.lens_info()["name"], "airframe": af["name"],

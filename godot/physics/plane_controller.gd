@@ -118,7 +118,9 @@ func _cruise_hold(dt: float) -> float:
 	var p := plane.position()
 	var alt := p.y
 	stick_throttle = clampf(0.55 + (18.0 - plane.airspeed) * 0.08, 0.35, 0.85)
-	return clampf((_cruise_alt - alt) * 0.015 - plane.s[4] * 0.04, -0.15, 0.15)
+	# stall protection: near the stall, nose down to regain airspeed instead of holding altitude
+	var stall_guard := clampf((10.0 - plane.airspeed) * 0.06, 0.0, 0.3)
+	return clampf((_cruise_alt - alt) * 0.015 - plane.s[4] * 0.04 - stall_guard, -0.2, 0.15)
 
 ## RTH: climb to a safe height, fly to home, circle down, belly-land. Called from update() when rth > 0.
 func _rth_step(dt: float) -> void:

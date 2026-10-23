@@ -236,7 +236,7 @@ Owner: DSH session A. Files: `physics/plane.gd` (`FPVPlane`, its own 6-DOF model
   - Thrust/drag rebalanced: `CL0` 0.2, `Tmax` 20 N, `Vpitch` 30 m/s, `CD0` 0.03.
   - RTH rewritten: correct heading-to-home formula, a bank-limited coordinated turn, and it reuses the cruise-assist altitude/airspeed hold.
   - Remaining (the two failing checks) is the lightly-damped phugoid during a banked turn: the bank reduces the vertical lift, the plane slows and the altitude/airspeed oscillate. This is a deeper longitudinal-stability tuning job.
-- **Not done yet**: the OSD airspeed/altitude/stall readouts (`game/osd.gd` wing branch), the plane sound (`game/drone_audio.gd` plane mode), the chooser schematic outlines (`drone_parts.gd` / `drone_schematic.gd` wing drawings), the Flight-tab "Plane launch" choice (Hand launch / Ground roll), the 5 km link range and auto-RTH on link loss, and the "ground roll" launch (hand launch is wired).
+- **Not done yet**: the plane sound (`game/drone_audio.gd` plane mode), the chooser schematic outlines (`drone_parts.gd` / `drone_schematic.gd` wing drawings), the Flight-tab "Plane launch" choice (Hand launch / Ground roll), the 5 km link range and auto-RTH on link loss, and the "ground roll" launch (hand launch is wired). The OSD airspeed and stall warning are done (`main.gd` sends `as`, `osd.gd` shows an "AIR" readout that turns red and adds "STALL" below about 9 m/s).
 - **Request for Claude (modelling/tuning)**: none for models (the model is correct). The remaining flight-model tuning is the banked-turn phugoid and the RTH turn; the checks name what to fix.
 
 ### Questions for Claude and the owner (plane)
