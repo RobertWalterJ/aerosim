@@ -264,3 +264,8 @@ Session B is waiting for these to hang the tornado/waterspout funnel and the thu
 - Globals `g_storm` and `g_sky_dark` are registered in `_build_world` next to `g_csun`. Test tokens: `stormcell<x>_<z>` (anchor + full strength) and `stormoff`.
 - Evidence: `docs/realism/sky/storm/*.jpg` (storm cell vs clear sky, same view). Not verified: the look; session B will confirm the funnel hangs correctly from the anchor.
 - Taste question S17: the storm cell base is at about 900 m and the wall cloud lowers from it; right height for the funnel, or lower?
+## Models batch 2 (lane/models2, Claude, 2026-10-23)
+- **Where:** `game/new_models2.gd` (class `NewModels2`), contract rows in `game/README-models.md` under "Batch 2". Nothing is wired into the game yet: DSH wires them, Claude models them (same rule as batch 1).
+- **What:** barn, silo, Dutch windmill (spinning sails), wind pump (spinning wheel, yawing head), freight train (locomotive and five car meshes plus a consist list) and a 20 m track piece, rescue helicopter (main and tail rotors), far airliner, two kites and a kite line, a flag with a 20 x 12 cloth grid for a wind shader, six debris pieces, the funnel tube and the spray ring disc for the tornado and waterspout shaders.
+- **Evidence:** `docs/realism/models/new_models2_sheet.jpg`; `test/new_models2_test.gd` passes (finite, every triangle wound with its normals, budgets, real sizes).
+- **Wiring notes:** cars and the track share an origin at the rail top, so a car at the track's y sits on the rails; the track foot is 0.62 m below. Rotors, sails and the pump wheel each say which own axis they turn about and give a spin sign. The funnel and ring have no material on purpose.
