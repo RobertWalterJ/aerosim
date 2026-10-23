@@ -225,6 +225,7 @@ func _ready() -> void:
 	hud.takeoff_land_requested.connect(_takeoff_or_land)
 	hud.rth_requested.connect(_toggle_rth)
 	hud.wind_fx_changed.connect(func(e: bool, s: bool): wind.struggle = e; cam_shake.enabled = s)   # wind lane
+	hud.sky_quality_changed.connect(func(i: int): _sky_quality = i)   # sky lane: cloud quality from the menu
 	# the camera renders into the sensor pipeline's overscan viewport; the window itself only shows the video frame and the HUD
 	await _stage("Setting up the camera", 0.82)
 	sensor = SensorPipeline.new()
@@ -233,6 +234,7 @@ func _ready() -> void:
 	# real phones start in the plain picture; a laptop with a touch screen keeps the full camera (the Display tab can switch either way)
 	sensor.simple = OS.has_feature("mobile") or "simple" in OS.get_cmdline_user_args()
 	hud.simple_on = sensor.simple
+	hud.sky_quality = _sky_quality   # sky lane: show the phone/desktop cloud-quality default in the menu
 	sensor.setup(cam, 540 if touch_device else 720, Viewport.MSAA_DISABLED if touch_device else Viewport.MSAA_2X)
 	sensor.focus_message.connect(func(t: String): hud.toast(t))
 	var video := CanvasLayer.new(); video.layer = 1; add_child(video); video.add_child(sensor.screen)
@@ -737,6 +739,7 @@ func _screenshot_mode(arg: String) -> void:
 			_build_gallery()
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
+		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
 		if c.begins_with("skyto"): hud.weather["sky"] = int(c.substr(5)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true   # sky test hook: smooth transition (no snap)
 		if c.begins_with("sky") and not c.begins_with("skyto"):
 			hud.weather["sky"] = int(c.substr(3)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather, true); _auto_climb = true

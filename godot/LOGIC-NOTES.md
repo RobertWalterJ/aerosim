@@ -139,3 +139,10 @@ Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_sh
 - Smooth transitions: `apply_weather` now takes a `snap` flag (default false), so a menu weather change eases `cover`/`dark`/`haze` over about 10 to 20 s (the existing 5 s time constant in `weather.gd`, kept); start-up and the screenshot tokens pass `snap = true` so they stay deterministic. Added a `skyto<n>` token (before `sky<n>`, which now excludes `skyto`) for filming a transition.
 - Evidence: `docs/realism/sky/s5/*.jpg` (storm, snow, rain shots; a clear-to-storm filmstrip at frames 15, 60, 120, 240, 420, 600 showing saturation easing 0.25 -> 0.13 over about 10 s).
 - Taste questions: S11. Storm deck at about 950 m (lowered from 1500 m): low enough, or lower still? S12. Snow sky grey level (0.74, 0.76, 0.80): bright enough, or too dull?
+
+### S6 phone and cost (done, gate green)
+- Quality tiers (from S1) measured on this PC (shared GPU, about 5 fps noise, 150 m partly-cloudy shot, `--print-fps` last 4 s): Low 59-64 fps (about 15.6 ms), Medium 41-47 fps (about 22 ms), High 39-48 fps (about 22-25 ms). Low is the phone tier and is clearly cheapest; High adds little over Medium.
+- Simple camera path and `--rendering-method mobile` both render the sky correctly (gate green; evidence in `docs/realism/sky/s6/simple.jpg` and `mobile.jpg`).
+- New pause-menu setting Display > Graphics > "Sky quality" (Low / Medium / High), following the `_choice` pattern; default Medium on desktop, Low on phones (and the mobile renderer). `hud.sky_quality` -> signal `sky_quality_changed` -> `main._sky_quality`, and `main` writes `hud.sky_quality` back at start-up so the menu shows the phone default. Added a `cloudq<n>` screenshot token to film the tiers.
+- Evidence: `docs/realism/sky/s6/*.jpg` (q0_low, q1_medium, q2_high, simple, mobile).
+- Not verified: a real phone (S23); only the Mobile renderer and Simple mode on this PC.

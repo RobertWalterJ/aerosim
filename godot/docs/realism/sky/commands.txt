@@ -43,3 +43,9 @@ S5 weather integration. After images: docs/realism/sky/s5/.
   rain:   sky4,clock16.0,date3,at-18_150_36_190_-20
   transition filmstrip (clear -> storm, no snap): clock16.0,date3,at-18_150_36_190_-20,skyto5
     captured at frames 15, 60, 120, 240, 420, 600 (trans_<frames>.jpg)
+
+S6 phone and cost. After images: docs/realism/sky/s6/.
+  q0_low / q1_medium / q2_high: cloudq0|1|2,sky1,clock16.0,date3,at-18_150_36_190_-20
+  simple:  simple,sky1,clock16.0,date3,at-18_150_36_190_-20
+  mobile:  sky1,clock16.0,date3,at-18_150_36_190_-20  (with --rendering-method mobile)
+Frame times (--print-fps, last 4 s): Low 59-64 fps, Medium 41-47 fps, High 39-48 fps.

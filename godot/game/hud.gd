@@ -32,6 +32,7 @@ signal simple_changed(on: bool)
 signal dof_changed(mode: int)
 signal focus_changed(manual: bool, distance_m: float)
 signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects on the drone" and "Camera shake"
+signal sky_quality_changed(i: int)                   # sky lane: cloud raymarch quality
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
@@ -70,6 +71,7 @@ var listening := 2
 var sound_vol := 0.8
 var wind_fx := true                # wind lane: the drone wobbles, drifts and works harder in gusts
 var cam_shake := true              # wind lane: the picture shakes a little in rough air
+var sky_quality := 1               # sky lane: cloud quality 0 low, 1 medium, 2 high
 
 var minimap: MiniMap
 
@@ -581,6 +583,7 @@ func _build_display_tab() -> void:
 	_sub(p, "If the picture looks wrong on a phone, try switching these off.")
 	_choice(p, "Cloud shadows on the land", ["On", "Off"], func(): return 0 if fx_cloud else 1, func(i): fx_cloud = i == 0; _apply_fx())
 	_choice(p, "Tree colour variety", ["On", "Off"], func(): return 0 if fx_trees else 1, func(i): fx_trees = i == 0; _apply_fx())
+	_choice(p, "Sky quality", ["Low", "Medium", "High"], func(): return sky_quality, func(i): sky_quality = i; sky_quality_changed.emit(i))
 	_choice(p, "Grass", ["On", "Off"], func(): return 0, func(i): grass_changed.emit(i == 0))
 	_choice(p, "Camera effects", ["Full sensor look", "Simple (phone safe)"], func(): return 1 if simple_on else 0, func(i): simple_on = i == 1; simple_changed.emit(simple_on))
 	_choice(p, "Drifting leaves and dust", ["On", "Off"], func(): return 0 if ambient_on else 1, func(i): ambient_on = i == 0; ambient_changed.emit(ambient_on))
