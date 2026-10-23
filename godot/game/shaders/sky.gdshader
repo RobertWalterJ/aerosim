@@ -253,6 +253,11 @@ void sky() {
 	float halo_ang = acos(clamp(mu, -1.0, 1.0));
 	float halo = exp(-pow((halo_ang - 0.38397) / 0.016, 2.0));
 	col += vec3(1.0, 0.96, 0.90) * halo * 0.10 * day * cirrus;
+	// rainbow: a colour arc opposite the sun during a sun shower, red outside and violet inside
+	float ra = acos(clamp(-mu, -1.0, 1.0));
+	float band = exp(-pow((ra - 0.716) / 0.02, 2.0));
+	vec3 rcol = 0.5 + 0.5 * cos((0.733 - ra) * 80.0 + vec3(0.0, 2.09, 4.19));
+	col += rcol * band * rain * day * 0.25 * (1.0 - cover);
 	// distant ridges beyond the edge of the modelled land: two hazy silhouettes, the far one paler
 	float az = atan(dir.x, dir.z);
 	float ridge_far = 0.010 + 0.042 * vnoise(vec3(az * 1.7, 0.5, 0.5)) + 0.014 * vnoise(vec3(az * 6.0, 2.0, 0.5));
