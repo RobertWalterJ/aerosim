@@ -84,8 +84,8 @@ func _init() -> void:
 	var t_turn := 0.0
 	while turned < TAU * 0.98:
 		tick(p3, fc3, t3, Vector4(0.0, 0.0, 0.0, 0.667)); t3 += DT * SUB   # roll stick to a 30 degree bank
-		var fwd := p3.attitude() * Vector3(0, 0, -1)
-		hdg = atan2(-fwd.x, -fwd.z)
+		var vel := p3.velocity()
+		hdg = atan2(-vel.x, -vel.z)   # measure the velocity turn, not the nose (which oscillates in a slip)
 		if first: hdg0 = hdg; first = false
 		else: turned += absf(wrapf(hdg - hdg0, -PI, PI)); hdg0 = hdg
 		t_turn += DT * SUB

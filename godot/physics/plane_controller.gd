@@ -136,7 +136,9 @@ func _rth_step(dt: float) -> void:
 	var w := plane.rates()
 	var a := _angles()
 	var fwd := plane.attitude() * Vector3(0, 0, -1)
-	var hdg := atan2(-fwd.x, -fwd.z)
+	var vel := plane.velocity()
+	# turn on the velocity heading (where the plane is actually going), not the nose, so the sideslip does not defeat RTH
+	var hdg := atan2(-vel.x, -vel.z)
 	var target := atan2(-to_home.x, -to_home.y)
 	var err := wrapf(target - hdg, -PI, PI)
 	match rth:

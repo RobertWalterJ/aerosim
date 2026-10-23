@@ -1024,8 +1024,8 @@ func _update_sensor_and_osd(delta: float) -> void:
 	# weather: heavy rain and storms degrade the link a little (moderate, never fatal)
 	dbm -= float(wx.cur["rain"]) * 14.0 + (14.0 if wx.kind == WeatherSystem.Kind.STORM else 0.0)
 	_rf_dbm += (dbm - _rf_dbm) * clampf(delta * 3.0, 0.0, 1.0)
-	var bars := 5 if _rf_dbm > -60.0 else (4 if _rf_dbm > -70.0 else (3 if _rf_dbm > -78.0 else (2 if _rf_dbm > -86.0 else 1)))
-	var rf_bad := smoothstep(-80.0, -97.0, _rf_dbm)
+	var bars := 5 if _rf_dbm > -70.0 else (4 if _rf_dbm > -80.0 else (3 if _rf_dbm > -88.0 else (2 if _rf_dbm > -95.0 else 1)))
+	var rf_bad := smoothstep(-88.0, -99.0, _rf_dbm)   # 5 km link: blocks start around 1.4 km, full around 5 km
 	var mean_om: float = (quad.s[13] + quad.s[14] + quad.s[15] + quad.s[16]) * 0.25
 	var vib := clampf(0.12 + quad.vrs * 0.8 + fc.thrust_fraction() * 0.25 + quad.ang_accel.length() / 600.0, 0.0, 1.0)
 	if not chase: vib = clampf(vib + cam_shake.vibration, 0.0, 1.0)   # wind lane: buffeting shakes the sensor too
