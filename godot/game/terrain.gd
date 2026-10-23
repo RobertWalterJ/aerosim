@@ -182,9 +182,9 @@ func _make_material() -> ShaderMaterial:
 	m.set_shader_parameter("uCover", cover_tex)
 	m.set_shader_parameter("uPath", path_tex)
 	m.set_shader_parameter("uSize", SIZE)
-	m.set_shader_parameter("uAsphalt", load("res://assets/textures/asphalt_diff.jpg"))
-	m.set_shader_parameter("uAsphaltN", load("res://assets/textures/asphalt_nor.jpg"))
-	m.set_shader_parameter("uAsphaltARM", load("res://assets/textures/asphalt_arm.jpg"))
+	m.set_shader_parameter("uAsphalt", load("res://assets/textures/path_diff.jpg"))
+	m.set_shader_parameter("uAsphaltN", load("res://assets/textures/path_nor.jpg"))
+	m.set_shader_parameter("uAsphaltARM", load("res://assets/textures/path_arm.jpg"))
 	_mat = m
 	return m
 
