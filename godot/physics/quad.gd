@@ -31,6 +31,8 @@ var ang_accel := Vector3.ZERO
 
 # environment, set by the caller before step()
 var wind := Vector3.ZERO
+## body torque from small gust eddies, flapping and weathervaning (game/wind.gd `drive`); zero keeps the web parity
+var gust_tau := Vector3.ZERO
 var ground_h: Callable            # (x: float, z: float) -> float
 var ground_n: Callable            # (x: float, z: float) -> Vector3
 var obstacle_hit: Callable        # optional (x, y, z, r) -> Vector3 push, or Vector3.INF for no hit
@@ -154,6 +156,7 @@ func _deriv(sv: PackedFloat64Array, out: PackedFloat64Array) -> void:
 	tau.x -= -w.z * hr
 	tau.z -= w.x * hr
 	tau += _turb   # propwash / VRS turbulence torque
+	tau += gust_tau   # wind struggle: gust eddies the controller must fight
 	var inertia: Vector3 = af["I"]
 	var iw := Vector3(inertia.x * w.x, inertia.y * w.y, inertia.z * w.z)
 	var wxiw := w.cross(iw)

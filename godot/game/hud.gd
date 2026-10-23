@@ -31,6 +31,7 @@ signal ambient_changed(on: bool)
 signal simple_changed(on: bool)
 signal dof_changed(mode: int)
 signal focus_changed(manual: bool, distance_m: float)
+signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects on the drone" and "Camera shake"
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
@@ -65,6 +66,8 @@ var simple_on := false
 var sound_on := true
 var listening := 2
 var sound_vol := 0.8
+var wind_fx := true                # wind lane: the drone wobbles, drifts and works harder in gusts
+var cam_shake := true              # wind lane: the picture shakes a little in rough air
 
 var minimap: MiniMap
 
@@ -516,6 +519,9 @@ func _build_weather_tab() -> void:
 	_slider(p, "wind", "Wind speed", 0.0, 10.0, 0.1)
 	_slider(p, "gust", "Gusts", 0.0, 1.0, 0.01)
 	_slider(p, "from", "Wind comes from", 0.0, 359.0, 1.0)
+	# wind lane: how the wind treats the drone and the picture
+	_choice(p, "Wind effects on the drone", ["Off", "Natural"], func(): return 1 if wind_fx else 0, func(i): wind_fx = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
+	_choice(p, "Camera shake", ["Off", "Natural"], func(): return 1 if cam_shake else 0, func(i): cam_shake = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
 	_action(p, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
 
 func _build_camera_tab() -> void:

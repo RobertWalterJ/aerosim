@@ -32,6 +32,14 @@ var _m_amp := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 var _m_tf := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 var _m_ta := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 var _hiss_lp := 0.0
+# wind strain (wind lane): the motors' electronic whine when they work hard, and rough air on the onboard microphone
+var turb := 0.0                  # 0..1 how rough the air is at the drone (Wind.turb)
+var burst := 0.0                 # 0..1 gust spells (Wind.burst)
+var _omega_hover := 1200.0       # motor speed in a still hover, rad/s
+var _whine_k := 3.5              # whine frequency over blade-pass frequency (7 magnet pole pairs / blades)
+var _w_phase := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+var _w_amp := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
+var _w_ta := PackedFloat64Array([0.0, 0.0, 0.0, 0.0])
 var _wind_a: AudioStreamPlayer
 var _wind_b: AudioStreamPlayer
 var _wind_lp: AudioEffectLowPassFilter
@@ -99,6 +107,12 @@ func setup(drone: Node3D, pilot_pos: Vector3, trees: Array, arm: float, home: Ve
 		p.play(); _pb_o.append(p.get_stream_playback() as AudioStreamGeneratorPlayback)
 	_wind_a.play(); _wind_b.play(1.7)
 	for p in [_slap_g, _slap_o, _wash_g, _wash_o, _buffet, _leaf, _spruce]: p.play()
+
+## Wind strain inputs, each frame before update(): roughness, gust spells, and the airframe's motor numbers.
+func strain_in(t: float, b: float, omega_max: float, twr: float, blades: int) -> void:
+	turb = t; burst = b
+	_omega_hover = omega_max * sqrt(1.0 / maxf(twr, 1.0))
+	_whine_k = 7.0 / maxf(float(blades), 1.0)
 
 ## Move the four motor sound sources when the drone changes (longer arms on a bigger drone).
 func set_arm(arm: float) -> void:
@@ -236,6 +250,9 @@ func _fill_motors() -> void:
 		var f1 := _m_freq[m]; var a1 := _m_amp[m]
 		var f2 := _m_tf[m]; var a2 := _m_ta[m]
 		var tab := _tab_full if f2 * 5.0 < 14000.0 else _tab_lite
+		var wa1 := _w_amp[m]; var wa2 := _w_ta[m]
+		var wph := _w_phase[m]
+		var wk := _whine_k
 		var buf := PackedVector2Array(); buf.resize(n)
 		var ph := _m_phase[m]
 		var lp := _hiss_lp
@@ -252,8 +269,15 @@ func _fill_motors() -> void:
 			var v := tab[i0] * (1.0 - fr) + tab[(i0 + 1) & (TAB - 1)] * fr
 			lp += ((_rng.randf() * 2.0 - 1.0) - lp) * 0.3
 			var s := (v + lp * 0.16) * a
+			var wa := wa1 + (wa2 - wa1) * k
+			if wa > 0.0002:
+				# motor electronics whine under load: a soft triangle at the electrical frequency
+				wph += f * wk * inv
+				wph -= floorf(wph)
+				s += (4.0 * absf(wph - 0.5) - 1.0) * wa
 			buf[i] = Vector2(s, s)
 		_m_phase[m] = ph
+		_w_phase[m] = wph; _w_amp[m] = wa2
 		_m_freq[m] = f2; _m_amp[m] = a2
 		_hiss_lp = lp
 		_pb_g[m].push_buffer(buf)
@@ -372,12 +396,17 @@ func update(a: Dictionary, dt: float) -> void:
 	var thr: float = a["thrust"]
 	var amp := 0.05 + 0.55 * thr * thr
 	var omega: PackedFloat64Array = a["omega"]
+	var om_mean := maxf((omega[0] + omega[1] + omega[2] + omega[3]) * 0.25, 1.0)
 	for m in 4:
 		var f0: float = omega[m] / TAU * float(a["blades"])
+		# the motor working hardest is a little louder, and whines when it runs well above its hover speed
+		var rel := omega[m] / om_mean
+		var strain := smoothstep(1.06, 1.4, omega[m] / _omega_hover)
+		_w_ta[m] = amp * (0.10 * strain + 0.03 * turb * burst)
 		# each motor drifts a hair off the others, so the four beat against each other like real props
 		var wob := 1.0 + m * 0.0013 + 0.0025 * sin(_time * (6.0 + m * 1.7) + m * 2.0)
 		_m_tf[m] = clampf(f0 * wob, 25.0, 2600.0)
-		_m_ta[m] = amp * 0.5
+		_m_ta[m] = amp * 0.5 * clampf(rel * rel, 0.75, 1.35)
 	_fill_motors()
 	# blade-vortex slap in descents and turbulence
 	var slap := clampf(maxf(0.0, -float(a["vz"]) - 1.5) * 0.12 + float(a["vrs"]) * 0.8 + float(a["jerk"]) * 0.0004, 0.0, 1.0)
@@ -386,7 +415,8 @@ func update(a: Dictionary, dt: float) -> void:
 	_slap_g.pitch_scale = sp; _slap_o.pitch_scale = sp; _slap_g.volume_db = sdb; _slap_o.volume_db = sdb
 	# wind buffet on the microphone
 	var air_speed: float = a["air_speed"]
-	_buffet.volume_db = linear_to_db(maxf(clampf((air_speed * air_speed - 25.0) / 400.0, 0.0, 1.0) * 1.1, 1e-4))
+	var rough := turb * (0.35 + 0.65 * burst) * (0.7 + 0.3 * sin(_time * 5.3) * sin(_time * 2.1 + 0.6))   # rough air rumbles on the microphone
+	_buffet.volume_db = linear_to_db(maxf(clampf((air_speed * air_speed - 25.0) / 400.0 + 0.55 * rough, 0.0, 1.0) * 1.1, 1e-4))
 	# rotor wash on the grass
 	var wdb := linear_to_db(maxf(float(a["wash"]) * 0.5, 1e-4))
 	_wash_g.volume_db = wdb; _wash_o.volume_db = wdb

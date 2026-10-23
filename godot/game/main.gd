@@ -74,6 +74,7 @@ var _snow_level := 0
 var _fps_acc := 0.0
 var _fps := 60.0
 var _wind_now := Vector3.ZERO
+var cam_shake := CamShake.new()   # wind lane: camera buffeting in rough air (game/shake.gd)
 
 var _loaded := false
 var _gimbal_rate := 0.0
@@ -188,6 +189,7 @@ func _ready() -> void:
 	hud.volume_changed.connect(func(v: float): audio.set_volume(v))
 	hud.takeoff_land_requested.connect(_takeoff_or_land)
 	hud.rth_requested.connect(_toggle_rth)
+	hud.wind_fx_changed.connect(func(e: bool, s: bool): wind.struggle = e; cam_shake.enabled = s)   # wind lane
 	# the camera renders into the sensor pipeline's overscan viewport; the window itself only shows the video frame and the HUD
 	await _stage("Setting up the camera", 0.82)
 	sensor = SensorPipeline.new()
@@ -539,6 +541,7 @@ func _physics_process(_delta: float) -> void:
 	var agl := p.y - terrain.height(p.x, p.z)
 	st = _autopilot_sticks(st, p, agl)
 	quad.wind = wind.sample(p, maxf(agl, 0.05), sim_time)
+	wind.drive(quad, terrain, p, maxf(agl, 0.05), SUBSTEPS * DT)   # wind lane: gusts the controller must fight
 	_wind_now = quad.wind
 	fc.on_ground = agl < 0.15
 	for i in SUBSTEPS:
@@ -599,6 +602,7 @@ func _process(delta: float) -> void:
 		else:
 			cam.global_transform.basis = Basis(q) * Basis(Vector3.RIGHT, float(af["camTilt"]))
 		cam.fov = 84.0
+		if not sensor.simple: cam_shake.apply(cam, delta, wind.turb, wind.burst, quad.rates(), af["hasGimbal"])   # wind lane: buffeting (Full camera only)
 	drone_view.visible = true
 	drone_view.set_fpv(not chase)
 	if sensor.simple and not chase: cam.fov = 52.0
@@ -672,6 +676,9 @@ func _screenshot_mode(arg: String) -> void:
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
 		if c.begins_with("sky"):
 			hud.weather["sky"] = int(c.substr(3)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true
+		if c.begins_with("windms"): hud.weather["wind"] = float(c.substr(6)); hud.weather["gust"] = 1.0; apply_weather(hud.weather)   # wind lane test hook: menu wind in m/s, gusty
+		if c == "hover": _auto_climb = false   # wind lane test hook: hold the hover (put it after sky<n>)
+		if c == "nowindfx": wind.struggle = false   # wind lane test hook: wind effects Off
 	await get_tree().create_timer(0.1).timeout
 	for i in frames: await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
@@ -771,6 +778,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var rf_bad := smoothstep(-80.0, -97.0, _rf_dbm)
 	var mean_om := (quad.s[13] + quad.s[14] + quad.s[15] + quad.s[16]) * 0.25
 	var vib := clampf(0.12 + quad.vrs * 0.8 + fc.thrust_fraction() * 0.25 + quad.ang_accel.length() / 600.0, 0.0, 1.0)
+	if not chase: vib = clampf(vib + cam_shake.vibration, 0.0, 1.0)   # wind lane: buffeting shakes the sensor too
 	sensor.update_focus(delta, terrain, world, airframe_id, chase, quad.position())
 	sensor.process_frame(delta, sim_time, ang, vib, mean_om / TAU * float(af["nBlades"]), rf_bad)
 	osd.frame = sensor.frame_rect()
@@ -796,6 +804,9 @@ func _update_sensor_and_osd(delta: float) -> void:
 		"windMs": _wind_now.length(), "windLevel": "", "homeBearing": atan2(home.x - dpos.x, -(home.y - dpos.z)), "stopHit": 0.0, "aero": "",
 	}
 	hud.show_crash(osd.t["crashed"])
+	var wmsg := wind.feedback(delta, airframe_id, _wind_now.length(), fc.losing_hold(), osd.t)   # wind lane: strong-wind warning
+	if wmsg != "" and quad.armed: hud.toast(wmsg, true)
+	audio.strain_in(wind.turb, wind.burst, float(af["omegaMax"]), float(af["twr"]), int(af["nBlades"]))   # wind lane: motor strain sound
 	var om := PackedFloat64Array([quad.s[13], quad.s[14], quad.s[15], quad.s[16]])
 	var cov_f := terrain.cover_at(dpos.x, dpos.z).x
 	audio.update({"omega": om, "blades": af["nBlades"], "thrust": clampf(fc.thrust_fraction() ** 0.5, 0.0, 1.0), "vz": quad.s[4], "jerk": quad.ang_accel.length(), "vrs": quad.vrs,
