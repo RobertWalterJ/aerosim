@@ -771,6 +771,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_L: hud.toggle_lens()
 		KEY_V: hud.listening = (hud.listening + 1) % 3; audio.set_perspective(hud.listening); hud.toast("Sound: " + audio.perspective_name())
 		KEY_H: osd.show_osd = not osd.show_osd
+		KEY_N: phone_notes.toggle_shade()   # session B: open or close the phone notification centre
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
@@ -885,6 +886,10 @@ func _screenshot_mode(arg: String) -> void:
 			hud.phone_style = 1
 		elif c == "notesstorm":
 			phone_notes.debug_one("storm")
+		elif c == "notesshade":     # session B dev hook: fill the notification centre and open it
+			phone_notes.debug_shade()
+		elif c == "notesempty":
+			phone_notes.debug_clear()
 		elif c == "notestorm":
 			phone_notes.debug_one("storm")
 		elif c == "notetornado":
