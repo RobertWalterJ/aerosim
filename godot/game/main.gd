@@ -360,6 +360,7 @@ func _build_world() -> void:
 	RenderingServer.global_shader_parameter_add("g_storm", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # storm cell: x = anchor x, y = anchor z, z = strength (session B hangs the funnel here)
 	RenderingServer.global_shader_parameter_add("g_bolt", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, -1.0, 0.0, 0.0))   # lightning bolt: xyz direction, w strength (session B's bolts)
 	RenderingServer.global_shader_parameter_add("g_sky_dark", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)   # other effects darken the sky
+	RenderingServer.global_shader_parameter_add("g_spout", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # xz waterspout foot, radius, strength for the water rings
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
 	add_child(terrain)
@@ -909,6 +910,8 @@ func _screenshot_mode(arg: String) -> void:
 			weather_events.debug_event("waterspout")
 		elif c == "tornado":
 			weather_events.debug_event("tornado")
+		elif c.begins_with("vortexstage"):
+			weather_events.debug_stage(int(c.substr(11)))
 		elif c == "dustdevil":
 			weather_events.debug_event("dustdevil")
 		elif c == "storm":          # dev: the B2 thunderstorm cell (the sky storm hooks are session A's)
@@ -1241,8 +1244,8 @@ func _shutter_pressed() -> void:
 
 ## The facts a photo carries into the gallery and, later, into photo objectives.
 func _photo_meta() -> Dictionary:
-	var p := quad.position()
-	var agl := p.y - terrain.height(p.x, p.z)
+	var p: Vector3 = quad.position()
+	var agl: float = p.y - terrain.height(p.x, p.z)
 	var clock := "21:00"
 	if hud != null:
 		var hour := float(hud.weather.get("hour", 21.0))

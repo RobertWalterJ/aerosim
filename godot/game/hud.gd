@@ -78,6 +78,8 @@ var lens_rain_k := 0.6             # how much rain gathers on the lens: 0 off, 0
 var sound_on := true
 ## session B: the DroneBudz jobs and story layer are opt-in; Off leaves the whole sandbox exactly as it is.
 var story_on := true
+## session B: 0 low, 1 normal, 2 high funnel detail (particle counts for the tornado and waterspout).
+var funnel_detail := 1
 ## session B: the phone-style DroneBudz notifications for world events (game/phone_notes.gd). Off hides all of them.
 var phone_notes := true
 ## session B: 0 iPhone style, 1 Android style (Android is the default; Robert picked it)
@@ -570,6 +572,7 @@ func _build_weather_tab() -> void:
 	# session B: the extreme-weather events. Each one is off until the player starts it, and Off stops it at once.
 	_heading(p, "Events")
 	_sub(p, "Weather you can start yourself. Nothing here can damage the drone.")
+	_choice(p, "Funnel detail", ["Low", "Normal", "High"], func(): return funnel_detail, func(i): funnel_detail = i)
 	_event_toggle(p, "Waterspout over the lake", "waterspout")
 	_event_toggle(p, "Tornado", "tornado")
 	_event_toggle(p, "Thunderstorm", "thunderstorm")
