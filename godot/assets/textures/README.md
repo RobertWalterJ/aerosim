@@ -22,3 +22,28 @@ published by Poly Haven, and is what the shader uses.
 Downloaded 2026-10-22 as the 1k JPEGs (`diff`, `nor_gl`, `arm`) and re-saved at 1024 px with Python PIL (quality 85,
 normals 90). The 1k sets were also added to the shared library (`texture/rubble`, `texture/mossrock`,
 `texture/limestone`, `texture/ashlar`).
+
+## Bark (October 2026, trees)
+
+Used by `game/shaders/tree_bark.gdshader` through `Assets._tree_mat` in `game/assets.gd`; the tree models (made by
+`tools/tree_gen.ts`) carry UVs in metres, and the shader divides by the size of one repeat given here. Each set is a
+`_diff` albedo (sRGB) and a `_nor` OpenGL normal map; roughness comes from the albedo's brightness, so there is no ARM
+map. These files, and the leaf atlases in `assets/trees/`, import VRAM-compressed with mipmaps: their `.import` files
+are committed (the folder's `.gitignore` skips `*.import`, so they were added with `git add -f`). Without that,
+Godot imports them uncompressed and without mipmaps, which is large on a phone and shimmers in the distance.
+
+| Files | Source | Author | Licence | One repeat (around x along) | Size | Used for |
+|---|---|---|---|---|---|---|
+| `bark_furrow_*` | Poly Haven `bark_brown_02`, https://polyhaven.com/a/bark_brown_02 (1k files from https://api.polyhaven.com/files/bark_brown_02) | Rob Tuytel | CC0 | 1.0 x 1.0 m | 512 px | maples, poplar |
+| `bark_oak_*` | Poly Haven `jolcham_oak_bark_01`, https://polyhaven.com/a/jolcham_oak_bark_01 | Charlotte Baglioni | CC0 | 1.0 x 2.0 m | 512 x 1024 px | oak |
+| `bark_smooth_*` | Poly Haven `japanese_hackberry_bark`, https://polyhaven.com/a/japanese_hackberry_bark | Charlotte Baglioni | CC0 | 1.89 x 1.89 m | diff 1024 px, normal 512 px | beech (shown grey: the shader takes most colour out); its normal map also serves the birch |
+| `bark_pine_*` | Poly Haven `pine_bark`, https://polyhaven.com/a/pine_bark | Dimitrios Savva | CC0 | 2.0 x 2.0 m | diff 1024 px, normal 512 px | Scots pine (orange upper stem from vertex tint), spruce (tinted grey-brown) |
+| `bark_birch_diff.jpg` | painted by `tools/tree_gen.ts` (`paintBirchBark`): white bark, lenticels, black diamonds | AeroSim (own work) | CC0 | 1.0 x 1.0 m | 512 px | birch |
+
+Downloaded 2026-10-23 as the 1k JPEGs (`diff`, `nor_gl`) from the Poly Haven API and re-saved with Python PIL
+(albedo quality 85, normals quality 90) at the sizes above, about 512 pixels per metre (256 for the larger normals).
+The four photographed sets were also added to the shared library (`texture/bark_furrow`, `texture/bark_oak`,
+`texture/bark_smooth`, `texture/bark_pine`) with the birch bark and the leaf atlases.
+
+The leaf atlases (`assets/trees/leaves_*.webp`, 512 px, four cells each) are painted by `tools/tree_gen.ts`
+(`paintLeafAtlas`, `paintConiferAtlas`): own work, CC0. A cell is about 1.25 m of leaf spray on the tree.

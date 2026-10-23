@@ -79,8 +79,73 @@ static func _load_env() -> void:
 ## Trees and ground cover get the wind-sway shader in place of the imported standard material.
 static func _swap_foliage(name: String, out: Array) -> void:
 	if name.begins_with("trees/far_"): return
-	if not (name.begins_with("trees/") or name.begins_with("env/meadowClump") or name.begins_with("env/lawnTuft")): return
+	if name.begins_with("trees/"):
+		_swap_tree(out)
+		return
+	if not (name.begins_with("env/meadowClump") or name.begins_with("env/lawnTuft")): return
 	_swap_foliage_parts(out)
+
+## ---- trees (tools/tree_gen.ts) ----
+## The tree models carry no textures. Their materials are named "bark:<set>" and "leaf:<atlas>"; each gets one shared
+## shader material here, with the bark sets from assets/textures (see the README there) and the painted leaf atlases
+## in assets/trees. Desktop leaves use alpha to coverage (the scene has MSAA there); phones use plain alpha scissor.
+## Bark: [albedo file, normal file, metres per repeat (around, along), tint, desaturate, moss].
+const BARK := {
+	"furrow": ["bark_furrow_diff", "bark_furrow_nor", Vector2(1.0, 1.0), Vector3(0.72, 0.68, 0.64), 0.2, 0.35],
+	"oak": ["bark_oak_diff", "bark_oak_nor", Vector2(1.0, 2.0), Vector3(0.8, 0.77, 0.74), 0.15, 0.45],
+	"smooth": ["bark_smooth_diff", "bark_smooth_nor", Vector2(1.89, 1.89), Vector3(0.9, 0.92, 0.95), 0.8, 0.5],
+	"pine": ["bark_pine_diff", "bark_pine_nor", Vector2(2.0, 2.0), Vector3(1.0, 0.95, 0.9), 0.0, 0.15],
+	"birch": ["bark_birch_diff", "bark_smooth_nor", Vector2(1.0, 1.0), Vector3(1.0, 1.0, 1.0), 0.0, 0.2],
+}
+## Leaves: [translucency, roughness, tint, snow hold].
+const LEAF := {
+	"maple_red": [1.6, 0.72, Vector3(1.0, 1.0, 1.0), 0.45],
+	"maple_gold": [1.6, 0.72, Vector3(1.0, 1.0, 1.0), 0.45],
+	"oak": [1.2, 0.75, Vector3(1.0, 1.0, 1.0), 0.5],
+	"beech": [1.4, 0.72, Vector3(1.0, 1.0, 1.0), 0.5],
+	"birch": [1.6, 0.7, Vector3(1.0, 1.0, 1.0), 0.35],
+	"poplar": [1.6, 0.68, Vector3(1.0, 1.0, 1.0), 0.35],
+	"spruce": [0.3, 0.72, Vector3(0.15, 0.19, 0.18), 0.85],
+	"pine": [0.35, 0.7, Vector3(0.26, 0.3, 0.26), 0.8],
+}
+static var _tree_mats := {}
+static var _leaf_a2c := -1
+
+static func _tree_mat(kind: String, set_name: String) -> Material:
+	var key := kind + ":" + set_name
+	if _tree_mats.has(key): return _tree_mats[key]
+	var m := ShaderMaterial.new()
+	if kind == "bark":
+		var b: Array = BARK.get(set_name, BARK["furrow"])
+		m.shader = load("res://game/shaders/tree_bark.gdshader") as Shader
+		m.set_shader_parameter("albedo_tex", load("res://assets/textures/%s.jpg" % b[0]))
+		m.set_shader_parameter("normal_tex", load("res://assets/textures/%s.jpg" % b[1]))
+		m.set_shader_parameter("tile_m", b[2]); m.set_shader_parameter("tint", b[3])
+		m.set_shader_parameter("desat", b[4]); m.set_shader_parameter("moss", b[5])
+	else:
+		if _leaf_a2c < 0:
+			var touch := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
+			_leaf_a2c = 1 if (RenderingServer.get_current_rendering_method() == "forward_plus" and not touch) else 0
+		var l: Array = LEAF.get(set_name, LEAF["maple_red"])
+		m.shader = load("res://game/shaders/tree_leaf.gdshader" if _leaf_a2c == 1 else "res://game/shaders/tree_leaf_mobile.gdshader") as Shader
+		m.set_shader_parameter("albedo_tex", load("res://assets/trees/leaves_%s.webp" % set_name))
+		m.set_shader_parameter("translucency", l[0]); m.set_shader_parameter("roughness", l[1])
+		m.set_shader_parameter("tint", l[2]); m.set_shader_parameter("snow_hold", l[3])
+	_tree_mats[key] = m
+	return m
+
+static func _swap_tree(out: Array) -> void:
+	for p in out:
+		var mesh: Mesh = p["mesh"]
+		for i in mesh.get_surface_count():
+			var src := mesh.surface_get_material(i)
+			if src == null: continue
+			var nm := src.resource_name
+			if nm.begins_with("bark:"): mesh.surface_set_material(i, _tree_mat("bark", nm.substr(5)))
+			elif nm.begins_with("leaf:"): mesh.surface_set_material(i, _tree_mat("leaf", nm.substr(5)))
+			else:
+				_swap_foliage_parts([p])     # an older model without named materials
+				break
 
 static func _swap_foliage_parts(out: Array) -> void:
 	var shader := load("res://game/shaders/foliage.gdshader") as Shader
@@ -213,14 +278,18 @@ static func _park_stone_walk(n: Node) -> void:
 	for c in n.get_children(): _park_stone_walk(c)
 
 static func _tint_far(name: String, out: Array) -> void:
-	# the far silhouettes carry only baked shading; give them their colour here
+	# the far silhouettes carry only baked shading; their colour is the base tint times each copy's colour, and
+	# tree_far.gdshader reshapes and recolours every copy a little
 	if not name.begins_with("trees/far_"): return
-	var col := Color(0.15, 0.27, 0.13) if name.ends_with("conifer") else Color(0.55, 0.34, 0.13)
+	var conifer := name.ends_with("conifer")
+	var col := Vector3(0.15, 0.27, 0.13) if conifer else Vector3(0.55, 0.34, 0.13)
+	var m := ShaderMaterial.new()
+	m.shader = load("res://game/shaders/tree_far.gdshader") as Shader
+	m.set_shader_parameter("tint", col)
+	m.set_shader_parameter("lumps", 0.35 if conifer else 1.0)
 	for p in out:
 		var mesh: Mesh = p["mesh"]
 		for i in mesh.get_surface_count():
-			var m := StandardMaterial3D.new()
-			m.albedo_color = col; m.vertex_color_use_as_albedo = true; m.roughness = 1.0
 			mesh.surface_set_material(i, m)
 
 static var _manifest := {}

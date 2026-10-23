@@ -1,0 +1,22 @@
+Trees (realism 3.1), 2026-10-23. Before = commit ee2aa0c, after = lane/trees. Run in the godot folder.
+G = ..\..\_tools\godot-4.7.2\Godot_v4.7.2-stable_win64_console.exe
+
+Rebuild the trees:   cd tools ; npx tsx export_assets.ts --trees-only     (then: G --headless --path . --import)
+Check the swap:      G --headless --path . -s test/tree_probe.gd
+
+Shots (300 frames each), G --path . -- "shot=<file>.png,300,<tokens>":
+  canopy8    fpv,clock16.0,at-19.4_8_70_0_-4
+  trunk2     chase,clock16.0,cd2,at-19.4_1.2_59.8_0_5
+  avenue30   fpv,clock16.0,at-18_30_36_190_-30
+  far150     fpv,clock16.0,at-18_150_36_0_-12
+  golden     fpv,clock17.8,date3,at-18_12_36_90_-8
+  rain       fpv,clock13.0,sky4,at-19.4_8_70_0_-4
+  snow       fpv,clock13.0,sky6,at-19.4_8_70_0_-4
+  simple     fpv,simple,clock16.0,at-19.4_8_70_0_-4
+  mobile     fpv,clock16.0,at-19.4_8_70_0_-4   with --rendering-method mobile before the --
+  species    at-2_25_-10_0_-25 (mix from above), at-12_8_40_270_-2 (pine), at-2.1_8_-30_0_-2 (birch),
+             at52_14_-60_237_-2 (poplar), at-63_9_42.5_270_-4 and at-45.5_8_61_0_-2 (beech and oak)
+
+Frame time, avenue30 view, 1280x720, Full camera, desktop (RTX 4070 laptop), wall time of a 900-frame run minus a
+100-frame run, divided by 800: before 18.8 ms, after 19.6 ms (the same within the noise of this method; other agents'
+Godot runs were sharing the GPU at times). The in-game fps readout in the shots reads 23 to 42 before and 41 to 57 after.
