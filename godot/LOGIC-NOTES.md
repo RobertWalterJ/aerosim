@@ -11,7 +11,7 @@ Update this in the same commit as any logic change. Realism pass stages are list
 | 1.3 Compression, 1.4 Lens character | not started |
 | 2.1 Contact shadows, 2.2 Cheap GI | not started |
 | 2.3 Volumetric light, 2.4 Sky clouds | not started |
-| 2.5 Water | not started |
+| 2.5 Water | done on lane/water 2026-10-23, gate green, taste questions W1 to W6 (see the end) |
 | 3.1 Trees | done on lane/trees, merged into main 2026-10-23 |
 | 3.2 Far hills forest, 3.3 Grass and ground | built on lane/ground (2026-10-23), gate green, awaiting the owner's look review (questions G1 to G6) |
 | 3.4 Gravestones, 3.5 Drone detail | built on lane/ground (2026-10-23), gate green, awaiting the owner's look review (questions G7 to G10) |
@@ -128,3 +128,24 @@ Owner's aim: the valley feels alive from the air: geese crossing in a V, gulls o
   - E4.3. The murmuration is a noise-driven cloud, not boids; it flows and breathes rather than splitting around the drone like real starlings. Enough for now?
   - E4.4. Gulls stay at the lake shore all day. Should some also follow the drone or sit on the water?
   - E4.5. Bird sound: honks and gull cries every few seconds when a flock is near. Too busy, or right?
+
+## Water (realism 2.5, lane/water, session B, 2026-10-23)
+Owner's aim: the lake should look like a real lake in the park: the sky and the hills in it at low angles, small wind waves, foam where it meets the shore, and dark water in the middle.
+- **Where:** `game/shaders/water.gdshader` (rewritten), `game/lake.gd` (two added lines only: it hands the shader the terrain height texture; the lake shape and the shore logic are unchanged), `game/hud.gd` (Display > Graphics "Water detail" switch and `fx_water`). The shader is the material on the existing lake mesh; nothing about `lake_mask.png` or the water cells changed.
+- **Reflections:** on a computer the scene's screen-space reflections (`env.ssr`, already on) mirror the hills and trees in the water. Every renderer also gets a cheap fresnel sky colour: a Schlick fresnel (water, 0.02 to 1.0) times the haze colour, so a phone or the simple camera still reads as water. The sun's own specular on the ripples is the glint; no extra sun path.
+- **Sky colour global:** `g_water` (rgb = the sky/haze colour the lake mirrors, a = its brightness) is registered in `Fireworks.add_globals()` next to `g_fire` (both are session B globals, registered before any shader loads) and set from `env.fog_light_color` every frame in `main.gd` `_apply_weather_state`. The lake mirrors the fog/sky colour, so it goes warm at sunset and dark at night with the rest of the scene.
+- **Waves:** a large swell (three crossing sine swells, 0.6 + 0.38 + 0.24 m, wavelengths about 140, 100 and 55 m) plus wind chop and two fine ripple layers (three scrolling value-noise layers). All travel with the wind (`g_wind` is the wind 30 m up) and grow with it: amplitude (0.15 + 0.85 x wind) and normal exaggeration (4.2 + 2.2 x wind) rise, so 1 m/s is calm and 8 m/s is choppy. The normal comes from the height gradient over 0.9 m, faded out between 700 and 2600 m so the far lake does not shimmer.
+- **Depth tint:** the terrain height under every pixel comes from the terrain height texture (2048 cells over 4 km) compared with `Lake.LEVEL` 76 m. Water shallower than 1 m is the pale shallow colour, deeper than 16 m is the dark deep colour. Snow whitens it. No tessellation; the depth is per pixel.
+- **Shore foam:** the shallow band under about 0.6 m gets foam that breathes with a slow sine and a noise mask, plus a thin bright edge in the first 18 cm of depth. That line is where the water meets the land, so the foam follows the real shore.
+- **Fireworks:** the burst light (`g_fire`) adds a glittery glint on the ripples when a show is on (kept from E1, now weaker so it never washes the lake).
+- **Switch:** Display > Graphics > "Water detail" On/Off, `fx_water` in `hud.gd`, sent through `g_fx.z` (0 = on, the default set by Grass.add_globals; 1 = off). Off gives plain dark water with no waves, foam or reflection colour: the phone-safe fallback. This is the only new graphics switch.
+- **Evidence and numbers (2026-10-23):** `docs/realism/water/*.jpg`: 00 the lake from 90 m at the first test position, 01 from 60 m over the middle (second test position), 02 calm at wind 1 m/s, 03 the same view at wind 8 m/s (the wind difference is the point), 04 the shore foam, 05 a low-angle sun glint crop, 06 the Water detail switch Off for the A/B, 07 Simple camera, 08 Mobile renderer. Commands: `-- "shot=<png>,120,fpv,clock16.0,at-300_90_36_90_-18"`, `-- "shot=<png>,120,fpv,clock16.0,windms8,at-430_60_150_90_-12"`, and `nowaterfx` for the A/B. `python tools/look_metrics.py` detail on vs off at the first test position: mean luma 153.2 against 156.6, edge sharpness 5.6 against 4.5, mean absolute difference 15.4 (the water changes, the land does not). Frame time with `--print-fps`, last four seconds of 240 frame runs: calm 78/80 fps, wind 8 m/s 68/78/77 fps (shared laptop GPU, another session may be rendering). Gate: GATE PASS (water), including apstest.
+- **Observation for the camera and sky lanes (not this lane):** in some views with a bright sun or glint in or near the frame there are grey rectangular patches in the sky (visible in the full glare shot and in the wind 8 m/s shot). They are not the lake mesh and not the water shader (they also appear with the water detail off). Most likely the sensor's sun flare and dirt pass (`sensor.gdshader`, camera lane) or the sky shader. Worth a look when the camera lane reviews flares.
+- **Not verified:** the phone (only the Mobile renderer and the simple camera on this PC); screen-space tree reflections were not compared against a desktop shot with SSR off (the fallback sky reflection is what a phone gets); the foam from 3 to 8 m above the water was not filmed (the low-angle shore shots fall outside the video link range and block up).
+- **Taste questions for Claude and the owner:**
+  - W1. The lake is now a darker blue-green than before. Right colour, or warmer and greener?
+  - W2. Foam is a narrow band (about 0.6 m of depth) with a thin bright edge. More foam, or less?
+  - W3. At wind 8 m/s the lake is quite choppy (see 03). Stronger, or calmer?
+  - W4. The mirrored sky is fairly strong at low angles (it is the honest fresnel of water). Keep it, or dim it so the lake stays darker from the park?
+  - W5. "Water detail" is On by default, also on a phone. Keep it on for the phone, or default Off on touch devices?
+  - W6. Floating leaves near the shore (the optional extra) were not added. Do you want them?

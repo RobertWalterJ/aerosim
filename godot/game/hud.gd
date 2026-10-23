@@ -64,6 +64,7 @@ var _quit_btn: Button
 var _subtitle: Label
 var fx_cloud := true
 var fx_trees := true
+var fx_water := true               # water lane: waves, foam, depth tint and reflection colour (g_fx.z)
 var ambient_on := true
 var simple_on := false
 var landing_mode := false          # the welcome screen is up: the flight controls stay hidden
@@ -576,7 +577,8 @@ func set_drone_thumbs(thumbs: Dictionary) -> void:
 			(_drone_pics[id] as TextureRect).texture = thumbs[id]
 
 func _apply_fx() -> void:
-	RenderingServer.global_shader_parameter_set("g_fx", Vector4(1.0 if fx_cloud else 0.0, 1.0 if fx_trees else 0.0, 0.0, 0.0))
+	# x cloud shadows, y tree colour variety, z water detail off (water lane)
+	RenderingServer.global_shader_parameter_set("g_fx", Vector4(1.0 if fx_cloud else 0.0, 1.0 if fx_trees else 0.0, 0.0 if fx_water else 1.0, 0.0))
 
 func _build_display_tab() -> void:
 	var p := _page("Display")
@@ -591,6 +593,7 @@ func _build_display_tab() -> void:
 	_sub(p, "If the picture looks wrong on a phone, try switching these off.")
 	_choice(p, "Cloud shadows on the land", ["On", "Off"], func(): return 0 if fx_cloud else 1, func(i): fx_cloud = i == 0; _apply_fx())
 	_choice(p, "Tree colour variety", ["On", "Off"], func(): return 0 if fx_trees else 1, func(i): fx_trees = i == 0; _apply_fx())
+	_choice(p, "Water detail", ["On", "Off"], func(): return 0 if fx_water else 1, func(i): fx_water = i == 0; _apply_fx())
 	_choice(p, "Grass", ["On", "Off"], func(): return 0, func(i): grass_changed.emit(i == 0))
 	_choice(p, "Camera effects", ["Full sensor look", "Simple (phone safe)"], func(): return 1 if simple_on else 0, func(i): simple_on = i == 1; simple_changed.emit(simple_on))
 	_choice(p, "Drifting leaves and dust", ["On", "Off"], func(): return 0 if ambient_on else 1, func(i): ambient_on = i == 0; ambient_changed.emit(ambient_on))

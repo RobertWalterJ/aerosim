@@ -125,6 +125,8 @@ class Shell:
 ## next to Grass.add_globals()).
 static func add_globals() -> void:
 	RenderingServer.global_shader_parameter_add("g_fire", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))
+	# the lake's mirrored sky colour (water lane, realism 2.5): set from the fog colour every frame in main.gd
+	RenderingServer.global_shader_parameter_add("g_water", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.62, 0.70, 0.80, 1.0))
 
 ## Build the barges, the particle pools, the lights and the sound. `pilot` is where the pilot stands (the ears for the
 ## Ground listening position); `home` is (x, z) on the ground.
