@@ -269,5 +269,6 @@ Session B is waiting for these to hang the tornado/waterspout funnel and the thu
 Natural sky events, each tied to its own conditions (no manual toggle yet; the Events block is session B's to own).
 - **Sun halo** (done, gate PASS skyhalo): a faint 22-degree white ring around the sun, gated by `cirrus` (ice crystals) and daylight. `halo` in `sky.gdshader`.
 - **Rainbow** (done, gate PASS skyrainbow): a colour arc opposite the sun during a sun shower (`rain > 0` and daylight), red outside, violet inside, suppressed by heavy cloud. Evidence `docs/realism/sky/halo/halo.jpg`.
-- Remaining A1 events: aurora, smoke haze at sunset, and heat shimmer. Contrails were reassigned to session B.
+- **Aurora** (done, gate PASS skyaurora): a green wavy ribbon with a faint purple lower edge high in the night sky, driven by an `aurora` uniform (0..1) with `aurora`/`noaurora` test tokens. Evidence `docs/realism/sky/aurora/aurora.jpg`.
+- Remaining A1 events: smoke haze at sunset, and heat shimmer. Contrails were reassigned to session B.
 - Not verified by eye (this model cannot view images). Taste question S18: the halo is very faint (0.10) and the rainbow appears only in rain with the sun out; right strength, or stronger?
