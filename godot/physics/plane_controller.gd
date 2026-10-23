@@ -26,6 +26,7 @@ var _rng := RandomNumberGenerator.new()
 var _i_pitch := 0.0
 var _i_bank := 0.0
 var _launch_t := 0.0
+var _rth_v := -1.0   # smoothed airspeed for the RTH throttle (starts unset)
 
 func _init(airframe: Dictionary, p: FPVPlane) -> void:
 	af = airframe; plane = p
@@ -150,8 +151,12 @@ func _rth_step(dt: float) -> void:
 		1:  # climb and turn toward home: hold a gentle nose-up pitch (no altitude hold, which feeds the phugoid)
 			var vg := clampf(18.0 * 18.0 / maxf(plane.airspeed * plane.airspeed, 25.0), 0.25, 4.0)
 			var bank_sp := clampf(-err * 1.2, -0.52, 0.52)   # bank into the turn, capped at 30 degrees (steeper stalls)
-			plane.cmd[0] = clampf(0.55 + (18.0 - plane.airspeed) * 0.08, 0.35, 0.9)
-			plane.cmd[1] = clampf(vg * ((0.0 - a.x) * 1.5 - 0.25 * w.x), -1.0, 1.0)
+			if _rth_v < 0.0: _rth_v = plane.airspeed
+			_rth_v += (plane.airspeed - _rth_v) * minf(1.0, dt * 1.5)   # low-pass so the throttle does not chase the short-period
+			plane.cmd[0] = clampf(0.55 + (18.0 - _rth_v) * 0.08, 0.35, 0.9)
+			var stall_guard := clampf((plane.alpha - 0.16) * 3.0, 0.0, 0.4)   # pitch down when alpha passes 9 deg (prevents the stall)
+			var pitch_sp := -stall_guard
+			plane.cmd[1] = clampf(vg * ((pitch_sp - a.x) * 1.5 - 0.25 * w.x), -1.0, 1.0)
 			plane.cmd[2] = clampf(vg * ((bank_sp - a.y) * 1.2 - 0.3 * w.z), -1.0, 1.0)
 			plane.cmd[3] = clampf(-err * 0.5 - 0.5 * w.y, -1.0, 1.0)
 			if dist < 100.0: rth = 3
