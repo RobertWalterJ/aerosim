@@ -4,6 +4,8 @@
 // darkness, haze and fog come from the current weather, so the sky always matches the light on the ground.
 shader_type sky;
 
+#include "cloud_coverage.gdshaderinc"
+
 uniform vec3 sun_dir = vec3(0.0, 0.5, -0.8);   // unit vector towards the sun
 uniform float cover : hint_range(0.0, 1.0) = 0.2;     // 0 clear .. 1 solid overcast
 uniform float dark : hint_range(0.0, 1.0) = 0.0;      // 0 white cloud .. 1 storm grey
@@ -40,21 +42,20 @@ float fbmn(vec3 p, int oct) {
 // ------------------------------------------------------------------ volumetric cumulus
 const float CBASE = 1500.0;    // cloud base, world metres
 const float CTHICK = 2000.0;   // slab thickness, so the top is 3500 m
-const float CLOUD_SPEED = 4.0; // wind-to-cloud drift (clouds move faster aloft)
 
 float cloud_density(vec3 p, float t) {
 	float h = (p.y - CBASE) / CTHICK;
 	if (h < 0.0 || h > 1.0) return 0.0;
-	vec2 w = p.xz - drift * t * CLOUD_SPEED;
-	vec3 q = vec3(w * (1.0 / 950.0), t * 0.002);   // about 950 m per noise cell, slow morph
 	int oct = 5; if (cloud_quality == 1) oct = 4; else if (cloud_quality == 0) oct = 2;
-	float shape = fbmn(q, oct) * 0.72 + fbmn(q * 3.1 + 7.0, oct) * 0.28;
+	// the shared coverage (the same noise and drift the ground shadows use)
+	float shape = cloud_shape(p.xz, drift, t, oct);
 	// coverage: more cover lowers the noise threshold, so the sky fills in
 	float lo = 1.0 - cover;
 	float cov = clamp((shape - lo) / max(cover, 1e-3), 0.0, 1.0);
 	// flat-ish base, rounded tops: density where the coverage exceeds the height
 	float d = cov - h;
-	// ragged undersides
+	// ragged undersides (sky-only detail)
+	vec3 q = vec3((p.xz - drift * t) * (1.0 / 950.0), t * 0.002);
 	d -= fbmn(q * 2.4 + 13.0, oct) * 0.16 * (1.0 - smoothstep(0.0, 0.4, h));
 	d = smoothstep(0.0, 0.26, d);
 	return clamp(d, 0.0, 1.0);
@@ -205,7 +206,7 @@ void sky() {
 		// thin high cirrus: wispy streaks on broad bands, warm when the low sun lights them
 		if (cirrus > 0.02) {
 			vec2 cq = dir.xz / (dir.y + 0.45);
-			cq += drift * TIME * 0.004;
+			cq += drift * TIME * 0.001;
 			float bands = fbm(vec3(cq.x * 0.5, cq.y * 2.4, 2.1));
 			float wisps = fbm(vec3(cq.x * 1.6 + 9.0, cq.y * 5.5, 5.2));
 			float ci = smoothstep(0.58, 0.78, bands * 0.5 + wisps * 0.5);

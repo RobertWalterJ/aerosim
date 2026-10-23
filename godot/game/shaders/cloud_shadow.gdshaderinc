@@ -1,12 +1,15 @@
-// Drifting patches of cloud shadow on the land. Partly cloudy days get moving light and dark patches;
-// full overcast has no patches at all (the light is already soft), so the effect fades out there.
+// Drifting patches of cloud shadow on the land. The pattern comes from the same coverage function and
+// drift as the sky's clouds (cloud_coverage.gdshaderinc), projected down along the sun, so a shadow on
+// the ground lines up with its cloud. Partly cloudy days get strong moving patches; full overcast has none.
+#include "cloud_coverage.gdshaderinc"
+
 global uniform vec4 g_cloud;   // x cover, y,z drift (m/s), w time
+global uniform vec4 g_csun;    // x,z shadow offset from the sun (metres), w unused
 global uniform vec4 g_fx;      // graphics switches: x cloud shadows, y tree colour variety
 global uniform vec4 g_dsA;     // drone shadow: x, z of its centre on the ground, drone heading, arm offset
 global uniform vec4 g_dsB;     // silhouette strength, blob strength, blob width, blob stretch along the light
 global uniform vec4 g_dsC;     // direction the shadow is cast (x, z), prop radius, drone height
-float cs_hash(vec2 p) { p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
-float cs_noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(cs_hash(i), cs_hash(i + vec2(1, 0)), f.x), mix(cs_hash(i + vec2(0, 1)), cs_hash(i + vec2(1, 1)), f.x), f.y); }
+
 // the drone's own shadow: a soft blob stretched along the light, and the plan view of the drone turned with it
 float drone_shadow(vec3 wp) {
 	if (g_dsB.x + g_dsB.y < 0.001) return 1.0;
@@ -35,12 +38,13 @@ float drone_shadow(vec3 wp) {
 
 float cloud_shade(vec3 wp) {
 	if (g_fx.x < 0.5) return 1.0;
-	vec2 q = (wp.xz - g_cloud.yz * g_cloud.w) * 0.0028;
-	float n = cs_noise(q) * 0.6 + cs_noise(q * 2.3 + 5.0) * 0.3 + cs_noise(q * 5.1 + 9.0) * 0.1;
-	float thr = mix(0.78, 0.30, g_cloud.x);
-	float patch = smoothstep(thr, thr + 0.12, n);
-	float flat_out = 1.0 - smoothstep(0.55, 0.95, g_cloud.x);
-	return 1.0 - 0.5 * patch * flat_out * smoothstep(0.05, 0.3, g_cloud.x);
+	// the cloud overhead that casts this shadow, displaced by the sun's angle
+	vec2 w = wp.xz + g_csun.xy;
+	float shape = cloud_shape(w, g_cloud.yz, g_cloud.w, 3);
+	float lo = 1.0 - g_cloud.x;
+	float cov = clamp((shape - lo) / max(g_cloud.x, 1e-3), 0.0, 1.0);
+	float flat_out = 1.0 - smoothstep(0.55, 0.95, g_cloud.x);   // overcast has no hard patches
+	return 1.0 - 0.5 * cov * flat_out * smoothstep(0.05, 0.3, g_cloud.x);
 }
 
 float world_shade(vec3 wp) { return cloud_shade(wp) * drone_shadow(wp); }

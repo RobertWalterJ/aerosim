@@ -122,3 +122,12 @@ Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_sh
   - S7. Sunset cloud colour: the cloud shade now goes orange at low sun. Strong enough, or more red?
   - S8. Night sky: with auto-exposure it still reads bright. Want the sensor to hold the night darker (a camera-lane change), or is the current moonlit look right?
   - S9. Star and moon brightness: dimmed about 20% from before. Right, or dimmer?
+
+### S4 cloud shadows match the sky (done, gate green)
+- New shared include `game/shaders/cloud_coverage.gdshaderinc` (`cc_hash`/`cc_noise`/`cc_fbm`/`cloud_shape`), included by both `sky.gdshader` and `cloud_shadow.gdshaderinc`, so the ground shadow samples the exact same coverage map, scale (950 m per cell) and drift as the sky clouds.
+- `sky.gdshader` now gets its coverage from `cloud_shape(...)`; the old `CLOUD_SPEED` constant is gone and `drift` is now world metres per second directly.
+- `cloud_shadow.gdshaderinc` `cloud_shade` samples `cloud_shape` at the ground point plus a sun offset (`g_csun`, set each frame in `_apply_weather_state` from `_sun_dir` and the 1500 m cloud base, clamped to 3000 m), so a shadow is displaced along the sun's angle and lines up with its cloud. Overcast still fades the patches out.
+- `main.gd`: one `cloud_drift` value (`wd * (2 + 2.4 * wind.speed)`, world m/s) now feeds both the sky `drift` uniform and the `g_cloud` shadow uniform, so they move together; `g_csun` is registered in `_build_world` before the world shaders compile.
+- Evidence: `docs/realism/sky/s4/*.jpg` (sun-side aerial at 150 m, aerial at 300 m, overcast at 300 m). Overcast shows the flat, patch-free ground.
+- Not verified: the visual "shadow lines up with its cloud" (this model cannot view images); the mechanism is that both now call the same `cloud_shape`.
+- Taste question: S10. The sun offset caps at 3000 m, so at low sun the shadow stays within 3 km of its cloud. Right, or should it stretch further at sunset?

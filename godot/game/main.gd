@@ -274,6 +274,7 @@ func _ready() -> void:
 func _build_world() -> void:
 	await _stage("Reading the valley", 0.05)
 	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
+	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # cloud-shadow sun offset (before the world shaders compile)
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
 	add_child(terrain)
@@ -486,7 +487,6 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sky_mat.set_shader_parameter("fog", float(c["fog"]))
 	sky_mat.set_shader_parameter("flash", storm_flash)
 	var wd := wind.toward()
-	sky_mat.set_shader_parameter("drift", Vector2(wd.x, wd.z) * (0.5 + 0.6 * wind.speed))
 	sky_mat.set_shader_parameter("cam_pos", cam.global_position)   # the volumetric clouds need the camera height
 	sky_mat.set_shader_parameter("cloud_quality", _sky_quality)
 	# fog: thicker and greyer in rain, snow and mist
@@ -504,7 +504,11 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	env.fog_height_density = 0.0003 * float(c["fogd"])
 	# wind follows the condition
 	wind.speed = _base_wind * float(c["wind"])
-	RenderingServer.global_shader_parameter_set("g_cloud", Vector4(float(c["cover"]), wd.x * (4.0 + 2.0 * wind.speed), wd.z * (4.0 + 2.0 * wind.speed), sim_time))
+	var cloud_drift := Vector2(wd.x, wd.z) * (2.0 + 2.4 * wind.speed)   # world m/s: the clouds and their shadows move together
+	sky_mat.set_shader_parameter("drift", cloud_drift)
+	RenderingServer.global_shader_parameter_set("g_cloud", Vector4(float(c["cover"]), cloud_drift.x, cloud_drift.y, sim_time))
+	var sun_off := Vector2(_sun_dir.x, _sun_dir.z) * clampf(1500.0 / maxf(_sun_dir.y, 0.1), 0.0, 3000.0)   # cloud base 1500 m, matches sky.gdshader CBASE
+	RenderingServer.global_shader_parameter_set("g_csun", Vector4(sun_off.x, sun_off.y, 0.0, 0.0))
 	wind.gust = clampf(_base_gust + (0.35 if wx.kind == WeatherSystem.Kind.STORM else 0.0), 0.0, 1.0)
 	# precipitation
 	var rain := float(c["rain"])
