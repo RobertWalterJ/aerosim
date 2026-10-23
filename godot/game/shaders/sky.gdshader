@@ -23,8 +23,8 @@ uniform float moon_illum : hint_range(0.0, 1.0) = 0.5; // fraction of the moon's
 uniform vec3 cam_pos = vec3(0.0, 100.0, 0.0);         // camera world position (for the cloud raymarch)
 uniform int cloud_quality = 1;                        // 0 low, 1 medium, 2 high
 uniform vec3 haze_col = vec3(0.62, 0.70, 0.80);       // horizon haze colour (set from env.fog_light_color, = g_haze)
-uniform vec3 bolt_dir = vec3(0.0, -1.0, 0.0);         // lightning bolt direction (unit, from the sky toward the ground)
-global uniform vec4 g_storm;                          // storm cell: xz funnel anchor, y strength 0..1
+global uniform vec4 g_bolt;                           // lightning bolt: xyz = unit direction (sky toward ground), w = strength 0..1
+global uniform vec4 g_storm;                          // storm cell: x = anchor x, y = anchor z, z = strength 0..1, w unused
 global uniform float g_sky_dark;                      // other effects darken the sky (0..1)
 
 float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
@@ -375,9 +375,11 @@ void sky() {
 	}
 	// snow: a flat bright grey sky, low contrast
 	sky_col = mix(sky_col, vec3(0.74, 0.76, 0.80) * (0.85 + 0.15 * day), snow * 0.85);
-	// lightning lights the cloud volume from inside; a bolt flashes brighter in its own direction
-	float bolt = max(dot(dir, normalize(bolt_dir)), 0.0);
-	sky_col += vec3(0.7, 0.75, 1.0) * flash * 3.0 * (0.2 + 2.6 * cloud_a) * (1.0 + 2.0 * bolt);
+	// lightning lights the cloud volume from inside; a bolt (g_bolt) flashes brighter in its own direction
+	float bolt = 0.0;
+	if (g_bolt.w > 0.01) bolt = max(dot(dir, g_bolt.xyz / max(length(g_bolt.xyz), 1e-4)), 0.0);
+	float bolt_flash = max(flash, g_bolt.w);
+	sky_col += vec3(0.7, 0.75, 1.0) * bolt_flash * 3.0 * (0.2 + 2.6 * cloud_a) * (1.0 + 2.0 * bolt);
 	// other effects can darken the sky (fireworks nights, storms)
 	sky_col *= (1.0 - 0.55 * g_sky_dark);
 	COLOR = sky_col;

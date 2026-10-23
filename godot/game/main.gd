@@ -305,7 +305,8 @@ func _build_world() -> void:
 	await _stage("Reading the valley", 0.05)
 	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # cloud-shadow sun offset (before the world shaders compile)
-	RenderingServer.global_shader_parameter_add("g_storm", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # storm cell: xz funnel anchor, y strength (session B hangs the funnel here)
+	RenderingServer.global_shader_parameter_add("g_storm", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # storm cell: x = anchor x, y = anchor z, z = strength (session B hangs the funnel here)
+	RenderingServer.global_shader_parameter_add("g_bolt", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, -1.0, 0.0, 0.0))   # lightning bolt: xyz direction, w strength (session B's bolts)
 	RenderingServer.global_shader_parameter_add("g_sky_dark", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)   # other effects darken the sky
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
