@@ -5,7 +5,9 @@ extends RefCounted
 ## with the funnel tubes for the tornado and waterspout shaders.
 ## Real metres. Forward is -z, up is +y, x is right. The contract (what each function returns) is game/README-models.md.
 ## Each model is one mesh per material and is kept once made. Colour variation (boards, bricks, stones, paint) is vertex
-## colour, set face by face so patches stay crisp. Moving parts (sails, rotors, wheels) are separate meshes with a pivot.
+## colour, set face by face so patches stay crisp; the barn and silo instead carry photographed CC0 textures through
+## game/shaders/farm.gdshader (farm_material), with the vertex colour choosing the paint or tint of each face. Moving parts
+## (sails, rotors, train wheelsets) are separate meshes with a pivot.
 
 static var _cache := {}
 static var _mats := {}
@@ -26,6 +28,38 @@ static func _mat(key: String) -> StandardMaterial3D:
 		"glass": m.albedo_color = Color(0.03, 0.04, 0.06); m.roughness = 0.06; m.metallic = 0.85
 		"lamp": m.albedo_color = Color(1.0, 0.95, 0.8); m.emission_enabled = true; m.emission = Color(1.0, 0.93, 0.75); m.emission_energy_multiplier = 2.0
 	_mats[key] = m
+	return m
+
+## The textured farm-building materials (game/shaders/farm.gdshader): photographed CC0 sets at real size, with rain, snow
+## and the cloud and drone shadows. The vertex colour picks the finish (see the shader). key:
+##   "wood"     painted boards (barn red, white trim); alpha 0 leaves the boards bare grey
+##   "roof"     corrugated galvanised steel on flat faces, corrugations from eave to ridge (also dark ironwork)
+##   "stone"    fieldstone (the project's rubble set)
+##   "concrete" concrete staves wrapped round the silo
+##   "galv"     galvanised steel wrapped round the silo (dome, chute, pipe)
+static func farm_material(key: String) -> ShaderMaterial:
+	var mk := "farm_" + key
+	if _mats.has(mk): return _mats[mk]
+	var m := ShaderMaterial.new()
+	m.shader = load("res://game/shaders/farm.gdshader") as Shader
+	# set name, kind, projection, metres per repeat (across, up), tint gain, metal, normal strength
+	var spec: Array = ["barnwood", 0, 0, Vector2(1.5, 1.5), 1.0, 0.0, 1.0]
+	match key:
+		"roof": spec = ["roofsteel", 1, 0, Vector2(1.12, 1.12), 2.7, 0.35, 1.0]
+		"stone": spec = ["rubble", 2, 0, Vector2(2.4, 2.4), 2.0, 0.0, 1.0]
+		"concrete": spec = ["silocrete", 3, 1, Vector2(1.5, 1.0), 2.3, 0.0, 0.8]
+		"galv": spec = ["roofsteel", 1, 1, Vector2(1.12, 1.12), 2.0, 0.35, 0.7]
+	m.set_shader_parameter("set_albedo", load("res://assets/textures/%s_diff.jpg" % spec[0]))
+	m.set_shader_parameter("set_normal", load("res://assets/textures/%s_nor.jpg" % spec[0]))
+	m.set_shader_parameter("set_arm", load("res://assets/textures/%s_arm.jpg" % spec[0]))
+	m.set_shader_parameter("kind", spec[1])
+	m.set_shader_parameter("proj", spec[2])
+	m.set_shader_parameter("set_metres", spec[3])
+	m.set_shader_parameter("tint_gain", spec[4])
+	m.set_shader_parameter("metal_amt", spec[5])
+	m.set_shader_parameter("normal_amt", spec[6])
+	m.set_shader_parameter("cyl_radius", 2.5 if key == "concrete" else 2.6)
+	_mats[mk] = m
 	return m
 
 # ================================================================== helpers
@@ -92,36 +126,27 @@ static func _bn_roof(x: float) -> float:
 	if ax >= BN_BREAK.x: return lerpf(BN_BREAK.y, BN_EAVE, (ax - BN_BREAK.x) / (BN_W - BN_BREAK.x))
 	return lerpf(BN_RIDGE, BN_BREAK.y, ax / BN_BREAK.x)
 
-## One weathered board: some faded towards pinkish brown, an odd one replaced, the bottom row splashed and grimy.
-static func _bn_board(k: int, side: float, row: int) -> Color:
+## The paint on a door or panel: barn red, a little faded or darker from one to the next (the boards' own grain, fading and
+## wear come from the texture and the shader).
+static func _bn_board(k: int, side: float) -> Color:
 	var h := NewModels._h(Vector3(k * 1.37, side * 3.1, 0.5))
-	var c := BN_RED.lerp(Color(0.6, 0.32, 0.27), 0.45 * h * h)
-	if NewModels._h(Vector3(k * 0.71, side, 7.0)) > 0.9: c = c.darkened(0.22)
-	if row == 0: c = c.darkened(0.15).lerp(Color(0.3, 0.23, 0.17), 0.18)
-	return c
+	return BN_RED.lerp(Color(0.6, 0.32, 0.27), 0.3 * h * h)
 
 static func _bn_roof_col(i: int, j: int, sx: float) -> Color:
 	var c := _cell(BN_ROOF, i, j, 0.08, sx)
 	if NewModels._h(Vector3(i * 0.37, sx, 2.0)) > 0.85 and j <= 1: c = c.lerp(Color(0.45, 0.3, 0.2), 0.3)   # rust from the eaves
 	return c
 
-static func _stone_col(p: Vector3) -> Color:
-	var cols := [Color(0.5, 0.49, 0.47), Color(0.4, 0.38, 0.36), Color(0.6, 0.57, 0.52), Color(0.45, 0.44, 0.44), Color(0.56, 0.47, 0.37), Color(0.34, 0.34, 0.35)]
-	var c: Color = cols[int(NewModels._h(p * 1.7) * 6.0) % 6]
-	return NewModels._vary(c, p, 0.1)
-
 ## A door or hatch on a barn wall: red boards on a backing, a white frame round it and (if braced) a white X.
 ## c is the middle of its face on the wall, n the way the wall faces.
 static func _bn_door(kit: DroneParts.Kit, c: Vector3, w: float, h: float, n: Vector3, braced: bool, salt: int) -> void:
-	var pm := _mat("paint")
+	var pm := farm_material("wood")
 	var up := Vector3.UP
 	var r := up.cross(n).normalized()
 	kit.add(pm, _beam(c - up * (h * 0.5) + n * 0.03, c + up * (h * 0.5) + n * 0.03, w, 0.06, n), Transform3D.IDENTITY, BN_RED.darkened(0.3))
 	var b := Buf.new()
 	var f := c + n * 0.062
-	for k in 5:
-		var a0 := -w * 0.5 + w * k / 5.0; var a1 := -w * 0.5 + w * (k + 1) / 5.0
-		b.quad(f + r * a0 - up * (h * 0.5), f + r * a1 - up * (h * 0.5), f + r * a1 + up * (h * 0.5), f + r * a0 + up * (h * 0.5), _bn_board(salt + k, n.x + n.z, 1), n)
+	b.quad(f - r * (w * 0.5) - up * (h * 0.5), f + r * (w * 0.5) - up * (h * 0.5), f + r * (w * 0.5) + up * (h * 0.5), f - r * (w * 0.5) + up * (h * 0.5), _bn_board(salt, n.x + n.z), n)
 	kit.add(pm, b.data())
 	var t := 0.15
 	var fc := c + n * 0.09
@@ -135,7 +160,7 @@ static func _bn_door(kit: DroneParts.Kit, c: Vector3, w: float, h: float, n: Vec
 
 ## A window: a white surround, dark glass and a white cross of glazing bars.
 static func _bn_window(kit: DroneParts.Kit, c: Vector3, w: float, h: float, n: Vector3) -> void:
-	var pm := _mat("paint")
+	var pm := farm_material("wood")
 	var up := Vector3.UP
 	var r := up.cross(n).normalized()
 	kit.add(pm, _beam(c - up * (h * 0.5 + 0.12) + n * 0.03, c + up * (h * 0.5 + 0.12) + n * 0.03, w + 0.24, 0.06, n), Transform3D.IDENTITY, BN_WHITE)
@@ -147,53 +172,41 @@ static func _bn_window(kit: DroneParts.Kit, c: Vector3, w: float, h: float, n: V
 static func barn() -> ArrayMesh:
 	if _cache.has("barn"): return _cache["barn"]
 	var kit := DroneParts.Kit.new()
-	var pm := _mat("paint")
+	var pm := farm_material("wood")
+	var rm := farm_material("roof")
 	var I := Transform3D.IDENTITY
-	# ---- walls: vertical boards, two rows (the lower one dirtier)
+	# ---- walls: painted boards from the texture (30 cm boards, grain upright); the paint varies a little panel by panel
 	var walls := Buf.new()
 	for sx: float in [-1.0, 1.0]:
 		var n := Vector3(sx, 0, 0)
 		var x := sx * BN_W
-		for k in 50:
-			var z0 := -BN_L + k * 0.48; var z1 := z0 + 0.48
-			walls.quad(Vector3(x, BN_FOUND, z0), Vector3(x, BN_FOUND, z1), Vector3(x, 1.5, z1), Vector3(x, 1.5, z0), _bn_board(k, sx, 0), n)
-			walls.quad(Vector3(x, 1.5, z0), Vector3(x, 1.5, z1), Vector3(x, BN_EAVE, z1), Vector3(x, BN_EAVE, z0), _bn_board(k, sx, 1), n)
-	var xs: Array[float] = []
-	for k in 5: xs.append(-BN_W + k * (BN_W - BN_BREAK.x) / 4.0)
-	for k in range(1, 10): xs.append(-BN_BREAK.x + k * BN_BREAK.x / 9.0)
-	for k in range(1, 10): xs.append(k * BN_BREAK.x / 9.0)
-	for k in range(1, 5): xs.append(BN_BREAK.x + k * (BN_W - BN_BREAK.x) / 4.0)
+		for k in 4:
+			var z0 := -BN_L + k * 6.0; var z1 := z0 + 6.0
+			walls.quad(Vector3(x, BN_FOUND, z0), Vector3(x, BN_FOUND, z1), Vector3(x, BN_EAVE, z1), Vector3(x, BN_EAVE, z0), _bn_board(k, sx), n)
+	var xs: Array[float] = [-BN_W, -BN_BREAK.x, 0.0, BN_BREAK.x, BN_W]
 	for sz: float in [-1.0, 1.0]:
 		var z := sz * BN_L
 		var n := Vector3(0, 0, sz)
 		for k in xs.size() - 1:
 			var x0 := xs[k]; var x1 := xs[k + 1]
-			walls.quad(Vector3(x0, BN_FOUND, z), Vector3(x1, BN_FOUND, z), Vector3(x1, 1.5, z), Vector3(x0, 1.5, z), _bn_board(k + 100, sz, 0), n)
-			walls.quad(Vector3(x0, 1.5, z), Vector3(x1, 1.5, z), Vector3(x1, _bn_roof(x1) - 0.1, z), Vector3(x0, _bn_roof(x0) - 0.1, z), _bn_board(k + 100, sz, 1), n)
+			walls.quad(Vector3(x0, BN_FOUND, z), Vector3(x1, BN_FOUND, z), Vector3(x1, _bn_roof(x1) - 0.1, z), Vector3(x0, _bn_roof(x0) - 0.1, z), _bn_board(k + 100, sz), n)
 	kit.add(pm, walls.data())
-	# ---- fieldstone foundation: two courses of odd-length stones, a little proud of the boards, with a ledge on top
+	# ---- fieldstone foundation (the rubble set), a little proud of the boards, with a ledge on top
 	var stone := Buf.new()
 	var fx := BN_W + 0.1; var fz := BN_L + 0.1; var fy := BN_FOUND + 0.05
 	var sides := [[Vector3(-fx, 0, -fz), Vector3(1, 0, 0), 2.0 * fx, Vector3(0, 0, -1)], [Vector3(fx, 0, -fz), Vector3(0, 0, 1), 2.0 * fz, Vector3(1, 0, 0)],
 		[Vector3(fx, 0, fz), Vector3(-1, 0, 0), 2.0 * fx, Vector3(0, 0, 1)], [Vector3(-fx, 0, fz), Vector3(0, 0, -1), 2.0 * fz, Vector3(-1, 0, 0)]]
+	var stone_col := Color(0.6, 0.6, 0.6)
 	for sd in sides:
 		var o: Vector3 = sd[0]; var d: Vector3 = sd[1]; var ln: float = sd[2]; var n: Vector3 = sd[3]
-		for r in 2:
-			var y0 := fy * r / 2.0; var y1 := fy * (r + 1) / 2.0
-			var t := 0.0
-			var first := true
-			while t < ln - 0.01:
-				var step := 0.8 * (0.75 + 0.5 * NewModels._h(o + d * t + Vector3(0, r * 5.0, 0)))
-				if first and r == 1: step = 0.4
-				first = false
-				var t1 := minf(ln, t + step)
-				var c := _stone_col(o + d * ((t + t1) * 0.5) + Vector3(0, y0, 0))
-				stone.quad(o + d * t + Vector3(0, y0, 0), o + d * t1 + Vector3(0, y0, 0), o + d * t1 + Vector3(0, y1, 0), o + d * t + Vector3(0, y1, 0), c, n)
-				t = t1
-		stone.quad(o + Vector3(0, fy, 0), o + d * ln + Vector3(0, fy, 0), o + d * ln + Vector3(0, fy, 0) - n * 0.12, o + Vector3(0, fy, 0) - n * 0.12, Color(0.52, 0.5, 0.47), Vector3.UP)
-	kit.add(pm, stone.data())
-	# ---- the gambrel roof: standing-seam steel in strips, overhanging 0.5 m at the eaves and gables, dark boards underneath
+		stone.quad(o, o + d * ln, o + d * ln + Vector3(0, fy, 0), o + Vector3(0, fy, 0), stone_col, n)
+		stone.quad(o + Vector3(0, fy, 0), o + d * ln + Vector3(0, fy, 0), o + d * ln + Vector3(0, fy, 0) - n * 0.12, o + Vector3(0, fy, 0) - n * 0.12, stone_col.lightened(0.1), Vector3.UP)
+	kit.add(farm_material("stone"), stone.data())
+	# ---- the gambrel roof: corrugated galvanised sheets (a shade apart, rust at the eaves), overhanging 0.5 m at the eaves
+	# and gables, bare boards underneath
 	var roof := Buf.new()
+	var soffit := Buf.new()
+	var bare := Color(0.62, 0.56, 0.5, 0.0)
 	var lr := BN_L + 0.5
 	var tip := Vector2(BN_W, BN_EAVE) + Vector2(BN_W - BN_BREAK.x, BN_EAVE - BN_BREAK.y).normalized() * 0.5
 	var prof: Array[Vector2] = [tip, BN_BREAK, Vector2(0.0, BN_RIDGE)]
@@ -209,9 +222,10 @@ static func barn() -> ArrayMesh:
 					var p0 := o + u * (i / 20.0) + v * (float(j) / nv)
 					roof.quad(p0, p0 + u / 20.0, p0 + u / 20.0 + v / nv, p0 + v / nv, _bn_roof_col(i, j + k * 2, sx), n)
 			var dn := Vector3(0, -0.18, 0)
-			roof.quad(o + dn, o + u + dn, o + u + v + dn, o + v + dn, Color(0.24, 0.19, 0.15), -n)
-	kit.add(pm, roof.data())
-	kit.add(pm, _beam(Vector3(0, BN_RIDGE + 0.03, -lr), Vector3(0, BN_RIDGE + 0.03, lr), 0.45, 0.08), I, BN_ROOF.darkened(0.2))
+			soffit.quad(o + dn, o + u + dn, o + u + v + dn, o + v + dn, bare, -n)
+	kit.add(rm, roof.data())
+	kit.add(pm, soffit.data())
+	kit.add(rm, _beam(Vector3(0, BN_RIDGE + 0.03, -lr), Vector3(0, BN_RIDGE + 0.03, lr), 0.45, 0.08), I, BN_ROOF.darkened(0.2))
 	# ---- white trim: rakes along both gables, fascia and frieze along the eaves, corner boards
 	for sz: float in [-1.0, 1.0]:
 		var z := sz * (lr + 0.03)
@@ -228,10 +242,11 @@ static func barn() -> ArrayMesh:
 	for sx: float in [-1.0, 1.0]:
 		_bn_door(kit, Vector3(sx * 1.15, 2.1, -BN_L - 0.11), 2.3, 4.0, nf, true, 10 + int(sx * 5.0))
 		_bn_window(kit, Vector3(sx * 4.1, 2.7, -BN_L), 0.8, 0.9, nf)
-	kit.add(pm, _beam(Vector3(-4.7, 4.24, -BN_L - 0.16), Vector3(4.7, 4.24, -BN_L - 0.16), 0.14, 0.14), I, Color(0.15, 0.15, 0.16))
-	kit.add(pm, _beam(Vector3(-4.8, 4.4, -BN_L - 0.2), Vector3(4.8, 4.4, -BN_L - 0.2), 0.35, 0.05), I, BN_ROOF.darkened(0.1))
+	kit.add(rm, _beam(Vector3(-4.7, 4.24, -BN_L - 0.16), Vector3(4.7, 4.24, -BN_L - 0.16), 0.14, 0.14), I, Color(0.15, 0.15, 0.16))
+	kit.add(rm, _beam(Vector3(-4.8, 4.4, -BN_L - 0.2), Vector3(4.8, 4.4, -BN_L - 0.2), 0.35, 0.05), I, BN_ROOF.darkened(0.1))
 	_bn_door(kit, Vector3(0, 6.05, -BN_L), 1.7, 1.7, nf, true, 30)
 	var hood := Buf.new()
+	var hood_under := Buf.new()
 	var zt := -BN_L - 1.5
 	var apex := BN_RIDGE + 0.02
 	for sx: float in [-1.0, 1.0]:
@@ -239,22 +254,23 @@ static func barn() -> ArrayMesh:
 		var a := Vector3(0, apex, -lr); var b := Vector3(0, apex, zt); var c := Vector3(sx * 1.0, apex - 0.6, zt); var d := Vector3(sx * 1.0, apex - 0.6, -lr)
 		hood.quad(a, b, c, d, BN_ROOF, n)
 		var dn := Vector3(0, -0.06, 0)
-		hood.quad(a + dn, b + dn, c + dn, d + dn, Color(0.24, 0.19, 0.15), -n)
+		hood_under.quad(a + dn, b + dn, c + dn, d + dn, bare, -n)
 		kit.add(pm, _beam(Vector3(0, apex - 0.08, zt - 0.03), Vector3(sx * 1.05, apex - 0.68, zt - 0.03), 0.22, 0.06, Vector3(0, 0, 1), 0.05), I, BN_WHITE)
-	kit.add(pm, hood.data())
-	kit.add(pm, _beam(Vector3(0, BN_RIDGE - 0.4, -BN_L + 0.2), Vector3(0, BN_RIDGE - 0.4, zt + 0.1), 0.18, 0.22), I, Color(0.35, 0.26, 0.18))
-	kit.add(pm, NewModels._box(Vector3(0.16, 0.35, 0.16)), NewModels._xf(Vector3(0, BN_RIDGE - 0.72, zt + 0.35)), Color(0.12, 0.12, 0.12))
+	kit.add(rm, hood.data())
+	kit.add(pm, hood_under.data())
+	kit.add(pm, _beam(Vector3(0, BN_RIDGE - 0.4, -BN_L + 0.2), Vector3(0, BN_RIDGE - 0.4, zt + 0.1), 0.18, 0.22), I, Color(0.55, 0.45, 0.36, 0.0))
+	kit.add(rm, NewModels._box(Vector3(0.16, 0.35, 0.16)), NewModels._xf(Vector3(0, BN_RIDGE - 0.72, zt + 0.35)), Color(0.12, 0.12, 0.12))
 	# ---- the back gable: a smaller pair of doors and a loft window; side windows and a person door on the right
 	var nb := Vector3(0, 0, 1)
 	for sx: float in [-1.0, 1.0]:
 		_bn_door(kit, Vector3(sx * 0.9, 1.8, BN_L + 0.11), 1.8, 3.4, nb, true, 50 + int(sx * 5.0))
-	kit.add(pm, _beam(Vector3(-3.7, 3.64, BN_L + 0.16), Vector3(3.7, 3.64, BN_L + 0.16), 0.14, 0.14), I, Color(0.15, 0.15, 0.16))
+	kit.add(rm, _beam(Vector3(-3.7, 3.64, BN_L + 0.16), Vector3(3.7, 3.64, BN_L + 0.16), 0.14, 0.14), I, Color(0.15, 0.15, 0.16))
 	_bn_window(kit, Vector3(0, 6.0, BN_L), 1.0, 1.0, nb)
 	for sx: float in [-1.0, 1.0]:
 		var zs: Array = [-8.5, -2.5, 9.0] if sx > 0.0 else [-8.5, -2.5, 3.0, 9.0]     # the person door is on the right
 		for z: float in zs: _bn_window(kit, Vector3(sx * BN_W, 2.9, z), 1.0, 1.1, Vector3(sx, 0, 0))
 	_bn_door(kit, Vector3(BN_W + 0.1, 1.8, 5.0), 1.0, 2.1, Vector3(1, 0, 0), false, 70)
-	kit.add(pm, NewModels._box(Vector3(0.6, 0.75, 1.3)), NewModels._xf(Vector3(BN_W + 0.35, 0.375, 5.0)), Color(0.5, 0.49, 0.46))
+	kit.add(farm_material("stone"), NewModels._box(Vector3(0.6, 0.75, 1.3)), NewModels._xf(Vector3(BN_W + 0.35, 0.375, 5.0)), Color(0.6, 0.59, 0.56))
 	# ---- the cupola on the ridge: louvred white sides, corner posts, a pyramid roof, a weather vane
 	var cb := Buf.new()
 	var ch := 0.8; var cy0 := 8.1; var cy1 := 9.6
@@ -271,13 +287,13 @@ static func barn() -> ArrayMesh:
 	kit.add(pm, cb.data())
 	kit.add(pm, NewModels._box(Vector3(1.85, 0.12, 1.85)), NewModels._xf(Vector3(0, cy1 + 0.06, 0)), BN_WHITE)
 	var pyr := DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, cy1 + 0.12), Vector2(1.35, cy1 + 0.12), Vector2(0, cy1 + 0.78)])), 4)
-	kit.add(pm, pyr, NewModels._xf(Vector3.ZERO, Vector3(0, PI * 0.25, 0)), BN_ROOF)
+	kit.add(rm, pyr, NewModels._xf(Vector3.ZERO, Vector3(0, PI * 0.25, 0)), BN_ROOF)
 	var vane := Color(0.12, 0.12, 0.12)
-	kit.add(pm, DroneParts.tube(Vector3(0, cy1 + 0.7, 0), Vector3(0, cy1 + 1.3, 0), 0.025, 0.02, 5), I, vane)
-	kit.add(pm, _beam(Vector3(0, cy1 + 1.18, -0.45), Vector3(0, cy1 + 1.18, 0.45), 0.03, 0.06), I, vane)
-	kit.add(pm, NewModels._box(Vector3(0.02, 0.22, 0.2)), NewModels._xf(Vector3(0, cy1 + 1.18, 0.38)), vane)
-	kit.add(pm, _beam(Vector3(-0.25, cy1 + 1.0, 0), Vector3(0.25, cy1 + 1.0, 0), 0.02, 0.02), I, vane)
-	kit.add(pm, _beam(Vector3(0, cy1 + 1.0, -0.25), Vector3(0, cy1 + 1.0, 0.25), 0.02, 0.02), I, vane)
+	kit.add(rm, DroneParts.tube(Vector3(0, cy1 + 0.7, 0), Vector3(0, cy1 + 1.3, 0), 0.025, 0.02, 5), I, vane)
+	kit.add(rm, _beam(Vector3(0, cy1 + 1.18, -0.45), Vector3(0, cy1 + 1.18, 0.45), 0.03, 0.06), I, vane)
+	kit.add(rm, NewModels._box(Vector3(0.02, 0.22, 0.2)), NewModels._xf(Vector3(0, cy1 + 1.18, 0.38)), vane)
+	kit.add(rm, _beam(Vector3(-0.25, cy1 + 1.0, 0), Vector3(0.25, cy1 + 1.0, 0), 0.02, 0.02), I, vane)
+	kit.add(rm, _beam(Vector3(0, cy1 + 1.0, -0.25), Vector3(0, cy1 + 1.0, 0.25), 0.02, 0.02), I, vane)
 	var mesh := kit.commit()
 	_cache["barn"] = mesh
 	return mesh
@@ -287,7 +303,7 @@ static func barn() -> ArrayMesh:
 static func silo() -> ArrayMesh:
 	if _cache.has("silo"): return _cache["silo"]
 	var kit := DroneParts.Kit.new()
-	var pm := _mat("paint"); var sh := _mat("sheet")
+	var pm := farm_material("concrete"); var sh := farm_material("galv")
 	var R := 2.5
 	var wall := PackedVector2Array([Vector2(0.0, 0.0), Vector2(R + 0.15, 0.0), Vector2(R + 0.15, 0.0), Vector2(R + 0.15, 0.45), Vector2(R + 0.15, 0.45), Vector2(R, 0.45), Vector2(R, 0.45)])
 	for k in 6:
@@ -299,7 +315,7 @@ static func silo() -> ArrayMesh:
 		if p.y > 2.3 and fposmod(p.y - 2.4, 2.5) < 0.1: return Color(0.3, 0.28, 0.26)       # steel hoop
 		var j := floorf(fposmod(atan2(p.z, p.x), TAU) / (TAU / 16.0))
 		var band := floorf((p.y - 0.45) / 2.5)
-		var c := _cell(Color(0.74, 0.72, 0.67), j, band, 0.07)
+		var c := _cell(Color(0.74, 0.72, 0.67), j, band, 0.04)
 		if NewModels._h(Vector3(j, 3.0, 1.0)) > 0.72: c = c.darkened(0.12)                 # a rain streak down one stave
 		if p.y < 2.0: c = c.lerp(Color(0.45, 0.47, 0.4), 0.3)                               # green grime near the ground
 		return c
@@ -340,6 +356,7 @@ const WM_R1 := 2.15                      # radius at the top
 const WM_GAL := 7.5                      # the gallery deck
 const WM_PIVOT := Vector3(0.0, 17.3, -3.2)
 const WM_SAIL := 8.0                     # from the hub to the sail tip (lattice 7 m long)
+const WM_BAR := 0.18                     # sail bars across; nothing on the sails is thinner than 15 cm (they shimmered beyond 100 m)
 
 static func _wm_r(y: float) -> float:
 	return lerpf(WM_R0, WM_R1, y / WM_H)
@@ -430,24 +447,34 @@ static func windmill() -> Dictionary:
 		var a := PI * 0.5 * k + 0.4
 		var d := Vector3(0, sin(a), cos(a)) * 0.7
 		ck.add(pm, _beam(wc - d, wc + d, 0.06, 0.06, Vector3(1, 0, 0)), I, wood)
-	# ---- the sails: two stocks through the shaft head, lattice on the trailing side, a board on the leading side, cloth rolled
+	# ---- the sails: two stocks through the shaft head; on the trailing side a bold lattice (eight 18 cm sail bars, two heavy
+	# hemlaths) with the cloth spread over its inner third and the rest rolled up along the outer hemlath; a dark leading-edge
+	# board on the other side of the stock. Every part is at least 15 cm across, so the sails still read as sails from 250 m.
 	var sk := DroneParts.Kit.new()
-	var stock := Color(0.24, 0.2, 0.16); var bar := Color(0.86, 0.84, 0.78); var lath := Color(0.55, 0.14, 0.1); var cloth := Color(0.83, 0.78, 0.66)
+	var stock := Color(0.24, 0.2, 0.16); var bar := Color(0.86, 0.84, 0.78); var lath := Color(0.55, 0.14, 0.1); var cloth := Color(0.9, 0.86, 0.76)
 	var head := DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, -0.85), Vector2(0.3, -0.8), Vector2(0.45, -0.6), Vector2(0.45, 0.6)])), 10)
 	sk.add(pm, head, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3.ZERO), Color(0.18, 0.18, 0.19))
 	var dirs: Array[Vector3] = [Vector3.UP, Vector3.RIGHT, Vector3.DOWN, Vector3.LEFT]
+	var spread := Buf.new()
+	var zf := Vector3(0, 0, -1)
 	for d in dirs:
 		var zs := -0.15 if absf(d.y) > 0.5 else -0.5                     # the two stocks cross one in front of the other
 		var zl := Vector3(0, 0, zs - 0.3)
 		var lead := Vector3(d.y, -d.x, 0)                                 # the way this sail moves when turning anticlockwise from the front
 		sk.add(pm, _beam(Vector3(0, 0, zs), d * WM_SAIL + Vector3(0, 0, zs), 0.32, 0.3, Vector3(0, 0, 1)), I, stock)
-		for k in 15:
-			var r := 1.0 + k * 0.5
-			sk.add(pm, _beam(d * r + lead * 0.12 + zl, d * r - lead * 1.75 + zl, 0.09, 0.07, Vector3(0, 0, 1)), I, bar)
-		sk.add(pm, _beam(d * 0.9 - lead * 1.75 + zl, d * WM_SAIL - lead * 1.75 + zl, 0.11, 0.09, Vector3(0, 0, 1)), I, lath)
-		sk.add(pm, _beam(d * 0.9 - lead * 0.88 + zl, d * WM_SAIL - lead * 0.88 + zl, 0.07, 0.06, Vector3(0, 0, 1)), I, lath)
-		sk.add(pm, _beam(d * 1.6 + lead * 0.34 + zl, d * WM_SAIL + lead * 0.34 + zl, 0.4, 0.04, Vector3(0, 0, 1)), I, bar)
-		sk.add(_mat("cloth"), DroneParts.tube(d * 1.2 - lead * 1.62 + zl - Vector3(0, 0, 0.1), d * (WM_SAIL - 0.4) - lead * 1.62 + zl - Vector3(0, 0, 0.1), 0.1, 0.1, 5), I, cloth)
+		for k in 8:
+			var r := 1.0 + k * (WM_SAIL - 1.1) / 7.0
+			sk.add(pm, _beam(d * r + lead * 0.12 + zl, d * r - lead * 1.8 + zl, WM_BAR, 0.12, Vector3(0, 0, 1)), I, bar)
+		sk.add(pm, _beam(d * 0.9 - lead * 1.8 + zl, d * WM_SAIL - lead * 1.8 + zl, 0.2, 0.14, Vector3(0, 0, 1)), I, lath)
+		sk.add(pm, _beam(d * 0.9 - lead * 0.9 + zl, d * WM_SAIL - lead * 0.9 + zl, 0.16, 0.12, Vector3(0, 0, 1)), I, lath)
+		sk.add(pm, _beam(d * 1.4 + lead * 0.36 + zl, d * WM_SAIL + lead * 0.36 + zl, 0.44, 0.06, Vector3(0, 0, 1)), I, stock.darkened(0.25))
+		# the spread cloth: the inner third of the lattice, just in front of the bars, double-sided
+		var r0 := 1.0; var r1 := 1.0 + (WM_SAIL - 1.0) / 3.0
+		var cz := zl + zf * 0.09
+		spread.quad(d * r0 + lead * 0.1 + cz, d * r1 + lead * 0.1 + cz, d * r1 - lead * 1.82 + cz, d * r0 - lead * 1.82 + cz, cloth, zf)
+		# the rest of the cloth rolled up beside the outer hemlath
+		sk.add(_mat("cloth"), DroneParts.tube(d * (r1 + 0.05) - lead * 1.6 + zl + zf * 0.12, d * (WM_SAIL - 0.4) - lead * 1.6 + zl + zf * 0.12, 0.13, 0.13, 5), I, cloth.darkened(0.08))
+	sk.add(_mat("cloth"), spread.data())
 	var out := {"tower": tk.commit(), "cap": ck.commit(), "sails": sk.commit(), "sail_pivot": WM_PIVOT, "spin_sign": -1.0, "sail_radius": WM_SAIL, "height": yb + 3.1}
 	_cache["windmill"] = out
 	return out
@@ -476,15 +503,15 @@ static func wind_pump() -> Dictionary:
 	var levels: Array[float] = [0.35, 2.6, 4.7, 6.5, 8.1, 9.45]
 	for k in 4:
 		var c := corners[k]
-		tk.add(sh, _beam(_wp_leg(c.x, c.y, 0.0), _wp_leg(c.x, c.y, WP_TOP), 0.09, 0.09), I, _cell(galv, k, 0.0, 0.08))
+		tk.add(sh, _beam(_wp_leg(c.x, c.y, 0.0), _wp_leg(c.x, c.y, WP_TOP), 0.12, 0.12), I, _cell(galv, k, 0.0, 0.08))
 		tk.add(pm, NewModels._box(Vector3(0.5, 0.4, 0.5)), NewModels._xf(_wp_leg(c.x, c.y, 0.0) + Vector3(0, 0.1, 0)), Color(0.6, 0.59, 0.56))   # footing
 	for i in levels.size():
 		for k in 4:
 			var c := corners[k]; var c2 := corners[(k + 1) % 4]
-			tk.add(sh, _beam(_wp_leg(c.x, c.y, levels[i]), _wp_leg(c2.x, c2.y, levels[i]), 0.06, 0.06), I, _cell(galv, k, i, 0.1))
+			tk.add(sh, _beam(_wp_leg(c.x, c.y, levels[i]), _wp_leg(c2.x, c2.y, levels[i]), 0.08, 0.08), I, _cell(galv, k, i, 0.1))
 			if i + 1 < levels.size():
-				tk.add(sh, _beam(_wp_leg(c.x, c.y, levels[i]), _wp_leg(c2.x, c2.y, levels[i + 1]), 0.025, 0.025), I, galv.darkened(0.1))
-				tk.add(sh, _beam(_wp_leg(c2.x, c2.y, levels[i]), _wp_leg(c.x, c.y, levels[i + 1]), 0.025, 0.025), I, galv.darkened(0.1))
+				tk.add(sh, _beam(_wp_leg(c.x, c.y, levels[i]), _wp_leg(c2.x, c2.y, levels[i + 1]), 0.04, 0.04), I, galv.darkened(0.1))
+				tk.add(sh, _beam(_wp_leg(c2.x, c2.y, levels[i]), _wp_leg(c.x, c.y, levels[i + 1]), 0.04, 0.04), I, galv.darkened(0.1))
 	tk.add(pm, NewModels._box(Vector3(1.4, 0.05, 1.4)), NewModels._xf(Vector3(0, WP_TOP - 0.55, 0)), Color(0.42, 0.36, 0.3))    # the little platform
 	tk.add(sh, _beam(Vector3(0, 0.9, 0), Vector3(0, WP_TOP, 0), 0.035, 0.035), I, galv.darkened(0.2))                         # pump rod
 	# the pump stand, its spout and a round stock tank with water in it
@@ -531,7 +558,7 @@ static func wind_pump() -> Dictionary:
 		var col := _cell(galv, k, 0.0, 0.12, 5.0)
 		var st: Array = []
 		for r: float in [0.5, 1.15, WP_R]:
-			var w := lerpf(0.14, 0.34, (r - 0.5) / (WP_R - 0.5))
+			var w := lerpf(0.19, 0.42, (r - 0.5) / (WP_R - 0.5))      # wide enough that the wheel reads as a disc far off
 			st.append([er * r - across * (w * 0.5), er * r + bn * 0.025, er * r + across * (w * 0.5)])
 		for i in 2:
 			for j in 2:
@@ -552,23 +579,81 @@ const TR_LOCO := 21.6                    # coupled length of the locomotive
 const TR_BLUE := Color(0.07, 0.12, 0.28)
 const TR_YELLOW := Color(0.96, 0.74, 0.1)
 
-## A wheelset (two wheels and the axle as one drum) at z, axle height r.
-static func _tr_wheels(kit: DroneParts.Kit, z: float, r: float) -> void:
-	kit.add(_mat("sheet"), DroneParts.tube(Vector3(-0.78, r, z), Vector3(0.78, r, z), r, r, 8), Transform3D.IDENTITY, Color(0.2, 0.17, 0.15))
+const TR_LOCO_WHEEL := 0.51             # 40 inch wheels under the locomotive
+const TR_CAR_WHEEL := 0.46              # 36 inch wheels under the cars
+const TR_LOCO_TRUCKS := [-6.35, 6.35]
+const TR_CAR_TRUCKS := [-5.85, 5.85]
 
-## A truck (bogie): wheelsets, two cast side frames and the bolster. axles 2 or 3, spacing in m, wheel radius r.
+## One wheelset: two wheels and their axle, centred on the axle with the axle along +X (the spin axis). Each wheel is turned
+## from a profile: the inner face, a flange that stands 3 cm proud on the inside, the coned tread (worn bright) and the dished
+## outer face. The treads sit on the rails (gauge 1.435 m), so placed at (0, r, z) the wheels touch y = 0.
+static func _tr_wheelset(r: float) -> ArrayMesh:
+	var key := "wheelset_%.2f" % r
+	if _cache.has(key): return _cache[key]
+	var prof := PackedVector2Array([Vector2(0.11, 0.655), Vector2(r + 0.03, 0.668), Vector2(r, 0.71), Vector2(r - 0.008, 0.82), Vector2(0.12, 0.8)])
+	var paint := func(p: Vector3, _n: Vector3) -> Color:
+		var rad := Vector2(p.x, p.z).length()
+		return Color(0.56, 0.54, 0.51) if rad > r - 0.012 else Color(0.2, 0.16, 0.13)              # bright running surface, rusty plate
+	var wheel := NewModels._paint(DroneParts.lathe(prof, 12), paint)
+	var kit := DroneParts.Kit.new()
+	var sh := _mat("sheet")
+	var on_x := Basis(Vector3(0, 0, 1), -PI * 0.5)                       # the lathe's +Y onto +X
+	kit.add(sh, wheel, Transform3D(on_x, Vector3.ZERO))
+	kit.add(sh, wheel, Transform3D(Basis(Vector3.UP, PI) * on_x, Vector3.ZERO))
+	kit.add(sh, DroneParts.tube(Vector3(-0.86, 0, 0), Vector3(0.86, 0, 0), 0.085, 0.085, 6), Transform3D.IDENTITY, Color(0.18, 0.15, 0.13))
+	var mesh := kit.commit()
+	_cache[key] = mesh
+	return mesh
+
+## The far wheelset: the two wheels and axle as one plain six-sided drum (20 triangles), for beyond about 60 m,
+## where flanges cannot be seen. Same origin and axis as _tr_wheelset.
+static func _tr_wheelset_far(r: float) -> ArrayMesh:
+	var key := "wheelset_far_%.2f" % r
+	if _cache.has(key): return _cache[key]
+	var kit := DroneParts.Kit.new()
+	var drum := DroneParts.tube(Vector3(-0.78, 0, 0), Vector3(0.78, 0, 0), r, r, 6)
+	var low := 0.0
+	for p: Vector3 in (drum[0] as PackedVector3Array): low = minf(low, p.y)
+	var turn := 0.0 if low < -r + 0.001 else PI / 6.0                     # stand a corner of the hexagon on the rail
+	kit.add(_mat("sheet"), drum, Transform3D(Basis(Vector3.RIGHT, turn), Vector3.ZERO), Color(0.2, 0.17, 0.15))
+	var mesh := kit.commit()
+	_cache[key] = mesh
+	return mesh
+
+## The axle centres of a vehicle's trucks: truck middles zcs, axles per truck, axle spacing, wheel radius.
+static func _tr_axles(zcs: Array, axles: int, spacing: float, r: float) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for zc: float in zcs:
+		for k in axles: out.append(Vector3(0, r, zc + (k - (axles - 1) * 0.5) * spacing))
+	return out
+
+## A truck (bogie) without its wheelsets (they are separate meshes, see _tr_wheelset): two cast side frames outside the
+## wheels, each a top chord arching over a bottom chord with a window between them where the spring nest carries the
+## bolster; journal boxes at the axle ends; a brake shoe against each wheel tread. axles 2 or 3, spacing in m, wheel radius r.
 static func _tr_truck(kit: DroneParts.Kit, zc: float, axles: int, spacing: float, r: float) -> void:
-	for k in axles: _tr_wheels(kit, zc + (k - (axles - 1) * 0.5) * spacing, r)
-	var h := (axles - 1) * spacing * 0.5 + 0.45
-	var y0 := r - 0.16; var y1 := r + 0.36
-	var outline := PackedVector2Array([Vector2(-h, y0), Vector2(-h, y1 - 0.12), Vector2(-h * 0.55, y1 + 0.04), Vector2(h * 0.55, y1 + 0.04), Vector2(h, y1 - 0.12), Vector2(h, y0),
-		Vector2(h * 0.45, y0 - 0.12), Vector2(-h * 0.45, y0 - 0.12)])
-	var frame := DroneParts.extrude(outline, -0.08, 0.08)
-	var col := Color(0.13, 0.12, 0.11).lerp(Color(0.3, 0.19, 0.12), 0.35 * NewModels._h(Vector3(zc, 1, 2)))     # some rust
+	var pm := _mat("paint")
+	var h := (axles - 1) * spacing * 0.5 + 0.24
+	var col := Color(0.15, 0.13, 0.12).lerp(Color(0.32, 0.2, 0.13), 0.35 * NewModels._h(Vector3(zc, 1, 2)))     # some rust
+	var w := 0.42 if axles == 2 else 0.5                                   # half width of the spring window
+	# the top chord runs level through the journals and arches over the window; the bottom chord dips under it
+	var top := PackedVector2Array([Vector2(-h, r - 0.1), Vector2(-h, r + 0.14), Vector2(-w, r + 0.34), Vector2(w, r + 0.34), Vector2(h, r + 0.14), Vector2(h, r - 0.1), Vector2(0, r + 0.12)])
+	var bottom := PackedVector2Array([Vector2(-h + 0.1, r - 0.1), Vector2(-w, r - 0.37), Vector2(w, r - 0.37), Vector2(h - 0.1, r - 0.1), Vector2(w - 0.06, r - 0.22), Vector2(-w + 0.06, r - 0.22)])
+	var stand := Transform3D(Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)), Vector3.ZERO)   # (z, y) outline stood up, thickness on x
+	var top_m := DroneParts._apply(DroneParts.extrude(top, -0.09, 0.09), stand)
+	var bot_m := DroneParts._apply(DroneParts.extrude(bottom, -0.08, 0.08), stand)
 	for sx: float in [-1.0, 1.0]:
-		# the outline is drawn in (z, y) and stood up: its x onto z, its z onto y, its thickness (y) onto x
-		kit.add(_mat("paint"), frame, Transform3D(Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)), Vector3(sx * 1.0, 0, zc)), col)
-	kit.add(_mat("paint"), NewModels._box(Vector3(2.1, 0.28, 0.45)), NewModels._xf(Vector3(0, r + 0.2, zc)), col)
+		var xs := sx * 0.98
+		kit.add(pm, top_m, NewModels._xf(Vector3(xs, 0, zc)), col)
+		kit.add(pm, bot_m, NewModels._xf(Vector3(xs, 0, zc)), col)
+		# the spring nest seen through the window, carrying the bolster end
+		kit.add(pm, DroneParts.tube(Vector3(xs, r - 0.22, zc), Vector3(xs, r + 0.14, zc), 0.14, 0.14, 4), Transform3D.IDENTITY, Color(0.42, 0.33, 0.24))
+	# a brake beam across each outer axle on the inside of the truck, its shoe heads bearing on both treads
+	for k in axles:
+		var az := (k - (axles - 1) * 0.5) * spacing
+		if absf(az) < 0.01: continue
+		var dz := -signf(az)
+		kit.add(pm, NewModels._box(Vector3(1.62, 0.26, 0.09)), Transform3D(Basis(Vector3.RIGHT, -dz * deg_to_rad(15.0)), Vector3(0, r + 0.08, zc + az + dz * (r + 0.03))), Color(0.12, 0.11, 0.1))
+	kit.add(pm, NewModels._box(Vector3(2.1, 0.28, 0.45)), NewModels._xf(Vector3(0, r + 0.2, zc)), col)
 
 static func _tr_couplers(kit: DroneParts.Kit, half: float) -> void:
 	for sz: float in [-1.0, 1.0]:
@@ -810,6 +895,15 @@ static func freight_train(cars := 12) -> Dictionary:
 		consist.append([pick,TR_LOCO * 0.5 + TR_CAR * (k + 0.5)])
 	var out := meshes.duplicate()
 	out["car_length"] = TR_CAR; out["loco_length"] = TR_LOCO; out["consist"] = consist; out["gauge"] = TR_GAUGE
+	# the wheelsets, separate so the game can turn them: per vehicle kind the wheelset mesh, the axle centres in that
+	# vehicle's space and the wheel radius; turn each about its own +X by -distance / radius (rolling towards -z).
+	# "mesh_far" is the plain drum for distant cars (swap beyond about 60 m to keep a whole train cheap).
+	var loco_w := {"mesh": _tr_wheelset(TR_LOCO_WHEEL), "mesh_far": _tr_wheelset_far(TR_LOCO_WHEEL), "positions": _tr_axles(TR_LOCO_TRUCKS, 3, 1.65, TR_LOCO_WHEEL), "radius": TR_LOCO_WHEEL}
+	var wheels := {"locomotive": loco_w}
+	for kind in ["boxcar", "hopper", "tanker", "flatcar", "flatcar_empty"]:
+		wheels[kind] = {"mesh": _tr_wheelset(TR_CAR_WHEEL), "mesh_far": _tr_wheelset_far(TR_CAR_WHEEL), "positions": _tr_axles(TR_CAR_TRUCKS, 2, 1.73, TR_CAR_WHEEL), "radius": TR_CAR_WHEEL}
+	out["wheels"] = wheels
+	out["wheel_axis"] = Vector3.RIGHT
 	return out
 
 ## A 20 m piece of single standard-gauge track along z: two rails, 28 timber sleepers, a ballast bed. Origin: the top of the

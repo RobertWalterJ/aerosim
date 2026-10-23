@@ -12,6 +12,11 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("out="): _out = a.substr(4)
 		if a.begins_with("only="): _only = a.substr(5)
+	# the barn and silo shader reads the world globals (main.gd and Grass add them in the game); no clouds here
+	Grass.add_globals()
+	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))
+	RenderingServer.global_shader_parameter_set("g_cloud", Vector4(0.0, 0.0, 0.0, 0.0))
+	RenderingServer.global_shader_parameter_set("g_dsB", Vector4(0.0, 0.0, 1.0, 1.0))
 	_run.call_deferred()
 
 ## Each entry: a title and three cells; each cell: the meshes (with where they go) and the direction the camera looks from.
@@ -35,12 +40,13 @@ func _entries() -> Array:
 	var trk := NewModels2.track_section()
 	var train := [[trk, I], [trk, Transform3D(Basis.IDENTITY, Vector3(0, 0, 20))], [trk, Transform3D(Basis.IDENTITY, Vector3(0, 0, 40))], [trk, Transform3D(Basis.IDENTITY, Vector3(0, 0, 60))]]
 	for c in tr["consist"]:
-		train.append([tr[c[0]], Transform3D(Basis.IDENTITY, Vector3(0, 0, float(c[1]) - 8.0))])
+		train.append_array(_car(tr, c[0], float(c[1]) - 8.0))
 	out.append(["freight train on track", [[train, Vector3(0.6, 0.35, -0.5)], [train, Vector3(1.0, 0.25, 0.0)], [train, Vector3(0.3, 1.0, 0.2)]]])
-	var lo := [[tr["locomotive"], I], [trk, I]]
+	var lo := _car(tr, "locomotive", 0.0); lo.append([trk, I])
 	out.append(["locomotive (21 m)", [[lo, Vector3(0.8, 0.3, -1.0)], [lo, Vector3(1.0, 0.1, 0.05)], [lo, Vector3(-0.7, 0.5, 0.8)]]])
-	out.append(["boxcar, hopper", [[[[tr["boxcar"], I]], Vector3(0.9, 0.3, -1.0)], [[[tr["hopper"], I]], Vector3(0.9, 0.3, -1.0)], [[[tr["hopper"], I]], Vector3(1.0, 0.05, 0.0)]]])
-	out.append(["tanker, flatcars", [[[[tr["tanker"], I]], Vector3(0.9, 0.3, -1.0)], [[[tr["flatcar"], I]], Vector3(0.9, 0.4, -1.0)], [[[tr["flatcar_empty"], I], [trk, I]], Vector3(0.9, 0.5, -1.0)]]])
+	out.append(["boxcar, hopper", [[_car(tr, "boxcar", 0.0), Vector3(0.9, 0.3, -1.0)], [_car(tr, "hopper", 0.0), Vector3(0.9, 0.3, -1.0)], [_car(tr, "hopper", 0.0), Vector3(1.0, 0.05, 0.0)]]])
+	var fe := _car(tr, "flatcar_empty", 0.0); fe.append([trk, I])
+	out.append(["tanker, flatcars", [[_car(tr, "tanker", 0.0), Vector3(0.9, 0.3, -1.0)], [_car(tr, "flatcar", 0.0), Vector3(0.9, 0.4, -1.0)], [fe, Vector3(0.9, 0.5, -1.0)]]])
 	out.append(["track section (20 m)", [[[[trk, I]], Vector3(0.5, 0.4, -1.0)], [[[trk, I]], Vector3(1.0, 0.15, 0.4)], [[[trk, I]], top]]])
 	var hc := NewModels2.helicopter()
 	var hp := [[hc["body"], I], [hc["main_rotor"], Transform3D(Basis(Vector3.UP, 0.4), hc["rotor_pivot"])], [hc["tail_rotor"], Transform3D(Basis(Vector3.RIGHT, 0.6), hc["tail_pivot"])]]
@@ -61,6 +67,13 @@ func _entries() -> Array:
 	out.append(["storm debris (6 pieces)", [[dp, Vector3(0.2, 1.0, 0.6)], [dp, Vector3(0.6, 0.5, -1.0)], [[[deb[3], I], [deb[5], Transform3D(Basis.IDENTITY, Vector3(0.4, 0, 0))]], Vector3(0.3, 0.8, -0.6)]]])
 	var fu := [[NewModels2.funnel_tube(), I]]
 	out.append(["funnel tube, ring disc", [[fu, Vector3(1.0, 0.1, 0.0)], [fu, Vector3(0.4, 0.8, -0.6)], [[[NewModels2.funnel_ring_disc(), I]], Vector3(0.3, 0.8, -0.6)]]])
+	return out
+
+## A train vehicle at z: its body and its separate wheelsets.
+func _car(tr: Dictionary, kind: String, z: float) -> Array:
+	var out: Array = [[tr[kind], Transform3D(Basis.IDENTITY, Vector3(0, 0, z))]]
+	var wd: Dictionary = (tr["wheels"] as Dictionary)[kind]
+	for p: Vector3 in wd["positions"]: out.append([wd["mesh"], Transform3D(Basis.IDENTITY, p + Vector3(0, 0, z))])
 	return out
 
 func _run() -> void:

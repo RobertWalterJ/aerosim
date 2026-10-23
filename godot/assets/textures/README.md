@@ -65,3 +65,17 @@ The leaf atlases (`assets/trees/leaves_*.webp`, 512 px, four cells each) are pai
 `path_diff.jpg`, `path_nor.jpg`, `path_arm.jpg` (R = ambient occlusion, G = roughness, B = 0) come from Poly Haven `asphalt_floor`
 (https://polyhaven.com/a/asphalt_floor), 1k, CC0. A pale, even, chip-seal style surface with fine aggregate. One tile is about 2.35 m
 (the shader divides by 2.35). The old `asphalt_*.jpg` files stay in the folder, unused.
+
+## Barn and silo (models3, 2026-10-23)
+Three sets for the farm buildings in `game/new_models2.gd`, read by `game/shaders/farm.gdshader` through
+`NewModels2.farm_material`. Same format as the stone sets: 1024 px JPEGs, `_diff` albedo (sRGB), `_nor` OpenGL normal,
+`_arm` (r occlusion, g roughness, b metal). Downloaded 2026-10-23 as the 1k JPEGs from the Poly Haven API
+(https://api.polyhaven.com/files/<id>) and re-saved with Python PIL (albedo and ARM quality 85, normals 90). Their
+`.import` files are committed (`git add -f`): VRAM-compressed with mipmaps (S3TC/BPTC on desktop, ETC2/ASTC on Android),
+normal maps flagged as normal maps. 1.59 MB for all nine. The fieldstone foundation reuses `rubble_*` (above). All CC0.
+
+| Files | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `barnwood_*` | Poly Haven `wood_planks_grey`, https://polyhaven.com/a/wood_planks_grey | Rob Tuytel | CC0 | 1.5 m (as published; five 30 cm boards, grain upright) | barn boards under the red paint, white trim, bare soffits |
+| `roofsteel_*` | Poly Haven `corrugated_iron`, https://polyhaven.com/a/corrugated_iron | Dimitrios Savva (photography), Jenelle van Heerden (processing) | CC0 | 1.12 m (as published) | barn roof, hay hood, cupola roof, ironwork; silo dome, chute and pipe |
+| `silocrete_*` | Poly Haven `concrete_wall_004`, https://polyhaven.com/a/concrete_wall_004 | Charlotte Baglioni (photography), Dario Barresi (processing) | CC0 | 1.5 m across x 1.0 m up (published 2.0 m; squeezed so the blocks read as 75 x 25 cm silo staves) | silo staves |

@@ -66,6 +66,22 @@ func _initialize() -> void:
 	# ---- barn and silo
 	var bm := measure([[NewModels2.barn(), I]])
 	basic("barn", bm, 3000)
+	# the barn and silo carry the textured farm shader on every surface but the glass, and their textures stay small
+	var shaded := true
+	for mesh: ArrayMesh in [NewModels2.barn(), NewModels2.silo()]:
+		for s in mesh.get_surface_count():
+			var mat := mesh.surface_get_material(s)
+			if mat is ShaderMaterial:
+				var sm2 := mat as ShaderMaterial
+				if not (sm2.shader.resource_path.ends_with("farm.gdshader") and sm2.get_shader_parameter("set_albedo") is Texture2D and sm2.get_shader_parameter("set_normal") is Texture2D): shaded = false
+			elif not (mat is StandardMaterial3D and (mat as StandardMaterial3D).metallic > 0.8): shaded = false   # only the glass may be standard
+	check("barn and silo textured", shaded, "")
+	var tex_bytes := 0
+	for set_name in ["barnwood", "roofsteel", "silocrete"]:
+		for map in ["diff", "nor", "arm"]:
+			var f := FileAccess.open("res://assets/textures/%s_%s.jpg" % [set_name, map], FileAccess.READ)
+			if f: tex_bytes += f.get_length()
+	check("farm textures compact", tex_bytes > 0 and tex_bytes < 6 * 1024 * 1024, "%.2f MB of new JPEGs (fieldstone reuses rubble_*)" % (tex_bytes / 1048576.0))
 	check("barn footprint", near(bm["size"].x, 12.0, 13.6) and near(bm["size"].z, 24.0, 27.0), "%.2f x %.2f m" % [bm["size"].x, bm["size"].z])
 	check("barn height", near(bm["hi"].y, 9.8, 11.2) and absf(float(bm["lo"].y)) < 0.01, "%.2f m to the vane, ground at %.3f" % [bm["hi"].y, bm["lo"].y])
 	var sm := measure([[NewModels2.silo(), I]])
@@ -80,6 +96,14 @@ func _initialize() -> void:
 	check("windmill tower height", near(tw["hi"].y, 15.5, 16.6), "%.2f m" % tw["hi"].y)
 	var sl := measure([[wm["sails"], I]])
 	check("windmill sails", near(sl["size"].x, 15.5, 16.5) and near(sl["size"].y, 15.5, 16.5) and sl["size"].z < 1.7, "%.2f x %.2f m, %.2f m deep" % [sl["size"].x, sl["size"].y, sl["size"].z])
+	# the sails read at distance: a spread cloth on each (a double-sided surface of its own) and no part under 15 cm
+	var sails: ArrayMesh = wm["sails"]
+	var cloth_tris := 0
+	for s in sails.get_surface_count():
+		var cm2 := sails.surface_get_material(s) as StandardMaterial3D
+		if cm2 and cm2.cull_mode == BaseMaterial3D.CULL_DISABLED: cloth_tris += (sails.surface_get_arrays(s)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+	check("windmill sail cloths", cloth_tris >= 8 and cloth_tris < 200, "%d cloth triangles (spread panels and the rolled cloth)" % cloth_tris)
+	check("windmill sail bars bold", NewModels2.WM_BAR >= 0.15, "sail bars %.0f cm across" % (NewModels2.WM_BAR * 100.0))
 	check("windmill sails clear the gallery", wpv.y - float(wm["sail_radius"]) > NewModels2.WM_GAL + 1.2, "tips down to %.2f m, rail at %.2f m" % [wpv.y - float(wm["sail_radius"]), NewModels2.WM_GAL + 1.15])
 	var wp := NewModels2.wind_pump()
 	var ppv: Vector3 = wp["wheel_pivot"]
@@ -90,13 +114,42 @@ func _initialize() -> void:
 	check("wind pump wheel", near(wh["size"].x, 3.5, 3.75), "%.2f m across" % wh["size"].x)
 	# ---- freight train and track
 	var tr := NewModels2.freight_train(12)
-	var lm := measure([[tr["locomotive"], I]])
-	basic("locomotive", lm, 1500)
-	check("locomotive size", near(lm["size"].z, 20.8, 22.0) and near(lm["hi"].y, 4.5, 4.95) and absf(float(lm["lo"].y)) < 0.01, "%.2f m long, %.2f m high, wheels at %.3f" % [lm["size"].z, lm["hi"].y, lm["lo"].y])
-	for kind in ["boxcar", "hopper", "tanker", "flatcar", "flatcar_empty"]:
-		var cm := measure([[tr[kind], I]])
-		basic(kind, cm, 700)
-		check(kind + " size", near(cm["size"].z, 15.0, 17.0) and cm["size"].x < 3.35 and absf(float(cm["lo"].y)) < 0.01, "%.2f m long, %.2f wide, wheels at %.3f" % [cm["size"].z, cm["size"].x, cm["lo"].y])
+	# with the far wheelsets a vehicle may cost at most 150 triangles more than in batch 2 (when the wheels were drums in
+	# the body); close up the flanged wheelsets add more (counted below), on the few cars near the camera
+	var old_tris := {"locomotive": 1392, "boxcar": 606, "hopper": 640, "tanker": 670, "flatcar": 504, "flatcar_empty": 408}
+	var wheels: Dictionary = tr["wheels"]
+	for kind in ["locomotive", "boxcar", "hopper", "tanker", "flatcar", "flatcar_empty"]:
+		var wd: Dictionary = wheels[kind]
+		var parts: Array = [[tr[kind], I]]
+		var far_parts: Array = [[tr[kind], I]]
+		for p: Vector3 in wd["positions"]:
+			parts.append([wd["mesh"], Transform3D(Basis.IDENTITY, p)])
+			far_parts.append([wd["mesh_far"], Transform3D(Basis.IDENTITY, p)])
+		var cm := measure(parts)
+		var body := measure([[tr[kind], I]])
+		var far := measure(far_parts)
+		var ws := measure([[wd["mesh"], I]])
+		basic(kind, cm, (2900 if kind == "locomotive" else 1700))
+		check(kind + " triangles with far wheels", int(far["tris"]) <= int(old_tris[kind]) + 150, "%d <= %d + 150 (body %d; close wheelsets %d x %d)" % [far["tris"], old_tris[kind], body["tris"], (wd["positions"] as PackedVector3Array).size(), ws["tris"]])
+		check(kind + " far wheels", bool(far["finite"]) and int(far["flipped"]) == 0 and absf(float(far["lo"].y)) < 0.01, "")
+		check(kind + " body clear of the rails", float(body["lo"].y) > 0.05, "lowest body point %.2f m above the rail" % body["lo"].y)
+		if kind == "locomotive":
+			check("locomotive size", near(cm["size"].z, 20.8, 22.0) and near(cm["hi"].y, 4.5, 4.95) and absf(float(cm["lo"].y)) < 0.04, "%.2f m long, %.2f m high, flanges to %.3f" % [cm["size"].z, cm["hi"].y, cm["lo"].y])
+		else:
+			check(kind + " size", near(cm["size"].z, 15.0, 17.0) and cm["size"].x < 3.35 and absf(float(cm["lo"].y)) < 0.04, "%.2f m long, %.2f wide, flanges to %.3f" % [cm["size"].z, cm["size"].x, cm["lo"].y])
+	for kind in ["locomotive", "boxcar"]:
+		var wd2: Dictionary = wheels[kind]
+		var r: float = wd2["radius"]
+		var wm2 := measure([[wd2["mesh"], I]])
+		check(kind + " wheelset", (wd2["positions"] as PackedVector3Array).size() == (6 if kind == "locomotive" else 4) and near(wm2["size"].y, 2.0 * r + 0.05, 2.0 * r + 0.07) and near(wm2["size"].x, 1.6, 1.75),
+			"%d axles, %.2f m over the flanges (wheel radius %.2f), %.2f m along the axle" % [(wd2["positions"] as PackedVector3Array).size(), wm2["size"].y, r, wm2["size"].x])
+		# the running surface (vertices at the full tread radius) must sit over the rail heads
+		var arr := (wd2["mesh"] as ArrayMesh).surface_get_arrays(0)
+		var tread_ok := true
+		for v: Vector3 in (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+			if absf(Vector2(v.y, v.z).length() - r) < 0.005 and not near(absf(v.x), 0.7, 0.83): tread_ok = false
+		check(kind + " treads on the rails", tread_ok, "gauge %.3f m" % tr["gauge"])
+	check("wheel spin axis", tr["wheel_axis"] == Vector3.RIGHT, "")
 	check("consist", (tr["consist"] as Array).size() == 13 and absf(float(tr["car_length"]) - 16.6) < 0.01, "%d entries" % (tr["consist"] as Array).size())
 	var tm := measure([[NewModels2.track_section(), I]])
 	basic("track section", tm, 400)
