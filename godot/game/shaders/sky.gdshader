@@ -86,6 +86,12 @@ float cloud_light(vec3 p, vec3 sd, int lsteps, float t) {
 	return exp(-tau * 1.25);
 }
 
+// cloud iridescence: pastel diffraction colours in thin cloud near the sun (clear skies, and seen from
+// above the deck where the layer is thin). The hue cycles as the angle from the sun grows.
+vec3 irid_color(float a) {
+	return 0.5 + 0.5 * cos(a * 80.0 + vec3(0.0, 2.1, 4.2));
+}
+
 // raymarch the slab: returns rgb (scattered light, HDR) and a (coverage 0..1)
 vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, int steps, int lsteps) {
 	if (rd.y < 0.02) return vec4(0.0);
@@ -100,6 +106,8 @@ vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, i
 	vec3 acc = vec3(0.0);
 	float trans = 1.0;
 	const float SIGMA = 0.0033;
+	float sun_ang = acos(clamp(dot(rd, normalize(sun_dir)), -1.0, 1.0));
+	vec3 irid = irid_color(sun_ang) * exp(-sun_ang * sun_ang * 30.0);
 	for (int i = 0; i < 12; i++) {
 		if (i >= steps) break;
 		vec3 p = ro + rd * step_t;
@@ -110,6 +118,7 @@ vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, i
 			vec3 lc = sun_c * light + fill;                        // sun plus blue sky fill in the shade
 			lc = mix(lc, grey * (0.4 + 0.6 * light), dark);        // storm greys and darkens the shade
 			vec3 sc = lc + sun_c * powder * light * 1.4;           // silver lining on lit edges
+			sc += irid * (1.0 - dens) * 0.55;                      // thin edges near the sun iridesce
 			float step_ext = exp(-dens * dt * SIGMA);
 			acc += sc * trans * (1.0 - step_ext);
 			trans *= step_ext;
@@ -141,6 +150,8 @@ vec4 march_low_cloud(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
 	vec3 acc = vec3(0.0);
 	float trans = 1.0;
 	const float SIGMA = 0.016;
+	float sun_ang = acos(clamp(dot(rd, normalize(sun_dir)), -1.0, 1.0));
+	vec3 irid = irid_color(sun_ang) * exp(-sun_ang * sun_ang * 30.0);
 	for (int i = 0; i < 10; i++) {
 		if (i >= steps) break;
 		vec3 p = ro + rd * step_t;
@@ -158,6 +169,7 @@ vec4 march_low_cloud(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
 			float lit = exp(-depth * 1.8);
 			vec3 lc = grey * (0.30 + 0.28 * depth);                 // grey base, a little darker deep inside
 			lc += sun_c * lit * 1.7;                                 // bright sunlit, rolling top
+			lc += irid * (1.0 - dens) * 0.55;                       // thin top and edges near the sun iridesce
 			float step_ext = exp(-dens * dt * SIGMA);
 			acc += lc * trans * (1.0 - step_ext);
 			trans *= step_ext;
@@ -269,6 +281,8 @@ void sky() {
 			ci *= 0.55 + 0.45 * smoothstep(0.5, 0.75, bands);   // mostly where a broad band sits
 			ci = clamp(ci, 0.0, 1.0) * cirrus * (1.0 - cloud_a) * smoothstep(0.02, 0.28, dir.y) * (1.0 - 0.7 * dark);
 			vec3 ci_col = mix(vec3(0.88, 0.92, 1.0), vec3(1.0, 0.66, 0.42), warm * day * (0.4 + 0.6 * smoothstep(0.0, 0.7, mu)));
+			// iridescence: thin cirrus near the sun shows pastel colours
+			ci_col += irid_color(acos(clamp(mu, -1.0, 1.0))) * exp(-acos(clamp(mu, -1.0, 1.0)) * acos(clamp(mu, -1.0, 1.0)) * 30.0) * 0.5;
 			cloud_col = mix(cloud_col, ci_col, ci / max(cloud_a + ci, 1e-3));
 			cloud_a = clamp(cloud_a + ci * 0.65, 0.0, 1.0);
 		}
