@@ -52,6 +52,7 @@ var snow_fx: GPUParticles3D
 var snow_mat: ParticleProcessMaterial
 var ambient: AmbientParticles     # drifting leaves, dust motes and rotor-wash debris
 var hud: Hud
+var phone_notes: PhoneNotes        # session B: the DroneBudz phone notification bundle (game/phone_notes.gd)
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
@@ -199,6 +200,11 @@ func _ready() -> void:
 	cam.near = 0.03; cam.far = 26000.0; cam.fov = 84.0; cam.current = true
 	hud = Hud.new()
 	add_child(hud)
+	# session B: the phone-style DroneBudz notification bundle for world events (shows, storms, tornadoes, fog).
+	# It is a UI overlay only and is switched from Display > Overlay and sound > Phone messages.
+	phone_notes = PhoneNotes.new()
+	add_child(phone_notes)
+	phone_notes.setup(hud)
 	hud.pause_changed.connect(func(p: bool): paused = p or _landing_on; if sticks: sticks.release_all(); sticks.enabled = not p and not _landing_on; osd.visible = not p and not _landing_on)
 	hud.reset_requested.connect(spawn)
 	hud.drone_picked.connect(switch_drone)
@@ -264,10 +270,24 @@ func _ready() -> void:
 	add_child(fireworks)
 	fireworks.setup(terrain, home)
 	fireworks.set_sensor(sensor)   # session B: bursts flash the lens and nudge the exposure
-	hud.fireworks_changed.connect(func(i: int): fireworks.request_show(i))
+	hud.fireworks_changed.connect(func(i: int):
+		fireworks.request_show(i)
+		if i != 0 and phone_notes: phone_notes.post("show_soon")   # session B: a DroneBudz text before the show
+	)
 	hud.surprise_changed.connect(func(on: bool): fireworks.surprise_on = on)
 	fireworks.show_ended.connect(func(): hud.fireworks_show = 0; hud._sync())
-	fireworks.toast.connect(func(t: String): hud.toast(t))
+	# session B: show notices go to the phone notification bundle, not the white warning line
+	fireworks.toast.connect(func(t: String):
+		if phone_notes and t.begins_with("The show is starting"):
+			phone_notes.post("show_start")
+		elif phone_notes and t.begins_with("The show is over"):
+			phone_notes.post("show_over")
+		elif t.begins_with("A fireworks show"):
+			if phone_notes: phone_notes.post("show_start")
+			hud.toast(t)
+		else:
+			hud.toast(t)
+	)
 	fireworks.night_needed.connect(func():
 		hud.weather["hour"] = 21.5
 		hud.weather["clock_mode"] = 1
@@ -286,6 +306,7 @@ func _ready() -> void:
 	weather_events = WeatherEvents.new()
 	add_child(weather_events)
 	weather_events.setup(terrain, wind, hud, wx, sensor, birds)
+	weather_events.set_notes(phone_notes)   # session B: event notices arrive as DroneBudz phone messages
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
@@ -739,6 +760,7 @@ func _process(delta: float) -> void:
 	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
 	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
 	if weather_events: weather_events.update(delta, cam, quad.position(), quad.velocity(), _sun_el, _daylight, paused)   # session B: events and courses
+	if phone_notes: phone_notes.update(delta, paused)   # session B: the DroneBudz notification bundle
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
@@ -855,6 +877,14 @@ func _screenshot_mode(arg: String) -> void:
 			weather_events.debug_event("park")
 		elif c.begins_with("course"):
 			weather_events.debug_course(int(c.substr(6)))
+		elif c == "notesdemo":     # session B dev hook: a bundle of three DroneBudz notifications
+			phone_notes.debug_demo()
+		elif c == "notestorm":
+			phone_notes.debug_one("storm")
+		elif c == "notetornado":
+			phone_notes.debug_one("tornado")
+		elif c == "noteshow":
+			phone_notes.debug_one("show_start")
 		elif c == "fwwall":     # dev: one burst of every type in a row, to judge the shapes
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
@@ -905,6 +935,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("camera: exposure %.2f iso %d shutter 1/%d over %.2f meanlog %.2f burstwash %.3f" % [sensor.exposure, sensor.iso_shown, int(round(1.0 / maxf(sensor.shutter_shown, 1e-6))), sensor._over, sensor._mean_log, sensor._burst_wash])
 	print("birds: ", birds.stats())
 	print("weather events: ", weather_events.stats())
+	print("phone notes: ", phone_notes.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:

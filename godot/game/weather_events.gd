@@ -31,6 +31,10 @@ var sky_life: SkyLife
 var funnels: Array[Funnel] = []
 var _motes: Array[GPUParticles3D] = []
 var _storm := {}
+## session B: the phone notification bundle (game/phone_notes.gd). Optional: all posts are guarded.
+var notes: PhoneNotes
+var _noted := {}
+var _noted_t := {}
 var _thermal_centres: Array[Vector3] = []
 var _thermal_emitters: Array[GPUParticles3D] = []
 var _fog: MeshInstance3D
@@ -108,6 +112,10 @@ func setup(t: Terrain, w: Wind, h: Hud, weather: WeatherSystem, sen: SensorPipel
 		if not hud.events.has(k):
 			hud.events[k] = false
 	courses.set_course(int(hud.events.get("course", 0)))
+
+## Session B: give the event runtime the phone notification bundle. Optional; posts are guarded when it is null.
+func set_notes(n: PhoneNotes) -> void:
+	notes = n
 
 func _process(_d: float) -> void:
 	pass   # main.gd calls update once a frame
@@ -385,7 +393,21 @@ func _spawn_funnel(kind: int) -> Funnel:
 		f.setup(kind, start, terrain, _roar)
 	f.start()
 	funnels.append(f)
+	# a DroneBudz text when one of the events starts (not again for a repeated spawn of the same event)
+	var kind_name := "waterspout" if kind == Funnel.WSPOUT else ("tornado" if kind == Funnel.TORNADO else "dustdevil")
+	_note(kind_name)
 	return f
+
+## Post one event message to the phone bundle, at most once every two minutes per event kind.
+func _note(kind: String) -> void:
+	if notes == null:
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	if float(_noted_t.get(kind, -999.0)) + 120.0 > now:
+		return
+	_noted_t[kind] = now
+	_noted[kind] = true
+	notes.post(kind)
 
 func _lake_point() -> Vector2:
 	var centre := Vector2(-690.0, 100.0)
@@ -414,9 +436,8 @@ func _start_storm() -> void:
 	_rain_mat.set_shader_parameter("centre", _storm["anchor"])
 	_rain_mat.set_shader_parameter("radius", 320.0)
 	_rain_mat.set_shader_parameter("height", 900.0)
-	# the warning to the player only once per storm
-	if hud != null:
-		hud.toast("A thunderstorm is building over the valley.")
+	# the warning to the player: a DroneBudz text now, not the white warning line
+	_note("storm")
 
 func _end_storm() -> void:
 	_storm = {}
@@ -509,8 +530,7 @@ func _set_thermals(on: bool) -> void:
 		_thermal_emitters.append(e)
 	if birds:
 		birds.thermal_centres = _thermal_centres
-	if hud != null:
-		hud.toast("Thermals are rising over the meadow. Watch the hawks.")
+	_note("thermals")
 
 func _make_motes(at: Vector3) -> GPUParticles3D:
 	var mat := ShaderMaterial.new()
@@ -568,8 +588,7 @@ func _fog_event(kind: String, on: bool, tint: Color, width: float, height: float
 		_fog_mat.set_shader_parameter("seed", _rng.randf() * 40.0)
 		_fog.visible = true
 		_place_fog()
-		if hud != null:
-			hud.toast("A bank of mist is drifting over the lake." if kind == "fogbank" else "A snow squall is moving across the valley.")
+		_note(kind)
 	elif not on and _fog_kind == kind:
 		_fog_kind = ""
 		if _fog: _fog.visible = false
@@ -612,8 +631,7 @@ func _surprise() -> void:
 		hud.events["dustdevil"] = true
 	else:
 		hud.events["thunderstorm"] = true
-	if hud != null:
-		hud.toast("The weather is changing.")
+	# the event itself will send its own DroneBudz text when it spawns; no white warning line here
 
 # ------------------------------------------------------------------ wind fields
 func _funnel_wind(pos: Vector3) -> Vector3:
