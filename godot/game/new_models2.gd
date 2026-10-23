@@ -579,43 +579,84 @@ const TR_LOCO := 21.6                    # coupled length of the locomotive
 const TR_BLUE := Color(0.07, 0.12, 0.28)
 const TR_YELLOW := Color(0.96, 0.74, 0.1)
 
-const TR_LOCO_WHEEL := 0.51             # 40 inch wheels under the locomotive
-const TR_CAR_WHEEL := 0.46              # 36 inch wheels under the cars
-const TR_LOCO_TRUCKS := [-6.35, 6.35]
+const TR_LOCO_WHEEL := 0.508            # 40 inch wheels under the locomotive (the usual size under a road diesel)
+const TR_CAR_WHEEL := 0.4572            # 36 inch (0.91 m) wheels under the freight cars
+const TR_LOCO_TRUCKS := [-6.1, 6.1]
 const TR_CAR_TRUCKS := [-5.85, 5.85]
+const TR_LOCO_AXLE := 2.0               # axle spacing in the locomotive's three-axle trucks
+const TR_CAR_AXLE := 1.73               # 5 ft 8 in, a two-axle freight truck
+# One wheel across the track (x out from the centre line, m), after the AAR wheel profile: the backs of the flanges are 1.36 m
+# apart, so the flanges run just inside the rail heads (which start at 0.7175); the coned tread runs 11.9 cm from the flange
+# throat to the outer face of the rim, and the whole rim is 15.5 cm wide. The flange stands 2.5 cm below the tread.
+const TR_BACK := 0.68
+const TR_THROAT := 0.716
+const TR_FACE := 0.835
+const TR_FLANGE := 0.025
+
+## The half section of one wheel (radius, x along the axle) as a closed loop for the lathe: the hub on the axle, a thin
+## dished plate, the rim with the flange on its inside and the coned tread. detail false is the cheap middle-distance one.
+static func _tr_wheel_prof(R: float, detail: bool) -> PackedVector2Array:
+	var f := TR_FLANGE
+	if not detail:
+		return PackedVector2Array([Vector2(0.085, 0.61), Vector2(0.17, 0.61), Vector2(R - 0.07, 0.69), Vector2(R - 0.05, TR_BACK), Vector2(R + f, TR_BACK + 0.008),
+			Vector2(R + f * 0.5, TR_THROAT - 0.005), Vector2(R, TR_THROAT + 0.006), Vector2(R - 0.007, TR_FACE), Vector2(R - 0.05, TR_FACE), Vector2(R - 0.12, 0.72),
+			Vector2(0.17, 0.78), Vector2(0.085, 0.78)])
+	return PackedVector2Array([
+		Vector2(0.085, 0.6), Vector2(0.165, 0.6), Vector2(0.165, 0.6), Vector2(0.2, 0.655),               # hub, inboard side
+		Vector2(0.3, 0.672), Vector2(R - 0.13, 0.688), Vector2(R - 0.075, 0.692), Vector2(R - 0.052, TR_BACK), Vector2(R - 0.052, TR_BACK),   # dished plate into the rim
+		Vector2(R + f - 0.008, TR_BACK), Vector2(R + f, TR_BACK + 0.012), Vector2(R + f * 0.5, TR_THROAT - 0.006),   # flange
+		Vector2(R + 0.002, TR_THROAT), Vector2(R, TR_THROAT + 0.008), Vector2(R - 0.0055, TR_FACE - 0.008), Vector2(R - 0.011, TR_FACE), Vector2(R - 0.011, TR_FACE),   # coned tread
+		Vector2(R - 0.052, TR_FACE), Vector2(R - 0.052, TR_FACE), Vector2(R - 0.13, 0.716),   # rim face, plate outboard
+		Vector2(0.3, 0.698), Vector2(0.2, 0.71), Vector2(0.165, 0.785), Vector2(0.165, 0.785), Vector2(0.085, 0.785)])
 
 ## One wheelset: two wheels and their axle, centred on the axle with the axle along +X (the spin axis). Each wheel is turned
-## from a profile: the inner face, a flange that stands 3 cm proud on the inside, the coned tread (worn bright) and the dished
-## outer face. The treads sit on the rails (gauge 1.435 m), so placed at (0, r, z) the wheels touch y = 0.
-static func _tr_wheelset(r: float) -> ArrayMesh:
-	var key := "wheelset_%.2f" % r
+## from the profile above, the running band of the tread worn bright, the plate and hub rusty brown. The axle carries a
+## roller bearing beyond each wheel with a turning end cap and its three cap screws (so the turning shows). Placed at
+## (0, r, z) the treads touch y = 0 on the 1.435 m gauge. detail: 2 close (under about 25 m), 1 middle (to about 80 m),
+## 0 far (a plain six-sided disc for each wheel).
+static func _tr_wheelset(r: float, detail := 2) -> ArrayMesh:
+	var key := "wheelset_%.3f_%d" % [r, detail]
 	if _cache.has(key): return _cache[key]
-	var prof := PackedVector2Array([Vector2(0.11, 0.655), Vector2(r + 0.03, 0.668), Vector2(r, 0.71), Vector2(r - 0.008, 0.82), Vector2(0.12, 0.8)])
-	var paint := func(p: Vector3, _n: Vector3) -> Color:
-		var rad := Vector2(p.x, p.z).length()
-		return Color(0.56, 0.54, 0.51) if rad > r - 0.012 else Color(0.2, 0.16, 0.13)              # bright running surface, rusty plate
-	var wheel := NewModels._paint(DroneParts.lathe(prof, 12), paint)
 	var kit := DroneParts.Kit.new()
 	var sh := _mat("sheet")
 	var on_x := Basis(Vector3(0, 0, 1), -PI * 0.5)                       # the lathe's +Y onto +X
-	kit.add(sh, wheel, Transform3D(on_x, Vector3.ZERO))
-	kit.add(sh, wheel, Transform3D(Basis(Vector3.UP, PI) * on_x, Vector3.ZERO))
-	kit.add(sh, DroneParts.tube(Vector3(-0.86, 0, 0), Vector3(0.86, 0, 0), 0.085, 0.085, 6), Transform3D.IDENTITY, Color(0.18, 0.15, 0.13))
-	var mesh := kit.commit()
-	_cache[key] = mesh
-	return mesh
-
-## The far wheelset: the two wheels and axle as one plain six-sided drum (20 triangles), for beyond about 60 m,
-## where flanges cannot be seen. Same origin and axis as _tr_wheelset.
-static func _tr_wheelset_far(r: float) -> ArrayMesh:
-	var key := "wheelset_far_%.2f" % r
-	if _cache.has(key): return _cache[key]
-	var kit := DroneParts.Kit.new()
-	var drum := DroneParts.tube(Vector3(-0.78, 0, 0), Vector3(0.78, 0, 0), r, r, 6)
-	var low := 0.0
-	for p: Vector3 in (drum[0] as PackedVector3Array): low = minf(low, p.y)
-	var turn := 0.0 if low < -r + 0.001 else PI / 6.0                     # stand a corner of the hexagon on the rail
-	kit.add(_mat("sheet"), drum, Transform3D(Basis(Vector3.RIGHT, turn), Vector3.ZERO), Color(0.2, 0.17, 0.15))
+	var flip := Basis(Vector3.UP, PI) * on_x                              # and onto -X for the left wheel
+	var rust := Color(0.25, 0.16, 0.11)
+	if detail == 0:
+		# a corner of each hexagon stands on the rail (the lathe's first segment points down after on_x)
+		var disc := DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, TR_BACK + 0.01), Vector2(r, TR_BACK + 0.01), Vector2(r, TR_FACE), Vector2(0, TR_FACE)])), 6)
+		for bb: Basis in [on_x, flip]: kit.add(sh, disc, Transform3D(bb, Vector3.ZERO), rust)
+	else:
+		var R := r
+		var paint := func(p: Vector3, n: Vector3) -> Color:
+			var rad := Vector2(p.x, p.z).length()
+			var radial := Vector2(n.x, n.z).length()
+			if rad > R - 0.013 and p.y > TR_THROAT - 0.004 and radial > 0.6: return Color(0.66, 0.64, 0.6)    # the running band
+			if rad > R + 0.006: return Color(0.38, 0.35, 0.32)                                               # flange, rubbed
+			if rad < 0.2: return Color(0.16, 0.13, 0.11)                                                     # hub
+			return NewModels._vary(rust, Vector3(floorf(rad * 20.0), p.y, 0.0), 0.12)
+		var seg := 16 if detail == 2 else 9
+		var wheel := NewModels._paint(DroneParts.lathe(_tr_wheel_prof(R, detail == 2), seg, true), paint)
+		kit.add(sh, wheel, Transform3D(on_x, Vector3.ZERO))
+		kit.add(sh, wheel, Transform3D(flip, Vector3.ZERO))
+		# the axle: wheel seats, journals, the roller bearings and their end caps
+		var half := PackedVector2Array([Vector2(0.088, 0.0), Vector2(0.088, 0.78), Vector2(0.098, 0.81), Vector2(0.098, 0.865), Vector2(0.098, 0.865), Vector2(0.118, 0.865),
+			Vector2(0.118, 0.865), Vector2(0.118, 1.035), Vector2(0.118, 1.035), Vector2(0.085, 1.035), Vector2(0.085, 1.035), Vector2(0.085, 1.075), Vector2(0.085, 1.075), Vector2(0.0, 1.075)])
+		if detail == 1: half = PackedVector2Array([Vector2(0.09, 0.0), Vector2(0.09, 0.82), Vector2(0.115, 0.86), Vector2(0.115, 1.06), Vector2(0.0, 1.06)])
+		var ax := PackedVector2Array()
+		for k in range(half.size() - 1, -1, -1): ax.append(Vector2(half[k].x, -half[k].y))
+		for k in range(1, half.size()): ax.append(half[k])
+		var ax_col := func(p: Vector3, _n: Vector3) -> Color:
+			var a := absf(p.y)
+			if a > 1.03: return Color(0.42, 0.4, 0.37)          # end cap
+			if a > 0.86: return Color(0.1, 0.1, 0.1)            # bearing cup
+			return Color(0.2, 0.17, 0.15)
+		kit.add(sh, NewModels._paint(DroneParts.lathe(ax, 10 if detail == 2 else 7), ax_col), Transform3D(on_x, Vector3.ZERO))
+		if detail == 2:
+			for sx: float in [-1.0, 1.0]:
+				for k in 3:
+					var a2 := TAU * k / 3.0 + 0.4
+					kit.add(sh, NewModels._box(Vector3(0.022, 0.03, 0.03)), NewModels._xf(Vector3(sx * 1.08, 0.05 * cos(a2), 0.05 * sin(a2))), Color(0.12, 0.12, 0.12))
 	var mesh := kit.commit()
 	_cache[key] = mesh
 	return mesh
@@ -627,37 +668,115 @@ static func _tr_axles(zcs: Array, axles: int, spacing: float, r: float) -> Packe
 		for k in axles: out.append(Vector3(0, r, zc + (k - (axles - 1) * 0.5) * spacing))
 	return out
 
-## A truck (bogie) without its wheelsets (they are separate meshes, see _tr_wheelset): two cast side frames outside the
-## wheels, each a top chord arching over a bottom chord with a window between them where the spring nest carries the
-## bolster; journal boxes at the axle ends; a brake shoe against each wheel tread. axles 2 or 3, spacing in m, wheel radius r.
+## A coil spring standing from y0 to y1 at (x, z), d across: a column with dark slanted gaps between the coils on its outer face.
+static func _tr_spring(kit: DroneParts.Kit, b: Buf, x: float, z: float, y0: float, y1: float, d: float, col: Color) -> void:
+	var h := d * 0.5
+	var foot := Vector3(x, y0, z)
+	for c: Array in [[Vector3(h, 0, -h), Vector3(h, 0, h), Vector3(1, 0, 0)], [Vector3(h, 0, h), Vector3(-h, 0, h), Vector3(0, 0, 1)], [Vector3(-h, 0, h), Vector3(-h, 0, -h), Vector3(-1, 0, 0)], [Vector3(-h, 0, -h), Vector3(h, 0, -h), Vector3(0, 0, -1)]]:
+		var p0: Vector3 = foot + (c[0] as Vector3); var p1: Vector3 = foot + (c[1] as Vector3)
+		b.quad(p0, p1, p1 + Vector3(0, y1 - y0, 0), p0 + Vector3(0, y1 - y0, 0), col, c[2])
+	var sx := signf(x)
+	var xo := x + sx * (d * 0.5 + 0.003)
+	var n := 2
+	for k in n:
+		var y := lerpf(y0, y1, (k + 0.5) / n)
+		var dy := (y1 - y0) / n * 0.22
+		b.quad(Vector3(xo, y - dy, z - d * 0.5), Vector3(xo, y - dy * 0.2, z + d * 0.5), Vector3(xo, y + dy * 1.6, z + d * 0.5), Vector3(xo, y + dy * 0.8, z - d * 0.5), Color(0.04, 0.04, 0.04), Vector3(sx, 0, 0))
+
+## A thin square bar from a to b without end caps (8 triangles), for handrails, grab irons, hangers and rods.
+static func _bar(b: Buf, a: Vector3, c: Vector3, w: float, col: Color) -> void:
+	var z := (c - a).normalized()
+	var x := Vector3.UP.cross(z)
+	if x.length_squared() < 1e-6: x = Vector3.RIGHT.cross(z)
+	x = x.normalized()
+	var y := z.cross(x)
+	var cs: Array[Vector3] = [(x + y) * w * 0.5, (-x + y) * w * 0.5, (-x - y) * w * 0.5, (x - y) * w * 0.5]
+	for k in 4:
+		var p := cs[k]; var q := cs[(k + 1) % 4]
+		b.quad(a + p, a + q, c + q, c + p, col, (p + q).normalized())
+
+## A freight car truck (bogie) without its wheelsets (they are separate meshes, see _tr_wheelset): the classic three-piece
+## truck. Two cast side frames outside the wheels, each a top chord arching over a bottom chord with a window between two
+## columns, where a nest of three coil springs carries the bolster end; the pedestals sit on the roller bearings (whose end
+## caps show outside); a brake beam with its shoes against the treads at each outer side. axles 3 builds the locomotive truck.
 static func _tr_truck(kit: DroneParts.Kit, zc: float, axles: int, spacing: float, r: float) -> void:
+	if axles == 3:
+		_tr_loco_truck(kit, zc)
+		return
 	var pm := _mat("paint")
-	var h := (axles - 1) * spacing * 0.5 + 0.24
+	var b := Buf.new()
+	var a := spacing * 0.5
 	var col := Color(0.15, 0.13, 0.12).lerp(Color(0.32, 0.2, 0.13), 0.35 * NewModels._h(Vector3(zc, 1, 2)))     # some rust
-	var w := 0.42 if axles == 2 else 0.5                                   # half width of the spring window
-	# the top chord runs level through the journals and arches over the window; the bottom chord dips under it
-	var top := PackedVector2Array([Vector2(-h, r - 0.1), Vector2(-h, r + 0.14), Vector2(-w, r + 0.34), Vector2(w, r + 0.34), Vector2(h, r + 0.14), Vector2(h, r - 0.1), Vector2(0, r + 0.12)])
-	var bottom := PackedVector2Array([Vector2(-h + 0.1, r - 0.1), Vector2(-w, r - 0.37), Vector2(w, r - 0.37), Vector2(h - 0.1, r - 0.1), Vector2(w - 0.06, r - 0.22), Vector2(-w + 0.06, r - 0.22)])
+	var w := 0.42                                                         # half width of the spring window
+	var top := PackedVector2Array([Vector2(-a - 0.26, r - 0.08), Vector2(-a - 0.26, r + 0.12), Vector2(-w - 0.12, r + 0.36), Vector2(w + 0.12, r + 0.36), Vector2(a + 0.26, r + 0.12),
+		Vector2(a + 0.26, r - 0.08), Vector2(a - 0.2, r - 0.08), Vector2(w + 0.1, r + 0.17), Vector2(-w - 0.1, r + 0.17), Vector2(-a + 0.2, r - 0.08)])
+	var bottom := PackedVector2Array([Vector2(-a + 0.18, r - 0.05), Vector2(-w - 0.12, r - 0.34), Vector2(w + 0.12, r - 0.34), Vector2(a - 0.18, r - 0.05),
+		Vector2(a - 0.3, r - 0.05), Vector2(w + 0.02, r - 0.2), Vector2(-w - 0.02, r - 0.2), Vector2(-a + 0.3, r - 0.05)])
 	var stand := Transform3D(Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)), Vector3.ZERO)   # (z, y) outline stood up, thickness on x
-	var top_m := DroneParts._apply(DroneParts.extrude(top, -0.09, 0.09), stand)
-	var bot_m := DroneParts._apply(DroneParts.extrude(bottom, -0.08, 0.08), stand)
+	var top_m := DroneParts._apply(DroneParts.extrude(top, -0.07, 0.07), stand)
+	var bot_m := DroneParts._apply(DroneParts.extrude(bottom, -0.065, 0.065), stand)
 	for sx: float in [-1.0, 1.0]:
-		var xs := sx * 0.98
+		var xs := sx * 0.99
 		kit.add(pm, top_m, NewModels._xf(Vector3(xs, 0, zc)), col)
 		kit.add(pm, bot_m, NewModels._xf(Vector3(xs, 0, zc)), col)
-		# the spring nest seen through the window, carrying the bolster end
-		kit.add(pm, DroneParts.tube(Vector3(xs, r - 0.22, zc), Vector3(xs, r + 0.14, zc), 0.14, 0.14, 4), Transform3D.IDENTITY, Color(0.42, 0.33, 0.24))
-	# a brake beam across each outer axle on the inside of the truck, its shoe heads bearing on both treads
-	for k in axles:
-		var az := (k - (axles - 1) * 0.5) * spacing
-		if absf(az) < 0.01: continue
-		var dz := -signf(az)
-		kit.add(pm, NewModels._box(Vector3(1.62, 0.26, 0.09)), Transform3D(Basis(Vector3.RIGHT, -dz * deg_to_rad(15.0)), Vector3(0, r + 0.08, zc + az + dz * (r + 0.03))), Color(0.12, 0.11, 0.1))
-	kit.add(pm, NewModels._box(Vector3(2.1, 0.28, 0.45)), NewModels._xf(Vector3(0, r + 0.2, zc)), col)
-
-static func _tr_couplers(kit: DroneParts.Kit, half: float) -> void:
+		for sz: float in [-1.0, 1.0]:
+			kit.add(pm, NewModels._box(Vector3(0.13, 0.4, 0.1)), NewModels._xf(Vector3(xs, r - 0.02, zc + sz * (w + 0.06))), col)        # window columns
+		for k in 3:
+			_tr_spring(kit, b, xs, zc + (k - 1) * 0.25, r - 0.2, r + 0.02, 0.17, Color(0.36, 0.3, 0.24))
+	# the bolster across, its ends filling the tops of the windows
+	kit.add(pm, NewModels._box(Vector3(2.04, 0.26, 0.62)), NewModels._xf(Vector3(0, r + 0.15, zc)), col.darkened(0.1))
+	# a brake beam across each outer side, its heads and shoes bearing on both treads
 	for sz: float in [-1.0, 1.0]:
-		kit.add(_mat("paint"), NewModels._box(Vector3(0.3, 0.26, 0.7)), NewModels._xf(Vector3(0, 0.87, sz * (half - 0.35))), Color(0.16, 0.15, 0.14))
+		var zs := zc + sz * (a - r - 0.04)
+		kit.add(pm, NewModels._box(Vector3(1.62, 0.1, 0.1)), NewModels._xf(Vector3(0, r + 0.02, zs - sz * 0.06)), Color(0.12, 0.11, 0.1))
+		for sx: float in [-1.0, 1.0]:
+			kit.add(pm, NewModels._box(Vector3(0.11, 0.3, 0.07)), Transform3D(Basis(Vector3.RIGHT, sz * deg_to_rad(12.0)), Vector3(sx * 0.775, r + 0.04, zs)), Color(0.1, 0.09, 0.08))
+	kit.add(pm, b.data())
+
+## The locomotive's three-axle truck (in the manner of an EMD HT-C): a deep cast side frame outside the wheels with a pedestal
+## round each journal box, coil springs either side of each box under spring seats, a brake cylinder on the frame between
+## axles with hangers carrying a shoe on each wheel tread, and a traction motor hung on every axle between the wheels.
+static func _tr_loco_truck(kit: DroneParts.Kit, zc: float) -> void:
+	var pm := _mat("paint")
+	var b := Buf.new()
+	var r := TR_LOCO_WHEEL; var s := TR_LOCO_AXLE
+	var col := Color(0.2, 0.19, 0.18).lerp(Color(0.34, 0.22, 0.14), 0.25)
+	var dark := Color(0.08, 0.08, 0.08)
+	var e := s + 0.55
+	var frame := PackedVector2Array([Vector2(-e, r - 0.04), Vector2(-e, r + 0.1), Vector2(-e + 0.15, r + 0.34), Vector2(e - 0.15, r + 0.34), Vector2(e, r + 0.1), Vector2(e, r - 0.04),
+		Vector2(s + 0.27, r - 0.18), Vector2(s - 0.27, r - 0.18), Vector2(s - 0.42, r + 0.07), Vector2(0.42, r + 0.07), Vector2(0.27, r - 0.18), Vector2(-0.27, r - 0.18),
+		Vector2(-0.42, r + 0.07), Vector2(-s + 0.42, r + 0.07), Vector2(-s + 0.27, r - 0.18), Vector2(-s - 0.27, r - 0.18)])
+	var stand := Transform3D(Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)), Vector3.ZERO)
+	var fm := DroneParts._apply(DroneParts.extrude(frame, -0.08, 0.08), stand)
+	var motor_dir := signf(zc)                                        # motors hung on the side of each axle away from the fuel tank
+	for sx: float in [-1.0, 1.0]:
+		var xf := sx * 1.06
+		kit.add(pm, fm, NewModels._xf(Vector3(xf, 0, zc)), col)
+		for k in 3:
+			var az := zc + (k - 1) * s
+			kit.add(pm, NewModels._box(Vector3(0.2, 0.34, 0.36)), NewModels._xf(Vector3(sx * 1.08, r - 0.02, az)), dark)                  # journal box
+			for sz: float in [-1.0, 1.0]:
+				_tr_spring(kit, b, sx * 1.2, az + sz * 0.27, r - 0.14, r + 0.13, 0.15, Color(0.33, 0.28, 0.22))
+		for k in 2:
+			var bz := zc + (k - 0.5) * s
+			kit.add(pm, NewModels._box(Vector3(0.22, 0.24, 0.3)), NewModels._xf(Vector3(sx * 1.24, r + 0.18, bz)), Color(0.18, 0.17, 0.16))   # brake cylinder
+		_bar(b, Vector3(sx * 1.31, r - 0.1, zc - s - 0.3), Vector3(sx * 1.31, r - 0.1, zc + s + 0.3), 0.035, dark)                     # brake rigging rod
+	for k in 3:
+		var az2 := zc + (k - 1) * s
+		kit.add(pm, DroneParts.tube(Vector3(-0.56, r + 0.02, az2 + motor_dir * 0.44), Vector3(0.56, r + 0.02, az2 + motor_dir * 0.44), 0.35, 0.35, 5), Transform3D.IDENTITY, Color(0.11, 0.11, 0.12))   # traction motor
+	for k in 2:
+		kit.add(pm, NewModels._box(Vector3(2.12, 0.26, 0.42)), NewModels._xf(Vector3(0, r + 0.33, zc + (k - 0.5) * s)), col.darkened(0.1))       # transoms and bolster
+	kit.add(pm, b.data())
+
+## Couplers: a shank from the draft gear, the knuckle head with its knuckle, and the striker casting round the shank.
+static func _tr_couplers(kit: DroneParts.Kit, half: float, striker := true) -> void:
+	var pm := _mat("paint")
+	var dark := Color(0.15, 0.14, 0.13)
+	for sz: float in [-1.0, 1.0]:
+		kit.add(pm, NewModels._box(Vector3(0.16, 0.16, 0.62)), NewModels._xf(Vector3(0, 0.876, sz * (half - 0.5))), dark)
+		kit.add(pm, NewModels._box(Vector3(0.36, 0.3, 0.18)), NewModels._xf(Vector3(0.04, 0.876, sz * (half - 0.15))), dark)
+		kit.add(pm, NewModels._box(Vector3(0.12, 0.26, 0.14)), NewModels._xf(Vector3(-0.1, 0.876, sz * (half - 0.07))), dark)
+		if striker: kit.add(pm, NewModels._box(Vector3(0.5, 0.36, 0.08)), NewModels._xf(Vector3(0, 0.876, sz * (half - 0.66))), Color(0.1, 0.1, 0.1))
 
 ## A hood or cab: a long box with chamfered top corners from z0 to z1, nz bands along it; ys are extra heights on the sides
 ## (for stripes and grilles). Painted by f(p, n). Both ends are closed.
@@ -697,64 +816,201 @@ static func _tr_ladder(b: Buf, base: Vector3, up: Vector3, across: Vector3, n: V
 		var o2 := base + up * ((k + 0.5) / rungs) + n * 0.045
 		b.quad(o2 - upn * 0.5, o2 + across - upn * 0.5, o2 + across + upn * 0.5, o2 + upn * 0.5, col, n)
 
+## The cross-section of a hood or cab: a flat bottom at ya, upright sides, the top corners rounded with radius rr in n steps.
+static func _rrect(hw: float, ya: float, yb: float, rr: float, n: int) -> PackedVector2Array:
+	var prof := PackedVector2Array([Vector2(-hw, ya), Vector2(-hw, ya)])
+	for k in n + 1:
+		var a := PI - PI * 0.5 * k / n
+		prof.append(Vector2(-hw + rr + rr * cos(a), yb - rr + rr * sin(a)))
+	for k in n + 1:
+		var a2 := PI * 0.5 - PI * 0.5 * k / n
+		prof.append(Vector2(hw - rr + rr * cos(a2), yb - rr + rr * sin(a2)))
+	prof.append(Vector2(hw, ya)); prof.append(Vector2(hw, ya))
+	return prof
+
+## Rings of points (all the same length, each going round once) skinned into a smooth shell, the end rings closed flat.
+static func _skin(rows: Array, cap0 := true, cap1 := true) -> Array:
+	var cens: Array[Vector3] = []
+	for rw: PackedVector3Array in rows:
+		var c := Vector3.ZERO
+		for p in rw: c += p
+		cens.append(c / rw.size())
+	var hint := func(i: int, _j: int, p: Vector3) -> Vector3: return p - cens[i]
+	var data := DroneParts.grid(rows, false, true, hint)
+	var pos: PackedVector3Array = data[0]; var nrm: PackedVector3Array = data[1]
+	var dummy := PackedColorArray()
+	for e in 2:
+		if (e == 0 and not cap0) or (e == 1 and not cap1): continue
+		var k := 0 if e == 0 else rows.size() - 1
+		var ring: PackedVector3Array = rows[k]
+		var nb: Vector3 = cens[1] if e == 0 else cens[rows.size() - 2]
+		var n := Vector3.ZERO
+		for q in ring.size():
+			var a := ring[q]; var b := ring[(q + 1) % ring.size()]
+			n += Vector3((a.y - b.y) * (a.z + b.z), (a.z - b.z) * (a.x + b.x), (a.x - b.x) * (a.y + b.y))
+		n = n.normalized()
+		if n.dot(cens[k] - nb) < 0.0: n = -n
+		for q in ring.size():
+			DroneParts._tri(pos, nrm, dummy, cens[k], ring[q], ring[(q + 1) % ring.size()], n, n, n, Color.WHITE, Color.WHITE, Color.WHITE)
+	return [pos, nrm]
+
+## A hood or cab along z: stations [z, half width, bottom y, top y, corner radius, (lean)], each a rounded-top section
+## (_rrect); lean tilts that station's face back by lean m per m of height (the cab front). Ends closed flat.
+static func _rhood(stations: Array, n := 3) -> Array:
+	var rows: Array = []
+	for st: Array in stations:
+		var ya: float = st[2]
+		var lean: float = st[5] if st.size() > 5 else 0.0
+		var row := PackedVector3Array()
+		for q in _rrect(float(st[1]), ya, float(st[3]), float(st[4]), n): row.append(Vector3(q.x, q.y, float(st[0]) + lean * (q.y - ya)))
+		rows.append(row)
+	return _skin(rows)
+
+# A six-axle road-switcher diesel in the manner of an EMD SD40-2 (no real marks): a short low nose with the headlight and
+# number boards, a full-width cab with a raked front, big windows and sun visors, the long hood with the dynamic-brake
+# blister and its fan behind the cab, engine-room doors, the exhaust stack, and the radiator section at the rear with three
+# fans on the roof and grilles along both sides. Walkways with yellow handrails and corner steps, yellow pilots with black
+# hazard stripes round the coupler pockets, ditch lights, a bell and a horn, a fuel tank slung between two three-axle trucks.
+const TR_DECK := 1.6                     # walkway height above the rail
+
 static func _locomotive() -> ArrayMesh:
 	var kit := DroneParts.Kit.new()
 	var pm := _mat("paint"); var gm := _mat("gloss")
 	var I := Transform3D.IDENTITY
-	var deck := 1.62
-	var hood_col := func(p: Vector3, n: Vector3) -> Color:
-		if absf(n.z) > 0.7 and (p.z < -9.9 or p.z > 9.9): return TR_YELLOW                      # the ends, for being seen
-		if absf(n.x) > 0.7 and p.y > 2.45 and p.y < 2.7: return TR_YELLOW                        # the stripe along the side
-		if n.y > 0.8: return TR_BLUE.darkened(0.3)                                                 # the roof
-		if p.z > 6.4 and p.y > 3.25 and absf(n.x) > 0.7: return Color(0.09, 0.09, 0.1)           # radiator grilles
-		return _cell(TR_BLUE, floorf(p.z / 1.03), 0.0, 0.05)                                       # door panels, a shade apart
-	# ---- frame, walkway and the yellow sill stripe
-	kit.add(gm, NewModels._box(Vector3(3.1, 0.42, 20.5)), NewModels._xf(Vector3(0, deck - 0.21, 0)), TR_BLUE.darkened(0.2))
-	for sx: float in [-1.0, 1.0]:
-		kit.add(gm, _beam(Vector3(sx * 1.565, deck - 0.3, -10.25), Vector3(sx * 1.565, deck - 0.3, 10.25), 0.03, 0.14), I, TR_YELLOW)
-	# ---- long hood with fans, the cab, the short nose
-	kit.add(gm, _tr_hood(-4.3, 10.05, 0.98, deck, 4.05, 0.14, 14, [2.45, 2.7, 3.25], hood_col))
-	for fz: float in [7.3, 8.4, 9.45, 0.6]:
-		var fr := 0.42 if fz > 1.0 else 0.6
-		kit.add(pm, DroneParts.lathe(PackedVector2Array([Vector2(0, 4.08), Vector2(fr, 4.08), Vector2(fr + 0.05, 4.04)]), 10), NewModels._xf(Vector3(0, 0, fz)), Color(0.12, 0.12, 0.13))
-	kit.add(pm, NewModels._box(Vector3(0.28, 0.25, 0.6)), NewModels._xf(Vector3(0, 4.15, -2.2)), Color(0.05, 0.05, 0.05))      # exhaust stack
-	var cab_col := func(p: Vector3, n: Vector3) -> Color:
-		if n.y > 0.8: return Color(0.2, 0.2, 0.21)
-		if absf(n.x) > 0.7 and p.y > 2.45 and p.y < 2.7: return TR_YELLOW
-		return TR_BLUE
-	kit.add(gm, _tr_hood(-7.55, -4.3, 1.45, deck, 4.6, 0.2, 2, [2.45, 2.7], cab_col))
-	kit.add(gm, _tr_hood(-10.05, -7.55, 0.98, deck, 3.55, 0.14, 2, [2.45, 2.7], hood_col))
-	var glass := Buf.new()
-	for sx: float in [-1.0, 1.0]:
-		glass.quad(Vector3(sx * 0.12, 3.45, -7.565), Vector3(sx * 1.25, 3.45, -7.565), Vector3(sx * 1.25, 4.25, -7.565), Vector3(sx * 0.12, 4.25, -7.565), Color.WHITE, Vector3(0, 0, -1))
-		glass.quad(Vector3(sx * 1.455, 3.4, -7.3), Vector3(sx * 1.455, 3.4, -5.1), Vector3(sx * 1.455, 4.25, -5.1), Vector3(sx * 1.455, 4.25, -7.3), Color.WHITE, Vector3(sx, 0, 0))
-		glass.quad(Vector3(sx * 1.0, 3.45, -4.29), Vector3(sx * 1.38, 3.45, -4.29), Vector3(sx * 1.38, 4.2, -4.29), Vector3(sx * 1.0, 4.2, -4.29), Color.WHITE, Vector3(0, 0, 1))
-	kit.add(_mat("glass"), glass.data())
-	var lamp := _mat("lamp")
-	kit.add(lamp, NewModels._box(Vector3(0.5, 0.18, 0.06)), NewModels._xf(Vector3(0, 3.3, -10.07)))
-	kit.add(lamp, NewModels._box(Vector3(0.5, 0.18, 0.06)), NewModels._xf(Vector3(0, 3.75, 10.07)))
-	for sx: float in [-1.0, 1.0]:
-		kit.add(lamp, NewModels._box(Vector3(0.2, 0.2, 0.06)), NewModels._xf(Vector3(sx * 1.1, 1.0, -10.6)))       # ditch lights
-	# ---- pilots (yellow), couplers, steps, horn
-	for sz: float in [-1.0, 1.0]:
-		kit.add(gm, NewModels._box(Vector3(3.0, 0.62, 0.3)), NewModels._xf(Vector3(0, 0.88, sz * 10.4), Vector3(sz * 0.25, 0, 0)), TR_YELLOW)
-		for sx: float in [-1.0, 1.0]:
-			kit.add(pm, NewModels._box(Vector3(0.5, 0.7, 0.55)), NewModels._xf(Vector3(sx * 1.3, deck - 0.6, sz * 9.6)), Color(0.12, 0.12, 0.13))
-	_tr_couplers(kit, TR_LOCO * 0.5)
-	kit.add(pm, NewModels._box(Vector3(0.14, 0.16, 0.45)), NewModels._xf(Vector3(0.5, 4.68, -6.0)), Color(0.15, 0.15, 0.16))
-	# ---- fuel tank between the trucks, then the trucks (three axles, 40 inch wheels)
-	kit.add(gm, DroneParts.loft([[-3.7, 0.0, 0.88, 1.12, 0.34], [-3.3, 0.0, 0.85, 1.25, 0.42], [3.3, 0.0, 0.85, 1.25, 0.42], [3.7, 0.0, 0.88, 1.12, 0.34]], 4.0, 12, true), I, Color(0.08, 0.09, 0.12))
-	for zc: float in [-6.35, 6.35]: _tr_truck(kit, zc, 3, 1.65, 0.51)
-	# ---- handrails along the walkways and across the ends
+	var deck := TR_DECK
+	var y0 := deck - 0.01
+	var blue := TR_BLUE
+	var roof := TR_BLUE.darkened(0.3)
+	var black := Color(0.04, 0.04, 0.045)
 	var rail := Color(0.95, 0.76, 0.12)
+	var b := Buf.new()                    # small flat details (paint)
+	var g := Buf.new()                    # flat painted panels and stripes (gloss)
+	var gl := Buf.new()                   # glass
+	var body_col := func(_p: Vector3, n: Vector3) -> Color: return roof if n.y > 0.8 else blue
+	# ---- frame: a deep side sill with a yellow band, the walkway plate, yellow end sills
+	kit.add(gm, NewModels._box(Vector3(3.1, 0.4, 20.62)), NewModels._xf(Vector3(0, deck - 0.24, 0)), blue.darkened(0.2))
+	kit.add(pm, NewModels._box(Vector3(3.14, 0.05, 20.66)), NewModels._xf(Vector3(0, deck - 0.02, 0)), Color(0.24, 0.24, 0.25))
 	for sx: float in [-1.0, 1.0]:
-		var x := sx * 1.48
-		kit.add(pm, _beam(Vector3(x, 2.6, -4.2), Vector3(x, 2.6, 10.0), 0.05, 0.05), I, rail)
-		kit.add(pm, _beam(Vector3(x, 2.6, -10.1), Vector3(x, 2.6, -7.6), 0.05, 0.05), I, rail)
-		for z: float in [-10.1, -7.6, -4.2, 0.9, 5.5, 10.0]:
-			kit.add(pm, _beam(Vector3(x, deck, z), Vector3(x, 2.62, z), 0.05, 0.05), I, rail)
+		var x := sx * 1.553
+		g.quad(Vector3(x, deck - 0.4, -10.31), Vector3(x, deck - 0.4, 10.31), Vector3(x, deck - 0.28, 10.31), Vector3(x, deck - 0.28, -10.31), TR_YELLOW, Vector3(sx, 0, 0))
 	for sz: float in [-1.0, 1.0]:
-		kit.add(pm, _beam(Vector3(-1.48, 2.6, sz * 10.1), Vector3(1.48, 2.6, sz * 10.1), 0.05, 0.05), I, rail)
+		var z := sz * 10.314
+		g.quad(Vector3(-1.55, deck - 0.44, z), Vector3(1.55, deck - 0.44, z), Vector3(1.55, deck - 0.04, z), Vector3(-1.55, deck - 0.04, z), TR_YELLOW, Vector3(0, 0, sz))
+	# ---- long hood: dynamic-brake blister behind the cab, then the engine room and the radiator section; rounded rear end
+	kit.add(gm, NewModels._paint(_rhood([[-5.0, 0.98, y0, 4.2, 0.3], [-2.76, 0.98, y0, 4.2, 0.3], [-2.5, 0.98, y0, 4.0, 0.3],
+		[-2.44, 0.98, y0, 3.98, 0.3], [9.44, 0.98, y0, 3.98, 0.3], [9.66, 0.95, y0, 3.86, 0.36], [9.78, 0.9, y0, 3.7, 0.32]], 3), body_col))
+	# ---- the short hood (low nose), sloping down at the front
+	kit.add(gm, NewModels._paint(_rhood([[-7.45, 0.95, y0, 3.36, 0.24], [-9.36, 0.95, y0, 3.36, 0.24], [-9.62, 0.93, y0, 3.22, 0.3],
+		[-9.76, 0.87, y0, 3.0, 0.28]], 3), body_col))
+	# ---- the cab: full width, the front raked back above the nose
+	var lean := 0.055
+	kit.add(gm, NewModels._paint(_rhood([[-7.62, 1.5, y0, 4.55, 0.4, lean], [-4.95, 1.5, y0, 4.55, 0.4]], 3), body_col))
+	var zf := func(y: float) -> float: return -7.62 + lean * (y - y0) - 0.012
+	var nf := Vector3(0, lean, -1).normalized()
+	for sx: float in [-1.0, 1.0]:
+		var x0 := sx * 0.15; var x1 := sx * 1.3
+		b.quad(Vector3(x0 - sx * 0.03, 3.47, zf.call(3.47) + 0.004), Vector3(x1 + sx * 0.03, 3.47, zf.call(3.47) + 0.004), Vector3(x1 + sx * 0.03, 4.28, zf.call(4.28) + 0.004), Vector3(x0 - sx * 0.03, 4.28, zf.call(4.28) + 0.004), black, nf)
+		gl.quad(Vector3(x0, 3.5, zf.call(3.5)), Vector3(x1, 3.5, zf.call(3.5)), Vector3(x1, 4.25, zf.call(4.25)), Vector3(x0, 4.25, zf.call(4.25)), Color.WHITE, nf)
+		kit.add(pm, _beam(Vector3(sx * 0.1, 4.36, zf.call(4.36) - 0.11), Vector3(sx * 1.36, 4.36, zf.call(4.36) - 0.11), 0.24, 0.025), I, black)   # sun visor
+		# side windows: the big sliding one and the fixed one behind it, rubber surrounds
+		var xw := sx * 1.508
+		for wz: Array in [[-7.3, -6.4], [-6.3, -5.25]]:
+			var za: float = wz[0]; var zb: float = wz[1]
+			b.quad(Vector3(xw, 3.33, za - 0.03), Vector3(xw, 3.33, zb + 0.03), Vector3(xw, 4.17, zb + 0.03), Vector3(xw, 4.17, za - 0.03), black, Vector3(sx, 0, 0))
+			gl.quad(Vector3(xw + sx * 0.003, 3.36, za), Vector3(xw + sx * 0.003, 3.36, zb), Vector3(xw + sx * 0.003, 4.14, zb), Vector3(xw + sx * 0.003, 4.14, za), Color.WHITE, Vector3(sx, 0, 0))
+		gl.quad(Vector3(sx * 1.04, 3.45, -4.945), Vector3(sx * 1.42, 3.45, -4.945), Vector3(sx * 1.42, 4.12, -4.945), Vector3(sx * 1.04, 4.12, -4.945), Color.WHITE, Vector3(0, 0, 1))   # rear cab windows
+	# ---- grilles: radiators along the rear of the hood, the dynamic brake, the engine air filter behind the cab
+	for sx: float in [-1.0, 1.0]:
+		var xg := sx * 0.987
+		for gr: Array in [[6.25, 9.45, 3.2, 3.66, 4, true], [-4.75, -2.95, 3.42, 3.88, 5, false], [-2.3, -0.75, 3.2, 3.62, 4, false]]:
+			var za2: float = gr[0]; var zb2: float = gr[1]; var ya2: float = gr[2]; var yb2: float = gr[3]; var ns: int = gr[4]
+			g.quad(Vector3(xg, ya2, za2), Vector3(xg, ya2, zb2), Vector3(xg, yb2, zb2), Vector3(xg, yb2, za2), Color(0.03, 0.035, 0.05), Vector3(sx, 0, 0))
+			for k in ns:
+				if gr[5]:
+					var yy := lerpf(ya2, yb2, (k + 0.5) / ns)
+					g.quad(Vector3(xg + sx * 0.004, yy - 0.012, za2 + 0.03), Vector3(xg + sx * 0.004, yy - 0.012, zb2 - 0.03), Vector3(xg + sx * 0.004, yy + 0.012, zb2 - 0.03), Vector3(xg + sx * 0.004, yy + 0.012, za2 + 0.03), blue.lightened(0.08), Vector3(sx, 0, 0))
+				else:
+					var zz := lerpf(za2, zb2, (k + 0.5) / ns)
+					g.quad(Vector3(xg + sx * 0.004, ya2 + 0.02, zz - 0.02), Vector3(xg + sx * 0.004, ya2 + 0.02, zz + 0.02), Vector3(xg + sx * 0.004, yb2 - 0.02, zz + 0.02), Vector3(xg + sx * 0.004, yb2 - 0.02, zz - 0.02), blue.lightened(0.08), Vector3(sx, 0, 0))
+		# engine-room doors, each a shade apart, with a louvre over every other one
+		for k in 8:
+			var dz := -0.6 + k * 0.85
+			var dc := blue.lightened(0.05) if k % 2 == 0 else blue.darkened(0.08)
+			g.quad(Vector3(sx * 0.986, 1.84, dz), Vector3(sx * 0.986, 1.84, dz + 0.8), Vector3(sx * 0.986, 3.12, dz + 0.8), Vector3(sx * 0.986, 3.12, dz), dc, Vector3(sx, 0, 0))
+			if k % 4 == 1:
+				g.quad(Vector3(sx * 0.99, 2.8, dz + 0.12), Vector3(sx * 0.99, 2.8, dz + 0.68), Vector3(sx * 0.99, 3.02, dz + 0.68), Vector3(sx * 0.99, 3.02, dz + 0.12), Color(0.04, 0.05, 0.07), Vector3(sx, 0, 0))
+	# ---- roof: radiator fans, the dynamic brake fan, exhaust stack, bell, horn
+	for f: Array in [[6.85, 3.98, 0.56], [8.0, 3.98, 0.56], [9.1, 3.98, 0.52], [-3.85, 4.2, 0.42]]:
+		var fz: float = f[0]; var fy: float = f[1]; var fr: float = f[2]
+		kit.add(pm, DroneParts.lathe(PackedVector2Array([Vector2(0, fy + 0.015), Vector2(fr, fy + 0.015), Vector2(fr + 0.05, fy + 0.07), Vector2(fr + 0.07, fy - 0.01)]), 10), NewModels._xf(Vector3(0, 0, fz)), Color(0.07, 0.07, 0.08))
+		for k in 4:
+			var aa := TAU * k / 4.0 + 0.3
+			var d := Vector3(cos(aa), 0, sin(aa)); var sd := Vector3(-sin(aa), 0, cos(aa))
+			var c := Vector3(0, fy + 0.022, fz)
+			b.quad(c + d * 0.08 - sd * 0.05, c + d * (fr - 0.06) - sd * 0.13, c + d * (fr - 0.06) + sd * 0.1, c + d * 0.08 + sd * 0.05, Color(0.3, 0.3, 0.31), Vector3.UP)
+	kit.add(pm, NewModels._box(Vector3(0.24, 0.2, 0.62)), NewModels._xf(Vector3(0, 4.07, 1.6)), black)                    # exhaust stack
+	kit.add(pm, DroneParts.lathe(PackedVector2Array([Vector2(0, 4.3), Vector2(0.05, 4.29), Vector2(0.1, 4.21), Vector2(0.135, 4.08), Vector2(0.15, 4.04), Vector2(0, 4.04)]), 6), NewModels._xf(Vector3(0.3, 0, -2.1)), Color(0.62, 0.48, 0.2))   # bell
+	kit.add(pm, NewModels._box(Vector3(0.3, 0.08, 0.24)), NewModels._xf(Vector3(0.55, 4.58, -6.0)), black)                # horn: five trumpets on a manifold
+	for hz: Array in [[0.44, -1.0, 0.4], [0.62, -1.0, 0.3], [0.53, 1.0, 0.3]]:
+		var hx: float = hz[0]; var hd: float = hz[1]; var hl: float = hz[2]
+		kit.add(pm, DroneParts.tube(Vector3(hx, 4.66, -6.0 + hd * 0.08), Vector3(hx, 4.66, -6.0 + hd * (0.08 + hl)), 0.022, 0.06, 5), I, Color(0.18, 0.18, 0.19))
+	# ---- headlights and number boards on the nose and on the rear of the long hood, ditch lights on the front pilot
+	var lamp := _mat("lamp")
+	for e: Array in [[-1.0, -9.762, 2.78, 2.72], [1.0, 9.782, 3.32, 3.42]]:
+		var sz2: float = e[0]; var ze: float = e[1]; var hy: float = e[2]; var ny: float = e[3]
+		kit.add(pm, NewModels._box(Vector3(0.56, 0.3, 0.06)), NewModels._xf(Vector3(0, hy, ze + sz2 * 0.025)), black)
+		for sx: float in [-1.0, 1.0]:
+			kit.add(lamp, NewModels._box(Vector3(0.18, 0.18, 0.02)), NewModels._xf(Vector3(sx * 0.13, hy, ze + sz2 * 0.06)))
+			var rot := Basis(Vector3.UP, sx * deg_to_rad(28.0) * sz2)
+			kit.add(pm, NewModels._box(Vector3(0.42, 0.15, 0.02)), Transform3D(rot, Vector3(sx * 0.56, ny, ze) + rot * Vector3(0, 0, sz2 * 0.03)), Color(0.93, 0.93, 0.88))
+	for sx: float in [-1.0, 1.0]:
+		kit.add(pm, NewModels._box(Vector3(0.24, 0.24, 0.14)), NewModels._xf(Vector3(sx * 0.85, deck + 0.17, -10.2)), black)
+		kit.add(lamp, NewModels._box(Vector3(0.16, 0.16, 0.02)), NewModels._xf(Vector3(sx * 0.85, deck + 0.17, -10.275)))
+	# the rear sand box on the back platform
+	kit.add(gm, NewModels._box(Vector3(1.1, 0.48, 0.34)), NewModels._xf(Vector3(0, deck + 0.24, 10.02)), blue)
+	# ---- pilots: yellow, black hazard chevrons, the coupler pocket; air hoses, uncoupling lever
+	for sz: float in [-1.0, 1.0]:
+		var pilot := PackedVector2Array([Vector2(sz * 10.32, deck - 0.44), Vector2(sz * 10.32, 0.74), Vector2(sz * 10.12, 0.3), Vector2(sz * 9.7, 0.3), Vector2(sz * 9.7, deck - 0.44)])
+		kit.add(gm, DroneParts._apply(DroneParts.extrude(pilot, -1.06, 1.06), Transform3D(Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)), Vector3.ZERO)), I, TR_YELLOW)
+		var zs := sz * 10.326
+		var ns2 := Vector3(0, 0, sz)
+		var yt := deck - 0.46; var yb3 := 0.75
+		for sx: float in [-1.0, 1.0]:
+			for k in 4:
+				var ta := k * 0.34; var tb := ta + 0.17
+				var ba := ta + (yt - yb3); var bb := tb + (yt - yb3)
+				if ta >= 1.05: continue
+				var pts: Array[Vector3] = [Vector3(sx * minf(ta, 1.05), yt, zs), Vector3(sx * minf(tb, 1.05), yt, zs), Vector3(sx * minf(bb, 1.05), yb3, zs), Vector3(sx * minf(ba, 1.05), yb3, zs)]
+				g.quad(pts[0], pts[1], pts[2], pts[3], black, ns2)
+		g.quad(Vector3(-0.3, 0.68, zs + sz * 0.004), Vector3(0.3, 0.68, zs + sz * 0.004), Vector3(0.3, 1.08, zs + sz * 0.004), Vector3(-0.3, 1.08, zs + sz * 0.004), Color(0.02, 0.02, 0.02), ns2)
+		for sx: float in [-1.0, 1.0]:
+			_bar(b, Vector3(sx * 0.42, 0.8, sz * 10.34), Vector3(sx * 0.46, 0.5, sz * 10.5), 0.05, Color(0.08, 0.08, 0.08))      # air hoses
+		# corner steps: a yellow outer stringer and two treads under each corner of the walkway
+		for sx: float in [-1.0, 1.0]:
+			kit.add(gm, NewModels._box(Vector3(0.03, 0.86, 0.62)), NewModels._xf(Vector3(sx * 1.535, 0.74, sz * 9.98)), TR_YELLOW)
+			kit.add(pm, NewModels._box(Vector3(0.44, 0.03, 0.28)), NewModels._xf(Vector3(sx * 1.31, 0.68, sz * 9.98)), Color(0.3, 0.3, 0.31))
+	_tr_couplers(kit, TR_LOCO * 0.5, false)
+	# ---- handrails: along both walkways, across the end platforms, grab irons at the steps
+	var hr := deck + 0.95
+	for sx: float in [-1.0, 1.0]:
+		var x2 := sx * 1.5
+		_bar(b, Vector3(x2, hr, -4.85), Vector3(x2, hr, 9.62), 0.045, rail)
+		_bar(b, Vector3(x2, hr, -9.62), Vector3(x2, hr, -7.72), 0.045, rail)
+		for z2: float in [-9.62, -7.72, -4.85, 2.4, 9.62]:
+			_bar(b, Vector3(x2, deck, z2), Vector3(x2, hr + 0.02, z2), 0.045, rail)
+		for sz: float in [-1.0, 1.0]:
+			_bar(b, Vector3(sx * 1.565, 0.5, sz * 10.28), Vector3(sx * 1.565, hr - 0.2, sz * 10.28), 0.04, rail)
+	for sz: float in [-1.0, 1.0]:
+		_bar(b, Vector3(-1.04, hr, sz * 10.24), Vector3(1.04, hr, sz * 10.24), 0.045, rail)
+		for x3: float in [-1.04, 1.04]:
+			_bar(b, Vector3(x3, deck, sz * 10.24), Vector3(x3, hr + 0.02, sz * 10.24), 0.045, rail)
+	# ---- fuel tank slung between the trucks, with its filler and gauge; then the trucks
+	kit.add(gm, DroneParts.loft([[-3.3, 0.0, 0.86, 1.2, 0.26], [-3.18, 0.0, 0.82, 1.36, 0.36], [3.18, 0.0, 0.82, 1.36, 0.36], [3.3, 0.0, 0.86, 1.2, 0.26]], 3.2, 8, true), I, Color(0.05, 0.06, 0.09))
+	kit.add(pm, NewModels._box(Vector3(0.06, 0.16, 0.16)), NewModels._xf(Vector3(1.37, 0.95, 1.4)), Color(0.5, 0.5, 0.5))      # fuel filler
+	for zc: float in TR_LOCO_TRUCKS: _tr_loco_truck(kit, zc)
+	kit.add(gm, g.data())
+	kit.add(pm, b.data())
+	kit.add(_mat("glass"), gl.data())
 	return kit.commit()
 
 static func _boxcar() -> ArrayMesh:
@@ -790,7 +1046,7 @@ static func _boxcar() -> ArrayMesh:
 	kit.add(pm, b.data())
 	kit.add(pm, NewModels._box(Vector3(0.45, 0.45, 2.0 * hz + 0.3)), NewModels._xf(Vector3(0, 1.02, 0)), Color(0.12, 0.11, 0.1))     # centre sill
 	_tr_couplers(kit, TR_CAR * 0.5)
-	for zc: float in [-5.85, 5.85]: _tr_truck(kit, zc, 2, 1.73, 0.46)
+	for zc: float in TR_CAR_TRUCKS: _tr_truck(kit, zc, 2, TR_CAR_AXLE, TR_CAR_WHEEL)
 	return kit.commit()
 
 static func _hopper() -> ArrayMesh:
@@ -822,7 +1078,7 @@ static func _hopper() -> ArrayMesh:
 		_tr_ladder(b, Vector3(-0.6, 1.4, sz * 7.3), Vector3(0, 3.0, 0), Vector3(0.45, 0, 0), Vector3(0, 0, sz), 6, Color(0.3, 0.3, 0.3))
 	kit.add(pm, b.data())
 	_tr_couplers(kit, TR_CAR * 0.5)
-	for zc: float in [-5.85, 5.85]: _tr_truck(kit, zc, 2, 1.73, 0.46)
+	for zc: float in TR_CAR_TRUCKS: _tr_truck(kit, zc, 2, TR_CAR_AXLE, TR_CAR_WHEEL)
 	return kit.commit()
 
 static func _tanker() -> ArrayMesh:
@@ -851,7 +1107,7 @@ static func _tanker() -> ArrayMesh:
 		kit.add(pm, NewModels._box(Vector3(3.0, 0.08, 0.8)), NewModels._xf(Vector3(0, 1.28, sz * 7.7)), Color(0.22, 0.22, 0.22))
 		kit.add(pm, NewModels._box(Vector3(2.4, 0.4, 0.5)), NewModels._xf(Vector3(0, 1.25, sz * 5.85)), Color(0.12, 0.12, 0.12))    # saddle on the bolster
 	_tr_couplers(kit, TR_CAR * 0.5)
-	for zc: float in [-5.85, 5.85]: _tr_truck(kit, zc, 2, 1.73, 0.46)
+	for zc: float in TR_CAR_TRUCKS: _tr_truck(kit, zc, 2, TR_CAR_AXLE, TR_CAR_WHEEL)
 	return kit.commit()
 
 static func _flatcar(loaded: bool) -> ArrayMesh:
@@ -878,7 +1134,7 @@ static func _flatcar(loaded: bool) -> ArrayMesh:
 			kit.add(pm, NewModels._box(Vector3(2.5, 1.0, 4.5)), NewModels._xf(Vector3(0, 1.88, zc)), _cell(Color(0.82, 0.69, 0.48), k, 0.0, 0.08))
 			kit.add(pm, NewModels._box(Vector3(2.5, 1.0, 4.5)), NewModels._xf(Vector3(0, 2.95, zc)), Color(0.86, 0.86, 0.82) if k != 1 else _cell(Color(0.8, 0.67, 0.46), k, 1.0, 0.08))
 	_tr_couplers(kit, TR_CAR * 0.5)
-	for zc: float in [-5.85, 5.85]: _tr_truck(kit, zc, 2, 1.73, 0.46)
+	for zc: float in TR_CAR_TRUCKS: _tr_truck(kit, zc, 2, TR_CAR_AXLE, TR_CAR_WHEEL)
 	return kit.commit()
 
 ## The train: {"locomotive", "boxcar", "hopper", "tanker", "flatcar", "flatcar_empty": ArrayMesh, "car_length", "loco_length",
@@ -897,11 +1153,14 @@ static func freight_train(cars := 12) -> Dictionary:
 	out["car_length"] = TR_CAR; out["loco_length"] = TR_LOCO; out["consist"] = consist; out["gauge"] = TR_GAUGE
 	# the wheelsets, separate so the game can turn them: per vehicle kind the wheelset mesh, the axle centres in that
 	# vehicle's space and the wheel radius; turn each about its own +X by -distance / radius (rolling towards -z).
-	# "mesh_far" is the plain drum for distant cars (swap beyond about 60 m to keep a whole train cheap).
-	var loco_w := {"mesh": _tr_wheelset(TR_LOCO_WHEEL), "mesh_far": _tr_wheelset_far(TR_LOCO_WHEEL), "positions": _tr_axles(TR_LOCO_TRUCKS, 3, 1.65, TR_LOCO_WHEEL), "radius": TR_LOCO_WHEEL}
+	# "mesh" is the close wheelset (under about 25 m), "mesh_mid" a lighter one (to about 80 m) and "mesh_far" two plain
+	# six-sided discs for distant cars, to keep a whole train cheap.
+	var loco_w := {"mesh": _tr_wheelset(TR_LOCO_WHEEL, 2), "mesh_mid": _tr_wheelset(TR_LOCO_WHEEL, 1), "mesh_far": _tr_wheelset(TR_LOCO_WHEEL, 0),
+		"positions": _tr_axles(TR_LOCO_TRUCKS, 3, TR_LOCO_AXLE, TR_LOCO_WHEEL), "radius": TR_LOCO_WHEEL}
 	var wheels := {"locomotive": loco_w}
 	for kind in ["boxcar", "hopper", "tanker", "flatcar", "flatcar_empty"]:
-		wheels[kind] = {"mesh": _tr_wheelset(TR_CAR_WHEEL), "mesh_far": _tr_wheelset_far(TR_CAR_WHEEL), "positions": _tr_axles(TR_CAR_TRUCKS, 2, 1.73, TR_CAR_WHEEL), "radius": TR_CAR_WHEEL}
+		wheels[kind] = {"mesh": _tr_wheelset(TR_CAR_WHEEL, 2), "mesh_mid": _tr_wheelset(TR_CAR_WHEEL, 1), "mesh_far": _tr_wheelset(TR_CAR_WHEEL, 0),
+			"positions": _tr_axles(TR_CAR_TRUCKS, 2, TR_CAR_AXLE, TR_CAR_WHEEL), "radius": TR_CAR_WHEEL}
 	out["wheels"] = wheels
 	out["wheel_axis"] = Vector3.RIGHT
 	return out
@@ -944,12 +1203,91 @@ static func track_section() -> ArrayMesh:
 	return mesh
 
 # ================================================================== aircraft
-# A light single-engine rescue helicopter of the AStar kind: a rounded cabin with a big windscreen and chin windows, a
-# cowling over the engine, a slim tail boom with a stabiliser and end plates, fins above and below, skids, a rescue hoist
-# and a searchlight. White and red, no operator marks. Three main blades 10 m across, a two-bladed tail rotor on the left.
-const HC_ROTOR := Vector3(0.0, 3.3, 0.0)
-const HC_TAIL := Vector3(-0.32, 2.62, 6.95)
+## A shell lofted through sections [z, cx, cy, half width, half height] like DroneParts.loft (squareness e), but with the
+## ring points at the given angles (degrees, 0 = the +x side, 90 = the top), so paint and window edges can follow mesh lines.
+static func _aloft(sections: Array, angles: Array, e := 2.0) -> Array:
+	var rows: Array = []
+	var cens: Array[Vector3] = []
+	var ex := 2.0 / e
+	for s: Array in sections:
+		var r := PackedVector3Array()
+		for ad: float in angles:
+			var a := deg_to_rad(ad)
+			var ca := cos(a); var sa := sin(a)
+			r.append(Vector3(float(s[1]) + float(s[3]) * signf(ca) * pow(absf(ca), ex), float(s[2]) + float(s[4]) * signf(sa) * pow(absf(sa), ex), float(s[0])))
+		rows.append(r); cens.append(Vector3(float(s[1]), float(s[2]), float(s[0])))
+	var hint := func(i: int, _j: int, p: Vector3) -> Vector3:
+		var h := p - cens[i]
+		if h.length_squared() < 1e-14: return Vector3(0, 0, signf(cens[i].z - cens[clampi(i + (1 if i == 0 else -1), 0, cens.size() - 1)].z))
+		return h
+	return DroneParts.grid(rows, false, true, hint)
+
+## The section [cy, half width, half height] of a loft at z, interpolated between its stations (sections as for _aloft).
+static func _sec_at(sections: Array, z: float) -> Vector3:
+	for k in range(1, sections.size()):
+		var s1: Array = sections[k]
+		if z <= float(s1[0]) or k == sections.size() - 1:
+			var s0: Array = sections[k - 1]
+			var t := clampf(inverse_lerp(float(s0[0]), float(s1[0]), z), 0.0, 1.0)
+			return Vector3(lerpf(float(s0[2]), float(s1[2]), t), lerpf(float(s0[3]), float(s1[3]), t), lerpf(float(s0[4]), float(s1[4]), t))
+	return Vector3.ZERO
+
+## A point on an elliptic loft (e = 2) at z and ring angle a (degrees, 0 the side, 90 the top; sx -1 mirrors it to the
+## left), lifted off the surface by `off` (for windows and seams drawn on it).
+static func _on_loft(sections: Array, z: float, a: float, sx: float, off: float) -> Vector3:
+	var s := _sec_at(sections, z)
+	var r := deg_to_rad(a)
+	return Vector3(sx * (s.y + off) * cos(r), s.x + (s.z + off) * sin(r), z)
+
+## Triangles [pos, nrm(, cols)] split by keep(centre) into [kept, rest].
+static func _split(data: Array, keep: Callable) -> Array:
+	var pos: PackedVector3Array = data[0]; var nrm: PackedVector3Array = data[1]
+	var pa := PackedVector3Array(); var na := PackedVector3Array(); var pb := PackedVector3Array(); var nb := PackedVector3Array()
+	for k in range(0, pos.size(), 3):
+		var c := (pos[k] + pos[k + 1] + pos[k + 2]) / 3.0
+		if keep.call(c):
+			pa.append_array([pos[k], pos[k + 1], pos[k + 2]]); na.append_array([nrm[k], nrm[k + 1], nrm[k + 2]])
+		else:
+			pb.append_array([pos[k], pos[k + 1], pos[k + 2]]); nb.append_array([nrm[k], nrm[k + 1], nrm[k + 2]])
+	return [[pa, na], [pb, nb]]
+
+## The same surface seen from inside (windings and normals reversed): cabin linings behind glass.
+static func _inside(data: Array) -> Array:
+	var pos: PackedVector3Array = data[0]; var nrm: PackedVector3Array = data[1]
+	var p2 := PackedVector3Array(); var n2 := PackedVector3Array()
+	for k in range(0, pos.size(), 3):
+		p2.append_array([pos[k], pos[k + 2], pos[k + 1]]); n2.append_array([-nrm[k], -nrm[k + 2], -nrm[k + 1]])
+	return [p2, n2]
+
+## A lifting-surface station [leading edge, chord vector, thickness vector] for a section loop made at 12 % thickness: the
+## chord c along `dir`, the thickness tc along `up`.
+static func _st(le: Vector3, dir: Vector3, up: Vector3, c: float, tc: float) -> Array:
+	return [le, dir.normalized() * c, up.normalized() * c * tc / 0.12]
+
+## See-through glass for the cockpits (the cabin behind it is drawn).
+static func _clear_glass() -> StandardMaterial3D:
+	if _mats.has("clear_glass"): return _mats["clear_glass"]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.1, 0.14, 0.18, 0.42); m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.04; m.metallic = 0.2; m.metallic_specular = 0.9
+	_mats["clear_glass"] = m
+	return m
+
+# A light twin rescue helicopter of the EC135 / BK117 kind: a rounded teardrop cabin with a big wraparound bubble windscreen
+# and chin windows, two pilots in their seats behind an instrument panel (seen through the glass), hinged cockpit doors and a
+# sliding cabin door on its rail, the engine cowling hump with intakes and two exhausts, a slim tail boom with a stabiliser
+# and end plates, the fin with a conventional two-bladed tail rotor on its left, skids on arched cross tubes, a searchlight
+# under the nose and a rescue hoist. Red and white, no operator marks. Four main blades 10.2 m across.
+const HC_ROTOR := Vector3(0.0, 3.38, 0.0)
+const HC_TAIL := Vector3(-0.3, 2.78, 6.72)
+const HC_R := 5.1
+const HC_TR := 0.97
 const SYM4 := [Vector2(0, 0), Vector2(0.3, 0.5), Vector2(1.0, 0.0), Vector2(0.3, -0.5)]
+const HC_BODY := [[-3.95, 0.0, 1.12, 0.0, 0.0], [-3.9, 0.0, 1.12, 0.22, 0.22], [-3.75, 0.0, 1.14, 0.43, 0.45], [-3.55, 0.0, 1.18, 0.58, 0.6],
+	[-3.25, 0.0, 1.24, 0.7, 0.72], [-2.9, 0.0, 1.3, 0.77, 0.8], [-2.55, 0.0, 1.34, 0.8, 0.84], [-2.2, 0.0, 1.36, 0.82, 0.86], [-1.95, 0.0, 1.37, 0.82, 0.87],
+	[-1.85, 0.0, 1.37, 0.82, 0.87], [-0.8, 0.0, 1.39, 0.82, 0.86], [-0.65, 0.0, 1.39, 0.82, 0.86], [0.45, 0.0, 1.42, 0.8, 0.84], [1.1, 0.0, 1.5, 0.72, 0.74],
+	[1.7, 0.0, 1.62, 0.55, 0.58], [2.3, 0.0, 1.78, 0.36, 0.38], [2.9, 0.0, 1.9, 0.22, 0.23], [4.8, 0.0, 1.96, 0.16, 0.17], [6.7, 0.0, 2.0, 0.12, 0.13],
+	[7.0, 0.0, 2.01, 0.1, 0.11], [7.06, 0.0, 2.01, 0.0, 0.0]]
 
 ## The helicopter: {"body", "main_rotor", "rotor_pivot", "tail_rotor", "tail_pivot", "main_spin_sign", "tail_spin_sign",
 ## "rotor_radius", "tail_radius", "length"}. Origin: the ground under the mast, between the skids. The main rotor turns about
@@ -957,114 +1295,334 @@ const SYM4 := [Vector2(0, 0), Vector2(0.3, 0.5), Vector2(1.0, 0.0), Vector2(0.3,
 ## +X at tail_pivot (about 5 times as fast).
 static func helicopter() -> Dictionary:
 	if _cache.has("helicopter"): return _cache["helicopter"]
-	var gm := _mat("gloss")
+	var gm := _mat("gloss"); var pm := _mat("paint")
 	var I := Transform3D.IDENTITY
-	var white := Color(0.94, 0.94, 0.93); var red := Color(0.8, 0.07, 0.06); var win := Color(0.04, 0.06, 0.09); var dark := Color(0.13, 0.13, 0.14)
+	var white := Color(0.94, 0.94, 0.93); var red := Color(0.78, 0.06, 0.06); var dark := Color(0.12, 0.12, 0.13); var grey := Color(0.55, 0.56, 0.58)
 	var kit := DroneParts.Kit.new()
-	var body := [[-3.68, 0.0, 1.3, 0.0, 0.0], [-3.62, 0.0, 1.3, 0.22, 0.25], [-3.45, 0.0, 1.36, 0.48, 0.52], [-3.15, 0.0, 1.45, 0.7, 0.74], [-2.7, 0.0, 1.53, 0.84, 0.86],
-		[-2.25, 0.0, 1.57, 0.89, 0.91], [-1.6, 0.0, 1.59, 0.91, 0.93], [-0.95, 0.0, 1.6, 0.92, 0.93], [-0.75, 0.0, 1.6, 0.92, 0.93], [0.0, 0.0, 1.62, 0.9, 0.92],
-		[0.65, 0.0, 1.66, 0.84, 0.86], [1.25, 0.0, 1.78, 0.66, 0.68], [1.9, 0.0, 1.93, 0.4, 0.43], [2.6, 0.0, 2.02, 0.24, 0.27], [4.6, 0.0, 2.08, 0.18, 0.2],
-		[6.6, 0.0, 2.12, 0.14, 0.16], [7.2, 0.0, 2.14, 0.12, 0.14], [7.25, 0.0, 2.14, 0.0, 0.0]]
-	# Colours are picked by the face's angle round the ring and by the station span it sits in, so whole quads change
-	# colour together and the window edges run along the mesh lines instead of zig-zagging.
+	var b := Buf.new()
+	var loop := NewModels._section(0.12, 0.0, 4)
+	# ---- the body shell: ring points on the window and paint edges, so the glass and the red follow the mesh lines
+	var base := [-90.0, -70.0, -52.0, -36.0, -20.0, -8.0, 0.0, 8.0, 22.0, 36.0, 48.0, 62.0, 76.0, 85.0]
+	var ring: Array = base.duplicate()
+	ring.append(90.0)
+	for k in range(base.size() - 1, 0, -1): ring.append(180.0 - float(base[k]))
+	var elev := func(p: Vector3) -> float:                 # the ring angle (0 the side, 90 the top) of a point on the body
+		var s := _sec_at(HC_BODY, p.z)
+		if s.y < 1e-4 or s.z < 1e-4: return 0.0
+		return rad_to_deg(atan2((p.y - s.x) / s.z, absf(p.x) / s.y))
+	var is_glass := func(p: Vector3) -> bool:
+		var t: float = elev.call(p)
+		if p.z < -1.95 and t > 0.0 and t < 85.0: return true            # the wraparound windscreen
+		if p.z > -3.55 and p.z < -2.55 and t > -52.0 and t < -20.0: return true         # chin windows
+		if p.z > -1.85 and p.z < -0.8 and t > 0.0 and t < 48.0: return true             # cockpit doors
+		if p.z > -0.65 and p.z < 0.45 and t > 8.0 and t < 48.0: return true             # sliding cabin door
+		return false
+	var parts := _split(_aloft(HC_BODY, ring, 2.0), is_glass)
 	var body_col := func(p: Vector3, _n: Vector3) -> Color:
-		var cy := 1.6
-		for k in range(1, body.size()):
-			if p.z <= float(body[k][0]):
-				cy = lerpf(float(body[k - 1][2]), float(body[k][2]), inverse_lerp(float(body[k - 1][0]), float(body[k][0]), p.z)); break
-		var ang := rad_to_deg(atan2(p.y - cy, absf(p.x)))         # 0 at the side, 90 on top, -90 underneath
-		if p.z < -2.25 and ang > 18.0: return win                                                # windscreen
-		if p.z < -2.7 and p.z > -3.5 and ang < -18.0 and ang > -54.0: return win                 # chin windows
-		if ang > 0.0 and ang < 36.0 and ((p.z > -2.25 and p.z < -0.95) or (p.z > -0.75 and p.z < 0.65)): return win   # door windows
-		if ang < 0.0: return red                                                                 # red below the waist, the boom too
-		if p.z > 0.65 and p.z < 1.9 and ang < 18.0: return red
+		var t: float = elev.call(p)
+		if p.z > 2.3: return red if t < 30.0 else white                                 # the boom, red with a white top
+		if t < -8.0: return red                                                          # red below the waist
+		if p.z < -3.75 and t < 0.0: return red                                           # the nose
 		return white
-	kit.add(gm, NewModels._paint(DroneParts.loft(body, 2.3, 20), body_col))
-	var cowl := [[-1.0, 0.0, 2.45, 0.0, 0.0], [-0.85, 0.0, 2.48, 0.35, 0.22], [-0.4, 0.0, 2.55, 0.55, 0.38], [0.6, 0.0, 2.6, 0.55, 0.42], [1.4, 0.0, 2.55, 0.45, 0.32], [2.0, 0.0, 2.3, 0.22, 0.18], [2.15, 0.0, 2.25, 0.0, 0.0]]
-	kit.add(gm, DroneParts.loft(cowl, 3.0, 14), I, white)
+	kit.add(gm, NewModels._paint(parts[1], body_col))
+	kit.add(_clear_glass(), parts[0], I, Color.WHITE)
+	# the cabin lining (seen through the glass) and the cockpit: floor, panel and glare shield, console, seats, two pilots
+	var lining: Array = []
+	for s: Array in HC_BODY:
+		if float(s[0]) <= 0.45: lining.append([s[0], s[1], s[2], maxf(float(s[3]) - 0.04, 0.0), maxf(float(s[4]) - 0.04, 0.0)])
+	kit.add(pm, _inside(DroneParts.loft(lining, 2.0, 14, true)), I, Color(0.2, 0.2, 0.22))
+	kit.add(pm, NewModels._box(Vector3(1.4, 0.06, 4.0)), NewModels._xf(Vector3(0, 0.62, -1.6)), Color(0.16, 0.16, 0.17))
+	kit.add(pm, NewModels._box(Vector3(1.24, 0.36, 0.14)), Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(0, 1.3, -2.95)), Color(0.05, 0.05, 0.06))   # instrument panel
+	kit.add(pm, NewModels._box(Vector3(1.28, 0.05, 0.34)), NewModels._xf(Vector3(0, 1.5, -2.88)), Color(0.08, 0.08, 0.09))                             # glare shield
+	kit.add(pm, NewModels._box(Vector3(0.28, 0.5, 0.7)), NewModels._xf(Vector3(0, 0.9, -2.55)), Color(0.07, 0.07, 0.08))                               # centre console
+	for k in 4:      # screens on the panel
+		kit.add(pm, NewModels._box(Vector3(0.22, 0.17, 0.02)), Transform3D(Basis(Vector3.RIGHT, -0.25), Vector3(-0.45 + k * 0.3, 1.32, -3.03)), Color(0.12, 0.2, 0.28))
+	var suit := Color(0.12, 0.16, 0.22)
 	for sx: float in [-1.0, 1.0]:
-		kit.add(gm, NewModels._box(Vector3(0.05, 0.2, 0.55)), NewModels._xf(Vector3(sx * 0.53, 2.62, -0.2)), dark)        # engine intake grilles
-	kit.add(gm, DroneParts.tube(Vector3(0, 2.9, 0), Vector3(0, HC_ROTOR.y - 0.05, 0), 0.11, 0.1, 8), I, dark)                   # mast
-	kit.add(gm, DroneParts.tube(Vector3(0.28, 2.78, 1.45), Vector3(0.42, 2.82, 2.05), 0.13, 0.14, 8), I, Color(0.22, 0.22, 0.23))   # exhaust
-	# tail: stabiliser with end plates, the upper fin and the ventral fin with its skid
-	var sym := PackedVector2Array(SYM4)
-	kit.add(gm, NewModels._foil([[Vector3(-1.2, 2.13, 5.62), Vector3(0, 0, 0.5), Vector3(0, 0.07, 0)], [Vector3(0, 2.13, 5.52), Vector3(0, 0, 0.6), Vector3(0, 0.08, 0)], [Vector3(1.2, 2.13, 5.62), Vector3(0, 0, 0.5), Vector3(0, 0.07, 0)]], sym), I, white)
+		var x := sx * 0.36
+		kit.add(pm, NewModels._box(Vector3(0.48, 0.1, 0.5)), NewModels._xf(Vector3(x, 0.92, -1.9)), Color(0.1, 0.1, 0.11))                              # seat pan
+		kit.add(pm, NewModels._box(Vector3(0.48, 0.8, 0.1)), Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(x, 1.36, -1.6)), Color(0.1, 0.1, 0.11))     # seat back
+		kit.add(pm, DroneParts.loft([[-0.14, 0.0, 0.0, 0.17, 0.26], [0.0, 0.0, 0.02, 0.21, 0.3], [0.13, 0.0, 0.0, 0.17, 0.26]], 3.0, 8, true), Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(x, 1.3, -1.78)), suit)   # torso
+		kit.add(pm, DroneParts.sphere(0.13, 8), NewModels._xf(Vector3(x, 1.76, -1.84)), Color(0.32, 0.33, 0.35))                                                         # helmet
+		kit.add(pm, NewModels._box(Vector3(0.22, 0.09, 0.05)), NewModels._xf(Vector3(x, 1.75, -1.96)), Color(0.02, 0.02, 0.03))                         # visor
+		for lx: float in [-0.1, 0.1]:
+			_bar(b, Vector3(x + lx, 0.98, -2.0), Vector3(x + lx, 0.98, -2.55), 0.12, suit)                                                             # thighs
+			_bar(b, Vector3(x + lx, 0.98, -2.55), Vector3(x + lx, 0.7, -2.75), 0.1, suit)                                                              # shins
+		_bar(b, Vector3(x + sx * 0.19, 1.48, -1.82), Vector3(x + sx * 0.12, 1.1, -2.2), 0.08, suit)                                                     # arms to the sticks
+		_bar(b, Vector3(x - sx * 0.19, 1.48, -1.82), Vector3(x - sx * 0.2, 1.05, -2.15), 0.08, suit)
+		_bar(b, Vector3(x, 0.72, -2.25), Vector3(x, 1.05, -2.25), 0.035, dark)                                                                         # cyclic
+	kit.add(pm, NewModels._box(Vector3(1.3, 0.1, 0.45)), NewModels._xf(Vector3(0, 0.95, -0.2)), Color(0.15, 0.17, 0.2))     # cabin bench behind the pilots
+	kit.add(pm, NewModels._box(Vector3(1.3, 0.6, 0.1)), NewModels._xf(Vector3(0, 1.3, 0.05)), Color(0.15, 0.17, 0.2))
+	# door seams: the hinged cockpit doors and the sliding cabin door with its rail
+	var seam := Color(0.25, 0.25, 0.27)
 	for sx: float in [-1.0, 1.0]:
-		kit.add(gm, NewModels._foil([[Vector3(sx * 1.22, 1.9, 5.6), Vector3(0, 0, 0.5), Vector3(0.06, 0, 0)], [Vector3(sx * 1.22, 2.45, 5.72), Vector3(0, 0, 0.4), Vector3(0.05, 0, 0)]], sym), I, red)
-	kit.add(gm, NewModels._foil([[Vector3(0, 2.1, 6.3), Vector3(0, 0, 0.9), Vector3(0.14, 0, 0)], [Vector3(0, 3.05, 7.0), Vector3(0, 0, 0.5), Vector3(0.08, 0, 0)]], sym), I, red)
-	kit.add(gm, NewModels._foil([[Vector3(0, 2.1, 6.6), Vector3(0, 0, 0.65), Vector3(0.1, 0, 0)], [Vector3(0, 1.6, 6.95), Vector3(0, 0, 0.4), Vector3(0.06, 0, 0)]], sym), I, red)
-	kit.add(gm, DroneParts.tube(Vector3(0, 1.62, 7.1), Vector3(0, 1.5, 7.45), 0.025, 0.02, 5), I, dark)
-	kit.add(gm, NewModels._box(Vector3(0.22, 0.3, 0.3)), NewModels._xf(Vector3(-0.12, HC_TAIL.y, HC_TAIL.z)), Color(0.5, 0.5, 0.52))   # tail gearbox
-	# skids: two tubes turned up at the front on two bowed cross tubes
-	var skid := Color(0.55, 0.56, 0.58)
+		var ts := [-34.0, -20.0, -8.0, 0.0, 8.0, 22.0, 36.0, 48.0, 56.0]
+		for zs: float in [-1.92, -0.73, 0.52]:
+			for k in ts.size() - 1:
+				var p0 := _on_loft(HC_BODY, zs, float(ts[k]), sx, 0.004); var p1 := _on_loft(HC_BODY, zs, float(ts[k + 1]), sx, 0.004)
+				var nn := Vector3(sx * cos(deg_to_rad(float(ts[k]))), sin(deg_to_rad(float(ts[k]))), 0.0)
+				b.quad(p0 - Vector3(0, 0, 0.012), p0 + Vector3(0, 0, 0.012), p1 + Vector3(0, 0, 0.012), p1 - Vector3(0, 0, 0.012), seam, nn)
+		for zz: Array in [[-1.92, -0.73], [-0.73, 0.52]]:
+			var q0 := _on_loft(HC_BODY, float(zz[0]), 56.0, sx, 0.004); var q1 := _on_loft(HC_BODY, float(zz[1]), 56.0, sx, 0.004)
+			b.quad(q0 - Vector3(0, 0.01, 0), q1 - Vector3(0, 0.01, 0), q1 + Vector3(0, 0.01, 0), q0 + Vector3(0, 0.01, 0), seam, Vector3(sx * 0.56, 0.83, 0))
+		var r0 := _on_loft(HC_BODY, -0.7, -14.0, sx, 0.03); var r1 := _on_loft(HC_BODY, 1.3, -14.0, sx, 0.03)
+		_bar(b, r0, r1, 0.04, grey)                                                                                                                    # door rail
+		_bar(b, _on_loft(HC_BODY, -1.1, 18.0, sx, 0.02), _on_loft(HC_BODY, -0.95, 18.0, sx, 0.02), 0.025, dark)                                         # handles
+		_bar(b, _on_loft(HC_BODY, 0.15, 18.0, sx, 0.02), _on_loft(HC_BODY, 0.35, 18.0, sx, 0.02), 0.025, dark)
+	# ---- engine cowling with intakes and two exhausts, the mast fairing and the mast
+	kit.add(gm, DroneParts.loft([[-1.85, 0.0, 2.2, 0.0, 0.0], [-1.75, 0.0, 2.22, 0.35, 0.18], [-1.4, 0.0, 2.26, 0.58, 0.3], [-0.6, 0.0, 2.3, 0.62, 0.36], [0.6, 0.0, 2.3, 0.62, 0.36],
+		[1.3, 0.0, 2.2, 0.55, 0.3], [1.9, 0.0, 2.05, 0.34, 0.2], [2.1, 0.0, 2.0, 0.0, 0.0]], 3.0, 16), I, white)
 	for sx: float in [-1.0, 1.0]:
-		var pts := [Vector3(sx * 1.1, 0.05, 1.55), Vector3(sx * 1.1, 0.05, -1.6), Vector3(sx * 1.1, 0.12, -2.05), Vector3(sx * 1.1, 0.36, -2.28)]
-		var rr := [0.045, 0.045, 0.045, 0.04]
-		kit.add(gm, NewModels._sweep(pts, rr, rr, 6, Vector3.UP), I, skid)
-	for z: float in [-1.3, 0.9]:
-		var pts2 := [Vector3(-1.1, 0.05, z), Vector3(-1.02, 0.35, z), Vector3(-0.82, 0.66, z), Vector3(-0.4, 0.76, z), Vector3(0.4, 0.76, z), Vector3(0.82, 0.66, z), Vector3(1.02, 0.35, z), Vector3(1.1, 0.05, z)]
+		b.quad(Vector3(sx * 0.633, 2.2, -1.05), Vector3(sx * 0.633, 2.2, -0.2), Vector3(sx * 0.633, 2.44, -0.2), Vector3(sx * 0.633, 2.44, -1.05), Color(0.06, 0.06, 0.07), Vector3(sx, 0, 0))
+		for k in 5:
+			var zg := lerpf(-1.0, -0.25, (k + 0.5) / 5.0)
+			b.quad(Vector3(sx * 0.637, 2.21, zg - 0.015), Vector3(sx * 0.637, 2.21, zg + 0.015), Vector3(sx * 0.637, 2.43, zg + 0.015), Vector3(sx * 0.637, 2.43, zg - 0.015), Color(0.35, 0.35, 0.37), Vector3(sx, 0, 0))
+		kit.add(gm, DroneParts.tube(Vector3(sx * 0.4, 2.42, 1.0), Vector3(sx * 0.58, 2.5, 1.78), 0.13, 0.12, 8), I, Color(0.24, 0.24, 0.25))
+		kit.add(pm, DroneParts.lathe(PackedVector2Array([Vector2(0, 0), Vector2(0.1, 0)]), 8), DroneParts.along(Vector3(sx * 0.58, 2.5, 1.78), Vector3(sx * 0.6, 2.5, 1.9)) * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, 0.001)), Color(0.03, 0.03, 0.03))
+	kit.add(gm, DroneParts.lathe(PackedVector2Array([Vector2(0.0, 3.0), Vector2(0.18, 2.96), Vector2(0.36, 2.82), Vector2(0.46, 2.66), Vector2(0.5, 2.5)]), 14), I, white)
+	kit.add(gm, DroneParts.tube(Vector3(0, 2.95, 0), Vector3(0, HC_ROTOR.y - 0.08, 0), 0.1, 0.09, 8), I, dark)
+	# ---- tail: stabiliser with end plates, the fin and ventral fin, tail skid, tail rotor gearbox
+	var fw := Vector3(0, 0, 1)
+	kit.add(gm, NewModels._foil([_st(Vector3(-1.38, 2.02, 5.08), fw, Vector3.UP, 0.52, 0.12), _st(Vector3(0, 2.02, 4.98), fw, Vector3.UP, 0.64, 0.12), _st(Vector3(1.38, 2.02, 5.08), fw, Vector3.UP, 0.52, 0.12)], loop), I, white)
+	for sx: float in [-1.0, 1.0]:
+		kit.add(gm, NewModels._foil([_st(Vector3(sx * 1.39, 1.78, 5.0), fw, Vector3(sx, 0, 0), 0.62, 0.1), _st(Vector3(sx * 1.39, 2.38, 5.16), fw, Vector3(sx, 0, 0), 0.44, 0.1)], loop), I, red)
+	kit.add(gm, NewModels._foil([_st(Vector3(0, 2.05, 6.12), fw, Vector3(1, 0, 0), 0.9, 0.14), _st(Vector3(0, 2.6, 6.42), fw, Vector3(1, 0, 0), 0.68, 0.13), _st(Vector3(0, 3.22, 6.76), fw, Vector3(1, 0, 0), 0.42, 0.12)], loop), I, red)
+	kit.add(gm, NewModels._foil([_st(Vector3(0, 1.98, 6.4), fw, Vector3(1, 0, 0), 0.62, 0.12), _st(Vector3(0, 1.5, 6.78), fw, Vector3(1, 0, 0), 0.32, 0.12)], loop), I, red)
+	_bar(b, Vector3(0, 1.55, 6.95), Vector3(0, 1.42, 7.2), 0.04, grey)
+	kit.add(gm, NewModels._box(Vector3(0.24, 0.3, 0.32)), NewModels._xf(Vector3(-0.12, HC_TAIL.y, HC_TAIL.z)), grey)
+	# ---- skids on two arched cross tubes, with steps
+	for sx: float in [-1.0, 1.0]:
+		var pts := [Vector3(sx * 1.08, 0.045, 1.65), Vector3(sx * 1.08, 0.045, -1.75), Vector3(sx * 1.08, 0.1, -2.22), Vector3(sx * 1.08, 0.3, -2.46), Vector3(sx * 1.08, 0.5, -2.52)]
+		var rr := [0.045, 0.045, 0.045, 0.042, 0.04]
+		kit.add(gm, NewModels._sweep(pts, rr, rr, 8, Vector3.UP), I, grey)
+		kit.add(pm, NewModels._box(Vector3(0.26, 0.025, 0.42)), NewModels._xf(Vector3(sx * 0.98, 0.32, -1.18)), dark)
+	for z: float in [-1.2, 0.9]:
+		var pts2 := [Vector3(-1.08, 0.045, z), Vector3(-1.04, 0.3, z), Vector3(-0.88, 0.52, z), Vector3(-0.5, 0.6, z), Vector3(0.5, 0.6, z), Vector3(0.88, 0.52, z), Vector3(1.04, 0.3, z), Vector3(1.08, 0.045, z)]
 		var r2: Array = []; r2.resize(pts2.size()); r2.fill(0.045)
-		kit.add(gm, NewModels._sweep(pts2, r2, r2, 6, Vector3(0, 0, 1)), I, skid)
-	# rescue kit: a hoist on an arm over the right door, a searchlight under the nose, antennas
-	kit.add(gm, _beam(Vector3(0.75, 2.45, -1.4), Vector3(1.3, 2.45, -1.4), 0.1, 0.1), I, Color(0.6, 0.6, 0.62))
-	kit.add(gm, DroneParts.rbox(Vector3(0.24, 0.26, 0.42), 5.0, 8), NewModels._xf(Vector3(1.3, 2.33, -1.4)), Color(0.6, 0.6, 0.62))
-	var light := Transform3D(Basis(Vector3.RIGHT, -PI * 0.6), Vector3(0.3, 0.7, -2.55))
-	kit.add(gm, DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, 0.0), Vector2(0.14, 0.0), Vector2(0.14, 0.12), Vector2(0, 0.14)])), 8), light, dark)
-	kit.add(_mat("lamp"), DroneParts.lathe(PackedVector2Array([Vector2(0, -0.005), Vector2(0.12, -0.005)]), 8), light)
-	kit.add(gm, _beam(Vector3(0, 2.5, 1.3), Vector3(0, 2.9, 1.5), 0.03, 0.08), I, dark)
-	kit.add(gm, _beam(Vector3(0, 0.7, -0.5), Vector3(0, 0.45, -0.3), 0.03, 0.08), I, dark)
-	# ---- main rotor: hub, grips and three blades with pale tips; its own mesh, turning about +Y
+		kit.add(gm, NewModels._sweep(pts2, r2, r2, 8, Vector3(0, 0, 1)), I, grey)
+	# ---- searchlight under the nose, the hoist over the right door, antennas and pitot tubes
+	var light := Transform3D(Basis(Vector3.RIGHT, -PI * 0.62), Vector3(0.28, 0.52, -2.9))
+	kit.add(gm, DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, -0.02), Vector2(0.15, -0.02), Vector2(0.15, 0.16), Vector2(0.1, 0.22), Vector2(0, 0.22)])), 12), light, dark)
+	kit.add(_mat("lamp"), DroneParts.lathe(PackedVector2Array([Vector2(0, -0.025), Vector2(0.13, -0.025)]), 12), light)
+	kit.add(gm, NewModels._box(Vector3(0.08, 0.14, 0.08)), NewModels._xf(Vector3(0.28, 0.6, -2.9)), dark)
+	kit.add(gm, _beam(Vector3(0.72, 2.4, -0.25), Vector3(1.28, 2.4, -0.25), 0.1, 0.1), I, grey)
+	kit.add(gm, NewModels._box(Vector3(0.26, 0.3, 0.46)), NewModels._xf(Vector3(1.32, 2.28, -0.25)), grey)
+	_bar(b, Vector3(1.32, 2.12, -0.25), Vector3(1.32, 1.7, -0.25), 0.012, dark)
+	kit.add(gm, NewModels._box(Vector3(0.07, 0.1, 0.07)), NewModels._xf(Vector3(1.32, 1.66, -0.25)), Color(0.85, 0.65, 0.1))
+	kit.add(gm, _beam(Vector3(0, 2.5, 1.4), Vector3(0, 2.88, 1.62), 0.03, 0.08), I, dark)
+	kit.add(gm, _beam(Vector3(0, 0.55, -0.6), Vector3(0, 0.32, -0.4), 0.03, 0.08), I, dark)
+	for sx: float in [-1.0, 1.0]:
+		_bar(b, Vector3(sx * 0.22, 1.62, -3.62), Vector3(sx * 0.22, 1.62, -3.98), 0.025, grey)
+	kit.add(pm, b.data())
+	# ---- main rotor: hub, grips and four blades with a proper aerofoil and a swept tip; its own mesh, turning about +Y
 	var rk := DroneParts.Kit.new()
-	rk.add(gm, DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, -0.1), Vector2(0.28, -0.1), Vector2(0.28, 0.1), Vector2(0.12, 0.2), Vector2(0, 0.24)])), 10), I, Color(0.3, 0.3, 0.32))
-	var blade_col := func(p: Vector3, _n: Vector3) -> Color: return Color(0.9, 0.85, 0.3) if p.x > 4.75 else Color(0.14, 0.14, 0.15)
-	var blade := NewModels._paint(NewModels._foil([[Vector3(0.45, 0.02, 0.12), Vector3(0, 0, -0.3), Vector3(0, 0.035, 0)], [Vector3(4.75, -0.02, 0.12), Vector3(0, 0, -0.3), Vector3(0, 0.03, 0)],
-		[Vector3(5.0, -0.03, 0.1), Vector3(0, 0, -0.26), Vector3(0, 0.025, 0)]], PackedVector2Array(NewModels.LOOP4)), blade_col)
-	for b in 3:
-		var bb := Basis(Vector3.UP, TAU * b / 3.0)
+	rk.add(gm, DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, -0.12), Vector2(0.24, -0.12), Vector2(0.24, 0.06), Vector2(0.14, 0.16), Vector2(0, 0.2)])), 12), I, Color(0.3, 0.3, 0.32))
+	var bl := NewModels._section(0.12, 0.02, 5)
+	var stations: Array = []
+	for bs: Array in [[0.3, 0.16, 10.0, 0.0, 0.3], [0.6, 0.26, 9.5, 0.0, 0.16], [1.0, 0.3, 9.0, 0.0, 0.12], [4.4, 0.3, 4.5, 0.0, 0.12], [4.8, 0.27, 4.0, 0.035, 0.11], [5.03, 0.16, 3.5, 0.12, 0.1], [HC_R, 0.05, 3.5, 0.22, 0.08]]:
+		var x: float = bs[0]; var c: float = bs[1]; var pit := deg_to_rad(float(bs[2]))
+		var d := Vector3(0, -sin(pit), -cos(pit)); var u := Vector3(0, cos(pit), -sin(pit))
+		stations.append(_st(Vector3(x, 0, 0) - d * (0.25 * c - float(bs[3])), d, u, c, float(bs[4])))
+	var blade_col := func(p: Vector3, _n: Vector3) -> Color:
+		if p.x > 4.62 and p.x < 4.85: return Color(0.95, 0.8, 0.15)
+		return Color(0.15, 0.15, 0.16)
+	var blade := NewModels._paint(NewModels._foil(stations, bl), blade_col)
+	for k in 4:
+		var bb := Basis(Vector3.UP, TAU * k / 4.0)
 		rk.add(gm, blade, Transform3D(bb, Vector3.ZERO))
-		rk.add(gm, NewModels._box(Vector3(0.55, 0.12, 0.16)), Transform3D(bb, bb * Vector3(0.4, 0, 0)), Color(0.3, 0.3, 0.32))
+		rk.add(gm, NewModels._box(Vector3(0.5, 0.1, 0.18)), Transform3D(bb, bb * Vector3(0.38, 0, 0)), Color(0.3, 0.3, 0.32))
 	# ---- tail rotor: two blades in the y-z plane, turning about +X
 	var tk := DroneParts.Kit.new()
-	var tblade := NewModels._foil([[Vector3(0, 0.1, 0.06), Vector3(0, 0, -0.14), Vector3(0.02, 0, 0)], [Vector3(0, 0.93, 0.05), Vector3(0, 0, -0.12), Vector3(0.015, 0, 0)]], PackedVector2Array(NewModels.LOOP4))
-	for b in 2:
-		tk.add(gm, tblade, Transform3D(Basis(Vector3.RIGHT, PI * b), Vector3.ZERO), red if b == 0 else white)
+	var tstat: Array = []
+	for ts2: Array in [[0.12, 0.17], [0.85, 0.16], [HC_TR - 0.02, 0.12], [HC_TR, 0.05]]:
+		tstat.append(_st(Vector3(0, float(ts2[0]), 0.06), Vector3(0, 0, -1), Vector3(1, 0, 0), float(ts2[1]), 0.1))
+	var tblade := NewModels._foil(tstat, bl)
+	var tcol := func(p: Vector3, _n: Vector3) -> Color: return red if absf(p.y) > 0.7 or absf(p.y) < 0.4 else white
+	for k in 2:
+		tk.add(gm, NewModels._paint(DroneParts._apply(tblade, Transform3D(Basis(Vector3.RIGHT, PI * k), Vector3.ZERO)), tcol))
 	tk.add(gm, DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, -0.06), Vector2(0.08, -0.06), Vector2(0.08, 0.04), Vector2(0, 0.08)])), 8), Transform3D(Basis(Vector3(0, 0, 1), PI * 0.5), Vector3.ZERO), Color(0.3, 0.3, 0.32))
 	var out := {"body": kit.commit(), "main_rotor": rk.commit(), "rotor_pivot": HC_ROTOR, "tail_rotor": tk.commit(), "tail_pivot": HC_TAIL,
-		"main_spin_sign": -1.0, "tail_spin_sign": 1.0, "rotor_radius": 5.0, "tail_radius": 0.93, "length": 10.93}
+		"main_spin_sign": -1.0, "tail_spin_sign": 1.0, "rotor_radius": HC_R, "tail_radius": HC_TR, "length": 11.12}
 	_cache["helicopter"] = out
 	return out
 
-## A twin-jet narrowbody seen far away (made to read as an airliner when it is 60 px long): 38 m long, 35.8 m span, low
-## swept wings with winglets, two engines under the wings, a tall fin. Plain white, grey belly, a plain dark blue fin, no
-## marks. Origin: the middle of the fuselage at the wing root; nose towards -z.
-static func airliner_far() -> ArrayMesh:
-	if _cache.has("airliner"): return _cache["airliner"]
+# A twin-jet narrowbody of the A320 / 737 class: 38 m long, a round fuselage (3.96 m) with a drooped nose, the six-panel
+# cockpit windscreen, a dark row of cabin windows, a belly fairing; a low wing with 25 degree quarter-chord sweep, 5 degree
+# dihedral, a cranked trailing edge, flap-track fairings and blended winglets; two high-bypass engines under the wings with
+# intake lips, fans, core cowls and exhaust plugs; a swept tailplane and a tall swept fin with its rudder hinge, in a plain
+# blue with a lighter band. White, grey belly, no marks. Origin: the middle of the fuselage at the wing root; nose towards -z.
+const AL_FUS := [[-19.0, 0.0, -0.62, 0.0, 0.0], [-18.93, 0.0, -0.6, 0.24, 0.22], [-18.75, 0.0, -0.55, 0.52, 0.5], [-18.4, 0.0, -0.46, 0.86, 0.86],
+	[-17.9, 0.0, -0.34, 1.2, 1.24], [-17.3, 0.0, -0.22, 1.5, 1.56], [-16.6, 0.0, -0.12, 1.74, 1.8], [-15.8, 0.0, -0.04, 1.9, 1.98], [-14.8, 0.0, 0.0, 1.97, 2.06],
+	[-13.5, 0.0, 0.0, 1.98, 2.07], [8.0, 0.0, 0.0, 1.98, 2.07], [10.5, 0.0, 0.12, 1.9, 1.95], [13.0, 0.0, 0.42, 1.65, 1.6], [15.3, 0.0, 0.82, 1.2, 1.12],
+	[17.2, 0.0, 1.18, 0.72, 0.66], [18.4, 0.0, 1.4, 0.36, 0.33], [18.85, 0.0, 1.48, 0.17, 0.16], [19.0, 0.0, 1.5, 0.0, 0.0]]
+const AL_ENG_X := 5.75
+const AL_SPAN := 33.95
+
+static func _al_le(x: float) -> float: return -4.3 + (x - 1.95) * 0.5095          # leading edge (27 degrees)
+static func _al_te(x: float) -> float: return 2.3 + (x - 1.95) * 0.0575 if x <= 6.3 else 2.55 + (x - 6.3) * 0.197
+static func _al_y(x: float) -> float: return -1.25 + (x - 1.95) * 0.0893           # 5.1 degrees dihedral
+
+## Fin station at height y: the dorsal fillet into a 40 degree leading edge.
+static func _al_fin(y: float) -> Array:
+	var le := 0.0; var c := 0.0
+	if y < 2.7:
+		var t := inverse_lerp(1.6, 2.7, y); le = lerpf(10.2, 11.85, t); c = lerpf(7.8, 5.9, t)
+	else:
+		var t2 := inverse_lerp(2.7, 7.9, y); le = lerpf(11.85, 16.6, t2); c = lerpf(5.9, 2.25, t2)
+	return _st(Vector3(0, y, le), Vector3(0, 0, 1), Vector3(1, 0, 0), c, 0.1)
+
+## The airliner. gear true draws the landing gear down (nose leg and two twin-wheel main legs with their doors).
+## Returns {"mesh": ArrayMesh, "mesh_far": ArrayMesh, "length": 38.0, "wingspan": float, "height": float, "gear": bool}:
+## "mesh" for anything nearer than about 2 km, "mesh_far" (about 300 triangles, gear up) beyond.
+static func airliner_far(gear := false) -> Dictionary:
+	var key := "airliner_%d" % int(gear)
+	if _cache.has(key): return _cache[key]
+	var out := {"mesh": _al_mesh(gear), "mesh_far": _al_far(), "length": 38.0, "wingspan": AL_SPAN, "height": 11.8 if gear else 7.9, "gear": gear}
+	_cache[key] = out
+	return out
+
+static func _al_mesh(gear: bool) -> ArrayMesh:
+	var kit := DroneParts.Kit.new()
+	var pm := _mat("paint"); var gm := _mat("gloss")
+	var I := Transform3D.IDENTITY
+	var white := Color(0.95, 0.95, 0.95); var belly := Color(0.7, 0.72, 0.74); var wingc := Color(0.78, 0.79, 0.81)
+	var fin := Color(0.06, 0.2, 0.46); var band := Color(0.38, 0.66, 0.9)
+	var b := Buf.new()
+	var gl := Buf.new()
+	var loop := NewModels._section(0.12, 0.025, 4)
+	var sym := NewModels._section(0.12, 0.0, 4)
+	# ---- fuselage, belly fairing
+	# ring points on the belly paint line (34 degrees below the side), so the grey belly has a clean edge
+	var fus_col := func(p: Vector3, _n: Vector3) -> Color:
+		var s := _sec_at(AL_FUS, p.z)
+		if s.y < 1e-4: return white
+		return belly if rad_to_deg(atan2((p.y - s.x) / s.z, absf(p.x) / s.y)) < -34.0 else white
+	kit.add(gm, NewModels._paint(_aloft(AL_FUS, [-90.0, -62.0, -34.0, -12.0, 10.0, 32.0, 55.0, 75.0, 90.0, 105.0, 125.0, 148.0, 170.0, 192.0, 214.0, 242.0], 2.0), fus_col))
+	kit.add(gm, DroneParts.loft([[-7.0, 0.0, -1.5, 0.0, 0.0], [-6.3, 0.0, -1.55, 1.2, 0.55], [-4.5, 0.0, -1.62, 1.75, 0.7], [3.5, 0.0, -1.62, 1.8, 0.72], [6.3, 0.0, -1.55, 1.4, 0.55], [7.6, 0.0, -1.4, 0.0, 0.0]], 2.4, 10), I, belly)
+	# ---- cockpit: six windscreen panels on the nose (dark glass), a cabin window row with gaps at the doors and exits, doors
+	var panels := [[[-18.12, 84.0], [-17.55, 36.0], [-17.0, 60.0], [-17.12, 86.0]], [[-17.45, 32.0], [-16.75, 24.0], [-16.6, 50.0], [-16.92, 60.0]],
+		[[-16.65, 23.0], [-16.1, 20.0], [-16.15, 42.0], [-16.5, 48.0]]]
+	for sx: float in [-1.0, 1.0]:
+		for pi in panels.size():
+			var pn: Array = panels[pi]
+			var ns := 3 if pi == 0 else 2           # the big front pane wraps the most, so cut it finer
+			var st := 1.0 / ns
+			var c0: Array = pn[0]; var c1: Array = pn[1]; var c2: Array = pn[2]; var c3: Array = pn[3]
+			for i in ns:
+				for j in ns:
+					var f := func(u: float, v: float) -> Vector3:
+						var zb := lerpf(float(c0[0]), float(c1[0]), u); var ab := lerpf(float(c0[1]), float(c1[1]), u)
+						var zt := lerpf(float(c3[0]), float(c2[0]), u); var at := lerpf(float(c3[1]), float(c2[1]), u)
+						return _on_loft(AL_FUS, lerpf(zb, zt, v), lerpf(ab, at, v), sx, 0.025)
+					var p00: Vector3 = f.call(i * st, j * st); var p10: Vector3 = f.call(i * st + st, j * st)
+					var p11: Vector3 = f.call(i * st + st, j * st + st); var p01: Vector3 = f.call(i * st, j * st + st)
+					var nn := (p10 - p00).cross(p01 - p00).normalized()
+					if nn.dot(Vector3(sx, 0.4, -0.3)) < 0.0: nn = -nn
+					gl.quad(p00, p10, p11, p01, Color.WHITE, nn)
+		for seg: Array in [[-12.9, -2.75], [-1.5, -0.95], [-0.5, 7.5]]:
+			var za: float = seg[0]; var zb2: float = seg[1]
+			var pa := _on_loft(AL_FUS, za, 14.0, sx, 0.012); var pb := _on_loft(AL_FUS, zb2, 14.0, sx, 0.012)
+			var pc := _on_loft(AL_FUS, zb2, 23.5, sx, 0.012); var pd := _on_loft(AL_FUS, za, 23.5, sx, 0.012)
+			b.quad(pa, pb, pc, pd, Color(0.06, 0.07, 0.1), Vector3(sx * 0.95, 0.3, 0))
+		for dr: Array in [[-14.25, -13.4, -28.0, 30.0], [8.1, 8.9, -28.0, 30.0], [-2.5, -1.75, -6.0, 26.0], [-0.85, -0.6, -6.0, 26.0]]:
+			var d0: float = dr[0]; var d1: float = dr[1]; var a0: float = dr[2]; var a1: float = dr[3]
+			for k in 3:
+				var aa := lerpf(a0, a1, k / 3.0); var ab2 := lerpf(a0, a1, (k + 1) / 3.0)
+				b.quad(_on_loft(AL_FUS, d0, aa, sx, 0.008), _on_loft(AL_FUS, d1, aa, sx, 0.008), _on_loft(AL_FUS, d1, ab2, sx, 0.008), _on_loft(AL_FUS, d0, ab2, sx, 0.008), Color(0.8, 0.81, 0.83), Vector3(sx * cos(deg_to_rad(aa)), sin(deg_to_rad(aa)), 0))
+	# ---- wings with winglets, flap-track fairings; pylons and engines
+	var inc := deg_to_rad(2.0)
+	var cv := Vector3(0, -sin(inc), cos(inc))
+	for sx: float in [-1.0, 1.0]:
+		var dih := Basis(Vector3(0, 0, 1), sx * deg_to_rad(5.1))
+		var up := dih * Vector3(0, cos(inc), sin(inc))
+		var wst: Array = []
+		for x: float in [0.6, 1.95, 6.3, 11.0, 16.0, 16.5]:
+			var tc := lerpf(0.15, 0.11, clampf((x - 1.95) / 4.35, 0.0, 1.0)) if x < 6.3 else lerpf(0.11, 0.1, (x - 6.3) / 10.2)
+			wst.append(_st(Vector3(sx * x, _al_y(x), _al_le(x)), cv, up, _al_te(x) - _al_le(x), tc))
+		kit.add(gm, NewModels._foil(wst, loop), I, wingc)
+		var yt := _al_y(16.5)
+		kit.add(gm, NewModels._foil([_st(Vector3(sx * 16.45, yt, _al_le(16.45)), Vector3(0, 0, 1), up, 1.42, 0.1), _st(Vector3(sx * 16.8, yt + 0.3, 3.45), Vector3(0, 0, 1), Vector3(-sx * 0.7, 0.7, 0), 1.08, 0.1),
+			_st(Vector3(sx * 16.95, yt + 2.3, 4.75), Vector3(0, 0, 1), Vector3(-sx, 0.05, 0), 0.45, 0.1)], loop), I, fin)
+		for fx: float in [8.6, 12.6]:
+			var te := _al_te(fx); var fy := _al_y(fx)
+			kit.add(gm, DroneParts.loft([[te - 1.5, sx * fx, fy - 0.12, 0.0, 0.0], [te - 0.8, sx * fx, fy - 0.2, 0.13, 0.18], [te + 0.3, sx * fx, fy - 0.2, 0.12, 0.17], [te + 1.1, sx * fx, fy - 0.08, 0.0, 0.0]], 2.0, 5), I, wingc)
+		kit.add(gm, NewModels._foil([_st(Vector3(sx * AL_ENG_X, -1.25, -4.3), Vector3(0, 0, 1), Vector3(1, 0, 0), 4.7, 0.08), _st(Vector3(sx * AL_ENG_X, -0.98, -2.7), Vector3(0, 0, 1), Vector3(1, 0, 0), 4.2, 0.08)], sym), I, wingc)
+		kit.add(gm, _al_engine(10), Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx * AL_ENG_X, -2.2, -4.85)))
+	# ---- tailplane, fin with a lighter band and the rudder hinge line
+	for sx: float in [-1.0, 1.0]:
+		var tst: Array = []
+		for x: float in [0.3, 1.5, 6.2]:
+			tst.append(_st(Vector3(sx * x, 0.55 + x * 0.105, 13.2 + x * 0.625), Vector3(0, 0, 1), Basis(Vector3(0, 0, 1), sx * deg_to_rad(6.0)) * Vector3.UP, 3.7 - (x - 0.3) * 0.398, 0.1))
+		kit.add(gm, NewModels._foil(tst, sym), I, wingc)
+	var fst: Array = []
+	for y: float in [1.6, 2.7, 3.9, 4.6, 7.9]: fst.append(_al_fin(y))
+	var fin_col := func(p: Vector3, _n: Vector3) -> Color: return band if p.y > 3.9 and p.y < 4.6 else fin
+	kit.add(gm, NewModels._paint(NewModels._foil(fst, sym), fin_col))
+	for k in 4:
+		var ya := lerpf(2.7, 7.9, k / 4.0); var yb := lerpf(2.7, 7.9, (k + 1) / 4.0)
+		var sa: Array = _al_fin(ya); var sb: Array = _al_fin(yb)
+		var ha: Vector3 = (sa[0] as Vector3) + (sa[1] as Vector3) * 0.7; var hb: Vector3 = (sb[0] as Vector3) + (sb[1] as Vector3) * 0.7
+		for sx: float in [-1.0, 1.0]:
+			var oa := Vector3(sx * ((sa[1] as Vector3).length() * 0.035 + 0.006), 0, 0); var ob := Vector3(sx * ((sb[1] as Vector3).length() * 0.035 + 0.006), 0, 0)
+			b.quad(ha + oa - Vector3(0, 0, 0.025), ha + oa + Vector3(0, 0, 0.025), hb + ob + Vector3(0, 0, 0.025), hb + ob - Vector3(0, 0, 0.025), Color(0.03, 0.1, 0.25), Vector3(sx, 0, 0))
+	# ---- the landing gear, down
+	if gear:
+		var tire := DroneParts.lathe(PackedVector2Array([Vector2(0, -0.1), Vector2(0.3, -0.11), Vector2(0.38, 0.0), Vector2(0.3, 0.11), Vector2(0, 0.1)]), 7)
+		var on_x := Basis(Vector3(0, 0, 1), -PI * 0.5)
+		var tcol := Color(0.07, 0.07, 0.07); var leg := Color(0.6, 0.61, 0.63)
+		kit.add(pm, DroneParts.tube(Vector3(0, -1.9, -15.2), Vector3(0, -3.75, -15.3), 0.09, 0.08, 5), I, leg)
+		for sx: float in [-1.0, 1.0]:
+			kit.add(pm, tire, Transform3D(on_x.scaled(Vector3(1, 1, 1)), Vector3(sx * 0.22, -3.79, -15.3)), tcol)
+			kit.add(gm, NewModels._box(Vector3(0.03, 0.55, 1.3)), NewModels._xf(Vector3(sx * 0.4, -2.25, -15.0)), white)
+			var mx := sx * 3.8
+			kit.add(pm, DroneParts.tube(Vector3(mx, -1.35, 0.3), Vector3(mx, -3.55, 0.35), 0.13, 0.12, 5), I, leg)
+			kit.add(pm, _beam(Vector3(mx - 0.5, -3.6, 0.35), Vector3(mx + 0.5, -3.6, 0.35), 0.12, 0.12), I, leg)
+			kit.add(pm, _beam(Vector3(mx, -1.6, 1.3), Vector3(mx, -3.0, 0.4), 0.08, 0.08), I, leg)
+			for wx: float in [-0.42, 0.42]:
+				kit.add(pm, tire, Transform3D(on_x.scaled(Vector3(1.5, 1.5, 1.5)), Vector3(mx + wx, -3.6, 0.35)), tcol)
+			kit.add(gm, NewModels._box(Vector3(0.04, 1.5, 0.9)), Transform3D(Basis(Vector3(0, 0, 1), sx * 0.08), Vector3(sx * 4.18, -2.3, 0.35)), white)
+	kit.add(pm, b.data())
+	kit.add(_mat("glass"), gl.data())
+	return kit.commit()
+
+## An engine nacelle along +Y (rotate onto +Z): spinner and fan face inside the intake, the lip, the fan cowl, the core
+## cowl, the core nozzle and the exhaust plug, 4.45 m long and 2.16 m across.
+static func _al_engine(seg: int) -> Array:
+	var prof := PackedVector2Array([Vector2(0, 0.45), Vector2(0.82, 0.66), Vector2(0.82, 0.66), Vector2(0.86, 0.12), Vector2(0.96, 0.0), Vector2(1.05, 0.08), Vector2(1.08, 0.5),
+		Vector2(1.06, 1.9), Vector2(0.93, 3.0), Vector2(0.93, 3.0), Vector2(0.72, 3.02), Vector2(0.6, 3.65), Vector2(0.48, 3.95), Vector2(0.48, 3.95), Vector2(0.34, 3.98), Vector2(0, 4.45)])
+	var col := func(p: Vector3, n: Vector3) -> Color:
+		var rad := Vector2(p.x, p.z).length()
+		if p.y < 0.67 and rad < 0.83: return Color(0.12, 0.12, 0.13)                  # fan and spinner
+		if p.y < 0.6 and Vector2(n.x, n.z).dot(Vector2(p.x, p.z)) < 0.0: return Color(0.22, 0.22, 0.24)   # inside the intake
+		if p.y < 0.1: return Color(0.78, 0.79, 0.8)                                    # the lip
+		if p.y > 3.96: return Color(0.25, 0.24, 0.23)                                  # plug
+		if p.y > 3.0: return Color(0.55, 0.56, 0.58)                                   # core cowl
+		return Color(0.95, 0.95, 0.95)
+	return NewModels._paint(DroneParts.lathe(prof, seg), col)
+
+## The airliner for beyond about 2 km: the same outline in about 300 triangles, gear up.
+static func _al_far() -> ArrayMesh:
+	if _cache.has("airliner_far_mesh"): return _cache["airliner_far_mesh"]
 	var kit := DroneParts.Kit.new()
 	var pm := _mat("paint")
 	var I := Transform3D.IDENTITY
-	var fus := [[-19.0, 0.0, 0.2, 0.0, 0.0], [-18.7, 0.0, 0.25, 0.6, 0.65], [-17.6, 0.0, 0.12, 1.5, 1.6], [-15.5, 0.0, 0.0, 1.95, 2.0], [10.0, 0.0, 0.1, 1.95, 2.0],
-		[14.5, 0.0, 0.6, 1.3, 1.3], [18.2, 0.0, 1.2, 0.45, 0.45], [19.0, 0.0, 1.3, 0.0, 0.0]]
-	var fus_col := func(p: Vector3, n: Vector3) -> Color:
-		if p.z < -17.0 and p.y > 0.4 and n.y > 0.0: return Color(0.06, 0.07, 0.1)               # cockpit windows
-		if n.y < -0.35: return Color(0.68, 0.7, 0.72)
-		return Color(0.95, 0.95, 0.95)
-	kit.add(pm, NewModels._paint(DroneParts.loft(fus, 2.0, 10), fus_col))
-	var loop := PackedVector2Array(NewModels.LOOP4)
-	var sym := PackedVector2Array(SYM4)
-	var grey := Color(0.75, 0.76, 0.78); var fin := Color(0.1, 0.2, 0.45)
-	var eng := func(p: Vector3, _n: Vector3) -> Color: return Color(0.12, 0.12, 0.13) if p.y < 0.4 else Color(0.9, 0.9, 0.91)
-	var nac := NewModels._paint(DroneParts.lathe(PackedVector2Array([Vector2(0, 0.3), Vector2(0.85, 0.05), Vector2(1.05, 0.5), Vector2(1.0, 2.9), Vector2(0.55, 4.2)]), 8), eng)
+	var fus := [AL_FUS[0], AL_FUS[3], AL_FUS[6], AL_FUS[9], AL_FUS[10], AL_FUS[12], AL_FUS[15], AL_FUS[17]]
+	var fus_col := func(_p: Vector3, n: Vector3) -> Color: return Color(0.7, 0.72, 0.74) if n.y < -0.6 else Color(0.95, 0.95, 0.95)
+	kit.add(pm, NewModels._paint(DroneParts.loft(fus, 2.0, 8), fus_col))
+	var l4 := PackedVector2Array(NewModels.LOOP4); var s4 := PackedVector2Array(SYM4)
+	var grey := Color(0.78, 0.79, 0.81); var fin := Color(0.06, 0.2, 0.46)
 	for sx: float in [-1.0, 1.0]:
-		kit.add(pm, NewModels._foil([[Vector3(sx * 1.5, -1.3, -3.0), Vector3(0, 0, 7.0), Vector3(0, 0.6, 0)], [Vector3(sx * 6.0, -0.95, 0.2), Vector3(0, 0, 4.6), Vector3(0, 0.35, 0)],
-			[Vector3(sx * 17.9, 0.3, 7.2), Vector3(0, 0, 1.5), Vector3(0, 0.12, 0)]], loop), I, grey)
-		kit.add(pm, NewModels._foil([[Vector3(sx * 17.85, 0.3, 7.25), Vector3(0, 0, 1.4), Vector3(sx * 0.08, 0, 0)], [Vector3(sx * 17.95, 2.1, 8.35), Vector3(0, 0, 0.6), Vector3(sx * 0.05, 0, 0)]], sym), I, fin)
-		kit.add(pm, NewModels._foil([[Vector3(sx * 0.5, 1.2, 14.5), Vector3(0, 0, 3.6), Vector3(0, 0.25, 0)], [Vector3(sx * 6.2, 1.6, 17.2), Vector3(0, 0, 1.5), Vector3(0, 0.1, 0)]], sym), I, grey)
-		kit.add(pm, nac, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx * 5.9, -2.15, -6.6)))
-		kit.add(pm, _beam(Vector3(sx * 5.9, -1.35, -4.4), Vector3(sx * 5.9, -1.15, 0.8), 0.25, 0.55), I, grey)
-	kit.add(pm, NewModels._foil([[Vector3(0, 1.4, 12.0), Vector3(0, 0, 5.8), Vector3(0.45, 0, 0)], [Vector3(0, 7.6, 16.3), Vector3(0, 0, 2.5), Vector3(0.2, 0, 0)]], sym), I, fin)
+		kit.add(pm, NewModels._foil([[Vector3(sx * 0.6, _al_y(0.6), _al_le(0.6)), Vector3(0, 0, 7.2), Vector3(0, 0.9, 0)], [Vector3(sx * 6.3, _al_y(6.3), _al_le(6.3)), Vector3(0, 0, 4.6), Vector3(0, 0.45, 0)],
+			[Vector3(sx * 16.5, _al_y(16.5), _al_le(16.5)), Vector3(0, 0, 1.45), Vector3(0, 0.14, 0)]], l4), I, grey)
+		kit.add(pm, NewModels._foil([[Vector3(sx * 16.45, _al_y(16.5), 3.1), Vector3(0, 0, 1.4), Vector3(sx * 0.1, 0, 0)], [Vector3(sx * 16.95, _al_y(16.5) + 2.3, 4.75), Vector3(0, 0, 0.45), Vector3(sx * 0.05, 0, 0)]], s4), I, fin)
+		kit.add(pm, NewModels._foil([[Vector3(sx * 0.3, 0.58, 13.4), Vector3(0, 0, 3.7), Vector3(0, 0.35, 0)], [Vector3(sx * 6.2, 1.2, 16.9), Vector3(0, 0, 1.35), Vector3(0, 0.12, 0)]], s4), I, grey)
+		var eng := DroneParts.lathe(PackedVector2Array([Vector2(0.0, 0.5), Vector2(1.06, 0.3), Vector2(1.0, 2.9), Vector2(0.5, 3.9), Vector2(0, 4.4)]), 6)
+		kit.add(pm, eng, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx * AL_ENG_X, -2.2, -4.85)), Color(0.9, 0.9, 0.91))
+	kit.add(pm, NewModels._foil([[Vector3(0, 1.6, 10.2), Vector3(0, 0, 7.8), Vector3(0.6, 0, 0)], [Vector3(0, 2.7, 11.85), Vector3(0, 0, 5.9), Vector3(0.45, 0, 0)], [Vector3(0, 7.9, 16.6), Vector3(0, 0, 2.25), Vector3(0.2, 0, 0)]], s4), I, fin)
 	var mesh := kit.commit()
-	_cache["airliner"] = mesh
+	_cache["airliner_far_mesh"] = mesh
 	return mesh
+
 
 # ================================================================== kites and a flag
 ## A kite, 1 m across. kind 0: a diamond kite (two colours, bowed cross spar) with a 2.5 m tail of bows; kind 1: a delta
@@ -1134,46 +1692,192 @@ static func kite_line() -> ArrayMesh:
 	_cache["kite_line"] = mesh
 	return mesh
 
-## A 9 m white flagpole with a ball on top, a halyard and a 1.8 x 0.9 m flag. scheme picks a plain colour (0 red, 1 blue,
-## 2 yellow, 3 green; no real flags). Returns {"pole", "cloth", "cloth_origin", "cloth_size"}. The pole's origin is its foot.
-## The cloth is a flat grid of 20 x 12 quads in its own x-y plane: origin at the top of the hoist (where it ties to the
-## halyard), x out along the fly to 1.8, y down to -0.9, normal +Z, double-sided. UV.x runs 0 at the hoist to 1 at the fly
-## and UV.y 0 at the top to 1 at the bottom, so a wind shader can wave it more towards the fly. Place it at cloth_origin and
-## turn the whole flag (pole and cloth) about +Y so +X points downwind.
+## A 9 m flagpole and a 1.8 x 0.9 m flag. Returns {"pole", "cloth", "cloth_origin", "cloth_size", "grid", "schemes"}; the pole's
+## origin is its foot. The pole: a base plate with four bolts and a flash collar, a satin aluminium shaft tapering in three
+## sections with sleeve joints, the truck (cap) with its pulley, a gilded ball finial, the halyard running down both sides of
+## the pulley to a cleat on a plate at 1.2 m.
+## The cloth is a grid of FL_NU x FL_NV quads (40 x 24, plus extra lines at the seams and hems so colour edges stay crisp) in
+## its own x-y plane: origin at the top of the hoist (where it ties to the halyard), x out along the fly to 1.8, y down to
+## -0.9 (with a slight pre-wave droop and ripple, at most 7 cm), normal about +Z, double-sided. UV.x runs 0 at the hoist to 1
+## at the fly and UV.y 0 at the top to 1 at the bottom, so a wind shader can wave it more towards the fly. Along the hoist: a
+## white canvas header with two brass grommets and the hoist rope; a darker hem round the other three edges; stitched seams
+## between the colour panels. Place it at cloth_origin and turn the whole flag (pole and cloth) about +Y so +X points downwind.
+## scheme (none is a real national flag, no text): 0 a horizontal tricolour (plum, gold, teal), 1 an orange cross centred on
+## green, 2 a crimson border round a cream field, 3 a cream disc on maroon, 4 plain red.
+const FL_W := 1.8
+const FL_H := 0.9
+const FL_NU := 40
+const FL_NV := 24
+const FL_HEAD := 0.06                    # the canvas header at the hoist
+const FL_HEM := 0.022
+
+## The design colour at cloth point (x along the fly, y down from the top), metres; header, hems and seams not included.
+static func _fl_field(scheme: int, x: float, y: float) -> Color:
+	match scheme:
+		0:
+			if y < FL_H / 3.0: return Color(0.42, 0.13, 0.36)
+			if y < FL_H * 2.0 / 3.0: return Color(0.95, 0.74, 0.16)
+			return Color(0.0, 0.44, 0.47)
+		1:
+			if absf(x - (FL_HEAD + FL_W) * 0.5) < 0.09 or absf(y - FL_H * 0.5) < 0.09: return Color(0.96, 0.52, 0.08)
+			return Color(0.08, 0.34, 0.2)
+		2:
+			if x - FL_HEAD < 0.13 or x > FL_W - 0.13 or y < 0.13 or y > FL_H - 0.13: return Color(0.62, 0.08, 0.14)
+			return Color(0.94, 0.9, 0.8)
+		3:
+			if Vector2(x - (FL_HEAD + FL_W) * 0.5, y - FL_H * 0.5).length() < 0.25: return Color(0.95, 0.9, 0.76)
+			return Color(0.44, 0.08, 0.13)
+	return Color(0.8, 0.08, 0.07)
+
+## Where a scheme's colour panels meet (stitched seams): [x lines, y lines] in metres.
+static func _fl_seams(scheme: int) -> Array:
+	var span := FL_W - FL_HEAD
+	match scheme:
+		0: return [[], [FL_H / 3.0, FL_H * 2.0 / 3.0]]
+		1: return [[FL_HEAD + span * 0.5 - 0.09, FL_HEAD + span * 0.5 + 0.09], [FL_H * 0.5 - 0.09, FL_H * 0.5 + 0.09]]
+		2: return [[FL_HEAD + 0.13, FL_W - 0.13], [0.13, FL_H - 0.13]]
+	return [[], []]
+
+## The cloth's rest shape: a little droop towards the fly and a gentle ripple. (x, y down) -> position, and the normal.
+static func _fl_rest(x: float, y: float) -> Array:
+	var u := x / FL_W
+	var droop := 0.05 * u * u * (0.6 + 0.4 * y / FL_H)
+	var rz := 0.035 * sin(u * TAU * 1.15 + 0.3) * u
+	var drz := 0.035 * (cos(u * TAU * 1.15 + 0.3) * TAU * 1.15 * u + sin(u * TAU * 1.15 + 0.3)) / FL_W
+	return [Vector3(x, -y - droop, rz), Vector3(-drz, 0, 1).normalized()]
+
 static func flag(scheme := 0) -> Dictionary:
+	scheme = posmod(scheme, 5)
 	var key := "flag_%d" % scheme
 	if _cache.has(key): return _cache[key]
 	var I := Transform3D.IDENTITY
 	var pk := DroneParts.Kit.new()
-	var white := Color(0.92, 0.92, 0.9)
-	pk.add(_mat("sheet"), DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0.16, 0.0), Vector2(0.16, 0.12), Vector2(0.07, 0.16)])), 10), I, Color(0.55, 0.55, 0.53))
-	pk.add(_mat("gloss"), DroneParts.tube(Vector3(0, 0.1, 0), Vector3(0, 8.95, 0), 0.065, 0.04, 8), I, white)
-	pk.add(_mat("gloss"), DroneParts.sphere(0.075, 8), NewModels._xf(Vector3(0, 9.02, 0)), Color(0.85, 0.7, 0.25))
+	var sh := _mat("sheet"); var gm := _mat("gloss")
+	var alu := Color(0.78, 0.79, 0.8); var gold := Color(0.85, 0.66, 0.22); var steel := Color(0.45, 0.46, 0.47)
+	# ---- base plate, bolts, flash collar; the shaft in three tapering sections with sleeve joints
+	pk.add(sh, NewModels._box(Vector3(0.42, 0.025, 0.42)), NewModels._xf(Vector3(0, 0.0125, 0)), steel)
+	for bx: float in [-0.16, 0.16]:
+		for bz: float in [-0.16, 0.16]:
+			pk.add(sh, DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, 0.025), Vector2(0.022, 0.025), Vector2(0.022, 0.045), Vector2(0.01, 0.07), Vector2(0, 0.07)])), 6), NewModels._xf(Vector3(bx, 0, bz)), Color(0.3, 0.3, 0.31))
+	pk.add(sh, DroneParts.lathe(PackedVector2Array([Vector2(0.115, 0.025), Vector2(0.11, 0.06), Vector2(0.075, 0.15), Vector2(0.07, 0.16)]), 16), I, alu)
+	var shaft := DroneParts.crisp(PackedVector2Array([Vector2(0.0, 0.1), Vector2(0.07, 0.1), Vector2(0.066, 3.0), Vector2(0.073, 3.0), Vector2(0.073, 3.1), Vector2(0.058, 3.1),
+		Vector2(0.053, 6.0), Vector2(0.06, 6.0), Vector2(0.06, 6.08), Vector2(0.046, 6.08), Vector2(0.036, 8.9), Vector2(0.0, 8.9)]))
+	pk.add(gm, DroneParts.lathe(shaft, 14), I, alu)
+	# ---- the truck with its pulley, the gilded ball on its neck
+	pk.add(sh, DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, 8.88), Vector2(0.055, 8.88), Vector2(0.06, 8.92), Vector2(0.06, 8.99), Vector2(0.045, 9.01), Vector2(0, 9.01)])), 12), I, steel)
+	var pulley := Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.075, 8.955, 0))
+	pk.add(sh, DroneParts.lathe(DroneParts.crisp(PackedVector2Array([Vector2(0, -0.008), Vector2(0.024, -0.008), Vector2(0.018, 0.0), Vector2(0.024, 0.008), Vector2(0, 0.008)])), 10), pulley, Color(0.6, 0.6, 0.62))
+	pk.add(sh, NewModels._box(Vector3(0.03, 0.05, 0.03)), NewModels._xf(Vector3(0.055, 8.955, 0)), steel)
+	pk.add(gm, DroneParts.lathe(PackedVector2Array([Vector2(0, 9.01), Vector2(0.018, 9.01), Vector2(0.014, 9.04)]), 10), I, gold)
+	pk.add(gm, DroneParts.sphere(0.075, 14), NewModels._xf(Vector3(0, 9.105, 0)), gold)
+	# ---- cleat on its plate, and the halyard down both sides of the pulley, wrapped on the cleat
 	var hb := Buf.new()
-	hb.quad(Vector3(0.05, 1.2, -0.004), Vector3(0.05, 1.2, 0.004), Vector3(0.05, 8.9, 0.004), Vector3(0.05, 8.9, -0.004), Color(0.85, 0.85, 0.85), Vector3(1, 0, 0))
+	var rope := Color(0.88, 0.87, 0.82)
+	pk.add(sh, NewModels._box(Vector3(0.012, 0.26, 0.09)), NewModels._xf(Vector3(0.071, 1.2, 0)), steel)
+	pk.add(sh, NewModels._box(Vector3(0.026, 0.17, 0.026)), NewModels._xf(Vector3(0.098, 1.2, 0)), Color(0.55, 0.56, 0.57))
+	for cy: float in [1.16, 1.24]:
+		pk.add(sh, NewModels._box(Vector3(0.024, 0.02, 0.02)), NewModels._xf(Vector3(0.084, cy, 0)), Color(0.55, 0.56, 0.57))
+	for sx: float in [0.051, 0.099]:
+		_bar(hb, Vector3(sx, 8.955, 0), Vector3(sx, 1.29, 0), 0.007, rope)
+	for k in 3:
+		_bar(hb, Vector3(0.104, 1.28 - k * 0.04, -0.016), Vector3(0.104, 1.24 - k * 0.04, 0.016), 0.008, rope)
+		_bar(hb, Vector3(0.104, 1.28 - k * 0.04, 0.016), Vector3(0.104, 1.24 - k * 0.04, -0.016), 0.008, rope)
 	pk.add(_mat("cloth"), hb.data())
-	pk.add(_mat("sheet"), NewModels._box(Vector3(0.03, 0.15, 0.04)), NewModels._xf(Vector3(0.055, 1.2, 0)), Color(0.4, 0.4, 0.42))   # cleat
-	var colours: Array[Color] = [Color(0.8, 0.08, 0.07), Color(0.08, 0.22, 0.6), Color(0.98, 0.78, 0.1), Color(0.08, 0.48, 0.22)]
-	var col := colours[posmod(scheme, colours.size())]
-	var nu := 20; var nv := 12
-	var w := 1.8; var h := 0.9
+	# ---- the cloth
+	var lx: Array = []
+	for i in FL_NU + 1: lx.append(FL_W * i / FL_NU)
+	var ly: Array = []
+	for j in FL_NV + 1: ly.append(FL_H * j / FL_NV)
+	var seams := _fl_seams(scheme)
+	lx.append_array([FL_HEAD, FL_W - FL_HEM])
+	ly.append_array([FL_HEM, FL_H - FL_HEM])
+	for s: float in seams[0]: lx.append_array([s - 0.005, s + 0.005])
+	for s: float in seams[1]: ly.append_array([s - 0.005, s + 0.005])
+	lx = _fl_lines(lx); ly = _fl_lines(ly)
+	var col_at := func(x: float, y: float) -> Color:
+		if x < FL_HEAD: return Color(0.93, 0.92, 0.88)                                         # canvas header
+		var c := _fl_field(scheme, x, y)
+		var hem := x > FL_W - FL_HEM or y < FL_HEM or y > FL_H - FL_HEM
+		for s: float in seams[0]:
+			if absf(x - s) < 0.005: return c.darkened(0.3)
+		for s: float in seams[1]:
+			if absf(y - s) < 0.005: return c.darkened(0.3)
+		return c.darkened(0.14) if hem else c
 	var v := PackedVector3Array(); var nr := PackedVector3Array(); var cs := PackedColorArray(); var uv := PackedVector2Array(); var idx := PackedInt32Array()
-	for j in nv + 1:
-		for i in nu + 1:
-			v.append(Vector3(w * i / nu, -h * j / nv, 0)); nr.append(Vector3(0, 0, 1)); uv.append(Vector2(float(i) / nu, float(j) / nv))
-			cs.append(white if i == 0 else col)                          # the canvas heading at the hoist
-	for j in nv:
-		for i in nu:
-			var a := j * (nu + 1) + i; var c := a + nu + 1
-			idx.append_array([a, a + 1, c, a + 1, c + 1, c])             # clockwise seen from +Z (Godot's front face)
+	var dc := Vector2((FL_HEAD + FL_W) * 0.5, FL_H * 0.5)
+	for j in ly.size() - 1:
+		for i in lx.size() - 1:
+			var x0: float = lx[i]; var x1: float = lx[i + 1]; var y0: float = ly[j]; var y1: float = ly[j + 1]
+			var n := 1
+			if scheme == 3 and absf(Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5).distance_to(dc) - 0.25) < 0.033: n = 4      # the disc's edge, cut finer so it stays round
+			for sj in n:
+				for si in n:
+					var ax := lerpf(x0, x1, float(si) / n); var bx := lerpf(x0, x1, float(si + 1) / n)
+					var ay := lerpf(y0, y1, float(sj) / n); var by := lerpf(y0, y1, float(sj + 1) / n)
+					var cc: Color = col_at.call((ax + bx) * 0.5, (ay + by) * 0.5)
+					var base := v.size()
+					for q: Vector2 in [Vector2(ax, ay), Vector2(bx, ay), Vector2(ax, by), Vector2(bx, by)]:
+						var rest := _fl_rest(q.x, q.y)
+						v.append(rest[0]); nr.append(rest[1]); uv.append(Vector2(q.x / FL_W, q.y / FL_H)); cs.append(cc)
+					idx.append_array([base, base + 1, base + 2, base + 1, base + 3, base + 2])      # clockwise seen from +Z (Godot's front face)
+	# stitching along the header and the hems: short dark dashes, a line of them just inside each edge
+	var stitch := func(a: Vector2, bb: Vector2, n: int) -> void:
+		for k in n:
+			var p0 := a.lerp(bb, (k + 0.15) / n); var p1 := a.lerp(bb, (k + 0.65) / n)
+			var side := (bb - a).normalized().orthogonal() * 0.0016
+			_fl_quad(v, nr, cs, uv, idx, [p0 - side, p1 - side, p0 + side, p1 + side], Color(0.2, 0.2, 0.2, 1.0), 0.0012)
+	stitch.call(Vector2(FL_HEAD - 0.006, 0.01), Vector2(FL_HEAD - 0.006, FL_H - 0.01), 30)
+	stitch.call(Vector2(FL_HEAD + 0.03, FL_HEM - 0.007), Vector2(FL_W - 0.03, FL_HEM - 0.007), 50)
+	stitch.call(Vector2(FL_HEAD + 0.03, FL_H - FL_HEM + 0.007), Vector2(FL_W - 0.03, FL_H - FL_HEM + 0.007), 50)
+	stitch.call(Vector2(FL_W - FL_HEM + 0.007, 0.03), Vector2(FL_W - FL_HEM + 0.007, FL_H - 0.03), 25)
+	# two brass grommets in the header, front and back, and the hoist rope along the hoist edge with its snap hooks
+	for gy: float in [0.045, FL_H - 0.045]:
+		for k in 10:
+			var a0 := TAU * k / 10.0; var a1 := TAU * (k + 1) / 10.0
+			var o := Vector2(0.03, gy)
+			_fl_quad(v, nr, cs, uv, idx, [o + Vector2(cos(a0), sin(a0)) * 0.008, o + Vector2(cos(a1), sin(a1)) * 0.008, o + Vector2(cos(a0), sin(a0)) * 0.016, o + Vector2(cos(a1), sin(a1)) * 0.016], Color(0.8, 0.62, 0.26), 0.002)
+	var rope_r := 0.006
+	for k in 6:
+		var a2 := TAU * k / 6.0; var a3 := TAU * (k + 1) / 6.0
+		var n0 := Vector3(cos(a2), 0, sin(a2)); var n1 := Vector3(cos(a3), 0, sin(a3))
+		var top := Vector3(-rope_r, 0.07, 0); var bot := Vector3(-rope_r, -FL_H - 0.07, 0)
+		var base2 := v.size()
+		for q2: Array in [[top, n0], [top, n1], [bot, n0], [bot, n1]]:
+			var qp: Vector3 = q2[0]; var qn: Vector3 = q2[1]
+			v.append(qp + qn * rope_r); nr.append(qn); cs.append(Color(0.88, 0.87, 0.82)); uv.append(Vector2(0.0, clampf(-qp.y / FL_H, 0.0, 1.0)))
+		_fl_tri(v, nr, idx, base2, base2 + 1, base2 + 2); _fl_tri(v, nr, idx, base2 + 1, base2 + 3, base2 + 2)
 	var arrays := []; arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = v; arrays[Mesh.ARRAY_NORMAL] = nr; arrays[Mesh.ARRAY_COLOR] = cs; arrays[Mesh.ARRAY_TEX_UV] = uv; arrays[Mesh.ARRAY_INDEX] = idx
 	var cloth := ArrayMesh.new()
 	cloth.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	cloth.surface_set_material(0, _mat("cloth"))
-	var out := {"pole": pk.commit(), "cloth": cloth, "cloth_origin": Vector3(0.07, 8.85, 0), "cloth_size": Vector2(w, h)}
+	var out := {"pole": pk.commit(), "cloth": cloth, "cloth_origin": Vector3(0.075, 8.85, 0), "cloth_size": Vector2(FL_W, FL_H), "grid": Vector2i(FL_NU, FL_NV), "schemes": 5}
 	_cache[key] = out
 	return out
+
+## Grid line positions: sorted, inside the cloth, without near-duplicates.
+static func _fl_lines(a: Array) -> Array:
+	a.sort()
+	var out: Array = []
+	for x: float in a:
+		if out.is_empty() or x - float(out[-1]) > 0.002: out.append(x)
+	return out
+
+## A triangle of the indexed cloth, wound clockwise seen from the side its normals face (Godot's front face).
+static func _fl_tri(v: PackedVector3Array, nr: PackedVector3Array, idx: PackedInt32Array, a: int, b: int, c: int) -> void:
+	if (v[b] - v[a]).cross(v[c] - v[a]).dot(nr[a] + nr[b] + nr[c]) > 0.0: idx.append_array([a, c, b])
+	else: idx.append_array([a, b, c])
+
+## A small flat patch on both faces of the cloth (stitches, grommets): corners [top-left, top-right, bottom-left,
+## bottom-right] in cloth (x, y down), lifted `off` off each face so it follows the cloth (and its UV) when it waves.
+static func _fl_quad(v: PackedVector3Array, nr: PackedVector3Array, cs: PackedColorArray, uv: PackedVector2Array, idx: PackedInt32Array, q: Array, col: Color, off: float) -> void:
+	for side: float in [1.0, -1.0]:
+		var base := v.size()
+		for p: Vector2 in q:
+			var rest := _fl_rest(p.x, p.y)
+			var n: Vector3 = rest[1]
+			v.append((rest[0] as Vector3) + n * off * side); nr.append(n * side); cs.append(col); uv.append(Vector2(p.x / FL_W, p.y / FL_H))
+		_fl_tri(v, nr, idx, base, base + 1, base + 2); _fl_tri(v, nr, idx, base + 1, base + 3, base + 2)
 
 # ================================================================== storm debris and funnels
 ## Six small dark pieces for particles to carry round a tornado, each under 30 triangles, each centred on its origin:
