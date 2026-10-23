@@ -127,9 +127,10 @@ func _cruise_hold(dt: float, bank: float) -> float:
 	var alt := p.y
 	var v_target := 18.0 / sqrt(max(cos(absf(bank)), 0.5))
 	stick_throttle = clampf(0.55 + (v_target - plane.airspeed) * 0.08, 0.35, 0.9)
-	# stall protection: near the stall, nose down hard to regain airspeed instead of holding altitude
-	var stall_guard := clampf((12.0 - plane.airspeed) * 0.08, 0.0, 0.5)
-	return clampf((_cruise_alt - alt) * 0.008 - plane.s[4] * 0.12 - stall_guard, -0.35, 0.15)
+	# stall protection: near the stall, nose down hard to regain airspeed instead of holding altitude.
+	# Two guards: a low-airspeed guard and a direct angle-of-attack guard (the stall is at 12 degrees).
+	var stall_guard := clampf((12.0 - plane.airspeed) * 0.08, 0.0, 0.5) + clampf((plane.alpha - 0.16) * 3.0, 0.0, 0.4)
+	return clampf((_cruise_alt - alt) * 0.008 - plane.s[4] * 0.12 - stall_guard, -0.4, 0.15)
 
 ## RTH: climb to a safe height, fly to home, circle down, belly-land. Called from update() when rth > 0.
 func _rth_step(dt: float) -> void:
