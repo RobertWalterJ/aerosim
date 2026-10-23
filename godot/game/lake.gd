@@ -73,6 +73,7 @@ func build(terrain: Terrain) -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://game/shaders/water.gdshader")
 	mat.set_shader_parameter("uLevel", LEVEL)
+	mat.set_shader_parameter("uHeight", terrain.height_tex)   # session B: depth tint and shore foam read the real ground
 	material_override = mat
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	custom_aabb = AABB(Vector3(-SIZE * 0.5, LEVEL - 2.0, -SIZE * 0.5), Vector3(SIZE, 4.0, SIZE))
