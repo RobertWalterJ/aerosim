@@ -22,6 +22,7 @@ var drone_light := SpotLight3D.new()
 var drone_shadow := DroneShadow.new()
 var env := Environment.new()
 var sky_mat := ShaderMaterial.new()
+var _sky_quality := 1            # cloud quality: 0 low, 1 medium, 2 high (set in _build_world)
 var wx := WeatherSystem.new()
 var rain_fx: GPUParticles3D
 var rain_mat: ParticleProcessMaterial
@@ -311,6 +312,7 @@ func _build_world() -> void:
 	sky_mat.shader = load("res://game/shaders/sky.gdshader")   # weather-driven sky: clear-sky colour, sun, clouds
 	var sky := Sky.new(); sky.sky_material = sky_mat
 	sky.process_mode = Sky.PROCESS_MODE_REALTIME
+	_sky_quality = 0 if (touch_dev or RenderingServer.get_current_rendering_method() == "mobile") else 1   # cheap clouds on phones and the mobile renderer
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
@@ -485,6 +487,8 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sky_mat.set_shader_parameter("flash", storm_flash)
 	var wd := wind.toward()
 	sky_mat.set_shader_parameter("drift", Vector2(wd.x, wd.z) * (0.5 + 0.6 * wind.speed))
+	sky_mat.set_shader_parameter("cam_pos", cam.global_position)   # the volumetric clouds need the camera height
+	sky_mat.set_shader_parameter("cloud_quality", _sky_quality)
 	# fog: thicker and greyer in rain, snow and mist
 	var grey := clampf(float(c["haze"]) * 0.9 + float(c["fog"]) * 0.4, 0.0, 1.0)
 	env.fog_density = 0.00012 * float(c["fogd"])

@@ -10,7 +10,7 @@ Update this in the same commit as any logic change. Realism pass stages are list
 | 1.1 Bloom and glare, 1.2 Colour looks | not started |
 | 1.3 Compression, 1.4 Lens character | not started |
 | 2.1 Contact shadows, 2.2 Cheap GI | not started |
-| 2.3 Volumetric light, 2.4 Sky clouds | not started |
+| 2.3 Volumetric light, 2.4 Sky clouds | 2.4 S1 volumetric cumulus done on lane/sky (2026-10-23); 2.3 not started |
 | 2.5 Water | not started |
 | 3.1 Trees | done on lane/trees, merged into main 2026-10-23 |
 | 3.2 Far hills forest, 3.3 Grass and ground | built on lane/ground (2026-10-23), gate green, awaiting the owner's look review (questions G1 to G6) |
@@ -82,3 +82,22 @@ Owner's aim: in strong, gusty wind the drone visibly and audibly works harder, w
 - **Not verified**: a real phone (only the Mobile renderer and Simple mode on this PC); rotor wash on the new trees (same code as before, not filmed).
 - **Request (ground and stone lane)**: `assets/textures/*.jpg` from earlier stages import uncompressed and without mipmaps, because `*.import` is gitignored and Godot's "detect 3D" never runs headless. Committing their `.import` files with `compress/mode=2` and `mipmaps/generate=true` (as done for the bark) would cut phone memory and distant shimmer.
 - **Taste questions** (choices made, can be changed in `TREE_INFO`, `_species`, `BARK`, `LEAF`): see the trees lane report; recorded here in short: species mix near the start pad (now more oak and beech on open lawn), spruce darkness (tint 0.15), how glowing golden-hour crowns should be (translucency 1.2 to 1.6), birch and poplar colours (gold rather than lemon), leaf size (about 15 cm on the cards).
+
+## Sky and clouds (SPEC-SKY-CLOUDS S1..S7, lane/sky, 2026-10-23)
+
+Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_shadow.gdshaderinc` (cloud part), the sky/weather block in `game/main.gd` (`_build_world` sky setup, `_apply_weather_state`). `game/weather.gd` keeps its public interface; fields are added, never renamed.
+
+### S1 volumetric cumulus (done, gate green)
+- `sky.gdshader` raymarches a cumulus slab (base 1500 m, top 3500 m, `CBASE`/`CTHICK`) instead of the flat 2D plane. Density = normalised 3D fbm coverage remapped by `cover` (lower threshold = fuller sky) minus a height gradient (flat-ish base, rounded tops), with base erosion for ragged undersides. Lighting: Beer-Lambert single scatter with a powder term, a sun-direction light march (self-shadowing and silver lining), warm sun colour at low sun, blue sky fill in shade, `dark` greying toward storm.
+- New uniforms: `cam_pos` (vec3, the render camera position, set every frame in `_apply_weather_state`) and `cloud_quality` (int 0/1/2: 4/8/12 steps, 0/2/3 light steps, 2/4/5 octaves). Desktop defaults to 1 (medium); touch devices and `--rendering-method mobile` default to 0 (low) in `_build_world`.
+- Clouds drift with the wind (`drift`, about 4 m/s per unit of menu wind) and morph slowly with time.
+- Frame time (same 150 m partly-cloudy shot, `--print-fps`, last 4 s): before about 49-54 fps, after about 50-56 fps, so no measurable regression (shared-GPU noise is about 5 fps; budget under 1.5 ms holds).
+- Evidence: `docs/realism/sky/before/*.jpg` and `docs/realism/sky/s1/*.jpg` (clear toward and away from the sun, partly, overcast, storm, sunset toward and away, 20 m, night). Mean abs diff vs before: clear 1.3-2.4 grey levels (nearly unchanged), partly 8.7, overcast 8.6, storm 10.4 (darker), sunset 1.3-3.3, night 4.2.
+- Not verified: the look (this model cannot view images), the phone (S23), and cloud-shadow alignment (that is S4).
+- Taste questions for Claude and the owner:
+  - S1. Cloud height (base 1500 m, top 3500 m): too high and far, or right for a drone at 20 to 150 m?
+  - S2. Cloud size (about 950 m per noise cell, so clouds about 1 to 2 km wide): right, bigger, smaller?
+  - S3. Cloud brightness and contrast (lit tops near white, shaded bases blue-grey): right, brighter, darker?
+  - S4. Storm darkness (storm clouds are now clearly darker than overcast): right amount, too dark, not dark enough?
+  - S5. Cloud drift speed (about 4 m/s for each unit of menu wind): right, faster, slower?
+  - S6. At medium quality (8 steps) the clouds may show faint stepping or banding. Acceptable, or should desktop default to high (12 steps)?

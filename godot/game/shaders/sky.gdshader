@@ -1,7 +1,7 @@
 // A weather-driven sky: analytic clear-sky colour from the sun's height (zenith blue, horizon haze, sunset warmth),
-// Mie glow around the sun, a sun disc that clouds can hide, and two procedural cloud layers: puffy low cumulus that
-// thickens into overcast and storm cloud, and thin high cirrus. Cloud cover, darkness, haze and fog come from the
-// current weather, so the sky always matches the light on the ground.
+// Mie glow around the sun, a sun disc that clouds can hide, raymarched volumetric cumulus with lit edges and shaded
+// undersides, thin high cirrus, night (stars, Milky Way, moon disc with phase), and lightning flash. Cloud cover,
+// darkness, haze and fog come from the current weather, so the sky always matches the light on the ground.
 shader_type sky;
 
 uniform vec3 sun_dir = vec3(0.0, 0.5, -0.8);   // unit vector towards the sun
@@ -10,10 +10,12 @@ uniform float dark : hint_range(0.0, 1.0) = 0.0;      // 0 white cloud .. 1 stor
 uniform float cirrus : hint_range(0.0, 1.0) = 0.3;
 uniform float haze : hint_range(0.0, 1.0) = 0.2;      // dust and moisture: washes out the blue
 uniform float fog : hint_range(0.0, 1.0) = 0.0;       // ground fog: the whole lower sky goes milky
-uniform vec2 drift = vec2(0.6, 0.2);                  // cloud movement in noise units per second
+uniform vec2 drift = vec2(0.6, 0.2);                  // cloud movement in metres per second (wind)
 uniform float flash : hint_range(0.0, 1.0) = 0.0;     // lightning
 uniform vec3 moon_dir = vec3(0.0, -1.0, 0.0);          // unit vector towards the moon
 uniform float moon_illum : hint_range(0.0, 1.0) = 0.5; // fraction of the moon's face that is lit
+uniform vec3 cam_pos = vec3(0.0, 100.0, 0.0);         // camera world position (for the cloud raymarch)
+uniform int cloud_quality = 1;                        // 0 low, 1 medium, 2 high
 
 float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 float vnoise(vec3 p) {
@@ -23,16 +25,89 @@ float vnoise(vec3 p) {
 }
 float fbm(vec3 p) { float s = 0.0; float a = 0.5; for (int i = 0; i < 5; i++) { s += a * vnoise(p); p = p * 2.07 + vec3(11.3, 5.7, 3.1); a *= 0.5; } return s; }
 
-// density of a low cloud layer at a point on the cloud plane
-float cumulus(vec2 q, float t) {
-	vec3 p = vec3(q * 0.9 + drift * t * 0.05, t * 0.02);
-	float base = fbm(p);
-	float detail = fbm(p * 3.1 + 7.0);
-	float shape = base * 0.78 + detail * 0.22;
-	// coverage remaps the noise: more cover lowers the threshold, and overcast fills the gaps
-	float thr = mix(0.78, 0.30, cover);
-	float d = smoothstep(thr, thr + 0.18 + 0.25 * cover, shape);
-	return clamp(d + smoothstep(0.75, 1.0, cover) * 0.8, 0.0, 1.0);
+// normalised fbm with a runtime octave cap (constant loop bound for the GPU)
+float fbmn(vec3 p, int oct) {
+	float s = 0.0; float a = 0.5; float tot = 0.0;
+	for (int i = 0; i < 5; i++) {
+		if (i >= oct) break;
+		s += a * vnoise(p); tot += a;
+		p = p * 2.07 + vec3(11.3, 5.7, 3.1); a *= 0.5;
+	}
+	return s / max(tot, 1e-4);
+}
+
+// ------------------------------------------------------------------ volumetric cumulus
+const float CBASE = 1500.0;    // cloud base, world metres
+const float CTHICK = 2000.0;   // slab thickness, so the top is 3500 m
+const float CLOUD_SPEED = 4.0; // wind-to-cloud drift (clouds move faster aloft)
+
+float cloud_density(vec3 p, float t) {
+	float h = (p.y - CBASE) / CTHICK;
+	if (h < 0.0 || h > 1.0) return 0.0;
+	vec2 w = p.xz - drift * t * CLOUD_SPEED;
+	vec3 q = vec3(w * (1.0 / 950.0), t * 0.002);   // about 950 m per noise cell, slow morph
+	int oct = 5; if (cloud_quality == 1) oct = 4; else if (cloud_quality == 0) oct = 2;
+	float shape = fbmn(q, oct) * 0.72 + fbmn(q * 3.1 + 7.0, oct) * 0.28;
+	// coverage: more cover lowers the noise threshold, so the sky fills in
+	float lo = 1.0 - cover;
+	float cov = clamp((shape - lo) / max(cover, 1e-3), 0.0, 1.0);
+	// flat-ish base, rounded tops: density where the coverage exceeds the height
+	float d = cov - h;
+	// ragged undersides
+	d -= fbmn(q * 2.4 + 13.0, oct) * 0.16 * (1.0 - smoothstep(0.0, 0.4, h));
+	d = smoothstep(0.0, 0.26, d);
+	return clamp(d, 0.0, 1.0);
+}
+
+// how much direct sun reaches a point in the cloud (0 shaded .. 1 lit)
+float cloud_light(vec3 p, vec3 sd, int lsteps, float t) {
+	float h = (p.y - CBASE) / CTHICK;
+	if (lsteps <= 0) {
+		// phones fake the light with the height gradient (bases darker, tops lighter)
+		return 0.30 + 0.70 * smoothstep(0.0, 0.6, h);
+	}
+	float tau = 0.0; float ld = 0.0;
+	const float LST = 70.0;
+	for (int i = 0; i < 4; i++) {
+		if (i >= lsteps) break;
+		ld += LST;
+		tau += cloud_density(p + sd * ld, t);
+	}
+	return exp(-tau * 1.1);
+}
+
+// raymarch the slab: returns rgb (scattered light, HDR) and a (coverage 0..1)
+vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, int steps, int lsteps) {
+	if (rd.y < 0.02) return vec4(0.0);
+	float tb = (CBASE - ro.y) / rd.y;
+	float tt = (CBASE + CTHICK - ro.y) / rd.y;
+	if (tt < 0.0) return vec4(0.0);
+	float t0 = max(tb, 0.0);
+	float t1 = min(tt, 30000.0);   // distant clouds fade into the haze
+	if (t0 >= t1) return vec4(0.0);
+	float dt = (t1 - t0) / float(max(steps, 1));
+	float step_t = t0 + dt * 0.5;
+	vec3 acc = vec3(0.0);
+	float trans = 1.0;
+	const float SIGMA = 0.0033;
+	for (int i = 0; i < 12; i++) {
+		if (i >= steps) break;
+		vec3 p = ro + rd * step_t;
+		float dens = cloud_density(p, t);
+		if (dens > 0.0015) {
+			float light = cloud_light(p, sun_dir, lsteps, t);
+			float powder = 1.0 - exp(-dens * 2.0);
+			vec3 lc = sun_c * light + fill;                        // sun plus blue sky fill in the shade
+			lc = mix(lc, grey * (0.4 + 0.6 * light), dark);        // storm greys and darkens the shade
+			vec3 sc = lc + sun_c * powder * light * 1.1;           // silver lining on lit edges
+			float step_ext = exp(-dens * dt * SIGMA);
+			acc += sc * trans * (1.0 - step_ext);
+			trans *= step_ext;
+		}
+		if (trans < 0.02) break;
+		step_t += dt;
+	}
+	return vec4(acc, 1.0 - trans);
 }
 
 void sky() {
@@ -69,7 +144,6 @@ void sky() {
 	vec3 night_extra = vec3(0.0);
 	float moon_up = smoothstep(-0.08, 0.04, moon_dir.y);
 	if (night > 0.01) {
-		// stars: a jittered point in each cell of a fine grid on the sphere, each with its own brightness and twinkle
 		vec3 sp = dir * 90.0;
 		vec3 cell = floor(sp);
 		vec3 fp = fract(sp) - 0.5;
@@ -81,13 +155,10 @@ void sky() {
 		vec3 starc = mix(vec3(0.75, 0.85, 1.0), vec3(1.0, 0.88, 0.7), fract(h * 91.7));
 		float hide = smoothstep(0.0, 0.1, dir.y) * (1.0 - 0.9 * haze) * (1.0 - fog) * (1.0 - 0.8 * moon_illum * moon_up);
 		night_extra += starc * star * mag * tw * hide * 1.6;
-		// the faint band of the Milky Way
 		float band = exp(-pow(dot(dir, normalize(vec3(0.3, 0.8, -0.5))) * 4.0, 2.0));
 		night_extra += vec3(0.30, 0.34, 0.46) * band * (0.25 + 0.75 * fbm(dir * 7.0)) * 0.05 * hide;
-		// moonlight lifts the whole sky a little
 		col += vec3(0.0035, 0.0055, 0.012) * moon_illum * moon_up * night * (1.0 - 0.5 * up);
 		float mu_m = dot(dir, moon_dir);
-		// the disc, drawn a little larger than life so it reads on a small screen
 		float rad = 0.02;
 		float ang = acos(clamp(mu_m, -1.0, 1.0));
 		if (ang < rad * 1.25 && moon_dir.y > -0.08) {
@@ -112,32 +183,31 @@ void sky() {
 		night_extra += vec3(0.55, 0.65, 1.0) * (pow(max(mu_m, 0.0), 220.0) * 0.12 + pow(max(mu_m, 0.0), 24.0) * 0.012) * moon_illum * moon_up;
 		night_extra *= night;
 	}
-	// ---- clouds on a plane above the viewer
+	// ---- volumetric clouds
+	vec3 sun_c = mix(vec3(1.0, 1.0, 1.0), vec3(1.0, 0.60, 0.34), warm * day) * day;
+	vec3 fill = mix(vec3(0.03, 0.04, 0.07), vec3(0.30, 0.42, 0.62), day) * (0.4 + 0.6 * day);
+	vec3 grey = mix(vec3(0.30, 0.32, 0.36), vec3(0.09, 0.10, 0.14), dark);
+	vec3 cloud_col = vec3(0.0);
 	float cloud_a = 0.0;
-	vec3 cloud_col = vec3(1.0);
-	if (dir.y > 0.01 && (cover > 0.02 || cirrus > 0.02)) {
-		float horizon_fade = smoothstep(0.01, 0.22, dir.y);
-		vec2 q = dir.xz / (dir.y + 0.12);
-		float d = cumulus(q, TIME) * horizon_fade;
-		// light: compare with a point nudged towards the sun; thick cloud towards the sun is shaded
-		vec2 toward = normalize(sun_dir.xz + vec2(1e-3)) * 0.12;
-		float d2 = cumulus(q + toward, TIME);
-		float shade = clamp(1.0 - 0.75 * d2 * d, 0.0, 1.0);
-		vec3 lit = mix(vec3(0.55, 0.60, 0.70), vec3(1.0, 0.98, 0.95), day) * (0.35 + 0.9 * shade);
-		lit = mix(lit, vec3(1.0, 0.72, 0.5) * (0.4 + 0.8 * shade), warm * day * 0.7);
-		vec3 grey = mix(vec3(0.30, 0.32, 0.36), vec3(0.12, 0.13, 0.16), dark) * (0.35 + 0.65 * day);
-		cloud_col = mix(lit, grey, clamp(dark + 0.55 * cover * d2, 0.0, 1.0));
-		cloud_a = d * (1.0 - 0.15 * (1.0 - cover));
-		// thin high cirrus: stretched streaks
-		vec2 cq = dir.xz / (dir.y + 0.35);
-		float ci = fbm(vec3(cq.x * 0.6 + drift.x * TIME * 0.01, cq.y * 3.2, 1.7));
-		ci = smoothstep(0.55, 0.85, ci) * cirrus * (1.0 - cloud_a) * smoothstep(0.02, 0.25, dir.y) * (1.0 - 0.7 * dark);
-		cloud_col = mix(cloud_col, mix(vec3(0.85, 0.88, 0.95), vec3(1.0, 0.8, 0.6), warm * day), ci / max(cloud_a + ci, 1e-3));
-		cloud_a = clamp(cloud_a + ci * 0.7, 0.0, 1.0);
+	if (dir.y > 0.005 && cover > 0.01) {
+		int steps = 12; int lsteps = 3;
+		if (cloud_quality <= 0) { steps = 4; lsteps = 0; }
+		else if (cloud_quality == 1) { steps = 8; lsteps = 2; }
+		vec4 mc = march_clouds(cam_pos, dir, sun_c, fill, grey, TIME, steps, lsteps);
+		cloud_col = mc.rgb;
+		cloud_a = clamp(mc.a, 0.0, 1.0) * smoothstep(0.005, 0.05, dir.y);
+		// thin high cirrus
+		if (cirrus > 0.02) {
+			vec2 cq = dir.xz / (dir.y + 0.35);
+			float ci = fbm(vec3(cq.x * 0.6 + drift.x * TIME * 0.01, cq.y * 3.2, 1.7));
+			ci = smoothstep(0.55, 0.85, ci) * cirrus * (1.0 - cloud_a) * smoothstep(0.02, 0.25, dir.y) * (1.0 - 0.7 * dark);
+			cloud_col = mix(cloud_col, mix(vec3(0.85, 0.88, 0.95), vec3(1.0, 0.8, 0.6), warm * day), ci / max(cloud_a + ci, 1e-3));
+			cloud_a = clamp(cloud_a + ci * 0.7, 0.0, 1.0);
+		}
 	}
 	// the sun is hidden by cloud
 	vec3 sky_col = col + vec3(1.0, 0.95, 0.85) * disc * (1.0 - cloud_a) + night_extra * (1.0 - cloud_a);
-	sky_col = mix(sky_col, cloud_col * (0.9 + 0.5 * day), cloud_a);
+	sky_col = mix(sky_col, cloud_col, cloud_a);
 	// below the horizon: ground haze colour
 	if (dir.y < 0.0) {
 		vec3 g = mix(vec3(0.08, 0.09, 0.08), vec3(0.30, 0.31, 0.26), day);

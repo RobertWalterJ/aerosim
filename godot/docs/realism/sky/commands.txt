@@ -1,0 +1,23 @@
+Sky lane screenshot commands (run from the godot folder; one Godot window at a time, always close it).
+
+Binary: C:\Users\Robert Walter-Joseph\Documents\RWJ Coding Projects\_tools\godot-4.7.2\Godot_v4.7.2-stable_win64_console.exe
+Form: <godot> --path . -- "shot=<png>,300,fpv,<tokens>"    (save JPEGs under 400 KB afterwards)
+
+S1 volumetric cumulus. Before images: docs/realism/sky/before/. After: docs/realism/sky/s1/.
+  clear_toward:   sky0,clock16.0,date3,facesun,at-18_150_36_190_-20
+  clear_away:     sky0,clock16.0,date3,at-18_150_36_90_-20
+  partly:         sky1,clock16.0,date3,at-18_150_36_190_-20
+  overcast:       sky2,clock16.0,date3,at-18_150_36_190_-20
+  storm:          sky5,clock16.0,date3,at-18_150_36_190_-20
+  sunset_toward:  sky0,clock18.6,date3,facesun,at-18_150_36_190_-20
+  sunset_away:    sky0,clock18.6,date3,at-18_150_36_90_-20
+  clear_20m:      sky0,clock16.0,date3,facesun,at-18_20_36_190_-20
+  night:          sky0,clock23.0,date3,at-18_150_36_190_-20
+
+Tokens: sky0..6 (clear, partly, overcast, fog, rain, storm, snow), clock<hour>, date1..4 (season),
+facesun (point the camera at the sun), at<x>_<height above ground>_<z>_<yaw>_<gimbal>, simple, drone<id>, cd<m>.
+
+Frame time: add --print-fps before the -- and read the "Project FPS" lines over the last 4 s.
+Look change: python tools\look_metrics.py before.png after.png
+
+S1 result (150 m partly-cloudy shot, last 4 s): before about 49-54 fps, after about 50-56 fps (no regression).
