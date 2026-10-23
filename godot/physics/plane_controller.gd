@@ -38,6 +38,9 @@ func reset_state() -> void:
 	_i_pitch = 0.0; _i_bank = 0.0; _cruise_i = 0.0; _cruise_set = false
 	_launch_t = 3.0   # hold a gentle climb after a hand launch until the sticks take over
 
+func set_ground_roll() -> void:
+	_launch_t = 0.0   # ground-roll launch: no auto-climb, the pilot throttles up from the grass
+
 func set_step(_dt: float) -> void:
 	pass
 

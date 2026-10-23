@@ -595,13 +595,22 @@ func spawn() -> void:
 	quad.reset(home.x, y, home.y, deg_to_rad(150.0))
 	if airframe_id == "wing":
 		# hand launch: 3 m up, 10 m/s along the nose, nose up 10 degrees; the controller climbs gently for 3 s
+		# ground roll: on the grass, nose level, no speed; the pilot throttles up to lift off
 		var hd := deg_to_rad(150.0)
-		var ql := Quaternion(Vector3.UP, hd) * Quaternion(Vector3.RIGHT, deg_to_rad(10.0))
-		quad.s[1] = terrain.height(home.x, home.y) + 3.0
-		quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
-		var fwd := ql * Vector3(0, 0, -1)
-		quad.s[3] = fwd.x * 10.0; quad.s[4] = fwd.y * 10.0; quad.s[5] = fwd.z * 10.0
+		if hud and hud.plane_launch == 1:
+			var ql := Quaternion(Vector3.UP, hd)
+			quad.s[1] = terrain.height(home.x, home.y) + 0.2
+			quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
+			quad.s[3] = 0.0; quad.s[4] = 0.0; quad.s[5] = 0.0
+		else:
+			var ql := Quaternion(Vector3.UP, hd) * Quaternion(Vector3.RIGHT, deg_to_rad(10.0))
+			quad.s[1] = terrain.height(home.x, home.y) + 3.0
+			quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
+			var fwd := ql * Vector3(0, 0, -1)
+			quad.s[3] = fwd.x * 10.0; quad.s[4] = fwd.y * 10.0; quad.s[5] = fwd.z * 10.0
 	fc.reset_state(); fc.mode = hud.mode if hud else "N"; fc.heading = deg_to_rad(150.0)
+	if airframe_id == "wing" and hud and hud.plane_launch == 1:
+		fc.set_ground_roll()
 	_cam_yaw = deg_to_rad(150.0)
 	_apply_pose()
 	drone_node.reset_physics_interpolation()
