@@ -247,6 +247,9 @@ void sky() {
 	// brighten toward the sun (forward scattering), so the sky and the far hills share one haze colour
 	vec3 milk = haze_col * (1.15 + 0.7 * pow(max(mu, 0.0), 3.0) * day);
 	col = mix(col, milk, clamp(haze * 0.6 + fog * (0.55 + 0.45 * (1.0 - up)), 0.0, 1.0));
+	// smoke haze at sunset: a warm brown haze low in the sky while the sun is low
+	float smoke = warm * day * (1.0 - up) * (0.5 + 0.5 * pow(max(mu, 0.0), 2.0));
+	col = mix(col, vec3(0.55, 0.40, 0.28), smoke * 0.22);
 	// Mie glow and sun disc
 	float glow = pow(max(mu, 0.0), 6.0) * 0.35 + pow(max(mu, 0.0), 64.0) * 0.8;
 	col += vec3(1.0, 0.82, 0.58) * glow * day * (1.0 - 0.8 * cover);
