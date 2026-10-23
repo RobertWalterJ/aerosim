@@ -117,7 +117,7 @@ func _cruise_hold(dt: float) -> float:
 	# pitch holds altitude, throttle holds airspeed (the classic split, which also damps the phugoid)
 	var p := plane.position()
 	var alt := p.y
-	stick_throttle = clampf(0.5 + (15.0 - plane.airspeed) * 0.08, 0.3, 0.8)
+	stick_throttle = clampf(0.55 + (18.0 - plane.airspeed) * 0.08, 0.35, 0.85)
 	return clampf((_cruise_alt - alt) * 0.015 - plane.s[4] * 0.04, -0.15, 0.15)
 
 ## RTH: climb to a safe height, fly to home, circle down, belly-land. Called from update() when rth > 0.
