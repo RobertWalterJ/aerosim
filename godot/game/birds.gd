@@ -289,12 +289,29 @@ func _update_gulls(delta: float, drone: Vector3, windv: Vector3, weather_k: floa
 			_audio.gull_at(p)
 	_write_kind("gull", thr)
 
+## Circle centres of thermals (game/weather_events.gd B3). While this is not empty the hawks circle these instead of the
+## old sound-only circles, so the birds and the rising air agree.
+var thermal_centres: Array[Vector3] = []
+
 func _update_hawks(delta: float, drone: Vector3, windv: Vector3, show: bool) -> void:
 	var birds: Array = _birds["hawk"]
 	if not show:
 		_write_kind("hawk", 0)
 		return
-	# the hawks soar on the same circles the sound code has always used (drone_audio "_soarers")
+	if not thermal_centres.is_empty():
+		# the hawks ride the thermals: one hawk per column (two columns, two hawks), a slow circle with a little bob
+		for i in mini(birds.size(), thermal_centres.size()):
+			var b: Dictionary = birds[i]
+			var c: Vector3 = thermal_centres[i]
+			var ang: float = _t * 0.16 + float(i) * 2.0
+			var px := c.x + cos(ang) * 46.0
+			var pz := c.z + sin(ang) * 46.0
+			var p := Vector3(px, c.y - 60.0 + sin(_t * 0.5 + float(i)) * 14.0, pz)
+			var v := Vector3(-sin(ang), 0.0, cos(ang)) * 46.0 * 0.16
+			b["p"] = p; b["v"] = v; b["pp"] = p; b["pose"] = GLIDE_POSE; b["alive"] = true
+		_write_kind("hawk", mini(birds.size(), thermal_centres.size()))
+		return
+	# otherwise the hawks soar on the same circles the sound code has always used (drone_audio "_soarers")
 	var soar: Array = []
 	if _audio != null:
 		for s in _audio.soaring():
