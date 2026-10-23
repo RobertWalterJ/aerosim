@@ -103,7 +103,7 @@ func update(dt: float, throttle: float, yaw: float, pitch: float, roll: float) -
 		var eb := bank_sp - bk
 		ail = 0.6 * eb - 0.3 * w.z
 		# a little rudder to coordinate the turn into the bank
-		rud = 0.15 * bk
+		rud = 0.4 * bk
 	else:
 		# acro: rate control
 		var p_rate := -pitch * 2.4                # rad/s, +stick = nose down
