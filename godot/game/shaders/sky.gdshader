@@ -23,6 +23,7 @@ uniform float moon_illum : hint_range(0.0, 1.0) = 0.5; // fraction of the moon's
 uniform vec3 cam_pos = vec3(0.0, 100.0, 0.0);         // camera world position (for the cloud raymarch)
 uniform int cloud_quality = 1;                        // 0 low, 1 medium, 2 high
 uniform vec3 haze_col = vec3(0.62, 0.70, 0.80);       // horizon haze colour (set from env.fog_light_color, = g_haze)
+uniform float aurora : hint_range(0.0, 1.0) = 0.0;    // aurora strength: green ribbon in the night sky
 global uniform vec4 g_bolt;                           // lightning bolt: xyz = unit direction (sky toward ground), w = strength 0..1
 global uniform vec4 g_storm;                          // storm cell: x = anchor x, y = anchor z, z = strength 0..1, w unused
 global uniform float g_sky_dark;                      // other effects darken the sky (0..1)
@@ -313,6 +314,14 @@ void sky() {
 		// a soft halo around the moon
 		night_extra += vec3(0.6, 0.7, 0.9) * exp(-pow(acos(clamp(mu_m, -1.0, 1.0)) / 0.06, 2.0)) * 0.05 * moon_illum * moon_up;
 		night_extra *= night;
+		// aurora: a green wavy ribbon with a faint purple lower edge, high in the night sky
+		if (aurora > 0.01) {
+			float ay = dir.y;
+			float aribbon = exp(-pow((ay - 0.5) / 0.16, 2.0));
+			float awave = 0.5 + 0.5 * sin(dir.x * 6.0 + vnoise(vec3(dir.z * 1.5, 0.5, TIME * 0.05)) * 9.0);
+			night_extra += vec3(0.05, 0.75, 0.35) * aribbon * awave * aurora * 0.55;
+			night_extra += vec3(0.45, 0.15, 0.75) * aribbon * (1.0 - awave) * aurora * 0.2;
+		}
 	}
 	// ---- volumetric clouds
 	vec3 sun_c = mix(vec3(1.0, 1.0, 1.0), vec3(1.0, 0.60, 0.34), warm * day) * day;
