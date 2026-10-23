@@ -235,3 +235,13 @@ The owner asked for the prismatic colours clouds show near the sun, and to be ab
 - **Fly above the weather**: already supported by the E3 low cloud layer (the drone or plane flies into it, the picture goes bright and foggy, then it breaks out on top) and now reads better because the deck has a bright rolling top. The cumulus layer (base 1500 m) is reachable by the plane; the low layer (150 to 600 m) is reachable by everything. The clear sky above and the iridescent thin top are what the player sees when they break through.
 - Evidence: `docs/realism/sky/irid/*.jpg` (clear sky toward the sun, partly cloudy toward the sun, cirrus at sunset).
 - Not verified: the look (this model cannot view images). Taste question S16: the iridescence cycles about every 4.5 degrees from the sun and reaches about 0.55 strength on thin edges; too subtle, too strong, or right?
+
+## Extreme-weather hooks A2 (lane/sky, 2026-10-23)
+Session B is waiting for these to hang the tornado/waterspout funnel and the thunderstorm on.
+- **Storm cell cloud** (`march_storm_cell` + `global uniform vec4 g_storm`): a dark green-grey rotating base at about 900 m with a lowered wall cloud at the anchor (where the funnel hangs), radius about 1.7 km at full strength. `g_storm.xy` is the funnel anchor xz, `g_storm.z` the 0..1 strength; session B reads it to place the funnel. The sky also gets a green-grey tint while the cell is active (`g_storm.z * 0.35`).
+- **Sky darkening** (`global uniform float g_sky_dark`): other effects can now darken the sky (fireworks nights, storms); the sky multiplies by `1 - 0.55 * g_sky_dark`.
+- **Lightning bolt direction**: a new `bolt_dir` uniform lets a bolt flash brighter in its own direction (`sky_col += flash * 3.0 * (0.2 + 2.6*cloud_a) * (1 + 2*bolt)`), for session B's branching bolts.
+- **Weather link degradation** (`main.gd` `_rf_dbm`): heavy rain now costs up to 14 dB and a storm another 14 dB of link, so bad weather shows moderate connectivity loss (never fatal; no forced crash).
+- Globals `g_storm` and `g_sky_dark` are registered in `_build_world` next to `g_csun`. Test tokens: `stormcell<x>_<z>` (anchor + full strength) and `stormoff`.
+- Evidence: `docs/realism/sky/storm/*.jpg` (storm cell vs clear sky, same view). Not verified: the look; session B will confirm the funnel hangs correctly from the anchor.
+- Taste question S17: the storm cell base is at about 900 m and the wall cloud lowers from it; right height for the funnel, or lower?

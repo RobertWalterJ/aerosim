@@ -303,6 +303,8 @@ func _build_world() -> void:
 	await _stage("Reading the valley", 0.05)
 	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # cloud-shadow sun offset (before the world shaders compile)
+	RenderingServer.global_shader_parameter_add("g_storm", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # storm cell: xz funnel anchor, y strength (session B hangs the funnel here)
+	RenderingServer.global_shader_parameter_add("g_sky_dark", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)   # other effects darken the sky
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
 	add_child(terrain)
@@ -785,6 +787,10 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
 		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
+		if c.begins_with("stormcell"):   # sky test hook: storm cell at x_z (sets the funnel anchor and strength for session B)
+			var sv := c.substr(9).split("_")
+			RenderingServer.global_shader_parameter_set("g_storm", Vector4(float(sv[0]), float(sv[1]), 1.0, 0.0))
+		if c == "stormoff": RenderingServer.global_shader_parameter_set("g_storm", Vector4(0.0, 0.0, 0.0, 0.0))
 		if c.begins_with("lowcloudh"): hud.weather["lowcloud_h"] = float(c.substr(10))   # sky test hook: low cloud height above the valley floor
 		if c.begins_with("lowcloud") and not c.begins_with("lowcloudh"): hud.weather["lowcloud"] = int(c.substr(8))   # sky test hook: low cloud 0 off / 1 thin / 2 thick
 		if c.begins_with("skyto"): hud.weather["sky"] = int(c.substr(5)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true   # sky test hook: smooth transition (no snap)
@@ -944,6 +950,8 @@ func _update_sensor_and_osd(delta: float) -> void:
 	var dist := dpos.distance_to(home_p)
 	var dbm := -45.0 - 20.0 * log(maxf(dist, 10.0) / 10.0) / log(10.0)
 	if not _terrain_clear(home_p, dpos): dbm -= 28.0
+	# weather: heavy rain and storms degrade the link a little (moderate, never fatal)
+	dbm -= float(wx.cur["rain"]) * 14.0 + (14.0 if wx.kind == WeatherSystem.Kind.STORM else 0.0)
 	_rf_dbm += (dbm - _rf_dbm) * clampf(delta * 3.0, 0.0, 1.0)
 	var bars := 5 if _rf_dbm > -60.0 else (4 if _rf_dbm > -70.0 else (3 if _rf_dbm > -78.0 else (2 if _rf_dbm > -86.0 else 1)))
 	var rf_bad := smoothstep(-80.0, -97.0, _rf_dbm)
