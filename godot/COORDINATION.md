@@ -6,7 +6,8 @@ Written 2026-10-23. Read before starting any stage. Goal: few handoffs, no colli
 | Lane | Owner | Files (only this lane edits them) |
 |---|---|---|
 | **Sky and clouds** | DSH (own task) | `game/shaders/sky.gdshader`, `game/shaders/cloud_shadow.gdshaderinc` (the cloud part only), new `game/sky_*.gd`, `game/weather.gd`, the sky/weather block in `main.gd` (`_apply_weather_state`, `apply_weather`) |
-| **Camera and post** | DSH or Claude (later) | `game/sensor_pipeline.gd`, `game/shaders/{sensor,isp,codec,bloom_*,meter,adapt,blit}.gdshader` |
+| **Camera and post** | DSH (own task, branch `lane/camera`) | `game/sensor_pipeline.gd`, `game/shaders/{sensor,isp,codec,bloom_*,meter,adapt,blit}.gdshader` |
+| **Water** | DSH (own task, branch `lane/water`) | `game/shaders/water.gdshader`, new `game/shaders/water_*.gdshader`; `game/lake.gd` shape and shore logic stay as they are |
 | **Trees** | Opus agent T | `tools/export_assets.ts`, `assets/trees/*`, `game/shaders/foliage.gdshader`, tree parts of `game/assets.gd` and `game/world.gd` |
 | **Ground, stone, drones** | Opus agent G | `game/shaders/{ground,grass,stone}.gdshader`, `game/grass.gd`, `game/far_hills.gd`, stone parts of `assets.gd`, `game/drone_parts.gd`, `game/drone_view.gd`, `game/hedgerow.gd` |
 | **Drone in wind** | Opus agent W | `physics/quad.gd`, `physics/flight_controller.gd`, `game/wind.gd`, `game/drone_audio.gd` (strain only), a small `game/shake.gd`, the camera-shake call in `main.gd` |
@@ -17,7 +18,7 @@ Shared files (`main.gd`, `hud.gd`): add small insertions only, re-read the file 
 ## Git, so commits never collide
 - Each lane works on its **own branch in its own worktree**, so working trees never mix:
   `git -C <repo> worktree add ..\AeroSim-<lane> -b lane/<lane>` (then work inside `<AeroSim-<lane>>\godot`; Godot needs its own import: run `--headless --import` once there).
-  Lanes: `lane/sky` (DSH), `lane/trees`, `lane/ground`, `lane/wind`.
+  Lanes: `lane/sky`, `lane/camera`, `lane/water` (DSH), `lane/trees`, `lane/ground`, `lane/wind` (Opus). Worktrees sit beside the main one as `AeroSim-<lane>`.
 - A lane commits only its own files, runs `tools/gate.ps1 -Tag <lane>`, and writes its entry in `LOGIC-NOTES.md`.
 - **Merging is Claude's job**, done once per batch, not per commit: `git merge lane/<x>` into `master`, run the gate, fix conflicts (they should be rare given the lanes), push. Lanes then `git merge master` to catch up.
 - Merge order: wind, ground, trees, sky (smallest touch first). `LOGIC-NOTES.md` conflicts: keep both sections.
