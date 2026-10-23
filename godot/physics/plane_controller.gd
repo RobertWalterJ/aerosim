@@ -147,9 +147,9 @@ func _rth_step(dt: float) -> void:
 	var target := atan2(-to_home.x, -to_home.y)
 	var err := wrapf(target - hdg, -PI, PI)
 	match rth:
-		1:  # climb to the RTH cruise height, wings level
-			plane.cmd[0] = 0.7
-			plane.cmd[1] = clampf((0.15 - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)
+		1:  # climb to the RTH cruise height, wings level, gently so it keeps its airspeed
+			plane.cmd[0] = 0.85
+			plane.cmd[1] = clampf((0.06 - a.x) * 1.5 - 0.25 * w.x, -1.0, 1.0)
 			plane.cmd[2] = clampf((0.0 - a.y) * 1.2 - 0.3 * w.z, -1.0, 1.0)
 			plane.cmd[3] = 0.0
 			if alt > _cruise_alt: rth = 2
