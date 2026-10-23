@@ -86,7 +86,7 @@ func sample(pos: Vector3, agl: float, t: float) -> Vector3:
 
 ## The wind struggle for the drone, once per physics tick (`dt` seconds), after `quad.wind = sample(...)`.
 ## Sets `quad.gust_tau` (body torque) and trims the wind in the lee of trees. `terrain` may be null (tests).
-func drive(quad: Quad, terrain: Terrain, pos: Vector3, agl: float, dt: float) -> void:
+func drive(quad, terrain: Terrain, pos: Vector3, agl: float, dt: float) -> void:
 	_t += dt
 	if not struggle:
 		quad.gust_tau = Vector3.ZERO
@@ -125,23 +125,23 @@ func drive(quad: Quad, terrain: Terrain, pos: Vector3, agl: float, dt: float) ->
 	_gh.x = ag * _gh.x + bg * _gauss()
 	_gh.y = ag * _gh.y + bg * _gauss()
 	_gh.z = ag * _gh.z + bg * _gauss()
-	var af := quad.af
+	var af: Dictionary = quad.af
 	# light airframes are thrown about more than heavy ones (the owner's direction): 1.36 for the Mini, 0.74 for the Cinema
 	var susc := clampf(pow(0.6 / float(af["mass"]), 0.35), 0.7, 1.4)
 	var gs := GUST_H * sigma / (1.0 + sigma / 6.0) * spell * susc
 	quad.wind += Vector3(_gh.x * gs, 0.3 * _gh.y * gs, _gh.z * gs)
 	# eddy torque: pressure fluctuation (relative airspeed x turbulence), soft-limited so a storm stays flyable
-	var vrel := quad.velocity() - quad.wind
+	var vrel: Vector3 = quad.velocity() - quad.wind
 	var x := (vrel.length() + sigma) * sigma
 	var xs := x / (1.0 + x / 10.0)
 	var dcd: Vector3 = af["dragCd"]; var da: Vector3 = af["dragA"]
 	var arm: float = af["armD"]
-	var k_t := TORQUE_K * 1.41421 * quad.rho * dcd.x * da.x * arm * xs * spell * susc   # 1.41: the second noise stage halves the variance
+	var k_t: float = TORQUE_K * 1.41421 * quad.rho * dcd.x * da.x * arm * xs * spell * susc   # 1.41: the second noise stage halves the variance
 	var tau := Vector3(_ou[3] * k_t, 0.3 * _ou[4] * k_t, _ou[5] * k_t)
 	# rotor flapping on a gust change: the discs tip away from the new wind for a moment (high-passed, 0.5 s)
-	var hp := quad.wind - _hp_ref
+	var hp: Vector3 = quad.wind - _hp_ref
 	_hp_ref += hp * (1.0 - exp(-dt / 0.5))
-	var qi := quad.attitude().inverse()
+	var qi: Quaternion = quad.attitude().inverse()
 	var g_b := qi * hp
 	var k_f: float = FLAP_K * float(af["mass"]) * 9.80665 * float(af["R"])
 	tau.x += k_f * g_b.z           # air speeding up from ahead (towards +z) lifts the nose
@@ -154,10 +154,10 @@ func drive(quad: Quad, terrain: Terrain, pos: Vector3, agl: float, dt: float) ->
 	turb = clampf(sigma / 3.0, 0.0, 1.0)
 	if _log: _log_tick(quad, dt)
 
-func _log_tick(quad: Quad, dt: float) -> void:
-	var up := quad.attitude() * Vector3.UP
+func _log_tick(quad, dt: float) -> void:
+	var up: Vector3 = quad.attitude() * Vector3.UP
 	var tilt := rad_to_deg(acos(clampf(up.y, -1.0, 1.0)))
-	var om := quad.s
+	var om: PackedFloat64Array = quad.s
 	var mo := maxf((om[13] + om[14] + om[15] + om[16]) * 0.25, 1.0)
 	var spread := (maxf(maxf(om[13], om[14]), maxf(om[15], om[16])) - minf(minf(om[13], om[14]), minf(om[15], om[16]))) / mo
 	_log_acc[0] += tilt * tilt; _log_acc[1] = maxf(_log_acc[1], tilt); _log_acc[2] += spread; _log_acc[3] += 1.0

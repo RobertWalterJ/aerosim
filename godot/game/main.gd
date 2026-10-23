@@ -10,8 +10,8 @@ var terrain: Terrain
 var world: World
 var home := Vector2(-18.0, 36.0)
 var grass: Grass
-var quad: Quad
-var fc: FlightController
+var quad            # a Quad or a Plane (the plane shares the same duck-typed interface)
+var fc              # FlightController or PlaneController
 var wind := Wind.new()
 var drone_node := Node3D.new()
 var drone_view := DroneView.new()
@@ -179,8 +179,12 @@ func _ready() -> void:
 	Fireworks.add_globals()        # session B: the burst light colour that the smoke and the lake read (g_fire)
 	await _build_world()
 	af = Airframes.make(airframe_id)
-	quad = Quad.new(af)
-	fc = FlightController.new(af, quad)
+	if airframe_id == "wing":
+		quad = FPVPlane.new(af)                       # plane lane: fixed wing (physics/plane.gd)
+		fc = PlaneController.new(af, quad)
+	else:
+		quad = Quad.new(af)
+		fc = FlightController.new(af, quad)
 	fc.set_step(DT)
 	quad.ground_h = func(x: float, z: float) -> float: return terrain.height(x, z)
 	quad.ground_n = func(x: float, z: float) -> Vector3: return terrain.normal_at(x, z)
@@ -619,7 +623,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sensor.rain_lens = (_lens_water * hud.lens_rain_k + _low_cloud_inside * 0.18) if not chase else 0.0
 	# the air the lens moves through: the drone's velocity against the wind, in the camera's own axes (the drops follow it)
 	sensor.lens_wash = clampf(_wash_now * 1.6 + 0.3 * fc.thrust_fraction(), 0.0, 1.0) if quad.armed else 0.0
-	var rel_air := cam.global_transform.basis.inverse() * (quad.velocity() - _wind_now)
+	var rel_air: Vector3 = cam.global_transform.basis.inverse() * (quad.velocity() - _wind_now)
 	sensor.lens_air = Vector3(-rel_air.x, -rel_air.y, maxf(-rel_air.z, 0.0)) if _air_test == Vector3.ZERO else _air_test
 	rain_fx.amount_ratio = clampf(rain, 0.05, 1.0)
 	var lean := wind.toward() * wind.speed * 0.9
@@ -639,7 +643,24 @@ func spawn() -> void:
 	if hud and hud.minimap: hud.minimap.clear_trail()
 	var y := terrain.height(home.x, home.y) + 0.04
 	quad.reset(home.x, y, home.y, deg_to_rad(150.0))
+	if airframe_id == "wing":
+		# hand launch: 3 m up, 10 m/s along the nose, nose up 10 degrees; the controller climbs gently for 3 s
+		# ground roll: on the grass, nose level, no speed; the pilot throttles up to lift off
+		var hd := deg_to_rad(150.0)
+		if hud and hud.plane_launch == 1:
+			var ql := Quaternion(Vector3.UP, hd)
+			quad.s[1] = terrain.height(home.x, home.y) + 0.2
+			quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
+			quad.s[3] = 0.0; quad.s[4] = 0.0; quad.s[5] = 0.0
+		else:
+			var ql := Quaternion(Vector3.UP, hd) * Quaternion(Vector3.RIGHT, deg_to_rad(10.0))
+			quad.s[1] = terrain.height(home.x, home.y) + 3.0
+			quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
+			var fwd := ql * Vector3(0, 0, -1)
+			quad.s[3] = fwd.x * 10.0; quad.s[4] = fwd.y * 10.0; quad.s[5] = fwd.z * 10.0
 	fc.reset_state(); fc.mode = hud.mode if hud else "N"; fc.heading = deg_to_rad(150.0)
+	if airframe_id == "wing" and hud and hud.plane_launch == 1:
+		fc.set_ground_roll()
 	_cam_yaw = deg_to_rad(150.0)
 	_apply_pose()
 	drone_node.reset_physics_interpolation()
@@ -686,7 +707,7 @@ func _physics_process(_delta: float) -> void:
 	if not _loaded: return
 	if paused: return
 	var st := _read_sticks()
-	var p := quad.position()
+	var p: Vector3 = quad.position()
 	var agl := p.y - terrain.height(p.x, p.z)
 	st = _autopilot_sticks(st, p, agl)
 	quad.wind = wind.sample(p, maxf(agl, 0.05), sim_time)
@@ -834,9 +855,13 @@ func _screenshot_mode(arg: String) -> void:
 			var px := float(v[0]); var pz := float(v[2])
 			var py := terrain.height(px, pz) + float(v[1])
 			quad.reset(px, py, pz, deg_to_rad(float(v[3])))
-			var wh: float = float(af["omegaMax"]) * sqrt(1.0 / float(af["twr"]))
-			for i in 4:
-				quad.s[13 + i] = wh; quad.cmd[i] = wh
+			if airframe_id == "wing":
+				quad.s[13] = float(af["omegaMax"]) * 0.6
+				quad.cmd[0] = 0.5; quad.cmd[1] = 0.0; quad.cmd[2] = 0.0; quad.cmd[3] = 0.0
+			else:
+				var wh: float = float(af["omegaMax"]) * sqrt(1.0 / float(af["twr"]))
+				for i in 4:
+					quad.s[13 + i] = wh; quad.cmd[i] = wh
 			fc.heading = deg_to_rad(float(v[3])); gimbal_pitch = deg_to_rad(float(v[4]))
 			if "facesun" in parts:     # test hook: point the camera straight at the sun
 				fc.heading = deg_to_rad(_sun_az + 180.0); gimbal_pitch = deg_to_rad(_sun_el)
@@ -1030,7 +1055,7 @@ func _run_selftest() -> void:
 	var t0 := Time.get_ticks_msec()
 	for i in 400:
 		await get_tree().physics_frame
-	var p := quad.position()
+	var p: Vector3 = quad.position()
 	print("selftest: alt %.1f m over ground, crashed=%s, sim_time=%.2f s, wall=%d ms" % [p.y - terrain.height(p.x, p.z), quad.crashed, sim_time, Time.get_ticks_msec() - t0])
 	print("selftest: wind %.2f m/s, battery %.0f%%" % [_wind_now.length(), quad.battery.soc * 100.0])
 	var peaks := []
@@ -1073,7 +1098,7 @@ func _terrain_clear(from: Vector3, to: Vector3, steps := 12) -> bool:
 
 func _update_sensor_and_osd(delta: float) -> void:
 	# shared by the grass, foliage and ground shaders: camera, clock, canopy wind and the drone's rotor wash
-	var dp := quad.position()
+	var dp: Vector3 = quad.position()
 	var agl0 := dp.y - terrain.height(dp.x, dp.z)
 	RenderingServer.global_shader_parameter_set("g_cam", cam.global_position)
 	RenderingServer.global_shader_parameter_set("g_time", sim_time)
@@ -1099,7 +1124,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	sensor.sun_vis = _sun_vis
 	sensor.drone_speed = quad.velocity().length()   # forward-motion blur (camera A3 stage 1.5)
 	# video link: free-space loss with distance, plus a penalty when the terrain blocks the line of sight
-	var dpos := quad.position()
+	var dpos: Vector3 = quad.position()
 	var home_p := Vector3(home.x, terrain.height(home.x, home.y) + 1.6, home.y)
 	var dist := dpos.distance_to(home_p)
 	var dbm := -45.0 - 20.0 * log(maxf(dist, 10.0) / 10.0) / log(10.0)
@@ -1107,9 +1132,9 @@ func _update_sensor_and_osd(delta: float) -> void:
 	# weather: heavy rain and storms degrade the link a little (moderate, never fatal)
 	dbm -= float(wx.cur["rain"]) * 14.0 + (14.0 if wx.kind == WeatherSystem.Kind.STORM else 0.0)
 	_rf_dbm += (dbm - _rf_dbm) * clampf(delta * 3.0, 0.0, 1.0)
-	var bars := 5 if _rf_dbm > -60.0 else (4 if _rf_dbm > -70.0 else (3 if _rf_dbm > -78.0 else (2 if _rf_dbm > -86.0 else 1)))
-	var rf_bad := smoothstep(-80.0, -97.0, _rf_dbm)
-	var mean_om := (quad.s[13] + quad.s[14] + quad.s[15] + quad.s[16]) * 0.25
+	var bars := 5 if _rf_dbm > -70.0 else (4 if _rf_dbm > -80.0 else (3 if _rf_dbm > -88.0 else (2 if _rf_dbm > -95.0 else 1)))
+	var rf_bad := smoothstep(-88.0, -99.0, _rf_dbm)   # 5 km link: blocks start around 1.4 km, full around 5 km
+	var mean_om: float = (quad.s[13] + quad.s[14] + quad.s[15] + quad.s[16]) * 0.25
 	var vib := clampf(0.12 + quad.vrs * 0.8 + fc.thrust_fraction() * 0.25 + quad.ang_accel.length() / 600.0, 0.0, 1.0)
 	if not chase: vib = clampf(vib + cam_shake.vibration, 0.0, 1.0)   # wind lane: buffeting shakes the sensor too
 	sensor.update_focus(delta, terrain, world, airframe_id, chase or _landing_on, quad.position())
@@ -1119,16 +1144,19 @@ func _update_sensor_and_osd(delta: float) -> void:
 	# telemetry for the display
 	var cb := cam.global_transform.basis
 	var fwd := -cb.z
-	var vcam := cb.inverse() * quad.velocity()
+	var vcam: Vector3 = cb.inverse() * quad.velocity()
 	var agl := dpos.y - terrain.height(dpos.x, dpos.z)
-	var dfwd := quad.attitude() * Vector3(0, 0, -1)
+	var dfwd: Vector3 = quad.attitude() * Vector3(0, 0, -1)
+	# plane (wing) airspeed for the OSD; -1 on the quads (they show ground speed instead) -- session A plane branch
+	var _plane_as := -1.0
+	if quad.get("airspeed") != null: _plane_as = float(quad.get("airspeed"))
 	osd.t = {
 		"mode": fc.mode, "sats": 14 + (3 if agl > 2.0 else 0), "rfDbm": _rf_dbm, "rfBars": bars,
 		"battPct": quad.battery.soc * 100.0, "cellV": quad.battery.cell_v(), "battA": quad.battery.current,
 		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "ev": sensor.ev_comp, "wb": int(round(sensor.wb_kelvin / 100.0)) * 100,
 		"pitch": asin(clampf(fwd.y, -1.0, 1.0)), "roll": -asin(clampf(cb.x.y, -1.0, 1.0)),
 		"heading": atan2(dfwd.x, -dfwd.z), "velBody": vcam, "fov": cam.fov, "aglM": agl, "mslM": dpos.y,
-		"gs": sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5]), "vs": quad.s[4],
+		"gs": sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5]), "vs": quad.s[4], "as": _plane_as,
 		"homeDist": sqrt((dpos.x - home.x) * (dpos.x - home.x) + (dpos.z - home.y) * (dpos.z - home.y)),
 		"gimbalDeg": rad_to_deg(gimbal_pitch) if af["hasGimbal"] else rad_to_deg(float(af["camTilt"])),
 		"histogram": sensor.histogram, "lensName": sensor.lens_info()["name"], "airframe": af["name"],
@@ -1171,7 +1199,7 @@ func _autopilot_sticks(st: Vector4, p: Vector3, agl: float) -> Vector4:
 	return st
 
 func _takeoff_or_land() -> void:
-	var p := quad.position()
+	var p: Vector3 = quad.position()
 	var agl := p.y - terrain.height(p.x, p.z)
 	if quad.crashed or not quad.armed:
 		hud.toast("Reset the drone first", true); return
@@ -1182,7 +1210,7 @@ func _takeoff_or_land() -> void:
 	if fc.mode == "M": hud.set_mode("N")
 
 func _toggle_rth() -> void:
-	var p := quad.position()
+	var p: Vector3 = quad.position()
 	var agl := p.y - terrain.height(p.x, p.z)
 	if quad.crashed or not quad.armed:
 		hud.toast("Reset the drone first", true); return
@@ -1244,7 +1272,7 @@ var _apstest := false
 func _run_apstest() -> void:
 	_takeoff_or_land()
 	for i in 500: await get_tree().physics_frame
-	var p := quad.position()
+	var p: Vector3 = quad.position()
 	print("apstest: after takeoff agl %.2f m, state %d" % [p.y - terrain.height(p.x, p.z), autopilot.state])
 	# put the drone 60 m out at 18 m above ground, hovering
 	var px := 45.0

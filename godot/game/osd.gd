@@ -134,6 +134,16 @@ func _draw() -> void:
 		_text(it[0], Vector2(bxp, h - 34 * u), 11 * u, Color("bbccdd"))
 		_text(it[1], Vector2(bxp, h - 14 * u), 17 * u, white, 0, true)
 		bxp += _font.get_string_size(it[1], HORIZONTAL_ALIGNMENT_LEFT, -1, int(17 * u)).x + 34 * u
+	# ---- plane (wing): airspeed and a stall warning instead of ground speed -- session A plane branch
+	if float(t.get("as", -1.0)) >= 0.0:
+		var _as_ms := float(t["as"])
+		var _stalling := _as_ms < 9.0
+		_text("AIR", Vector2(bxp, h - 34 * u), 11 * u, Color("bbccdd"))
+		_text("%.1f m/s" % _as_ms, Vector2(bxp, h - 14 * u), 17 * u, Color("ff8866") if _stalling else white, 0, true)
+		bxp += _font.get_string_size("%.1f m/s" % _as_ms, HORIZONTAL_ALIGNMENT_LEFT, -1, int(17 * u)).x + 34 * u
+		if _stalling:
+			_text("STALL", Vector2(bxp, h - 14 * u), 17 * u, Color("ff3333"), 0, true)
+			bxp += _font.get_string_size("STALL", HORIZONTAL_ALIGNMENT_LEFT, -1, int(17 * u)).x + 34 * u
 	# ---- histogram and radar compass
 	var hx := w - 214 * u
 	var hy := h - 150 * u

@@ -51,6 +51,7 @@ var paused := false
 var mode := "N"
 var chase := false
 var airframe_id := "mini"
+var plane_launch := 0                # plane (wing): 0 hand launch, 1 ground roll -- session A plane branch
 var lens := "standard"
 var ev_comp := 0.0
 var bloom := true
@@ -447,6 +448,7 @@ func _build_flight_tab() -> void:
 	_heading(p, "Flying")
 	_choice(p, "Flight mode", ["Normal", "Sport", "Manual"], func(): return ["N", "S", "M"].find(mode), func(i): set_mode(["N", "S", "M"][i]))
 	_choice(p, "Camera view", ["First person", "Chase"], func(): return 1 if chase else 0, func(i): set_chase(i == 1))
+	_choice(p, "Plane launch", ["Hand launch", "Ground roll"], func(): return plane_launch, func(i): plane_launch = i)   # session A plane branch
 	_heading(p, "Assisted flight")
 	_action(p, "Auto takeoff or landing", func(): takeoff_land_requested.emit(); set_paused(false))
 	_action(p, "Return to home", func(): rth_requested.emit(); set_paused(false))

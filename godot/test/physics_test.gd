@@ -21,6 +21,7 @@ func _init() -> void:
 	var t0 := Time.get_ticks_msec()
 	var total_steps := 0
 	for id in ids:
+		if id == "wing": continue   # plane lane: the fixed wing is checked by test/plane_test.gd, not the quad battery
 		var af := Airframes.make(id)
 		print("--- ", af["name"], "  dt=", dt)
 		var rm := Rotor.new(af)

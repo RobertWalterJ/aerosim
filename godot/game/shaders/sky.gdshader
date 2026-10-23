@@ -217,8 +217,8 @@ vec4 march_storm_cell(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
 			float prof = smoothstep(0.0, 0.18, h) * (1.0 - smoothstep(0.6, 1.0, h));
 			float dens = mix(0.25, 0.9, cov) * prof * (0.55 + 0.75 * wall) * strength * (1.0 - smoothstep(radius * 0.6, radius, r));
 			if (dens > 0.002) {
-				vec3 lc = grey * (0.16 + 0.12 * (1.0 - h)) + vec3(0.07, 0.11, 0.09);   // dark green-grey
-				lc += sun_c * 0.06 * smoothstep(0.6, 1.0, h);   // a faint sun on the top
+				vec3 lc = vec3(0.05, 0.07, 0.06) + grey * 0.06;   // a dark green-grey base, not a bright overcast
+				lc += sun_c * 0.03 * smoothstep(0.6, 1.0, h);   // a very faint sun on the very top
 				float step_ext = exp(-dens * dt * SIGMA);
 				acc += lc * trans * (1.0 - step_ext);
 				trans *= step_ext;
