@@ -70,8 +70,9 @@ and a return-to-home matter.
    `step(dt, cmd)`): 6-DOF rigid body with a simple but honest aerodynamic model: lift and drag from angle of attack with stall
    (lift coefficient rising to about 12 degrees then dropping), control surfaces (elevator, ailerons, rudder) producing moments
    proportional to dynamic pressure, propeller thrust that falls with airspeed, weight, inertia from a wing-and-fuselage
-   estimate, a little adverse yaw, and gentle ground handling (belly landing or hand launch: the game "hand-launches" it at
-   10 m/s, 3 m up, at the home point when the player presses Take off). Respect the wind (`quad.wind` style input).
+   estimate, a little adverse yaw, and two launch methods chosen in the Flight tab ("Plane launch"): hand launch (default: thrown at 10 m/s, 3 m up, nose up
+   10 degrees at the home point, held in a gentle climb for 3 seconds) and ground roll (skid on the grass with friction about 0.35,
+   accelerates along a 60 m clear run, lifts off at about 12 m/s); belly landing on the lawn. Respect the wind (`quad.wind` style input).
    Steps at the same 2 ms substeps as the quad, no allocations in the hot loop.
 3. `physics/plane_controller.gd`: stick mapping: left stick: throttle (up and down), yaw (rudder, left and right); right stick:
    pitch (elevator) and roll (ailerons). Modes: **Stabilised** (default: self-levelling, limits bank 45 degrees and pitch 30), and
