@@ -57,6 +57,7 @@ var autopilot := AutoPilot.new()
 var audio: DroneAudio
 var fireworks: Fireworks           # session B: firework shows over the lake (game/fireworks.gd)
 var birds: Birds                   # session B: geese, gulls, starlings and hawks (game/birds.gd)
+var weather_events: WeatherEvents  # session B: extreme weather events and courses (game/weather_events.gd)
 var _canopy_wind := Vector3.ZERO
 var _wash_now := 0.0
 var recording := false
@@ -278,6 +279,11 @@ func _ready() -> void:
 	birds.setup(terrain, home)
 	birds.set_audio(audio)
 	hud.birds_changed.connect(func(on: bool): birds.enabled = on)
+	# session B: the extreme-weather events and the ring courses (game/weather_events.gd, funnel.gd, courses.gd,
+	# sky_life.gd). It reads the Weather tab Events section and the Flight tab course choice from hud.events.
+	weather_events = WeatherEvents.new()
+	add_child(weather_events)
+	weather_events.setup(terrain, wind, hud, wx, sensor, birds)
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
@@ -729,6 +735,7 @@ func _process(delta: float) -> void:
 
 	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
 	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
+	if weather_events: weather_events.update(delta, cam, quad.position(), quad.velocity(), _sun_el, _daylight, paused)   # session B: events and courses
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
@@ -821,6 +828,26 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.test_big(int(c.substr(5)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
 		elif c == "fwfar":     # dev: one break 1.6 km from the pilot, for the far distance sound and delay
 			fireworks.test_far()
+		elif c == "waterspout":     # session B dev hook: start a waterspout over the lake
+			weather_events.debug_event("waterspout")
+		elif c == "tornado":
+			weather_events.debug_event("tornado")
+		elif c == "dustdevil":
+			weather_events.debug_event("dustdevil")
+		elif c == "storm":          # dev: the B2 thunderstorm cell (the sky storm hooks are session A's)
+			weather_events.debug_event("storm")
+		elif c == "thermals":
+			weather_events.debug_event("thermals")
+		elif c == "fogbank":
+			weather_events.debug_event("fogbank")
+		elif c == "snowsquall":
+			weather_events.debug_event("snowsquall")
+		elif c == "skyfar":
+			weather_events.debug_event("far")
+		elif c == "parklife":
+			weather_events.debug_event("park")
+		elif c.begins_with("course"):
+			weather_events.debug_course(int(c.substr(6)))
 		elif c == "fwwall":     # dev: one burst of every type in a row, to judge the shapes
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
@@ -870,6 +897,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("fireworks: ", fireworks.stats())
 	print("camera: exposure %.2f iso %d shutter 1/%d over %.2f meanlog %.2f burstwash %.3f" % [sensor.exposure, sensor.iso_shown, int(round(1.0 / maxf(sensor.shutter_shown, 1e-6))), sensor._over, sensor._mean_log, sensor._burst_wash])
 	print("birds: ", birds.stats())
+	print("weather events: ", weather_events.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
