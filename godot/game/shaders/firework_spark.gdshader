@@ -10,6 +10,7 @@ shader_type particles;
 uniform int mode = 0;                 // 0 peony, 1 chrysanthemum, 2 willow, 3 palm, 4 ring, 5 heart, 6 crackle, 7 trail, 8 finale
 uniform vec3 col_a = vec3(1.0, 0.12, 0.03);
 uniform vec3 col_b = vec3(1.0, 0.55, 0.10);
+uniform vec3 col_c = vec3(1.0, 0.42, 0.10);   // burn-out ember colour
 uniform vec3 plane_n = vec3(1.0, 0.0, 0.0);   // ring and heart face this way (toward the park)
 uniform float speed = 30.0;           // star speed at the burst, m/s
 uniform float radius = 1.0;           // burst size, 1 = normal
@@ -46,7 +47,7 @@ void start() {
 	vec3 origin = EMISSION_TRANSFORM[3].xyz;
 	vec3 p = origin;
 	vec3 v = vec3(0.0);
-	float sz = mix(0.22, 0.42, r6) * mix(0.85, 1.3, radius);
+	float sz = mix(0.18, 0.34, r6) * mix(0.85, 1.3, radius);
 
 	if (mode == 0 || mode == 1) {
 		// sphere of stars, thrown out from the middle
@@ -97,6 +98,32 @@ void start() {
 		// launch trail: sparks left where the shell was, so the shell draws its own rising line
 		p = origin + (vec3(r4, r5, r6) * 2.0 - 1.0) * 0.05;
 		v = vec3((r4 - 0.5) * 0.5, -0.3 - 0.5 * r7, (r5 - 0.5) * 0.5);
+	} else if (mode == 9) {
+		// lift sparks: a short gold shower thrown up out of the mortar with the shell
+		float a = r4 * 6.2831853;
+		vec3 d = normalize(vec3(cos(a) * (0.15 + 0.45 * r5), 1.0, sin(a) * (0.15 + 0.45 * r5)));
+		v = d * speed * mix(0.45, 0.9, r6);
+		p = origin + vec3(0.0, 0.3, 0.0) + vec3((r7 - 0.5) * 0.3, 0.0, (r8 - 0.5) * 0.3);
+	} else if (mode == 10) {
+		// crossette: stars that split; here they are a sphere that gives each star a hard outward kick at mid life
+		vec3 d = unit_dir(r4, r5);
+		v = d * speed * mix(0.75, 0.95, r6);
+		p = origin + d * mix(0.4, 2.2, r7);
+	} else if (mode == 11) {
+		// fish: small stars that swim sideways as they fall
+		vec3 d = unit_dir(r4, r5);
+		v = d * speed * mix(0.55, 0.95, r6);
+		p = origin + d * mix(0.5, 2.0, r7);
+	} else if (mode == 12) {
+		// strobe: a wide sphere of stars that blink together and separately
+		vec3 d = unit_dir(r4, r5);
+		v = d * speed * mix(0.7, 0.95, r6);
+		p = origin + d * mix(0.5, 3.0, r7);
+	} else if (mode == 13) {
+		// horsetail: a dense, low, gold spray that droops straight down
+		vec3 d = normalize(unit_dir(r4, r5) + vec3(0.0, 0.35, 0.0));
+		v = d * speed * mix(0.45, 0.8, r6);
+		p = origin + d * mix(0.4, 2.5, r7);
 	} else {
 		// finale: a big dense shell
 		vec3 d = unit_dir(r4, r5);
@@ -126,6 +153,22 @@ void process() {
 	else if (mode == 6) { drag_k = 1.2; grav = 3.2; }
 	else if (mode == 7) { drag_k = 3.5; grav = 0.3; }
 	else if (mode == 8) { drag_k = 0.6; grav = 2.2; }
+	else if (mode == 9) { drag_k = 1.8; grav = 5.0; }
+	else if (mode == 10) { drag_k = 0.6; grav = 2.2; }
+	else if (mode == 11) { drag_k = 0.9; grav = 2.4; }
+	else if (mode == 12) { drag_k = 0.5; grav = 1.4; }
+	else if (mode == 13) { drag_k = 0.8; grav = 3.4; }
+
+	// crossette: a hard outward kick at mid life reads as the star splitting in four
+	if (mode == 10 && CUSTOM.x < 0.5 && age > 0.48) {
+		CUSTOM.x = 1.0;
+		VELOCITY *= 1.85;
+	}
+	// fish: a sideways swim on top of the fall
+	if (mode == 11) {
+		vec3 sv = cross(normalize(VELOCITY + vec3(0.0, 0.01, 0.0)), vec3(0.0, 1.0, 0.0));
+		VELOCITY += normalize(sv + vec3(1e-4, 0.0, 0.0)) * sin(TIME * 6.0 + CUSTOM.z * 50.0) * 2.6 * DELTA;
+	}
 
 	VELOCITY.y -= grav * DELTA;
 	VELOCITY *= exp(-drag_k * DELTA);
@@ -136,12 +179,13 @@ void process() {
 	vec3 ya = cross(vdir, xa);
 
 	float sz = CUSTOM.w * mix(1.0, 0.45, age);
-	// cooling: white hot, then the shell colours, then a dim orange ember
-	vec3 base = mix(col_a, col_b, step(0.5, CUSTOM.z));
+	// cooling: white hot, then the shell colour, then the second colour and a dull ember
+	vec3 base = mix(col_a, col_b, smoothstep(0.0, 0.35, age));
 	vec3 c = mix(vec3(2.6, 2.3, 1.9), base * 1.7, smoothstep(0.0, 0.07, age));
-	c = mix(c, vec3(1.05, 0.30, 0.06), smoothstep(0.45, 0.92, age));
+	c = mix(c, col_c * 1.2, smoothstep(0.50, 0.90, age));
+	c = mix(c, vec3(0.50, 0.14, 0.03), smoothstep(0.90, 1.0, age));
 	float a = smoothstep(0.0, 0.02, age) * pow(max(1.0 - age, 0.0), 1.4);
-	if (mode == 7) {
+	if (mode == 7 || mode == 9) {
 		c = mix(vec3(2.4, 1.7, 0.7), vec3(1.0, 0.45, 0.10), age);
 		a = (1.0 - age) * (1.0 - age);
 		sz *= 0.8;
@@ -150,6 +194,15 @@ void process() {
 		float fl = 0.5 + 0.5 * sin(TIME * 57.0 + CUSTOM.z * 61.0);
 		c *= 0.25 + 0.75 * step(0.35, fl);
 		a *= mix(0.45, 1.0, step(0.3, fl));
+	} else if (mode == 12) {
+		// strobe: a slower, bigger blink, some stars in phase and some out
+		float on = step(0.30, fract(TIME * 2.4 + CUSTOM.z * 7.0));
+		c = mix(vec3(1.0, 0.97, 0.9) * 2.0, col_a * 1.4, age);
+		c *= 0.12 + 0.88 * on;
+		a *= 0.10 + 0.90 * on;
+	} else if (mode == 10) {
+		// a white flash at the split
+		c = mix(c, vec3(2.2, 2.2, 2.0), (age > 0.48 && age < 0.54) ? 0.8 : 0.0);
 	}
 	c *= 0.9 + 0.1 * sin(TIME * 31.0 + CUSTOM.z * 47.0);
 	COLOR = vec4(c, a);

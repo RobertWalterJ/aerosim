@@ -23,7 +23,7 @@ void vertex() {
 	dv = dl > 1e-4 ? dv / dl : vec2(0.0, 1.0);
 	vec2 rt = vec2(-dv.y, dv.x);
 	// a distant spark is drawn at least about two pixels across, so it reads as a point of light
-	float szm = max(sz, 2.4 * depth * px_per_m);
+	float szm = max(sz, 2.0 * depth * px_per_m);
 	vec3 vpos = vp.xyz;
 	vpos.xy += rt * VERTEX.x * szm + dv * VERTEX.y * szm * stretch;
 	POSITION = PROJECTION_MATRIX * vec4(vpos, 1.0);
