@@ -73,7 +73,7 @@ void fragment() {
 	float slope = 1.0 - abs(nrm.y);
 	g = mix(g, mix(lin(vec3(0.40, 0.37, 0.32)), lin(vec3(0.30, 0.22, 0.15)), n2), smoothstep(0.14, 0.34, slope) * (1.0 - asph));
 	// the lake shore: wet mud at the water line, sand above it, then scattered rock, and a mud and sand bed under the water
-	float wl = 68.9;
+	float wl = 76.0;
 	float above = wpos.y - wl;
 	float shore_n = gfbm(xz * 0.15);
 	vec3 mud = lin(vec3(0.20, 0.15, 0.10));

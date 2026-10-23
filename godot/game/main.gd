@@ -76,6 +76,7 @@ var _fps := 60.0
 var _wind_now := Vector3.ZERO
 
 var _loaded := false
+var _air_test := Vector3.ZERO      # test hook: `air<x>_<y>_<head-on>` pins the air speed over the lens
 var _gimbal_rate := 0.0
 
 ## Phone-safe camera: the plain 3D picture with an ordinary tone map, in place of the HDR sensor passes.
@@ -469,8 +470,12 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	var snow_p := float(c["snow"])
 	rain_fx.emitting = rain > 0.03
 	# water collects on the lens in rain and dries slowly once it stops
-	_lens_water = move_toward(_lens_water, clampf(rain * 1.4, 0.0, 0.8) if rain > 0.03 else 0.0, delta * (0.25 if rain > 0.03 else 0.03))
-	sensor.rain_lens = _lens_water if not chase else 0.0
+	_lens_water = move_toward(_lens_water, clampf(rain * 1.0, 0.0, 0.55) if rain > 0.03 else 0.0, delta * (0.25 if rain > 0.03 else 0.03))
+	sensor.rain_lens = _lens_water * hud.lens_rain_k if not chase else 0.0
+	# the air the lens moves through: the drone's velocity against the wind, in the camera's own axes (the drops follow it)
+	sensor.lens_wash = clampf(_wash_now * 1.6 + 0.3 * fc.thrust_fraction(), 0.0, 1.0) if quad.armed else 0.0
+	var rel_air := cam.global_transform.basis.inverse() * (quad.velocity() - _wind_now)
+	sensor.lens_air = Vector3(-rel_air.x, -rel_air.y, maxf(-rel_air.z, 0.0)) if _air_test == Vector3.ZERO else _air_test
 	rain_fx.amount_ratio = clampf(rain, 0.05, 1.0)
 	var lean := wind.toward() * wind.speed * 0.9
 	rain_mat.gravity = Vector3(lean.x, -22.0, lean.z)
@@ -644,6 +649,9 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
 		if c == "armed": quad.armed = true
+		if c.begins_with("air"):
+			var av := c.substr(3).split("_")
+			if av.size() == 3: _air_test = Vector3(float(av[0]), float(av[1]), float(av[2]))
 		if c == "simple": hud.simple_on = true; _apply_simple(true)
 		if c.begins_with("clock"):     # test hook: freeze the clock at that hour (clock7.5), on the date picked with date1..4
 			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)

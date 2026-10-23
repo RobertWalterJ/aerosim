@@ -6,3 +6,4 @@ assets/**/*.png.import
 build/
 !assets/world/valley_cover.png
 !assets/world/valley_path.png
+!assets/world/lake_mask.png

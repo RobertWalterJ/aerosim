@@ -62,6 +62,7 @@ var fx_cloud := true
 var fx_trees := true
 var ambient_on := true
 var simple_on := false
+var lens_rain_k := 0.6             # how much rain gathers on the lens: 0 off, 0.6 light, 1.0 natural
 var sound_on := true
 var listening := 2
 var sound_vol := 0.8
@@ -527,6 +528,7 @@ func _build_camera_tab() -> void:
 	_gslider(p, "Exposure compensation", -3.0, 3.0, 0.33, func(): return ev_comp, func(x): ev_comp = x; ev_changed.emit(x), func(v): return "%+.1f EV" % v)
 	_choice(p, "Bloom", ["On", "Off"], func(): return 0 if bloom else 1, func(i): bloom = i == 0; bloom_changed.emit(bloom))
 	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
+	_choice(p, "Rain on the lens", ["Off", "Light", "Natural"], func(): return 0 if lens_rain_k < 0.05 else (1 if lens_rain_k < 0.8 else 2), func(i): lens_rain_k = [0.0, 0.6, 1.0][i])
 	_choice(p, "Video link effects", ["On", "Off"], func(): return 0 if link_fx else 1, func(i): link_fx = i == 0; link_changed.emit(link_fx))
 	_choice(p, "Depth of field", ["Off", "Natural", "Cinematic"], func(): return dof_mode, func(i): dof_mode = i; dof_changed.emit(i))
 	_choice(p, "Focus", ["Auto (tap the picture to pick a spot)", "Manual"], func(): return 1 if manual_focus else 0, func(i): manual_focus = i == 1; focus_changed.emit(manual_focus, _mf_metres(mf_ring)))

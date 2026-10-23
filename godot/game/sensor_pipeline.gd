@@ -22,6 +22,8 @@ var wb_kelvin := 5600.0              # the white balance the camera has settled 
 var _sun_amt := 0.0                  # how much sun is in the picture, 0..1, eased
 var bloom_on := true
 var rain_lens := 0.0                # water on the lens, 0..1
+var lens_wash := 0.0                # rotor wash over the lens, 0..1
+var lens_air := Vector3.ZERO        # air moving over the lens in camera axes: sideways, up, head-on (m/s)
 var noise_scale := 1.0              # sensor noise amount, 1 = as designed
 var link_effects := true            # video-link macroblocking on or off
 var out_w := 1280
@@ -305,6 +307,8 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	sm.set_shader_parameter("uBloomK", (0.1 + 0.3 * _sun_amt) if bloom_on else 0.0)
 	sm.set_shader_parameter("uSunVis", sun_vis)
 	sm.set_shader_parameter("uRain", rain_lens)
+	sm.set_shader_parameter("uAir", lens_air)
+	sm.set_shader_parameter("uWash", lens_wash)
 	sm.set_shader_parameter("uInView", 1.0 if in_view else 0.0)
 	# stages 5 and 6
 	var ip: ShaderMaterial = _passes["isp"]
