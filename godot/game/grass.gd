@@ -21,6 +21,8 @@ static func add_globals() -> void:
 func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Vector2) -> void:
 	var counts: Array = QUALITY_COUNTS.get(quality, QUALITY_COUNTS["medium"])
 	var layers := [
+		# the close carpet: thousands of fine short blades per square metre around the camera, so that low over the lawn it reads as turf and not as a flat green sheet
+		{"patch": 6.5, "count": counts[0] * 3, "h": Vector2(0.06, 0.17), "w": 0.0045, "litter": 0.0, "clump": 0.15, "tall": 0.0, "padr": 0.6},
 		{"patch": 13.0, "count": counts[0], "h": Vector2(0.10, 0.28), "w": 0.0085, "litter": 0.0, "clump": 0.3, "tall": 0.0},
 		{"patch": 46.0, "count": counts[1], "h": Vector2(0.18, 0.55), "w": 0.02, "litter": 0.0, "clump": 0.6, "tall": 0.0},
 		{"patch": 30.0, "count": int(counts[1] * 0.45), "h": Vector2(0.45, 1.05), "w": 0.03, "litter": 0.0, "clump": 0.8, "tall": 1.0},
@@ -57,6 +59,7 @@ func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Ve
 		mat.set_shader_parameter("uExcl", ex)
 		mat.set_shader_parameter("uExclN", mini(excl.size(), 16))
 		mat.set_shader_parameter("uPad", pad_centre)
+		mat.set_shader_parameter("uPadR", float(L.get("padr", 11.0)))     # the close carpet grows right up to the pad: short blades, flattened by the rotor wash
 		mat.set_shader_parameter("uCanopy", GroundDetail.canopy_tex(terrain))
 		mat.set_shader_parameter("uCanopySpan", GroundDetail.CANOPY_SPAN)
 		mat.set_shader_parameter("uDesire", GroundDetail.desire_array())

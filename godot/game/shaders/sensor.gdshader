@@ -20,6 +20,9 @@ uniform vec2 uWRS = vec2(0.0);
 uniform float uSunVis = 0.0;
 uniform float uInView = 0.0;
 uniform float uWRoll = 0.0;
+uniform float uShutter = 0.005;   // shutter time (s) from the auto-exposure
+uniform float uSpeed = 0.0;       // drone speed (m/s) for forward-motion radial blur
+uniform float uMotionBlur = 1.0;  // 0 disables motion blur (Simple camera mode)
 uniform float uGlare = 0.0;
 uniform float uIso = 1.0;
 uniform float uCA = 0.004;
@@ -39,6 +42,16 @@ uniform float uBurstWash = 0.0;
 vec4 T(sampler2D s, vec2 v) { return texture(s, vec2(v.x, 1.0 - v.y)); }
 float hash(vec2 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973).xy); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
 const vec3 ghostCol = vec3(0.0513, 1.0, 0.402);
+
+// faint dirt and smudges on the lens: smooth value noise (no raw hash, which would read as blocky patches)
+float vnoise2(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	float a = hash(i); float b = hash(i + vec2(1.0, 0.0)); float c = hash(i + vec2(0.0, 1.0)); float d = hash(i + vec2(1.0, 1.0));
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+float dirt_noise(vec2 p) {
+	return vnoise2(p) * 0.6 + vnoise2(p * 2.7 + 5.0) * 0.28 + vnoise2(p * 7.3 + 9.0) * 0.12;
+}
 
 vec3 flare(vec2 uvS, float gSunVis) {
 	vec2 d = (uvS - uSunS) * uS * vec2(uAspect, 1.0);
@@ -154,7 +167,21 @@ void fragment() {
 	vec2 dr = drops.xy;
 	sR += dr; sG += dr; sB += dr;
 	float e = exp2(uExpV);
-	vec3 col = vec3(T(uScene, sR).r, T(uScene, sG).g, T(uScene, sB).b) * e;
+	vec3 col;
+	if (uMotionBlur > 0.5) {
+		// motion blur: camera rotation (uWRS) and forward motion (uSpeed) smear the scene during the shutter.
+		// Near objects (far from the focus of expansion, here the centre) blur more radially.
+		vec2 mblur = vec2(uWRS.x, uWRS.y) * uShutter / (2.0 * uTan);
+		mblur += normalize(a) * length(a) * uSpeed * uShutter * 0.12;
+		col = vec3(0.0);
+		for (int i = 0; i < 8; i++) {
+			vec2 off = mblur * (float(i) / 7.0 - 0.5);
+			col += T(uScene, sG + off).rgb;
+		}
+		col *= e / 8.0;
+	} else {
+		col = vec3(T(uScene, sR).r, T(uScene, sG).g, T(uScene, sB).b) * e;
+	}
 	vec3 bl = vec3(T(uBloom, sR).r, T(uBloom, sG).g, T(uBloom, sB).b);
 	col *= uWB;
 	col = col * (1.0 - 0.10 * drops.z) + vec3(0.9, 0.95, 1.0) * drops.w * 0.035 * (0.3 + dot(col, vec3(0.33)));
@@ -162,12 +189,19 @@ void fragment() {
 	// anamorphic streak, cyan ghost and veiling glare
 	col += flare(sG, gSunVis);
 	col += burst_flare(sG);                                      // session B: firework bursts in the lens
+	// dirt and smudges: faint speckle that lights up when the sun is near the frame (or a bright point)
+	float dirt = dirt_noise(vUv * 6.0);
+	float sun_near = smoothstep(0.9, 0.12, length((sG - uSunS) * vec2(uAspect, 1.0)));
+	col += vec3(0.9, 0.92, 0.96) * (dirt - 0.5) * 2.0 * sun_near * gSunVis * 0.012;
 	col += vec3(0.9, 0.85, 0.8) * uBurstWash * 0.035;
 	col += vec3(0.020, 0.022, 0.026) * uGlare * (0.4 + 0.6 * gSunVis) * 3.0;
 	// optical vignette
 	float vr = length(a) * 0.7071; col *= 1.0 - uVig * vr * vr;
 	// sensor ISO noise (shot + read), luminance and chroma, scaled by analogue gain
 	float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+	// fixed-pattern noise: a stable per-pixel offset (does not move frame to frame), faint at low ISO
+	float fp = hash(FRAGCOORD.xy * 1.31) - 0.5;
+	col += vec3(fp) * (0.002 + 0.010 * max(lum, 0.0)) * uIso * 0.5;
 	vec2 np = FRAGCOORD.xy + vec2(uFrame * 17.0, uFrame * 31.0);
 	float n1 = hash(np) - 0.5; float n2 = hash(np + 7.7) - 0.5; float n3 = hash(np + 13.1) - 0.5;
 	float amp = (0.004 + 0.045 * sqrt(max(lum, 0.0))) * uIso * 0.45;

@@ -14,6 +14,10 @@ extends RefCounted
 var speed := 1.0            # m/s at 30 m above the ground
 var gust := 0.45            # 0 steady .. 1 gusty
 var from_deg := 250.0
+## Extra wind fields from the weather events (funnel rotation, thermal updraft, storm gust front), each a
+## Callable(pos: Vector3) -> Vector3. Registered by game/weather_events.gd through add_field(), so an event never has to
+## edit this file again.
+var fields: Array[Callable] = []
 var _noise := FastNoiseLite.new()
 const Z0 := 0.05
 const KAPPA := 0.4
@@ -62,6 +66,10 @@ func profile(agl: float) -> float:
 func intensity(agl: float) -> float:
 	return (0.10 + 0.22 * exp(-agl / 12.0)) * gust
 
+func add_field(call: Callable) -> void:
+	if not fields.has(call):
+		fields.append(call)
+
 func sample(pos: Vector3, agl: float, t: float) -> Vector3:
 	var prof := profile(agl)
 	var ti := intensity(agl)
@@ -72,6 +80,8 @@ func sample(pos: Vector3, agl: float, t: float) -> Vector3:
 	var u := prof * maxf(0.1, 1.0 + ti * 3.2 * gx)
 	var w := d * u
 	w += Vector3(fast, 0.4 * gx, fast) * ti * u * 0.8
+	for f in fields:
+		w += f.call(pos)
 	return w
 
 ## The wind struggle for the drone, once per physics tick (`dt` seconds), after `quad.wind = sample(...)`.

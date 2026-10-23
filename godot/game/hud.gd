@@ -31,6 +31,7 @@ signal ambient_changed(on: bool)
 signal simple_changed(on: bool)
 signal dof_changed(mode: int)
 signal focus_changed(manual: bool, distance_m: float)
+signal look_changed(i: int)                             # camera A3 stage 1.2: colour look
 signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects on the drone" and "Camera shake"
 signal fireworks_changed(show: int)                  # session B: "Fireworks show" in the Weather tab
 signal surprise_changed(on: bool)                    # session B: "Surprise shows"
@@ -52,6 +53,7 @@ var plane_launch := 0                # plane (wing): 0 hand launch, 1 ground rol
 var lens := "standard"
 var ev_comp := 0.0
 var bloom := true
+var look := 0                       # colour look: 0 Natural, 1 Flat, 2 Vivid -- camera A3 stage 1.2
 var noise := 1.0
 var link_fx := true
 var dof_mode := 1                  # depth of field: 0 off, 1 natural, 2 cinematic
@@ -79,6 +81,11 @@ var cam_shake := true              # wind lane: the picture shakes a little in r
 var fireworks_show := 0            # session B: 0 off, 1 build up, 2 quiet night, 3 finale
 var surprise_shows := false        # session B: a show starts by itself on a few set evenings
 var birds_on := true               # session B: the flocks over the valley
+## session B: extreme-weather events and the ring course. game/weather_events.gd reads this dictionary every frame;
+## any extra keys it adds are harmless. "course" 0 off, 1 easy, 2 lake run, 3 tree slalom, 4 photograph.
+var events := {"waterspout": false, "tornado": false, "thunderstorm": false, "thermals": false,
+	"dustdevil": false, "fogbank": false, "snowsquall": false, "surprise": false,
+	"far_traffic": false, "park_life": false, "course": 0}
 var sky_quality := 1               # sky lane: cloud quality 0 low, 1 medium, 2 high
 
 var minimap: MiniMap
@@ -421,6 +428,9 @@ func _choice(parent: Control, title: String, options: Array, get_i: Callable, se
 	_refreshers.append(func():
 		for i in btns.size(): btns[i].set_pressed_no_signal(i == int(get_i.call())))
 
+func _event_toggle(parent: Control, title: String, key: String) -> void:
+	_choice(parent, title, ["Off", "On"], func(): return 1 if bool(events.get(key, false)) else 0, func(i): events[key] = i == 1)
+
 func _action(parent: Control, text: String, fn: Callable) -> Button:
 	var b := Button.new(); b.text = text; b.custom_minimum_size = Vector2(0, 54); b.alignment = HORIZONTAL_ALIGNMENT_LEFT; b.pressed.connect(fn)
 	parent.add_child(b); return b
@@ -435,6 +445,10 @@ func _build_flight_tab() -> void:
 	_action(p, "Auto takeoff or landing", func(): takeoff_land_requested.emit(); set_paused(false))
 	_action(p, "Return to home", func(): rth_requested.emit(); set_paused(false))
 	_action(p, "Reset drone to the start", func(): reset_requested.emit(); set_paused(false))
+	# session B (B5): fly-through ring courses. Off, or one of the named courses; the finish time is only shown after
+	# the run, never counted down on screen.
+	_heading(p, "Courses")
+	_choice(p, "Ring course", Courses.NAMES, func(): return int(events.get("course", 0)), func(i): events["course"] = i)
 
 func _build_drone_tab() -> void:
 	var p := _page("Drone")
@@ -541,6 +555,19 @@ func _build_weather_tab() -> void:
 	# session B: a show over the lake. Off stops a running show; the other three start one.
 	_choice(p, "Fireworks show", Fireworks.SHOW_NAMES, func(): return fireworks_show, func(i): fireworks_show = i; fireworks_changed.emit(i))
 	_choice(p, "Surprise shows", ["Off", "On"], func(): return 1 if surprise_shows else 0, func(i): surprise_shows = i == 1; surprise_changed.emit(surprise_shows))
+	# session B: the extreme-weather events. Each one is off until the player starts it, and Off stops it at once.
+	_heading(p, "Events")
+	_sub(p, "Weather you can start yourself. Nothing here can damage the drone.")
+	_event_toggle(p, "Waterspout over the lake", "waterspout")
+	_event_toggle(p, "Tornado", "tornado")
+	_event_toggle(p, "Thunderstorm", "thunderstorm")
+	_event_toggle(p, "Thermals", "thermals")
+	_event_toggle(p, "Dust devil", "dustdevil")
+	_event_toggle(p, "Fog bank", "fogbank")
+	_event_toggle(p, "Snow squall", "snowsquall")
+	_event_toggle(p, "Far traffic", "far_traffic")
+	_event_toggle(p, "Kites and flag", "park_life")
+	_event_toggle(p, "Surprise events", "surprise")
 	_action(p, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
 
 func _build_camera_tab() -> void:
@@ -551,6 +578,7 @@ func _build_camera_tab() -> void:
 	_heading(p, "Picture")
 	_gslider(p, "Exposure compensation", -3.0, 3.0, 0.33, func(): return ev_comp, func(x): ev_comp = x; ev_changed.emit(x), func(v): return "%+.1f EV" % v)
 	_choice(p, "Bloom", ["On", "Off"], func(): return 0 if bloom else 1, func(i): bloom = i == 0; bloom_changed.emit(bloom))
+	_choice(p, "Colour look", ["Natural", "Flat (D-Cinelike)", "Vivid"], func(): return look, func(i): look = i; look_changed.emit(i))   # camera A3 stage 1.2
 	_gslider(p, "Video noise", 0.0, 1.5, 0.05, func(): return noise, func(x): noise = x; noise_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_choice(p, "Rain on the lens", ["Off", "Light", "Natural"], func(): return 0 if lens_rain_k < 0.05 else (1 if lens_rain_k < 0.8 else 2), func(i): lens_rain_k = [0.0, 0.6, 1.0][i])
 	_choice(p, "Video link effects", ["On", "Off"], func(): return 0 if link_fx else 1, func(i): link_fx = i == 0; link_changed.emit(link_fx))

@@ -57,6 +57,7 @@ var autopilot := AutoPilot.new()
 var audio: DroneAudio
 var fireworks: Fireworks           # session B: firework shows over the lake (game/fireworks.gd)
 var birds: Birds                   # session B: geese, gulls, starlings and hawks (game/birds.gd)
+var weather_events: WeatherEvents  # session B: extreme weather events and courses (game/weather_events.gd)
 var _canopy_wind := Vector3.ZERO
 var _wash_now := 0.0
 var recording := false
@@ -220,6 +221,7 @@ func _ready() -> void:
 	hud.lens_changed.connect(func(l: String): sensor.set_lens(l))
 	hud.ev_changed.connect(func(v: float): sensor.ev_comp = v)
 	hud.bloom_changed.connect(func(on: bool): sensor.bloom_on = on)
+	hud.look_changed.connect(func(i: int): sensor.look = i)   # camera A3 stage 1.2
 	hud.noise_changed.connect(func(v: float): sensor.noise_scale = v)
 	hud.link_changed.connect(func(on: bool): sensor.link_effects = on)
 	hud.dof_changed.connect(func(m: int): sensor.dof_mode = m)
@@ -282,6 +284,11 @@ func _ready() -> void:
 	birds.setup(terrain, home)
 	birds.set_audio(audio)
 	hud.birds_changed.connect(func(on: bool): birds.enabled = on)
+	# session B: the extreme-weather events and the ring courses (game/weather_events.gd, funnel.gd, courses.gd,
+	# sky_life.gd). It reads the Weather tab Events section and the Flight tab course choice from hud.events.
+	weather_events = WeatherEvents.new()
+	add_child(weather_events)
+	weather_events.setup(terrain, wind, hud, wx, sensor, birds)
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
@@ -309,7 +316,8 @@ func _build_world() -> void:
 	await _stage("Reading the valley", 0.05)
 	var touch_dev := DisplayServer.is_touchscreen_available() or OS.has_feature("mobile")
 	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # cloud-shadow sun offset (before the world shaders compile)
-	RenderingServer.global_shader_parameter_add("g_storm", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # storm cell: xz funnel anchor, y strength (session B hangs the funnel here)
+	RenderingServer.global_shader_parameter_add("g_storm", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # storm cell: x = anchor x, y = anchor z, z = strength (session B hangs the funnel here)
+	RenderingServer.global_shader_parameter_add("g_bolt", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, -1.0, 0.0, 0.0))   # lightning bolt: xyz direction, w strength (session B's bolts)
 	RenderingServer.global_shader_parameter_add("g_sky_dark", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)   # other effects darken the sky
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
@@ -331,7 +339,7 @@ func _build_world() -> void:
 	await _stage("Growing the grass", 0.7)
 	grass = Grass.new()
 	add_child(grass)
-	if not "nograss" in dev_args: grass.build(terrain, "low" if touch_dev else "high", world.exclusions, home)
+	if not "nograss" in dev_args: grass.build(terrain, "low" if OS.has_feature("mobile") else "high", world.exclusions, home)
 	# sun, sky and atmosphere
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -749,6 +757,7 @@ func _process(delta: float) -> void:
 
 	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
 	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
+	if weather_events: weather_events.update(delta, cam, quad.position(), quad.velocity(), _sun_el, _daylight, paused)   # session B: events and courses
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
@@ -774,6 +783,8 @@ func _screenshot_mode(arg: String) -> void:
 	for c in parts.slice(3):
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
+		if c.begins_with("look"): sensor.look = int(c.substr(4))   # camera A3 stage 1.2 test hook: colour look 0/1/2
+		if c == "nobloom": sensor.bloom_on = false   # camera A3 stage 1.1 test hook: bloom off for the A/B
 		if c == "armed": quad.armed = true
 		if c == "landing": _show_landing()
 		if c == "landingfly":
@@ -845,6 +856,26 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.test_big(int(c.substr(5)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
 		elif c == "fwfar":     # dev: one break 1.6 km from the pilot, for the far distance sound and delay
 			fireworks.test_far()
+		elif c == "waterspout":     # session B dev hook: start a waterspout over the lake
+			weather_events.debug_event("waterspout")
+		elif c == "tornado":
+			weather_events.debug_event("tornado")
+		elif c == "dustdevil":
+			weather_events.debug_event("dustdevil")
+		elif c == "storm":          # dev: the B2 thunderstorm cell (the sky storm hooks are session A's)
+			weather_events.debug_event("storm")
+		elif c == "thermals":
+			weather_events.debug_event("thermals")
+		elif c == "fogbank":
+			weather_events.debug_event("fogbank")
+		elif c == "snowsquall":
+			weather_events.debug_event("snowsquall")
+		elif c == "skyfar":
+			weather_events.debug_event("far")
+		elif c == "parklife":
+			weather_events.debug_event("park")
+		elif c.begins_with("course"):
+			weather_events.debug_course(int(c.substr(6)))
 		elif c == "fwwall":     # dev: one burst of every type in a row, to judge the shapes
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
@@ -894,6 +925,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("fireworks: ", fireworks.stats())
 	print("camera: exposure %.2f iso %d shutter 1/%d over %.2f meanlog %.2f burstwash %.3f" % [sensor.exposure, sensor.iso_shown, int(round(1.0 / maxf(sensor.shutter_shown, 1e-6))), sensor._over, sensor._mean_log, sensor._burst_wash])
 	print("birds: ", birds.stats())
+	print("weather events: ", weather_events.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
@@ -978,6 +1010,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 	sun_target *= smoothstep(0.12, 0.5, float(wx.cur["sun"])) * smoothstep(0.0, 3.0, _sun_el)
 	_sun_vis += (sun_target - _sun_vis) * clampf(delta * 8.0, 0.0, 1.0)
 	sensor.sun_vis = _sun_vis
+	sensor.drone_speed = quad.velocity().length()   # forward-motion blur (camera A3 stage 1.5)
 	# video link: free-space loss with distance, plus a penalty when the terrain blocks the line of sight
 	var dpos: Vector3 = quad.position()
 	var home_p := Vector3(home.x, terrain.height(home.x, home.y) + 1.6, home.y)
