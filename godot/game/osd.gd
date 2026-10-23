@@ -175,6 +175,7 @@ func _draw() -> void:
 		_text(str(t["rec"]), Vector2(w - 140 * u, 62 * u), 13 * u, Color("ff6666"))
 	if float(t["rfDbm"]) < -85.0: _text("VIDEO LINK WEAK", Vector2(cx, 70 * u), 16 * u, Color("ff7766"), 1, true)
 	if pct < 15.0: _text("LOW BATTERY - LAND NOW", Vector2(cx, 92 * u), 16 * u, Color("ff7766"), 1, true)
+	if str(t.get("windWarn", "")) != "": _text(str(t["windWarn"]), Vector2(cx, 114 * u), 15 * u, Color("ffcc66"), 1, true)   # wind lane: quiet strong-wind warning
 
 ## align: 0 left, 1 centre, 2 right
 func _text(s: String, p: Vector2, size: float, col: Color, align := 0, bold := false) -> void:

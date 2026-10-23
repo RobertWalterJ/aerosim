@@ -29,6 +29,12 @@ var _yaw_rate_sp := 0.0
 var _alt_i := 0.0
 var _a_z := 0.0
 var _rng := RandomNumberGenerator.new()
+# GPS position hold (Normal and Sport, sticks centred): a gust pushes the drone off its spot, then it flies back
+var pos_hold := true
+var holding := false
+var saturated := false               # the velocity loop asked for more bank than the mode allows (wind too strong)
+var _hold := Vector2.ZERO            # (x, z) of the held spot
+var _last_xz := Vector2.ZERO
 # steps between loop updates; set from the physics step so the loops keep their real-time rates
 var vel_every := 10
 var att_every := 4
@@ -44,6 +50,7 @@ func set_airframe(airframe: Dictionary) -> void:
 
 func reset_state() -> void:
 	_i_term = Vector3.ZERO; _vel_i = Vector2.ZERO; _alt_i = 0.0; _tilt_sp = Vector2.ZERO
+	holding = false; saturated = false
 
 ## Set the loop rates from the physics step length (the web version runs 1 ms steps: 100 Hz and 250 Hz loops).
 func set_step(dt: float) -> void:
@@ -99,6 +106,22 @@ func _velocity_loop(dt: float, throttle: float, yaw: float, pitch: float, roll: 
 	var v_r: float = s[3] * cos_h + s[5] * -sin_h
 	var sp_f := _sh(pitch) * float(lim["vH"])
 	var sp_r := _sh(roll) * float(lim["vH"])
+	# position hold: capture the spot once the drone has stopped with the sticks centred; fly back to it
+	var xz := Vector2(s[0], s[2])
+	var centred := absf(pitch) < 0.05 and absf(roll) < 0.05
+	if not pos_hold or not centred or on_ground or xz.distance_to(_last_xz) > 2.0:
+		holding = false       # a stick moved, the drone is landed, or it was moved by a reset
+	elif not holding and sqrt(s[3] * s[3] + s[5] * s[5]) < 0.6:
+		holding = true; _hold = xz
+	_last_xz = xz
+	if holding:
+		var e := _hold - xz
+		if e.length() > 20.0:     # blown far away: keep trying from 20 m, do not race back from further
+			_hold = xz + e.normalized() * 20.0; e = _hold - xz
+		var kp := 0.9 if mode == "N" else 0.6
+		var v_back := (e * kp).limit_length(2.5)
+		sp_f += v_back.x * -sin_h + v_back.y * -cos_h
+		sp_r += v_back.x * cos_h + v_back.y * -sin_h
 	var kv: float = lim["kv"]
 	var a_f := kv * (sp_f - v_f)
 	var a_r := kv * (sp_r - v_r)
@@ -111,6 +134,7 @@ func _velocity_loop(dt: float, throttle: float, yaw: float, pitch: float, roll: 
 	a_f += clampf(_vel_i.x, -2.0, 2.0); a_r += clampf(_vel_i.y, -2.0, 2.0)
 	var a_max := G * tan(float(lim["bank"]))
 	var mag := sqrt(a_f * a_f + a_r * a_r)
+	saturated = mag > a_max * 0.98
 	if mag > a_max:
 		a_f *= a_max / mag; a_r *= a_max / mag
 	_tilt_sp.x = -atan2(a_f, G)    # nose down for forward acceleration
@@ -198,6 +222,17 @@ func _mix(tc: float, tau: Array) -> void:
 	for i in 4:
 		var t := clampf(ti[i], idle, t_max_eff)
 		quad.cmd[i] = sqrt(t / quad.rotor.kT)
+
+## True when position hold is at the bank limit and still being pushed more than 3 m off its spot.
+func losing_hold() -> bool:
+	return holding and saturated and _hold.distance_to(_last_xz) > 3.0
+
+## Angle (rad) between where the controller wants the drone's top to point and where it points: the uncommanded wobble.
+func tilt_error() -> float:
+	var qd := Quaternion(Vector3.RIGHT, _tilt_sp.x) * Quaternion(Vector3(0, 0, 1), _tilt_sp.y)
+	var want := Quaternion(Vector3.UP, heading) * qd * Vector3.UP
+	var up := quad.attitude() * Vector3.UP
+	return acos(clampf(want.dot(up), -1.0, 1.0))
 
 func thrust_fraction() -> float:
 	return _thrust_cmd / (4.0 * quad.rotor.Tmax)
