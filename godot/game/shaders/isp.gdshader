@@ -7,17 +7,27 @@ uniform float uGlare = 0.0;
 uniform float uSharp = 1.4;
 uniform float uRadius = 1.2;
 uniform float uSat = 1.22;
+uniform int uLook = 0;              // 0 Natural (current), 1 Flat (D-Cinelike), 2 Vivid
 vec4 T(sampler2D s, vec2 v) { return texture(s, vec2(v.x, 1.0 - v.y)); }
 vec3 curve(vec3 x) {
 	vec3 st = log2(max(x, vec3(1e-5)) / 0.18);
-	vec3 t = clamp((st + 6.2) / 10.0, 0.0, 1.0);
+	// dynamic range, shoulder and black lift by look: Flat opens up to about 12 stops, Vivid closes to 8.5
+	float dr = (uLook == 1) ? 12.0 : (uLook == 2 ? 8.5 : 10.0);
+	float sm = (uLook == 1) ? 0.8 : (uLook == 2 ? 0.5 : 0.62);
+	float pw = (uLook == 1) ? 0.95 : (uLook == 2 ? 1.15 : 1.07);
+	float lift = (uLook == 1) ? 0.08 : 0.0;
+	vec3 t = clamp((st + dr * 0.5) / dr, 0.0, 1.0);
 	vec3 s = t * t * (3.0 - 2.0 * t);
-	vec3 v = mix(t, s, 0.62);
-	v = pow(v, vec3(1.07));
-	v = mix(v, vec3(0.5), 0.34 * uGlare) + 0.05 * uGlare;
+	vec3 v = mix(t, s, sm);
+	v = pow(v, vec3(pw));
+	v = mix(v, vec3(0.5), 0.34 * uGlare) + 0.05 * uGlare + lift * (1.0 - v);
 	return v;
 }
-vec3 sat(vec3 c) { float l = dot(c, vec3(0.299, 0.587, 0.114)); return mix(vec3(l), c, uSat); }
+vec3 sat(vec3 c) {
+	float l = dot(c, vec3(0.299, 0.587, 0.114));
+	float s = (uLook == 1) ? 0.85 : (uLook == 2 ? 1.5 : uSat);
+	return mix(vec3(l), c, s);
+}
 void fragment() {
 	vec2 vUv = vec2(UV.x, 1.0 - UV.y);
 	vec3 c0 = sat(curve(T(uSrc, vUv).rgb));

@@ -38,6 +38,7 @@ var shutter_shown := 1.0 / 200.0
 var histogram := PackedFloat32Array()
 var sun_vis := 1.0                 # 0..1, set by the caller (line of sight to the sun)
 var drone_speed := 0.0             # m/s, set by the caller (forward-motion blur)
+var look := 0                      # colour look: 0 Natural, 1 Flat (D-Cinelike), 2 Vivid
 
 # session B (fireworks): up to four recent bursts in the lens. game/fireworks.gd calls burst_glare() for each burst;
 # the lens gets a flash, an anamorphic streak, a ghost ring, a short exposure dip and a little veiling light.
@@ -371,6 +372,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	# stages 5 and 6
 	var ip: ShaderMaterial = _passes["isp"]
 	ip.set_shader_parameter("uGlare", wash)
+	ip.set_shader_parameter("uLook", look)
 	# stage 7: two codec viewports take turns so the previous frame is available for stale macroblocks
 	var cn := 1 - _codec_idx
 	var cm: ShaderMaterial = _passes["codec%d" % cn]

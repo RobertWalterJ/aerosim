@@ -216,6 +216,7 @@ func _ready() -> void:
 	hud.lens_changed.connect(func(l: String): sensor.set_lens(l))
 	hud.ev_changed.connect(func(v: float): sensor.ev_comp = v)
 	hud.bloom_changed.connect(func(on: bool): sensor.bloom_on = on)
+	hud.look_changed.connect(func(i: int): sensor.look = i)   # camera A3 stage 1.2
 	hud.noise_changed.connect(func(v: float): sensor.noise_scale = v)
 	hud.link_changed.connect(func(on: bool): sensor.link_effects = on)
 	hud.dof_changed.connect(func(m: int): sensor.dof_mode = m)
@@ -754,6 +755,7 @@ func _screenshot_mode(arg: String) -> void:
 	for c in parts.slice(3):
 		if c.begins_with("drone"): switch_drone(c.substr(5))
 		if c.begins_with("lens"): sensor.set_lens(c.substr(4))
+		if c.begins_with("look"): sensor.look = int(c.substr(4))   # camera A3 stage 1.2 test hook: colour look 0/1/2
 		if c == "armed": quad.armed = true
 		if c == "landing": _show_landing()
 		if c == "landingfly":
