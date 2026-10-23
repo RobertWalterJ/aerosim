@@ -82,16 +82,16 @@ func _init() -> void:
 	var hdg := 0.0
 	var first := true
 	var t_turn := 0.0
-	while turned < TAU * 0.98:
+	while absf(turned) < TAU * 0.98:
 		tick(p3, fc3, t3, Vector4(0.0, 0.0, 0.0, 0.667)); t3 += DT * SUB   # roll stick to a 30 degree bank
 		var vel := p3.velocity()
-		hdg = atan2(-vel.x, -vel.z)   # measure the velocity turn, not the nose (which oscillates in a slip)
+		hdg = atan2(-vel.x, -vel.z)   # the velocity turn; signed so any wobble cancels out
 		if first: hdg0 = hdg; first = false
-		else: turned += absf(wrapf(hdg - hdg0, -PI, PI)); hdg0 = hdg
+		else: turned += wrapf(hdg - hdg0, -PI, PI); hdg0 = hdg
 		t_turn += DT * SUB
 		if t3 > 120.0 or p3.crashed: break
-	var radius := v * t_turn / (2.0 * PI) if (turned > TAU * 0.98 and not p3.crashed) else 999.0
-	check("360 bank turn radius", not p3.crashed and turned > TAU * 0.98 and absf(radius - r_pred) < 0.2 * r_pred, "r %.1f m (pred %.1f m), crashed=%s" % [radius, r_pred, p3.crashed])
+	var radius := v * t_turn / absf(turned) if (absf(turned) > 0.5 and not p3.crashed) else 999.0
+	check("360 bank turn radius", not p3.crashed and absf(turned) > TAU * 0.98 and absf(radius - r_pred) < 0.2 * r_pred, "r %.1f m (pred %.1f m), net %.0f deg, crashed=%s" % [radius, r_pred, rad_to_deg(turned), p3.crashed])
 
 	# 4. RTH from 3 km lands within 25 m of home
 	var d := make_plane(0.0, 3000.0, 0.0)
