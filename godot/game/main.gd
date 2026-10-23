@@ -76,6 +76,7 @@ var _fps_acc := 0.0
 var _fps := 60.0
 var _wind_now := Vector3.ZERO
 var cam_shake := CamShake.new()   # wind lane: camera buffeting in rough air (game/shake.gd)
+var _low_cloud_inside := 0.0      # sky lane (E3): 0 outside the low cloud, 1 fully inside
 
 var _loaded := false
 var _air_test := Vector3.ZERO      # test hook: `air<x>_<y>_<head-on>` pins the air speed over the lens
@@ -490,6 +491,13 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sky_mat.set_shader_parameter("flash", storm_flash)
 	sky_mat.set_shader_parameter("rain", float(c["rain"]))
 	sky_mat.set_shader_parameter("snow", float(c["snow"]))
+	# low cloud layer (E3): the sky draws the stratus, and the world fog does the inside effect
+	var lc_i := int(hud.weather.get("lowcloud", 0))
+	var lc_amt := 0.0
+	if lc_i == 1: lc_amt = 0.5
+	elif lc_i == 2: lc_amt = 1.0
+	sky_mat.set_shader_parameter("low_cloud", lc_amt)
+	sky_mat.set_shader_parameter("low_cloud_h", float(hud.weather.get("lowcloud_h", 300.0)))
 	var wd := wind.toward()
 	sky_mat.set_shader_parameter("cam_pos", cam.global_position)   # the volumetric clouds need the camera height
 	sky_mat.set_shader_parameter("cloud_quality", _sky_quality)
@@ -506,6 +514,14 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sun.light_energy = maxf(sun.light_energy, 0.0) * (1.0 + 0.5 * warm)
 	env.fog_sky_affect = 0.05 + 0.6 * float(c["fog"])
 	env.fog_height_density = 0.0003 * float(c["fogd"])
+	# inside the low cloud the view goes bright soft white-grey with a short visibility, blended over 20 m
+	var lc_world := 76.0 + float(hud.weather.get("lowcloud_h", 300.0))   # valley floor (Lake.LEVEL) plus the slider
+	var lc_thick := lerpf(70.0, 170.0, lc_amt)
+	_low_cloud_inside = clampf((lc_thick * 0.5 - absf(cam.global_position.y - lc_world)) / 20.0, 0.0, 1.0)
+	if _low_cloud_inside > 0.0:
+		env.fog_density = lerpf(env.fog_density, 0.055, _low_cloud_inside)   # about 20 to 60 m visibility
+		env.fog_light_color = env.fog_light_color.lerp(Color(0.90, 0.92, 0.95), _low_cloud_inside)
+		env.fog_sun_scatter = 0.15
 	# wind follows the condition
 	wind.speed = _base_wind * float(c["wind"])
 	var cloud_drift := Vector2(wd.x, wd.z) * (2.0 + 2.4 * wind.speed)   # world m/s: the clouds and their shadows move together
@@ -520,7 +536,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	rain_fx.emitting = rain > 0.03
 	# water collects on the lens in rain and dries slowly once it stops
 	_lens_water = move_toward(_lens_water, clampf(rain * 1.0, 0.0, 0.55) if rain > 0.03 else 0.0, delta * (0.25 if rain > 0.03 else 0.03))
-	sensor.rain_lens = _lens_water * hud.lens_rain_k if not chase else 0.0
+	sensor.rain_lens = (_lens_water * hud.lens_rain_k + _low_cloud_inside * 0.18) if not chase else 0.0
 	# the air the lens moves through: the drone's velocity against the wind, in the camera's own axes (the drops follow it)
 	sensor.lens_wash = clampf(_wash_now * 1.6 + 0.3 * fc.thrust_fraction(), 0.0, 1.0) if quad.armed else 0.0
 	var rel_air := cam.global_transform.basis.inverse() * (quad.velocity() - _wind_now)
@@ -740,6 +756,8 @@ func _screenshot_mode(arg: String) -> void:
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
 		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
+		if c.begins_with("lowcloudh"): hud.weather["lowcloud_h"] = float(c.substr(10))   # sky test hook: low cloud height above the valley floor
+		if c.begins_with("lowcloud") and not c.begins_with("lowcloudh"): hud.weather["lowcloud"] = int(c.substr(8))   # sky test hook: low cloud 0 off / 1 thin / 2 thick
 		if c.begins_with("skyto"): hud.weather["sky"] = int(c.substr(5)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather); _auto_climb = true   # sky test hook: smooth transition (no snap)
 		if c.begins_with("sky") and not c.begins_with("skyto"):
 			hud.weather["sky"] = int(c.substr(3)); hud.weather["intensity"] = 0.8; apply_weather(hud.weather, true); _auto_climb = true

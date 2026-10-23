@@ -14,6 +14,8 @@ uniform float haze : hint_range(0.0, 1.0) = 0.2;      // dust and moisture: wash
 uniform float fog : hint_range(0.0, 1.0) = 0.0;       // ground fog: the whole lower sky goes milky
 uniform float rain : hint_range(0.0, 1.0) = 0.0;      // rain or storm: lowers the deck and draws rain curtains
 uniform float snow : hint_range(0.0, 1.0) = 0.0;      // snowfall: flat bright grey sky
+uniform float low_cloud : hint_range(0.0, 1.0) = 0.0; // low stratus layer (E3): 0 off .. 1 thick
+uniform float low_cloud_h : hint_range(150.0, 600.0) = 300.0;  // low cloud height above the valley floor
 uniform vec2 drift = vec2(0.6, 0.2);                  // cloud movement in metres per second (wind)
 uniform float flash : hint_range(0.0, 1.0) = 0.0;     // lightning
 uniform vec3 moon_dir = vec3(0.0, -1.0, 0.0);          // unit vector towards the moon
@@ -109,6 +111,47 @@ vec4 march_clouds(vec3 ro, vec3 rd, vec3 sun_c, vec3 fill, vec3 grey, float t, i
 			vec3 sc = lc + sun_c * powder * light * 1.1;           // silver lining on lit edges
 			float step_ext = exp(-dens * dt * SIGMA);
 			acc += sc * trans * (1.0 - step_ext);
+			trans *= step_ext;
+		}
+		if (trans < 0.02) break;
+		step_t += dt;
+	}
+	return vec4(acc, 1.0 - trans);
+}
+
+// ------------------------------------------------------------------ low stratus layer (E3)
+const float LOW_FLOOR = 76.0;   // valley floor world Y (Lake.LEVEL)
+
+vec4 march_low_cloud(vec3 ro, vec3 rd, vec3 sun_c, vec3 grey) {
+	float cy = LOW_FLOOR + low_cloud_h;
+	float thick = mix(70.0, 170.0, low_cloud);
+	float y0 = cy - thick * 0.5;
+	float y1 = cy + thick * 0.5;
+	if (rd.y < 0.01) return vec4(0.0);
+	float tb = (y0 - ro.y) / rd.y;
+	float tt = (y1 - ro.y) / rd.y;
+	if (tt < 0.0) return vec4(0.0);
+	float t0 = max(tb, 0.0);
+	float t1 = min(tt, 18000.0);
+	if (t0 >= t1) return vec4(0.0);
+	int steps = 6;
+	float dt = (t1 - t0) / float(steps);
+	float step_t = t0 + dt * 0.5;
+	vec3 acc = vec3(0.0);
+	float trans = 1.0;
+	const float SIGMA = 0.018;
+	for (int i = 0; i < 8; i++) {
+		if (i >= steps) break;
+		vec3 p = ro + rd * step_t;
+		float hh = clamp((p.y - y0) / max(y1 - y0, 1.0), 0.0, 1.0);
+		float prof = smoothstep(0.0, 0.18, hh) * (1.0 - smoothstep(0.82, 1.0, hh));
+		float patch = cloud_shape(p.xz, drift, TIME, 2);
+		float dens = prof * mix(0.4, 0.95, low_cloud) * (0.55 + 0.45 * patch);
+		if (dens > 0.002) {
+			float top = smoothstep(0.35, 1.0, hh);   // 0 at the base, 1 at the top
+			vec3 lc = grey * (0.30 + 0.30 * top) + sun_c * top * 1.35;   // grey base, bright sunlit top
+			float step_ext = exp(-dens * dt * SIGMA);
+			acc += lc * trans * (1.0 - step_ext);
 			trans *= step_ext;
 		}
 		if (trans < 0.02) break;
@@ -224,9 +267,19 @@ void sky() {
 	}
 	// faint moonlight lifts the clouds at night
 	cloud_col += vec3(0.10, 0.14, 0.22) * moon_illum * moon_up * (1.0 - day) * cloud_a;
-	// the sun is hidden by cloud
-	vec3 sky_col = col + vec3(1.0, 0.95, 0.85) * disc * (1.0 - cloud_a) + night_extra * (1.0 - cloud_a);
+	// low stratus layer (E3): drawn nearer than the cumulus, grey base and bright sunlit top
+	vec3 low_col = vec3(0.0);
+	float low_a = 0.0;
+	if (low_cloud > 0.01 && dir.y > 0.005) {
+		vec4 lc = march_low_cloud(cam_pos, dir, sun_c, grey);
+		low_col = lc.rgb;
+		low_a = clamp(lc.a, 0.0, 1.0);
+	}
+	// the sun is hidden by cloud (cumulus or the low layer)
+	float occl = max(cloud_a, low_a);
+	vec3 sky_col = col + vec3(1.0, 0.95, 0.85) * disc * (1.0 - occl) + night_extra * (1.0 - occl);
 	sky_col = mix(sky_col, cloud_col, cloud_a);
+	sky_col = mix(sky_col, low_col, low_a);
 	// below the horizon: ground haze colour
 	if (dir.y < 0.0) {
 		vec3 g = mix(vec3(0.08, 0.09, 0.08), vec3(0.30, 0.31, 0.26), day);

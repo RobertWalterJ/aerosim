@@ -146,3 +146,11 @@ Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_sh
 - New pause-menu setting Display > Graphics > "Sky quality" (Low / Medium / High), following the `_choice` pattern; default Medium on desktop, Low on phones (and the mobile renderer). `hud.sky_quality` -> signal `sky_quality_changed` -> `main._sky_quality`, and `main` writes `hud.sky_quality` back at start-up so the menu shows the phone default. Added a `cloudq<n>` screenshot token to film the tiers.
 - Evidence: `docs/realism/sky/s6/*.jpg` (q0_low, q1_medium, q2_high, simple, mobile).
 - Not verified: a real phone (S23); only the Mobile renderer and Simple mode on this PC.
+
+### S7 low cloud layer, flying into it (E3, done, gate green)
+- Weather tab now has "Low cloud layer" (Off / Thin / Thick) and a "Low cloud height" slider (150 to 600 m above the valley floor, default 300 m), stored in `hud.weather["lowcloud"]` and `["lowcloud_h"]` (persisted like the rest of the weather).
+- Sky shader: a new `march_low_cloud` raymarch draws a stratus slab at world Y = 76 + height (76 m is the valley floor, `Lake.LEVEL`), thin 70 m / thick 170 m, with a grey base and a bright sunlit top (`grey*(0.3+0.3*top) + sun_c*top*1.35`). New uniforms `low_cloud` (0..1) and `low_cloud_h`.
+- Inside effect in `main.gd` (`_apply_weather_state`): when the camera is inside the layer (blended over 20 m of altitude), `env.fog_density` rises toward 0.055 (about 20 to 60 m visibility), `env.fog_light_color` goes bright white-grey, and a small amount of lens droplets is added (`sensor.rain_lens += _low_cloud_inside * 0.18`). The existing CPU auto-exposure follows the bright scene, so the picture darkens and recovers on exit.
+- Evidence: `docs/realism/sky/s7/*.jpg` (below at 150 m, below looking up at the base, inside at 300 m, above at 500 m).
+- Not verified / to judge: the visual look, the exact visibility inside, and the drone-commanded "break out on top"; the motor-sound damping inside cloud is not wired (a small `drone_audio.gd` change, left for the owner to request). GPS and link are untouched, so they stay fine.
+- Taste questions: S13. Low cloud height range 150-600 m: right, or should the slider go higher/lower? S14. Thin layer 70 m, thick 170 m: right thickness?
