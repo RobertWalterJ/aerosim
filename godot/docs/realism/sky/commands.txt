@@ -21,3 +21,9 @@ Frame time: add --print-fps before the -- and read the "Project FPS" lines over 
 Look change: python tools\look_metrics.py before.png after.png
 
 S1 result (150 m partly-cloudy shot, last 4 s): before about 49-54 fps, after about 50-56 fps (no regression).
+
+S2 cirrus, haze, horizon. After images: docs/realism/sky/s2/.
+  clear_horizon:  sky0,clock16.0,date3,at-18_150_36_190_-20
+  hazy_horizon:   sky1,clock16.0,date3,at-18_150_36_190_-20
+  fog_horizon:    sky3,clock16.0,date3,at-18_150_36_190_-20
+  sunset_cirrus:  sky0,clock18.6,date3,facesun,at-18_150_36_190_-20

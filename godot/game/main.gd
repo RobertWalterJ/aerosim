@@ -496,6 +496,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	var warm := (1.0 - smoothstep(3.0, 24.0, _sun_el)) * smoothstep(-2.0, 3.0, _sun_el) * (1.0 - 0.7 * float(c["cover"]))
 	var fog_c := Color(0.62, 0.70, 0.80).lerp(Color(0.66, 0.68, 0.72), grey).lerp(Color(1.0, 0.66, 0.40), warm * 0.75)
 	env.fog_light_color = fog_c * lerpf(0.03 + 0.12 * moon_f, 1.0, _daylight)
+	sky_mat.set_shader_parameter("haze_col", Vector3(env.fog_light_color.r, env.fog_light_color.g, env.fog_light_color.b))   # sky horizon shares the fog colour (g_haze)
 	env.fog_sun_scatter = 0.35 + 0.5 * warm
 	env.ambient_light_color = Color(0.78, 0.82, 0.62).lerp(Color(0.52, 0.62, 0.95), warm * 0.8)
 	sun.light_energy = maxf(sun.light_energy, 0.0) * (1.0 + 0.5 * warm)

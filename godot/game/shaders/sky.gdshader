@@ -16,6 +16,7 @@ uniform vec3 moon_dir = vec3(0.0, -1.0, 0.0);          // unit vector towards th
 uniform float moon_illum : hint_range(0.0, 1.0) = 0.5; // fraction of the moon's face that is lit
 uniform vec3 cam_pos = vec3(0.0, 100.0, 0.0);         // camera world position (for the cloud raymarch)
 uniform int cloud_quality = 1;                        // 0 low, 1 medium, 2 high
+uniform vec3 haze_col = vec3(0.62, 0.70, 0.80);       // horizon haze colour (set from env.fog_light_color, = g_haze)
 
 float hash13(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 float vnoise(vec3 p) {
@@ -123,9 +124,10 @@ void sky() {
 	horizon = mix(horizon, vec3(0.95, 0.62, 0.38), warm * day * (0.5 + 0.5 * pow(max(mu, 0.0), 2.0)));
 	zenith = mix(zenith, vec3(0.28, 0.32, 0.50), warm * 0.4);
 	vec3 col = mix(horizon, zenith, pow(up, 0.42));
-	// haze and ground fog wash the colour towards a milky grey, most strongly near the horizon
-	vec3 milk = mix(vec3(0.5, 0.54, 0.60), vec3(0.74, 0.76, 0.80), day) * (0.6 + 0.4 * day);
-	col = mix(col, milk, clamp(haze * 0.5 + fog * (0.55 + 0.45 * (1.0 - up)), 0.0, 1.0));
+	// haze and ground fog wash the colour towards the fog colour, most strongly near the horizon, and
+	// brighten toward the sun (forward scattering), so the sky and the far hills share one haze colour
+	vec3 milk = haze_col * (1.15 + 0.7 * pow(max(mu, 0.0), 3.0) * day);
+	col = mix(col, milk, clamp(haze * 0.6 + fog * (0.55 + 0.45 * (1.0 - up)), 0.0, 1.0));
 	// Mie glow and sun disc
 	float glow = pow(max(mu, 0.0), 6.0) * 0.35 + pow(max(mu, 0.0), 64.0) * 0.8;
 	col += vec3(1.0, 0.82, 0.58) * glow * day * (1.0 - 0.8 * cover);
@@ -134,8 +136,8 @@ void sky() {
 	float ridge_far = 0.010 + 0.042 * vnoise(vec3(az * 1.7, 0.5, 0.5)) + 0.014 * vnoise(vec3(az * 6.0, 2.0, 0.5));
 	float ridge_near = 0.004 + 0.026 * vnoise(vec3(az * 2.6, 4.0, 1.5)) + 0.008 * vnoise(vec3(az * 9.0, 7.0, 0.5));
 	float vis = (1.0 - clamp(fog * 1.1, 0.0, 1.0)) * step(0.0, dir.y) * day;
-	vec3 far_c = mix(horizon, vec3(0.36, 0.50, 0.66), 0.55);
-	vec3 near_c = mix(horizon, vec3(0.20, 0.33, 0.38), 0.65);
+	vec3 far_c = mix(horizon, haze_col, 0.7);
+	vec3 near_c = mix(horizon, haze_col, 0.82);
 	col = mix(col, far_c, (1.0 - smoothstep(ridge_far - 0.0015, ridge_far + 0.0015, dir.y)) * vis * 0.85);
 	col = mix(col, near_c, (1.0 - smoothstep(ridge_near - 0.0015, ridge_near + 0.0015, dir.y)) * vis * 0.8);
 	float disc = smoothstep(0.99955, 0.99975, mu) * 60.0 * day;
@@ -196,13 +198,18 @@ void sky() {
 		vec4 mc = march_clouds(cam_pos, dir, sun_c, fill, grey, TIME, steps, lsteps);
 		cloud_col = mc.rgb;
 		cloud_a = clamp(mc.a, 0.0, 1.0) * smoothstep(0.005, 0.05, dir.y);
-		// thin high cirrus
+		// thin high cirrus: wispy streaks on broad bands, warm when the low sun lights them
 		if (cirrus > 0.02) {
-			vec2 cq = dir.xz / (dir.y + 0.35);
-			float ci = fbm(vec3(cq.x * 0.6 + drift.x * TIME * 0.01, cq.y * 3.2, 1.7));
-			ci = smoothstep(0.55, 0.85, ci) * cirrus * (1.0 - cloud_a) * smoothstep(0.02, 0.25, dir.y) * (1.0 - 0.7 * dark);
-			cloud_col = mix(cloud_col, mix(vec3(0.85, 0.88, 0.95), vec3(1.0, 0.8, 0.6), warm * day), ci / max(cloud_a + ci, 1e-3));
-			cloud_a = clamp(cloud_a + ci * 0.7, 0.0, 1.0);
+			vec2 cq = dir.xz / (dir.y + 0.45);
+			cq += drift * TIME * 0.004;
+			float bands = fbm(vec3(cq.x * 0.5, cq.y * 2.4, 2.1));
+			float wisps = fbm(vec3(cq.x * 1.6 + 9.0, cq.y * 5.5, 5.2));
+			float ci = smoothstep(0.58, 0.78, bands * 0.5 + wisps * 0.5);
+			ci *= 0.55 + 0.45 * smoothstep(0.5, 0.75, bands);   // mostly where a broad band sits
+			ci = clamp(ci, 0.0, 1.0) * cirrus * (1.0 - cloud_a) * smoothstep(0.02, 0.28, dir.y) * (1.0 - 0.7 * dark);
+			vec3 ci_col = mix(vec3(0.88, 0.92, 1.0), vec3(1.0, 0.66, 0.42), warm * day * (0.4 + 0.6 * smoothstep(0.0, 0.7, mu)));
+			cloud_col = mix(cloud_col, ci_col, ci / max(cloud_a + ci, 1e-3));
+			cloud_a = clamp(cloud_a + ci * 0.65, 0.0, 1.0);
 		}
 	}
 	// the sun is hidden by cloud

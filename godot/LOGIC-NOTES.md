@@ -101,3 +101,11 @@ Owner: DSH session A. Files: `game/shaders/sky.gdshader`, `game/shaders/cloud_sh
   - S4. Storm darkness (storm clouds are now clearly darker than overcast): right amount, too dark, not dark enough?
   - S5. Cloud drift speed (about 4 m/s for each unit of menu wind): right, faster, slower?
   - S6. At medium quality (8 steps) the clouds may show faint stepping or banding. Acceptable, or should desktop default to high (12 steps)?
+
+### S2 cirrus, haze, horizon (done, gate green)
+- New sky uniform `haze_col`, set each frame in `_apply_weather_state` from `env.fog_light_color` (the same colour `far_hills.gd` copies into the global `g_haze`), so the sky horizon, the distant ridge silhouettes and the far hills now share one haze colour with no new seam.
+- Horizon haze: the sky washes toward `haze_col`, thickening with `haze` and `fog` and brightening toward the sun (forward scatter `pow(max(mu,0),3)`).
+- Distant ridge silhouettes now fade to `haze_col` instead of two hardcoded blues.
+- Cirrus rebuilt: a broad-band layer plus a fine wisp layer (two anisotropic fbm octaves), thresholded so streaks sit mostly on the bands, and warm pink at sunset when the low sun lights them.
+- Evidence: `docs/realism/sky/s2/*.jpg` (clear, hazy, foggy horizon from 150 m, sunset cirrus). Fog desaturates and softens the horizon as intended (saturation 0.31 clear -> 0.10 fog, edge sharpness 7.1 -> 3.5).
+- Not verified: the exact look and the visual "no seam" (this model cannot view images); the mechanism is that the sky and the hills read the same `env.fog_light_color`.
