@@ -228,3 +228,10 @@ The owner asked for another pass so every cloud form reads as having volume, inc
 - **Cirrus**: unchanged (it already reads as thin strands).
 - Evidence: `docs/realism/sky/vol/*.jpg` (low cloud from below, the slab edge from the side, partly cloudy cumulus, and the sunlit top from 500 m). Measured vs the S7 build, the from-above view now shows the glowing rolling top (clip-white 0.29% -> 1.75%, edge sharpness 5.0 -> 5.6, warmer cast 5 -> 17).
 - Not verified: the look (this model cannot view images). Taste question S15: the low deck's rolling top and sunlit crest are now much brighter from above; right amount, or too hot?
+
+## Sky cloud iridescence (lane/sky, 2026-10-23)
+The owner asked for the prismatic colours clouds show near the sun, and to be able to fly above the weather.
+- **Iridescence** (`irid_color` + per-sample tint): thin cloud near the sun now shows pastel diffraction colours. A cosine palette cycles as the angle from the sun grows, gated by `exp(-angle^2*30)` (strong within about 10 degrees, gone by 20) and by how thin the cloud is (`1 - dens`). Applied to the thin edges of the cumulus, the thin top and edges of the low deck, and to cirrus (which is always thin). At night it fades away because the sun is below the horizon.
+- **Fly above the weather**: already supported by the E3 low cloud layer (the drone or plane flies into it, the picture goes bright and foggy, then it breaks out on top) and now reads better because the deck has a bright rolling top. The cumulus layer (base 1500 m) is reachable by the plane; the low layer (150 to 600 m) is reachable by everything. The clear sky above and the iridescent thin top are what the player sees when they break through.
+- Evidence: `docs/realism/sky/irid/*.jpg` (clear sky toward the sun, partly cloudy toward the sun, cirrus at sunset).
+- Not verified: the look (this model cannot view images). Taste question S16: the iridescence cycles about every 4.5 degrees from the sun and reaches about 0.55 strength on thin edges; too subtle, too strong, or right?
