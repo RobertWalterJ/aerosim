@@ -34,6 +34,7 @@ signal focus_changed(manual: bool, distance_m: float)
 signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects on the drone" and "Camera shake"
 signal fireworks_changed(show: int)                  # session B: "Fireworks show" in the Weather tab
 signal surprise_changed(on: bool)                    # session B: "Surprise shows"
+signal birds_changed(on: bool)                       # session B: Display > Graphics "Birds"
 
 const WEATHER_FILE := "user://weather.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0}
@@ -74,6 +75,7 @@ var wind_fx := true                # wind lane: the drone wobbles, drifts and wo
 var cam_shake := true              # wind lane: the picture shakes a little in rough air
 var fireworks_show := 0            # session B: 0 off, 1 build up, 2 quiet night, 3 finale
 var surprise_shows := false        # session B: a show starts by itself on a few set evenings
+var birds_on := true               # session B: the flocks over the valley
 
 var minimap: MiniMap
 
@@ -592,6 +594,7 @@ func _build_display_tab() -> void:
 	_choice(p, "Grass", ["On", "Off"], func(): return 0, func(i): grass_changed.emit(i == 0))
 	_choice(p, "Camera effects", ["Full sensor look", "Simple (phone safe)"], func(): return 1 if simple_on else 0, func(i): simple_on = i == 1; simple_changed.emit(simple_on))
 	_choice(p, "Drifting leaves and dust", ["On", "Off"], func(): return 0 if ambient_on else 1, func(i): ambient_on = i == 0; ambient_changed.emit(ambient_on))
+	_choice(p, "Birds", ["On", "Off"], func(): return 0 if birds_on else 1, func(i): birds_on = i == 0; birds_changed.emit(birds_on))
 	_heading(p, "Screen")
 	_action(p, "Full screen", func():
 		var m := DisplayServer.window_get_mode()

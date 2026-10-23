@@ -55,6 +55,7 @@ var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
 var audio: DroneAudio
 var fireworks: Fireworks           # session B: firework shows over the lake (game/fireworks.gd)
+var birds: Birds                   # session B: geese, gulls, starlings and hawks (game/birds.gd)
 var _canopy_wind := Vector3.ZERO
 var _wash_now := 0.0
 var recording := false
@@ -264,6 +265,13 @@ func _ready() -> void:
 		hud.weather["clock_speed"] = 2
 		apply_weather(hud.weather)
 	)
+	# session B: the birds of the valley (game/birds.gd): geese crossing in a V, gulls on the lake shore, a starling
+	# murmuration at dusk, and the two hawks drawn where their calls already come from.
+	birds = Birds.new()
+	add_child(birds)
+	birds.setup(terrain, home)
+	birds.set_audio(audio)
+	hud.birds_changed.connect(func(on: bool): birds.enabled = on)
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
 	hud.minimap.home = home
@@ -685,6 +693,7 @@ func _process(delta: float) -> void:
 	ambient.update(delta, cam, wind.toward() * wind.speed, wind.gust, _sun_el, _sun_dir, _daylight, wx, quad.position(), quad.armed, _wash_now, float(af["armD"]))
 
 	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
+	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
@@ -769,6 +778,19 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.test_burst(int(c.substr(7)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
 		elif c == "nosmoke":
 			fireworks.set_smoke(false)
+		elif c == "birdsdemo":     # session B dev hook: birds up close, ignoring night, season and weather
+			birds.force_visible(true); birds.debug_near(true)
+		elif c == "nobirds":
+			birds.enabled = false
+		elif c == "birdsmenu":     # session B dev hook: open Display > Graphics so the Birds switch can be photographed
+			hud.set_paused(true)
+			for b in hud.find_children("*", "Button", true, false):
+				if (b as Button).text == "Display":
+					(b as Button).pressed.emit()
+					break
+			await get_tree().process_frame
+			for sc in hud.find_children("Display", "ScrollContainer", true, false):
+				(sc as ScrollContainer).scroll_vertical = 100000
 		elif c.begins_with("dof"):
 			hud.dof_mode = int(c.substr(3)); sensor.dof_mode = hud.dof_mode
 		elif c == "fwsmoke":
@@ -795,6 +817,8 @@ func _screenshot_mode(arg: String) -> void:
 	img.save_png(path)
 	print("saved ", path)
 	print("fireworks: ", fireworks.stats())
+	print("birds: ", birds.stats())
+	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
 		peaks.append("%s %.0f dB" % [bn, AudioServer.get_bus_peak_volume_left_db(AudioServer.get_bus_index(bn), 0)])
