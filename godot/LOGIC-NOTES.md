@@ -220,3 +220,11 @@ Owner's aim: the lake should look like a real lake in the park: the sky and the 
   - W4. The mirrored sky is fairly strong at low angles (it is the honest fresnel of water). Keep it, or dim it so the lake stays darker from the park?
   - W5. "Water detail" is On by default, also on a phone. Keep it on for the phone, or default Off on touch devices?
   - W6. Floating leaves near the shore (the optional extra) were not added. Do you want them?
+
+## Sky cloud volume pass (lane/sky, 2026-10-23)
+The owner asked for another pass so every cloud form reads as having volume, including the thin low ceiling.
+- **Cumulus** (`cloud_density`/`cloud_light`/`march_clouds`): the upper surface is now puffed by a fine 3D detail octave (`+0.12 * fbmn(...) * smoothstep(0.3,1,h)`), the sun light-march step grew 70 -> 110 m (and its extinction 1.1 -> 1.25) so the self-shadowing reads deeper, and the silver-lining term went 1.1 -> 1.4, so lit edges pop more.
+- **Low cloud / thin ceiling** (`march_low_cloud`): rewritten to read as a volume instead of a flat sheet. The upper and lower surfaces are now displaced by two drifting noise fields (a rolling top and a ragged base, `fbmn` at 450 m scale), and lighting is depth-based: the sun reaches the top and falls off through the deck (`exp(-depth*1.8)`), so the top glows bright (`sun_c * lit * 1.7`) and the base stays grey and a little darker deep inside. Steps 6 -> 8.
+- **Cirrus**: unchanged (it already reads as thin strands).
+- Evidence: `docs/realism/sky/vol/*.jpg` (low cloud from below, the slab edge from the side, partly cloudy cumulus, and the sunlit top from 500 m). Measured vs the S7 build, the from-above view now shows the glowing rolling top (clip-white 0.29% -> 1.75%, edge sharpness 5.0 -> 5.6, warmer cast 5 -> 17).
+- Not verified: the look (this model cannot view images). Taste question S15: the low deck's rolling top and sunlit crest are now much brighter from above; right amount, or too hot?
