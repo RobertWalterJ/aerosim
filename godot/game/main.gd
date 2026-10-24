@@ -60,6 +60,7 @@ var chat_data: ChatData            # session B: the DroneBudz Discord-style serv
 var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
 var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks (game/case_objects.gd)
 var story: StoryArc                # session B: the Lake Car story arc (game/story_arc.gd)
+var unknown_thread: UnknownThread  # session B: the unknown direct message thread (game/unknown_thread.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
 var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
 var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
@@ -351,6 +352,10 @@ func _ready() -> void:
 	add_child(story)
 	story.setup(hud, chat_data, jobs, phone_notes, photo_library, case_objects)
 	photo_library.photo_saved.connect(story.on_photo)
+	# session B: the unknown account that starts as a wrong number and slowly knows too much
+	unknown_thread = UnknownThread.new()
+	add_child(unknown_thread)
+	unknown_thread.setup(chat_data, phone_notes, hud, story)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
 	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story)
@@ -788,6 +793,8 @@ func _process(delta: float) -> void:
 		crew.update(delta)   # session B: the crew react to weather, storms, uploads and discoveries
 	if story != null and not paused:
 		story.update(delta)  # session B: the Lake Car story, in game hours
+	if unknown_thread != null and not paused:
+		unknown_thread.update(delta)   # session B: the unknown account's direct messages
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
 		_celestial_t = 0.25
@@ -1109,6 +1116,29 @@ func _screenshot_mode(arg: String) -> void:
 			story.make_choice("publish")
 			phone_os.open()
 			phone_os._open_app("casebook")
+		elif c == "unknownstart": # session B dev hook: start the unknown direct message thread
+			unknown_thread.debug_start()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("unknown")
+		elif c == "unknownnext":  # session B dev hook: post the next unknown message
+			unknown_thread.debug_next()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("unknown")
+		elif c == "unknowndoubt": # session B dev hook: jump to the questions about Rennick
+			story.debug_run_all()
+			unknown_thread.debug_jump(4)
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("unknown")
+		elif c == "unknownfinal": # session B dev hook: the last unknown message after a private ending
+			story.debug_run_all()
+			story.make_choice("private")
+			unknown_thread.debug_jump(5)
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("unknown")
 		elif c == "storyprivate": # session B dev hook: finish and keep the story private
 			story.debug_run_all()
 			story.make_choice("private")
@@ -1218,6 +1248,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("traffic: ", traffic.stats())
 	print("crew: ", crew.stats())
 	print("story: ", story.stats())
+	print("unknown: ", unknown_thread.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:

@@ -30,6 +30,7 @@ func setup(c: ChatData, h: Hud, j: Jobs, p: PhotoLibrary, cr: Crew) -> void:
 	photos = p
 	crew = cr
 	_build()
+	chat.posted.connect(_on_chat_posted)
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -179,9 +180,11 @@ func _refresh_sidebar() -> void:
 		c.queue_free()
 	for ch in chat.channels():
 		var id := str(ch["id"])
+		if id == "unknown" and chat.messages(id, false).is_empty():
+			continue
 		var b := Button.new()
 		var unread := chat.unread(id)
-		b.text = "  #  " + str(ch["name"]) + (("   (%d)" % unread) if unread > 0 else "")
+		b.text = ("  DM  " + str(ch["name"]) if id == "unknown" else "  #  " + str(ch["name"])) + (("   (%d)" % unread) if unread > 0 else "")
 		b.flat = true
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.custom_minimum_size = Vector2(0, 34)
@@ -198,9 +201,13 @@ func _refresh_sidebar() -> void:
 
 func _refresh_channel() -> void:
 	var ch := chat.channel_info(_current)
-	_title.text = "#  " + str(ch.get("name", _current))
+	if _current == "unknown":
+		_title.text = "Unknown"
+		_input.placeholder_text = "Message Unknown"
+	else:
+		_title.text = "#  " + str(ch.get("name", _current))
+		_input.placeholder_text = "Message #" + str(ch.get("name", _current))
 	_topic.text = str(ch.get("topic", ""))
-	_input.placeholder_text = "Message #" + str(ch.get("name", _current))
 	for m in _messages.get_children():
 		m.queue_free()
 	var msgs := chat.messages(_current)
@@ -330,6 +337,12 @@ func _ask(kind: String) -> void:
 	chat.post(_current, "You", question, false, true)
 	crew.ask(kind, _current)
 	_refresh_channel()
+
+func _on_chat_posted(ch: String) -> void:
+	if ch == "unknown":
+		_refresh_sidebar()
+	if ch == _current:
+		_refresh_channel()
 
 func stats() -> Dictionary:
 	return chat.stats()

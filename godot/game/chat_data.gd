@@ -8,6 +8,9 @@ extends RefCounted
 ## player can type into any channel. Unread counts drive the home-screen badge. Everything the player and the crew say
 ## persists in user://chat.json; the opening seeds are rebuilt on load.
 
+## Emitted whenever a message is posted, so an open chat view can add the channel or refresh.
+signal posted(channel: String)
+
 const SAVE := "user://chat.json"
 const CHANNELS := [
 	{"id": "general", "name": "general", "topic": "Say hi, plan the week, post the odd meme"},
@@ -16,6 +19,7 @@ const CHANNELS := [
 	{"id": "clips", "name": "clips", "topic": "The channel: what we still need for the edit"},
 	{"id": "tech", "name": "tech", "topic": "Gear, drones and honest reviews"},
 	{"id": "jobs", "name": "jobs", "topic": "Paid work for the channel"},
+	{"id": "unknown", "name": "Unknown", "topic": "Direct messages · unknown account"},
 ]
 const CAST := {
 	"Maya": {"role": "editor and channel owner", "colour": Color(0.78, 0.38, 0.50)},
@@ -25,6 +29,7 @@ const CAST := {
 	"Riley": {"role": "park ranger", "colour": Color(0.72, 0.33, 0.26)},
 	"Jo": {"role": "events and bookings", "colour": Color(0.47, 0.35, 0.72)},
 	"Rennick": {"role": "Provincial Police, Halloway", "colour": Color(0.36, 0.46, 0.60)},
+	"Unknown": {"role": "unknown account", "colour": Color(0.42, 0.42, 0.46)},
 	"You": {"role": "pilot", "colour": Color(0.30, 0.65, 0.45)},
 }
 
@@ -61,6 +66,7 @@ func post(channel: String, from: String, text: String, system := false, mine := 
 	if channel != _current and not mine:
 		_unread[channel] = int(_unread.get(channel, 0)) + 1
 	_save()
+	posted.emit(channel)
 
 func unread(channel: String) -> int:
 	return int(_unread.get(channel, 0))

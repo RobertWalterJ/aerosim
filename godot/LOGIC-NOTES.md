@@ -621,3 +621,26 @@ A small visual pass on the funnel, and a design plan for weaving storms into the
   - ST4. Is the 1974 festival shelter and the Anne Voss archive the right emotional link, or should the buried thing belong to different town history?
   - ST5. Is a loose bell rope and a lantern enough for the spooky beat, or do you want a stronger unexplained image in the rain?
   - ST6. Should the storm glass live in the pub, the garage or the police house?
+
+## The unknown account: a direct message thread that knows too much (lane/notify, session B, 2026-11-04)
+A new chat thread from an account called **Unknown** that messages the pilot directly in DroneBudz. The thread is deliberately ambiguous: it starts as a wrong number, becomes friendly, asks questions that go unanswered, then shows it knows more about the Lake Car investigation than a stranger should, and finally starts to question Constable Rennick.
+- **It starts as a mistake:** "hey. is this alex? the one with the drone?" and "sorry, wrong number. or wrong pilot." The pilot can reply or leave it.
+- **It becomes friendly:** the sender says they grew up out past the ridge, that the valley has not changed much, and that the videos make it look like the festival never stopped.
+- **It asks questions that may go unanswered:** what else the crew has the pilot flying for, whether the police are asking about the blue car, "you don't have to answer. i'm just working out who else is looking."
+- **It knows about the investigation:** the tow sticker, the camp by the railway, the file, and a 1974 connection. It says the constable does not tell the pilot everything and that she knew the garage before she knew the town.
+- **It sows doubt about Rennick:** why she came to Halloway, who called the case in, what she is really looking for, and "be careful what you send her. some people collect favours." After the case closes it asks about the shelter and says "ask her about the shelter. if she lies, you'll know."
+- **How it works:** a new direct message channel (`Unknown`, shown as DM) that stays hidden in the server until the first message arrives. It has its own grey avatar and an "unknown account" role. The messages are paced by in game hours and by how far the Lake Car story has gone, so the unknown cannot know about the camp before the pilot has found it. The player can reply in the channel, but the unknown does not answer on the spot; the thread continues when it decides to. Notifications arrive with the first messages. The thread saves to `user://unknown_thread.cfg` and stops when Story and jobs are off.
+- **Evidence (docs/realism/story/):** 10 the first wrong-number messages, 11 the questions about Rennick and the case, 12 the last message after the case closes.
+- **Honest limits:** the identity is intentionally unresolved. The unknown does not reply to the player's own messages yet, there is no branch where the player challenges or blocks them, and the thread has no effect on the main story or the officer's trust. The messages are not voiced and the timestamps are static from the chat clock.
+- **Possible identities for later (not decided):**
+  - Ellis's granddaughter or another relative, protective of him and suspicious of the police.
+  - A journalist from the next town who has been following the police and the festival story.
+  - Someone who used to live in Halloway and knows the 1974 shelter and the old festival.
+  - Someone connected to the police officer's past posting, which would make the doubt more personal.
+- **Questions for Robert:**
+  - UN1. Who should the unknown turn out to be, if anyone? Or should it stay unresolved?
+  - UN2. Should the player be able to ask Rennick about the unknown, and should that change her trust or the case?
+  - UN3. Should the unknown reply to the player's answers, or keep the one-sided, unsettling rhythm?
+  - UN4. Should there be a way to block or report the account, and what should that do to the thread?
+  - UN5. Is the doubt about Rennick a red herring (she is honest) or should there be a small secret she has kept from the pilot?
+  - UN6. Should the unknown thread continue into the storm cases and the shelter, or end when the Lake Car closes?
