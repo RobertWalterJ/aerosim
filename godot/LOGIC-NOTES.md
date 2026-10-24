@@ -971,3 +971,21 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - SITE3. Should travel take in-game time and cost a small fee, or stay instant and free?
   - SITE4. Should every story chapter hard-require its suggested launch site, or stay a soft highlight like now?
   - SITE5. Should the map show the roads' names and the story waypoints, or stay a clean road atlas?
+
+## Side-job failure states and excellent outcomes (lane/notify, session B, 2026-11-15)
+- **Only optional jobs:** the DroneBudz side jobs can now fail. The Lake Car story, Riley's wolf favour and the last flight are untouched; no story chapter can be failed by a photograph.
+- **Three failure modes:** too close to a keep-clear subject fails the job immediately, with the contact calling in the jobs channel and a note. Too far away or a subject clipped at the frame edge gives a retake warning; three warnings for the same objective pull the job. The jobs page shows pulled jobs in red with the reason.
+- **Requirements on jobs:** chapel jobs keep 18 m and 15 m clear of the graves; fields jobs keep 30 m clear of stock; the new mill job keeps 14 m clear of the sails and must stay within 90 m. Lake jobs have a 900 m range and a frame requirement. Each objective card and offer card shows the keep-clear, range and frame line.
+- **New mill job:** Jo's "The mill in detail" is offered after the harvest postcard. It is the clearest close-but-safe job: too close and the estate pulls it, too far and the sails are a speck, off-centre and the frame is clipped.
+- **Excellent grade:** a photo gets the excellent grade when every subject is well inside the frame, the distance is in the sweet band and quality holds up. The contact says it is better than the brief, Maya comments in the channel, the payout gets a 25 money bonus and extra followers, and the video record carries the grade. A valid but weak shot still publishes with a smaller payout and a disappointed client line; that grade is poor, not a failure.
+- **Frame metadata:** `world_life.gd` and `case_objects.gd` now add `frame`, `frame_margin` and `screen_r` to every named subject in the photo metadata. `jobs.gd` uses those fields for the frame check, the retake count and the excellent grade.
+- **Persistence:** failed ids, reasons and retake counts are saved in `user://story.cfg` with the rest of the jobs state.
+- **Evidence:** `docs/realism/jobs/00_pulled_job.jpg`, `docs/realism/jobs/01_offer_requirements.jpg`.
+- **Docs:** `docs/JOBS-FAILURES.md`.
+- **Honest limits:** a subject entirely outside the frame cannot be attributed to the job, so that photo is ignored rather than counted as a miss. Fully out-of-frame failures need an on-screen or post-shot frame check. Retake counts persist with no abandon button. Pulled jobs never come back; there is no retry offer, appeal or failure fee. The excellent threshold is simple constants, not a full photographic score. Client messages are canned, not generated from the actual frame. No story mission uses these failure states.
+- **Questions for Robert:**
+  - JOBF1. Should a pulled job ever come back as a retry, or stay pulled?
+  - JOBF2. Should the player get an on-screen distance and framing guide while shooting a job?
+  - JOBF3. Should out-of-frame photos count as a miss when the pilot is near the subject but did not include it?
+  - JOBF4. Should excellent work get money, followers, a client review or a new job lead?
+  - JOBF5. Should the story's optional favour ever use these failure states, or stay failure-free?

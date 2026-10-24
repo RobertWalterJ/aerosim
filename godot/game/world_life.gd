@@ -255,7 +255,11 @@ func subjects_in_frame(cam: Camera3D) -> Array:
 			continue
 		var radius := maxf(float(poi["radius"]) * 0.4, 4.0)
 		var size := radius / maxf(d, 1.0) * (vp.y * 0.5) / tan(deg_to_rad(cam.fov * 0.5))
-		out.append({"id": str(poi["id"]), "name": str(poi["name"]), "dist": d, "size": size})
+		var nx := sp.x / vp.x
+		var ny := sp.y / vp.y
+		var margin := minf(minf(nx, 1.0 - nx), minf(ny, 1.0 - ny))
+		out.append({"id": str(poi["id"]), "name": str(poi["name"]), "dist": d, "size": size,
+			"frame": [nx, ny], "frame_margin": margin, "screen_r": size / vp.y})
 	return out
 
 ## The nearest place to a world point, for messages and tests.

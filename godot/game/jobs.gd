@@ -20,13 +20,13 @@ const JOBS := [
 		"id": "lake", "from": "Maya", "title": "The lake at golden hour",
 		"brief": "First video for the channel. Get me the lake with the light low over the water, something with the hills in it. Any drone will do.",
 		"potential": {"followers": 2, "views": 3}, "next": "chapel",
-		"objectives": [{"kind": "photo", "subject": "lake", "max_dist": 900.0, "text": "Photograph the lake"}],
+		"objectives": [{"kind": "photo", "subject": "lake", "max_dist": 900.0, "frame_margin": 0.10, "ideal_min": 80.0, "ideal_max": 420.0, "text": "Photograph the lake"}],
 	},
 	{
 		"id": "chapel", "from": "Riley", "title": "The chapel for the heritage page",
 		"brief": "The trust is restoring the chapel and wants a clean photograph of it from the air for their page. Please keep clear of the graves on the way in.",
 		"potential": {"followers": 2, "views": 2}, "next": "fireworks",
-		"objectives": [{"kind": "photo", "subject": "chapel", "max_dist": 400.0, "text": "Photograph the chapel"}],
+		"objectives": [{"kind": "photo", "subject": "chapel", "min_dist": 18.0, "max_dist": 400.0, "frame_margin": 0.16, "ideal_min": 35.0, "ideal_max": 180.0, "text": "Photograph the chapel", "safety": "Keep at least 18 m clear of the graves", "too_close": "Riley called. You went right over the graves. The trust has pulled the job."}],
 	},
 	{
 		"id": "fireworks", "from": "Jo", "title": "Fireworks coverage",
@@ -37,26 +37,32 @@ const JOBS := [
 	{
 		"id": "fields", "from": "Riley", "title": "The harvest postcard",
 		"brief": "The farm trust wants one good picture of the fields for their harvest postcard. Corn, barley, hay bales, whatever looks best. Get low over the rows if you can.",
-		"potential": {"followers": 2, "views": 3}, "next": "",
-		"objectives": [{"kind": "photo", "subject": "fields", "max_dist": 600.0, "text": "Photograph the farm fields"}],
+		"potential": {"followers": 2, "views": 3}, "next": "windmill",
+		"objectives": [{"kind": "photo", "subject": "fields", "min_dist": 30.0, "max_dist": 600.0, "frame_margin": 0.12, "ideal_min": 70.0, "ideal_max": 300.0, "text": "Photograph the farm fields", "safety": "Keep at least 30 m clear of the stock", "too_close": "Riley called. You came down over the sheep and scattered them. The job is pulled."}],
 	},
 	{
 		"id": "favour_lake", "from": "Sam", "title": "A favour: lake reading",
 		"brief": "Not a channel job. I need a photograph of the lake for the weather board, same view every week. I will put something in the channel pot for the fuel.",
 		"potential": {"followers": 1, "views": 1}, "next": "", "favour_pay": 35,
-		"objectives": [{"kind": "photo", "subject": "lake", "max_dist": 900.0, "text": "Photograph the lake for Sam"}],
+		"objectives": [{"kind": "photo", "subject": "lake", "max_dist": 900.0, "frame_margin": 0.10, "ideal_min": 100.0, "ideal_max": 450.0, "text": "Photograph the lake for Sam"}],
 	},
 	{
 		"id": "favour_chapel", "from": "Jo", "title": "A favour: chapel handbill",
 		"brief": "The festival committee needs one clean photograph of the chapel for a handbill. Small thing, but they pay in cash and cake. Mostly cake.",
 		"potential": {"followers": 1, "views": 1}, "next": "", "favour_pay": 30,
-		"objectives": [{"kind": "photo", "subject": "chapel", "max_dist": 500.0, "text": "Photograph the chapel for Jo"}],
+		"objectives": [{"kind": "photo", "subject": "chapel", "min_dist": 15.0, "max_dist": 500.0, "frame_margin": 0.14, "ideal_min": 30.0, "ideal_max": 200.0, "text": "Photograph the chapel for Jo", "safety": "Keep at least 15 m clear of the graves", "too_close": "Jo called. The committee saw the drone over the graves. They have taken the job back."}],
 	},
 	{
 		"id": "favour_fields", "from": "Alex", "title": "A favour: field check",
 		"brief": "Riley wants to know which field is still standing after the wind. One photo over the rows will do. I will cover the fuel and a set of props.",
 		"potential": {"followers": 1, "views": 1}, "next": "", "favour_pay": 40,
-		"objectives": [{"kind": "photo", "subject": "fields", "max_dist": 700.0, "text": "Photograph the fields for Alex"}],
+		"objectives": [{"kind": "photo", "subject": "fields", "min_dist": 30.0, "max_dist": 700.0, "frame_margin": 0.12, "ideal_min": 80.0, "ideal_max": 320.0, "text": "Photograph the fields for Alex", "safety": "Keep at least 30 m clear of the stock", "too_close": "Alex called. Riley saw the flock break for the hedges. The job is pulled."}],
+	},
+	{
+		"id": "windmill", "from": "Jo", "title": "The mill in detail",
+		"brief": "The heritage group wants a close study of the sails for their repair appeal. Get the mill large in frame, but keep a safe distance from the turning sails. If it is too small it is no use, and if you are too close they will call the estate.",
+		"potential": {"followers": 3, "views": 2}, "next": "",
+		"objectives": [{"kind": "photo", "subject": "windmill", "min_dist": 14.0, "max_dist": 90.0, "frame_margin": 0.18, "ideal_min": 22.0, "ideal_max": 60.0, "text": "Photograph the mill sails close but safe", "safety": "Keep at least 14 m clear of the turning sails", "too_close": "Jo called. The estate says you nearly hit the sails. They have pulled the job."}],
 	},
 ]
 
@@ -66,6 +72,9 @@ var notes: PhoneNotes
 var _offers: Array = []          # job ids offered but not accepted
 var _active: Array = []          # accepted job ids
 var _done: Array = []            # completed job ids
+var _failed: Array = []          # jobs pulled for a safety or repeated framing/range failure
+var _fail_reason := {}           # job id -> "too_close", "too_far" or "frame"
+var _misses := {}                # "job:objective:mode" -> count of retake warnings
 var _followers := 0
 var _money := 0
 var _chat: ChatData              # the DroneBudz server; job events are posted there when it exists
@@ -109,6 +118,9 @@ func _save_state() -> void:
 	cf.set_value("jobs", "offers", _offers)
 	cf.set_value("jobs", "active", _active)
 	cf.set_value("jobs", "done", _done)
+	cf.set_value("jobs", "failed", _failed)
+	cf.set_value("jobs", "fail_reason", _fail_reason)
+	cf.set_value("jobs", "misses", _misses)
 	cf.set_value("progress", "done", _obj_done)
 	cf.set_value("progress", "photo", _obj_photo)
 	cf.save(STATE)
@@ -125,6 +137,9 @@ func _load_state() -> void:
 	_offers = cf.get_value("jobs", "offers", [])
 	_active = cf.get_value("jobs", "active", [])
 	_done = cf.get_value("jobs", "done", [])
+	_failed = cf.get_value("jobs", "failed", [])
+	_fail_reason = cf.get_value("jobs", "fail_reason", {})
+	_misses = cf.get_value("jobs", "misses", {})
 	_obj_done = cf.get_value("progress", "done", {})
 	_obj_photo = cf.get_value("progress", "photo", {})
 
@@ -384,18 +399,23 @@ func decline(job_id: String) -> void:
 		_save_state()
 		_refresh()
 
-## A photo was saved. Check it against every open objective.
+## A photo was saved. Check it against every open objective. A photo that breaks a keep-clear distance fails the
+## job immediately; a photo that is too far away or clips the subject gets a retake warning, and three warnings pull
+## the job. A good photo attaches to the objective as before.
 func on_photo(photo_id: int, meta: Dictionary) -> void:
 	var changed := false
-	for jid in _active:
+	for jid in _active.duplicate():
 		var job := _job(jid)
 		if job.is_empty():
 			continue
 		var done: Array = _obj_done.get(jid, [])
+		var pulled := false
 		for oi in job["objectives"].size():
 			if oi in done:
 				continue
-			if _matches(job["objectives"][oi], meta):
+			var o: Dictionary = job["objectives"][oi]
+			var status := _objective_status(o, meta)
+			if status == "ok":
 				done.append(oi)
 				_obj_done[jid] = done
 				_obj_photo["%s:%d" % [jid, oi]] = photo_id
@@ -403,6 +423,17 @@ func on_photo(photo_id: int, meta: Dictionary) -> void:
 				if notes != null:
 					notes.post_text(str(job["from"]), "Got it",
 						"That is exactly the sort of shot I wanted. Thank you!" if done.size() < job["objectives"].size() else "That is the last one. Submit the job and I will send it up.", 0)
+			elif status == "too_close":
+				_fail_job(jid, "too_close", o)
+				changed = true
+				pulled = true
+				break
+			elif status == "too_far" or status == "frame":
+				_miss(jid, oi, status, o)
+				changed = true
+				break
+		if pulled:
+			continue
 		if done.size() == job["objectives"].size() and changed:
 			if notes != null:
 				notes.post_text(str(job["from"]), "Ready to send",
@@ -410,6 +441,97 @@ func on_photo(photo_id: int, meta: Dictionary) -> void:
 	if changed:
 		_save_state()
 		_refresh()
+
+func _best_subject(o: Dictionary, meta: Dictionary) -> Dictionary:
+	if not o.has("subject"):
+		return {}
+	var want := str(o["subject"])
+	var best: Dictionary = {}
+	var best_d := 1e9
+	for s in meta.get("subjects", []):
+		if str(s.get("id", "")) == want:
+			var d := float(s.get("dist", 9999.0))
+			if d < best_d:
+				best_d = d
+				best = s
+	return best
+
+## ok: the photo satisfies the objective. too_close: unsafe; fail the job. too_far / frame: retake.
+func _objective_status(o: Dictionary, meta: Dictionary) -> String:
+	if not o.has("subject"):
+		return "ok" if _matches(o, meta) else "none"
+	var s := _best_subject(o, meta)
+	if s.is_empty():
+		return "none"
+	var d := float(s.get("dist", 9999.0))
+	var min_d := float(o.get("min_dist", 0.0))
+	var max_d := float(o.get("max_dist", 900.0))
+	if min_d > 0.0 and d < min_d:
+		return "too_close"
+	if d > max_d:
+		return "too_far"
+	var need := float(o.get("frame_margin", 0.0))
+	if need > 0.0 and float(s.get("frame_margin", 1.0)) < need:
+		return "frame"
+	return "ok"
+
+func _fail_job(jid: String, mode: String, o: Dictionary) -> void:
+	if jid in _failed:
+		return
+	_active.erase(jid)
+	_failed.append(jid)
+	_fail_reason[jid] = mode
+	_save_state()
+	var job := _job(jid)
+	var who := str(job.get("from", "the contact"))
+	var msg := ""
+	if mode == "too_close":
+		msg = str(o.get("too_close", ""))
+		if msg == "":
+			msg = "%s called. You were too close to the subject and the job has been pulled." % who
+	elif mode == "too_far":
+		msg = "%s called. The subject stayed out of useful range and the job has been pulled." % who
+	else:
+		msg = "%s called. The subject was never held cleanly inside the frame and the job has been pulled." % who
+	if _chat != null:
+		_chat.post("jobs", who, msg, true)
+	if notes != null:
+		notes.post_text(who, "Job pulled", msg, 1)
+	if hud != null:
+		hud.toast("Job pulled: " + failure_text(jid), true)
+	_refresh()
+
+func _miss(jid: String, oi: int, mode: String, o: Dictionary) -> void:
+	var key := "%s:%d:%s" % [jid, oi, mode]
+	var count := int(_misses.get(key, 0)) + 1
+	_misses[key] = count
+	var job := _job(jid)
+	var who := str(job.get("from", "the contact"))
+	if count >= 3:
+		_fail_job(jid, mode, o)
+		return
+	var msg := ""
+	if mode == "too_far":
+		msg = "That is too far away. The subject is only a speck in the frame. Get inside %.0f m and send another." % float(o.get("max_dist", 900.0))
+	else:
+		msg = "The subject is clipped at the edge of the frame. Keep it fully inside and send another."
+	if _chat != null:
+		_chat.post("jobs", who, msg, false)
+	if notes != null:
+		notes.post_text(who, "Retake needed (%d/3)" % count, msg, 0)
+	if hud != null:
+		hud.toast("Retake needed: " + ("too far" if mode == "too_far" else "subject clipped"), true)
+	_save_state()
+
+func failure_text(jid: String) -> String:
+	var mode := str(_fail_reason.get(jid, ""))
+	if mode == "too_close":
+		return "too close and pulled"
+	if mode == "too_far":
+		return "never in range"
+	if mode == "frame":
+		return "never held in frame"
+	return "pulled"
 
 func _matches(o: Dictionary, meta: Dictionary) -> bool:
 	if o.get("night", false) and not bool(meta.get("night", false)):
@@ -421,12 +543,59 @@ func _matches(o: Dictionary, meta: Dictionary) -> bool:
 	if o.has("subject"):
 		var want := str(o["subject"])
 		var max_d := float(o.get("max_dist", 900.0))
+		var min_d := float(o.get("min_dist", 0.0))
+		var need := float(o.get("frame_margin", 0.0))
 		for s in meta.get("subjects", []):
-			if str(s.get("id", "")) == want and float(s.get("dist", 9999.0)) <= max_d:
-				return true
+			if str(s.get("id", "")) != want:
+				continue
+			var d := float(s.get("dist", 9999.0))
+			if d > max_d:
+				continue
+			if min_d > 0.0 and d < min_d:
+				continue
+			if need > 0.0 and float(s.get("frame_margin", 1.0)) < need:
+				continue
+			return true
 		return false
 	return true
 
+## A job can be good, but a really well framed shot inside the sweet distance band gets a genuinely warm response.
+func _grade(job: Dictionary) -> String:
+	var excellent := true
+	var poor := false
+	var objectives: Array = job["objectives"]
+	for oi in objectives.size():
+		var o: Dictionary = objectives[oi]
+		var pid := photo_for(str(job["id"]), oi)
+		if pid < 0 or library == null:
+			return "good"
+		var meta: Dictionary = library.meta_for(pid)
+		if _objective_status(o, meta) != "ok":
+			return "good"
+		if o.has("subject"):
+			var s := _best_subject(o, meta)
+			var fm := float(s.get("frame_margin", 1.0))
+			var frame_need := maxf(float(o.get("frame_margin", 0.10)) * 1.5, 0.20)
+			if fm < frame_need:
+				excellent = false
+			if fm < maxf(float(o.get("frame_margin", 0.10)) * 1.05, 0.12):
+				poor = true
+			var d := float(s.get("dist", 9999.0))
+			var lo := float(o.get("ideal_min", maxf(float(o.get("min_dist", 0.0)) * 1.3, 20.0)))
+			var hi := float(o.get("ideal_max", float(o.get("max_dist", 900.0)) * 0.6))
+			if d < lo or d > hi:
+				excellent = false
+			if _quality(meta) < 0.76:
+				excellent = false
+			if _quality(meta) < 0.70:
+				poor = true
+		elif _quality(meta) < 1.05:
+			excellent = false
+	if excellent:
+		return "excellent"
+	if poor:
+		return "poor"
+	return "good"
 func submit(job_id: String, edited := false) -> void:
 	if not job_id in _active:
 		return
@@ -447,22 +616,39 @@ func submit(job_id: String, edited := false) -> void:
 	if library != null and pid >= 0:
 		meta = library.meta_for(pid)
 	var quality := _quality(meta) if not meta.is_empty() else 1.0
-	var mult := 1.9 if edited else 1.0
+	var grade := _grade(job)
+	var grade_mult := 1.45 if grade == "excellent" else (0.72 if grade == "poor" else 1.0)
+	var mult := (1.9 if edited else 1.0) * grade_mult
 	var views_gain := int((90.0 + 110.0 * float(int(pot.get("views", 1)))) * (1.0 + float(_followers) * 0.012) * quality * mult)
 	var gain := maxi(2, int((4.0 + 6.0 * float(int(pot.get("followers", 1)))) * (1.0 + float(_followers) * 0.004) * quality * (1.6 if edited else 1.0)))
 	var money_gain := int(float(views_gain) * 0.025 * (1.5 if edited else 1.0)) + 10 + int(job.get("favour_pay", 0))
+	if grade == "excellent":
+		gain += 2
+		money_gain += 25
 	_views += views_gain
 	_followers += gain
 	_money += money_gain
 	_videos.append({"title": str(job.get("title", "")), "views": views_gain, "followers": gain,
-		"money": money_gain, "edited": edited, "photo": pid, "quality": snappedf(quality, 0.01)})
+		"money": money_gain, "edited": edited, "photo": pid, "quality": snappedf(quality, 0.01), "grade": grade})
 	_save_state()
 	if notes != null:
-		notes.post_text(str(job["from"]), "Published: +%d followers, +%d money" % [gain, money_gain],
-			"The channel is at %d followers and %d views from this one. Nice work." % [_followers, views_gain], 0)
+		var body := "The channel is at %d followers and %d views from this one. Nice work." % [_followers, views_gain]
+		var title := "Published: +%d followers, +%d money" % [gain, money_gain]
+		if grade == "excellent":
+			title = "That is the shot: +%d followers, +%d money" % [gain, money_gain]
+			body = "The contact says that is better than the brief and sent a 25 money bonus. %d followers and %d views from this one." % [gain, views_gain]
+		elif grade == "poor":
+			title = "Published, but not the shot: +%d followers, +%d money" % [gain, money_gain]
+			body = "It went up, but the contact wanted more. The channel is at %d followers and %d views." % [_followers, views_gain]
+		notes.post_text(str(job["from"]), title, body, 0)
 	if _chat != null:
 		_chat.post("jobs", str(job["from"]),
 			"Published: %s. %d views, %d followers and %d money so far." % [str(job.get("title", "")), views_gain, gain, money_gain], true)
+		if grade == "excellent":
+			_chat.post("jobs", str(job["from"]), "That is not a job shot, that is a portfolio shot. I have put a bonus in the pot and told the committee your name.", false)
+			_chat.post("clips", "Maya", "I saw the frame. That is the cleanest one that has come through this channel. Keep that up.", false)
+		elif grade == "poor":
+			_chat.post("jobs", str(job["from"]), "It is up, but it is not the shot I hoped for. The next one needs cleaner framing and a closer look.", false)
 		if edited:
 			_chat.post("clips", "Maya", "I cut the job footage before it went up. %d views so far. That is what an edit does." % views_gain, false)
 		for th in [30, 60, 120, 250]:
@@ -578,6 +764,14 @@ func _refresh() -> void:
 		l.add_theme_font_size_override("font_size", 14)
 		l.add_theme_color_override("font_color", Color(0.62, 0.74, 0.66))
 		_list.add_child(l)
+	# pulled
+	for jid in _failed:
+		var job := _job(str(jid))
+		var fl := Label.new()
+		fl.text = "Pulled: %s  ·  %s" % [str(job.get("title", "")), failure_text(str(jid))]
+		fl.add_theme_font_size_override("font_size", 14)
+		fl.add_theme_color_override("font_color", Color(0.82, 0.48, 0.38))
+		_list.add_child(fl)
 	if _offers.is_empty() and _active.is_empty():
 		var none := Label.new()
 		none.text = "No open jobs right now. The group will message you when something comes up."
@@ -585,6 +779,17 @@ func _refresh() -> void:
 		none.add_theme_color_override("font_color", Color(0.68, 0.70, 0.74))
 		_list.add_child(none)
 
+func _requirement_text(o: Dictionary) -> String:
+	var bits: Array[String] = []
+	var min_d := float(o.get("min_dist", 0.0))
+	var max_d := float(o.get("max_dist", 0.0))
+	if min_d > 0.0:
+		bits.append("Keep %.0f m clear" % min_d)
+	if max_d > 0.0:
+		bits.append("Stay within %.0f m" % max_d)
+	if float(o.get("frame_margin", 0.0)) > 0.0:
+		bits.append("Subject fully inside the frame")
+	return "   ·   ".join(bits)
 func _card(title_text: String, from: String) -> Dictionary:
 	var card := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
@@ -623,6 +828,14 @@ func _offer_card(jid: String) -> PanelContainer:
 	brief.add_theme_font_size_override("font_size", 14)
 	brief.add_theme_color_override("font_color", Color(0.76, 0.78, 0.82))
 	col.add_child(brief)
+	var hint := _requirement_text(job["objectives"][0]) if not job["objectives"].is_empty() else ""
+	if hint != "":
+		var hl := Label.new()
+		hl.text = hint
+		hl.add_theme_font_size_override("font_size", 12)
+		hl.add_theme_color_override("font_color", Color(0.78, 0.62, 0.44))
+		hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col.add_child(hl)
 	var potential := Label.new()
 	potential.text = potential_text(job)
 	potential.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -663,6 +876,14 @@ func _active_card(jid: String) -> PanelContainer:
 		line.add_theme_color_override("font_color", Color(0.92, 0.92, 0.94) if ok else Color(0.76, 0.78, 0.82))
 		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(line)
+		var hint := _requirement_text(o)
+		if hint != "":
+			var hl := Label.new()
+			hl.text = hint
+			hl.add_theme_font_size_override("font_size", 12)
+			hl.add_theme_color_override("font_color", Color(0.78, 0.62, 0.44))
+			hl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			col.add_child(hl)
 		var pid := photo_for(jid, oi)
 		if pid >= 0 and library != null:
 			var tex := library.texture_for(pid)
@@ -758,3 +979,33 @@ func debug_demo() -> void:
 		_obj_done[jid] = done
 		_save_state()
 	open_page()
+## Dev hook: pull a job for a failure state so the jobs page can be photographed.
+func debug_fail(jid: String, mode: String) -> void:
+	var job := _job(jid)
+	if job.is_empty():
+		return
+	var o: Dictionary = job["objectives"][0]
+	_fail_job(jid, mode, o)
+	open_page()
+## Dev hook: clear the pulled-job state after a screenshot.
+func debug_clear_failures() -> void:
+	_failed.clear()
+	_fail_reason.clear()
+	_misses.clear()
+	_save_state()
+	_refresh()
+## Dev hook: put one job on the offer board so the requirement line can be photographed.
+func debug_offer(jid: String) -> void:
+	if jid in _offers or jid in _active or jid in _done or jid in _failed:
+		pass
+	else:
+		_offers.append(jid)
+		_save_state()
+	_refresh()
+	open_page()
+
+## Dev hook: remove a debug offer again.
+func debug_remove_offer(jid: String) -> void:
+	_offers.erase(jid)
+	_save_state()
+	_refresh()

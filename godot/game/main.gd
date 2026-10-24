@@ -1156,6 +1156,14 @@ func _screenshot_mode(arg: String) -> void:
 			jobs.open_page()
 		elif c == "jobsdemo":     # session B dev hook: accept a job, complete it with the newest photo, open the page
 			jobs.debug_demo()
+		elif c == "jobfail":      # session B dev hook: pull a job for the failure-state page
+			jobs.debug_fail("windmill", "too_close")
+		elif c == "jobsreset":    # session B dev hook: clear the pulled-job state
+			jobs.debug_clear_failures()
+		elif c == "jobsoffer":    # session B dev hook: show one job offer with its requirements
+			jobs.debug_offer("windmill")
+		elif c == "jobsofferreset":  # session B dev hook: remove the debug offer
+			jobs.debug_remove_offer("windmill")
 		elif c == "jobsedit":     # session B dev hook: complete and publish the current job with Maya's edit
 			jobs.debug_demo()
 			var act: Array = jobs.active_list()
