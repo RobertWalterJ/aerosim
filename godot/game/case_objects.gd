@@ -229,6 +229,21 @@ func _build_car(pos: Vector3) -> void:
 # ------------------------------------------------------------------ the garage
 ## The first real Blender model in this lane: the Lake Car. The code primitives below stay as the fallback until
 ## the asset imports. The GLB is authored with its origin on the ground, forward local -Z, right +X.
+func _try_story_model(root: Node3D, path: String, yaw := 0.0) -> bool:
+	if not ResourceLoader.exists(path):
+		return false
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return false
+	var inst := packed.instantiate()
+	if not inst is Node3D:
+		inst.queue_free()
+		return false
+	(inst as Node3D).rotation.y = yaw
+	root.add_child(inst)
+	print("story model loaded: ", path.get_file())
+	return true
+
 func _try_lake_car_asset(root: Node3D) -> bool:
 	var path := "res://assets/story/lake_car.glb"
 	if not ResourceLoader.exists(path):
@@ -405,6 +420,8 @@ func _build_bus(pos: Vector3) -> void:
 	_bus_root = Node3D.new()
 	_bus_root.position = pos
 	add_child(_bus_root)
+	if _try_story_model(_bus_root, "res://assets/models/vehicles/festival_bus_restored.glb", PI):
+		return
 	var green := StandardMaterial3D.new()
 	green.albedo_color = Color(0.20, 0.36, 0.24)
 	green.roughness = 0.6
@@ -625,6 +642,9 @@ func _build_cruiser(pos: Vector3) -> void:
 	var root := Node3D.new()
 	root.position = pos
 	add_child(root)
+	if _try_story_model(root, "res://assets/models/vehicles/cruiser_1984_a.glb", PI):
+		root.rotation.y = 0.9
+		return
 	var white := StandardMaterial3D.new()
 	white.albedo_color = Color(0.78, 0.78, 0.74)
 	white.roughness = 0.8
