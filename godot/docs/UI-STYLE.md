@@ -51,6 +51,18 @@ No pure white surfaces. No neon cyan. No blue-purple gradients. No drop shadows 
 - **Dialogues:** no bubbles. A left avatar, a name in the speaker's colour, a small-caps role, a quiet time, then the line. System events are a centred muted line with a small diamond. Photos are framed with a warm hairline, not rounded masks.
 - **App icon:** a rounded square tinted by the app, the app's two letters in cream, the name below, the category in tiny caps. The home screen is the only place the valley wallpaper is visible.
 
+## Tablet app shell (UI pass 2, 2026-11-15)
+
+The phone is now framed as one tablet OS rather than seven unrelated full-screen pages.
+
+- **Status bar:** always at the top, 38 px, time and carrier left, signal and battery right. The home wallpaper is the only full-bleed background; every app sits below the status bar.
+- **App area:** inset 38 px from the top and 54 px from the bottom. Apps keep their own header, but they no longer own the physical top or bottom of the screen.
+- **Bottom system bar:** Home, the current app name, Recents and Put away, in every app. It uses the same deep pine/brass language as the rest of the kit.
+- **Back behaviour:** the Casebook has an explicit Back, and every app has Home and Put away. Tab still puts the phone away immediately; Esc still leaves an app.
+- **Casebook layout:** a constabulary app bar, a case-file rail with the file identity and four sections, and a separate reading pane. Overview carries the request and next step, Evidence is a photo register, Chapters is a timeline, Contacts is the cast directory. It reads as a case-file app, not a long note.
+- **Hooks for Claude art:** `UniverseUI.app_icon()`, `UniverseUI.avatar()` and `UniverseUI.case_art()` load optional files by exact path and fall back to the drawn placeholder. Chat and Casebook already use the avatar hook; the launcher already uses the icon hook; the Casebook already uses the evidence and closed stamps when they exist.
+
+The complete asset request is `docs/CLAUDE-PHONE-APP-UI-PASS.md`, a delta on top of `CLAUDE-TABLET-UI.md` and `CLAUDE-APP-ASSETS.md`.
 ## App identities
 
 - **Phone home:** valley wallpaper with contour lines and a low brass sun, clock, weather and a field note card. The only screen that shows the wallpaper; apps get a dark scrim so text is always legible.

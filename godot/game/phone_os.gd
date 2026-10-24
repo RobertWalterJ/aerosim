@@ -38,6 +38,8 @@ var _home: Control
 var _apps: Control
 var _switcher: Control
 var _switcher_panel: PanelContainer
+var _sys_nav: PanelContainer
+var _sys_nav_name: Label
 var _clock: Label
 var _metrics: Label
 var _weather: Label
@@ -111,6 +113,7 @@ func _build() -> void:
 	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for m in ["left", "right"]:
 		status.add_theme_constant_override("margin_" + m, 30)
+	status.z_index = 30
 	_root.add_child(status)
 	var st := HBoxContainer.new()
 	st.add_theme_constant_override("separation", 10)
@@ -232,9 +235,8 @@ func _build() -> void:
 		btn.add_theme_stylebox_override("pressed", empty)
 		var key := str(a["key"])
 		var tint := UniverseUI.app_colour(key)
-		var icon := TabletIcon.new()
+		var icon := UniverseUI.app_icon(key, 96, tint)
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		icon.set_kind(key, tint)
 		btn.add_child(icon)
 		btn.pressed.connect(func(): _open_app(key))
 		cell.add_child(btn)
@@ -303,9 +305,8 @@ func _build() -> void:
 		dock_btn.add_theme_stylebox_override("hover", UniverseUI.box(Color(1, 1, 1, 0.06), 10, Color(0, 0, 0, 0), 0, 0.0, 0.0))
 		dock_btn.add_theme_stylebox_override("pressed", UniverseUI.box(Color(1, 1, 1, 0.10), 10, Color(0, 0, 0, 0), 0, 0.0, 0.0))
 		var der := str(pair[0])
-		var dicon := TabletIcon.new()
+		var dicon := UniverseUI.app_icon(der, 40, UniverseUI.app_colour(der))
 		dicon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		dicon.set_kind(der, UniverseUI.app_colour(der))
 		dock_btn.add_child(dicon)
 		dock_btn.pressed.connect(func(): _open_app(der))
 		drow.add_child(dock_btn)
@@ -318,6 +319,8 @@ func _build() -> void:
 	# app host
 	_apps = Control.new()
 	_apps.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_apps.offset_top = 38.0
+	_apps.offset_bottom = -54.0
 	_root.add_child(_apps)
 	_chat_app = ChatApp.new()
 	_chat_app.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -337,10 +340,12 @@ func _build() -> void:
 	_casebook_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_casebook_app.visible = false
 	_apps.add_child(_casebook_app)
-	_casebook_app.setup(story, photos, director)
+	_casebook_app.setup(story, photos, director, sites)
 	_casebook_app.chat_requested.connect(func():
 		_open_app("chat")
 		_chat_app.open("town"))
+	_casebook_app.close_requested.connect(_show_home)
+	_casebook_app.map_requested.connect(func(): _open_app("map"))
 	_marketplace_app = MarketplaceApp.new()
 	_marketplace_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_marketplace_app.visible = false
@@ -366,6 +371,7 @@ func _build() -> void:
 	sdim.color = Color(0.02, 0.03, 0.025, 0.82)
 	sdim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_switcher.add_child(sdim)
+	_build_system_nav()
 	visible = false
 
 func open() -> void:
@@ -374,10 +380,74 @@ func open() -> void:
 	_show_home()
 	_refresh()
 
+## The persistent bottom tablet bar: every app gets the same Home, app title, Recents and Put away controls.
+func _build_system_nav() -> void:
+	_sys_nav = PanelContainer.new()
+	_sys_nav.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_sys_nav.offset_top = -54.0
+	_sys_nav.z_index = 40
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.045, 0.055, 0.048, 0.97)
+	sb.border_width_top = 1
+	sb.border_color = UniverseUI.LINE_STRONG
+	_sys_nav.add_theme_stylebox_override("panel", sb)
+	_root.add_child(_sys_nav)
+	var m := MarginContainer.new()
+	for side in ["left", "right"]:
+		m.add_theme_constant_override("margin_" + side, 24)
+	m.add_theme_constant_override("margin_top", 6)
+	m.add_theme_constant_override("margin_bottom", 6)
+	_sys_nav.add_child(m)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	m.add_child(row)
+	var home_btn := Button.new()
+	home_btn.text = "Home"
+	home_btn.theme_type_variation = "Ghost"
+	home_btn.custom_minimum_size = Vector2(92, 38)
+	home_btn.pressed.connect(_show_home)
+	row.add_child(home_btn)
+	_sys_nav_name = UniverseUI.label("", 12, UniverseUI.MUTED)
+	_sys_nav_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sys_nav_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_sys_nav_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_sys_nav_name)
+	var recents_btn := Button.new()
+	recents_btn.text = "Recents"
+	recents_btn.theme_type_variation = "Ghost"
+	recents_btn.custom_minimum_size = Vector2(100, 38)
+	recents_btn.pressed.connect(_show_switcher)
+	row.add_child(recents_btn)
+	var hide_btn := Button.new()
+	hide_btn.text = "Put away"
+	hide_btn.theme_type_variation = "Ghost"
+	hide_btn.custom_minimum_size = Vector2(110, 38)
+	hide_btn.pressed.connect(close)
+	row.add_child(hide_btn)
+	_sys_nav.visible = false
+
+func _update_system_nav(app_key: String) -> void:
+	if _sys_nav == null:
+		return
+	_sys_nav.visible = app_key != "home" and app_key != "switcher"
+	_sys_nav_name.text = _app_title(app_key).to_upper() + "   ·   HALLOWAY PERSONAL"
+
+func _app_title(key: String) -> String:
+	match key:
+		"chat": return "DroneBudz"
+		"studio": return "VidTube Studio"
+		"photos": return "Photos"
+		"jobs": return "Jobs"
+		"casebook": return "Casebook"
+		"market": return "Facade"
+		"map": return "Map"
+		"switcher": return "Recents"
+		_: return "Home"
 func close() -> void:
 	_open = false
 	visible = false
 	_switcher.visible = false
+	_update_system_nav("home")
 
 func toggle() -> void:
 	if _open:
@@ -393,10 +463,12 @@ func _show_home() -> void:
 	_home.visible = true
 	_apps.visible = false
 	_switcher.visible = false
+	_update_system_nav("home")
 	_refresh()
 
 func _show_switcher() -> void:
 	_current_app = "switcher"
+	_update_system_nav("switcher")
 	if _switcher_panel != null and is_instance_valid(_switcher_panel):
 		_switcher_panel.queue_free()
 	_switcher_panel = PanelContainer.new()
@@ -457,11 +529,9 @@ func _show_switcher() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		cm.add_child(row)
-		var icon := TabletIcon.new()
-		icon.custom_minimum_size = Vector2(48, 48)
+		var icon := UniverseUI.app_icon(key, 48, UniverseUI.app_colour(key))
 		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		icon.set_kind(key, UniverseUI.app_colour(key))
 		row.add_child(icon)
 		var text := VBoxContainer.new()
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -547,6 +617,7 @@ func _open_app(key: String) -> void:
 		"jobs":
 			if jobs != null:
 				jobs.open_page()
+	_update_system_nav(key)
 	_refresh()
 
 func _refresh() -> void:

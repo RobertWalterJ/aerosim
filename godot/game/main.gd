@@ -1253,6 +1253,18 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os._open_app("studio")
 			phone_os._studio_app.refresh()
 			phone_os._studio_app._open_video(jobs.last_video())
+		elif c == "casebook_evidence":
+			phone_os.open()
+			phone_os._open_app("casebook")
+			phone_os._casebook_app._set_tab("evidence")
+		elif c == "casebook_chapters":
+			phone_os.open()
+			phone_os._open_app("casebook")
+			phone_os._casebook_app._set_tab("chapters")
+		elif c == "casebook_contacts":
+			phone_os.open()
+			phone_os._open_app("casebook")
+			phone_os._casebook_app._set_tab("contacts")
 		elif c == "director":    # session B dev hook: the Casebook with the story director act card
 			phone_os.open()
 			phone_os._open_app("casebook")

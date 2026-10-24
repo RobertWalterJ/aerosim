@@ -66,6 +66,64 @@ static func pill(text: String, colour := AMBER) -> Label:
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return l
 
+## Optional Claude UI art. Every helper returns null or a fallback when the file has not been delivered yet, so the
+## app layout never depends on an asset that is still in the brief.
+static func ui_texture(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path) as Texture2D
+	return null
+
+static func avatar_texture(key: String) -> Texture2D:
+	return ui_texture("res://assets/ui/avatar_%s.png" % key)
+
+static func case_art(key: String) -> Texture2D:
+	return ui_texture("res://assets/ui/%s.png" % key)
+
+static func initials(name: String) -> String:
+	var bits := name.strip_edges().split(" ", false)
+	if bits.is_empty():
+		return "?"
+	if bits.size() == 1:
+		return bits[0].substr(0, 1).to_upper()
+	return (bits[0].substr(0, 1) + bits[bits.size() - 1].substr(0, 1)).to_upper()
+
+## A portrait tile with a real Claude avatar when it exists, otherwise the warm initials placeholder.
+static func avatar(key: String, size := 38, tint := MOSS) -> Control:
+	var holder := PanelContainer.new()
+	holder.custom_minimum_size = Vector2(size, size)
+	holder.add_theme_stylebox_override("panel", box(tint.darkened(0.45), int(size * 0.5), tint.darkened(0.1), 1, 0.0, 0.0))
+	holder.clip_contents = true
+	var tex := avatar_texture(key)
+	if tex != null:
+		var pic := TextureRect.new()
+		pic.texture = tex
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		pic.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pic.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		holder.add_child(pic)
+	else:
+		var lab := label(initials(key.capitalize()), int(size * 0.36), CREAM)
+		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		holder.add_child(lab)
+	return holder
+## A Claude app icon when the file exists, otherwise the drawn tablet glyph. The caller keeps the same Control slot.
+static func app_icon(key: String, size := 48, tint := MOSS) -> Control:
+	var tex := ui_texture("res://assets/ui/icon_%s.png" % key)
+	if tex != null:
+		var pic := TextureRect.new()
+		pic.texture = tex
+		pic.custom_minimum_size = Vector2(size, size)
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		pic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		return pic
+	var fallback := TabletIcon.new()
+	fallback.custom_minimum_size = Vector2(size, size)
+	fallback.set_kind(key, tint)
+	return fallback
 static func app_colour(key: String) -> Color:
 	match key:
 		"chat": return MOSS

@@ -1005,3 +1005,18 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **Scope:** asphalt, junction aprons and the old cabin dirt track. Shoulders still follow the terrain. The road top field is 4 MB at 2048 L8.
 - **Honest limits:** this is height sampling, not a generated collision mesh. There is no side collision, no skid response and no landing-gear contact shape. The field is about 2 m per pixel at the road edge. It fixes landing penetration but not a drone flying sideways through the thin edge skirt.
 - **Question for Robert:** ROADCOL1. Should the shoulders also be raised to the road edge, or stay a soft terrain blend?
+
+## Phone OS app shell and Casebook pass (lane/notify, session B, 2026-11-15)
+- **System shell:** every app now sits inside a tablet shell. A persistent 38 px status bar stays at the top, the app area is inset from the top and bottom, and a persistent bottom bar carries Home, the current app name, Recents and Put away. Home still has its own dock and wallpaper; apps no longer own the physical top and bottom of the screen.
+- **Casebook rewrite:** the flat single sheet is now a real case-file proxy. The constabulary app bar shows the case number and status; a 272 px case-file rail holds the file identity, four section tabs (Overview, Evidence, Chapters, Contacts) and the assigned-officer card; the reading pane is a scrolling page with cards, a progress bar, evidence photo tiles, a chapter timeline and contact rows. The closure choice lives in the same structure. Back returns home; Open #town goes to DroneBudz.
+- **App hooks for Claude:** `UniverseUI.app_icon()`, `UniverseUI.avatar()` and `UniverseUI.case_art()` load optional PNGs from `assets/ui/` and fall back to the drawn placeholders. The launcher uses the app icon hook, Chat and Casebook use the avatar hook, and Casebook uses the evidence and closed stamps when those files exist.
+- **UX:** both Home and Put away are always visible in an app; Recents is one tap; the Casebook tabs keep their own scroll state; contacts are a directory rather than a list of links; evidence is a register with progress and thumbnails.
+- **Docs:** `docs/CLAUDE-PHONE-APP-UI-PASS.md` is the follow-up Claude brief. It asks for the still-missing adaptive app icons, the portrait set, the Casebook paper and evidence kit, status and navigation glyphs, job requirement badges, map paper and pins, app banners and empty states, and an OFL UI and typewriter font family. `docs/UI-STYLE.md` now records the tablet app shell.
+- **Evidence:** `docs/realism/phone_ui/00_home.jpg`, `01_casebook_overview.jpg`, `02_casebook_evidence.jpg`, `03_casebook_contacts.jpg`, `04_chat.jpg`.
+- **Honest limits:** the visual finish still depends on Claude's asset drop; the icons, portraits, paper and stamps are drawn placeholders today. Casebook section state is not preserved while the phone is closed beyond the selected tab, and the evidence register has no zoom or file-detail viewer. The bottom bar has no app-specific actions. There are no gestures beyond the buttons. The UI is a 1280-wide tablet layout, not a responsive phone layout.
+- **Questions for Robert:**
+  - UIAPP1. Should Recents show live app previews, or stay a card list with an Open action?
+  - UIAPP2. Should Casebook get a photo zoom and file-detail view?
+  - UIAPP3. Should the system bar show real signal and battery state, or stay a quiet decoration?
+  - UIAPP4. Should the app shell use the requested OFL font family and paper texture when Claude delivers them?
+  - UIAPP5. Should Home and Put away be the only persistent navigation, or should each app also have a visible app back?

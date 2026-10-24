@@ -285,15 +285,8 @@ func _message_row(msg: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 11)
 	pad.add_child(row)
-	var av := PanelContainer.new()
-	av.custom_minimum_size = Vector2(36, 36)
 	var col := chat.cast_colour(from) if not mine else UniverseUI.MOSS
-	av.add_theme_stylebox_override("panel", UniverseUI.box(col.darkened(0.18), 18, Color(col.r, col.g, col.b, 0.45), 1, 0.0, 0.0))
-	row.add_child(av)
-	var initial := UniverseUI.label(from.substr(0, 1), 15, UniverseUI.CREAM)
-	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	av.add_child(initial)
+	row.add_child(UniverseUI.avatar(from.to_lower(), 36, col))
 	var col2 := VBoxContainer.new()
 	col2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col2.add_theme_constant_override("separation", 1)
