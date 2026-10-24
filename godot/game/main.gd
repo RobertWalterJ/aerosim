@@ -884,6 +884,10 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
 			fireworks.test_burst(int(c.substr(7)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c.begins_with("story"):     # models8 dev hook: story<distance>_<name>+<name>... puts story assets in a row ahead of the camera
+			var sp := c.substr(5).split("_", true, 1)
+			for i in 4: await get_tree().process_frame     # let the pose settle so the row lands where the camera really is
+			StoryAssets.dev_row(self, terrain, cam, float(sp[0]), sp[1].split("+"))
 		elif c == "nosmoke":
 			fireworks.set_smoke(false)
 		elif c == "birdsdemo":     # session B dev hook: birds up close, ignoring night, season and weather
