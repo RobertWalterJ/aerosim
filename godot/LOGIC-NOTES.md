@@ -703,3 +703,19 @@ The money from jobs and favours now has somewhere to go. The channel pot shown i
   - M4. Should Facade allow selling old gear and trading in drones?
   - M5. Should favours be repeatable daily small work, or stay one-off story jobs?
   - M6. Should the night vision camera get a mobile-friendly button and a menu switch, and should it be added to the HUD camera controls?
+
+## Return to Home now cuts the motors and recharges (lane/notify, session B, 2026-11-08)
+The RTH landing finishes at the pad, the motors stop, and the battery charges before the next mission.
+- **Motors off:** when the Return to Home landing completes, `quad.motor_cut` is set, the flight controller commands are zeroed, the props spin down and the OSD changes to DISARMED. The engine audio is quiet because the thrust and motor sound inputs are zeroed. This is a normal landed state, not a crash.
+- **Recharge:** a six second charge brings the battery back to full while the drone sits at home. A toast says the motors are off and charging, and another says the battery is full and ready for the next flight. The battery percentage in the OSD climbs during the charge.
+- **New mission:** pressing Takeoff after the charge clears the motor cut and starts a fresh takeoff. Pressing it while charging tells the pilot to wait. The takeoff button no longer starts a second takeoff or landing while one is already running.
+- **Safety:** manual landing and a normal spawn still reset the state; switching drones or resetting respawns with a full battery. Cancelling RTH before touchdown does not cut the motors. A crash or flat battery still needs a reset.
+- **Implementation:** `game/main.gd` has `_home_landed`, `_update_home_recharge` and a fallback `_check_home_landing`; `quad.gd` and `plane.gd` have `motor_cut`; the OSD gets `armed` as false while the motors are cut. `HOMELANDED` is a dev hook for checking the state.
+- **Evidence (docs/realism/rth/):** 00 motors off and charging, 01 battery full and ready.
+- **Honest limits:** only the RTH landing triggers the charge; a manual or auto landing away from home does not. The charge is abstracted to six seconds and there is no charger model or battery-swap animation. The RTH completion is detected from the autopilot state and the landed message, with a fallback on the state transition; the headless `apstest` is not a reliable check of the new landing notice. There is no audible charger sound yet.
+- **Questions for Robert:**
+  - RTH1. Should the charge also happen after a normal auto landing at home, or only after Return to Home?
+  - RTH2. Is six seconds the right charge time, or should it be faster or a battery-swap action?
+  - RTH3. Should the HUD show a clear CHARGING label and percentage, or is the DISARMED status and the toast enough?
+  - RTH4. Should Takeoff be blocked until full, or should the pilot be able to leave early on a partial battery?
+  - RTH5. Should the motors cut after a manual landing anywhere as well?

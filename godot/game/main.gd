@@ -106,6 +106,11 @@ var _gimbal_rate := 0.0
 var landing: Landing
 var _landing_on := false
 var _landing_t := 0.0
+var _home_charging := false
+var _charge_t := 0.0
+var _charge_done := false
+var _prev_auto_state := AutoPilot.State.NONE
+const RECHARGE_SECONDS := 6.0
 
 ## The welcome screen: the valley behind a slowly circling camera, with a short menu. Fly starts the flight.
 func _show_landing() -> void:
@@ -691,7 +696,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	_lens_water = move_toward(_lens_water, clampf(rain * 1.0, 0.0, 0.55) if rain > 0.03 else 0.0, delta * (0.25 if rain > 0.03 else 0.03))
 	sensor.rain_lens = (_lens_water * hud.lens_rain_k + _low_cloud_inside * 0.18) if not chase else 0.0
 	# the air the lens moves through: the drone's velocity against the wind, in the camera's own axes (the drops follow it)
-	sensor.lens_wash = clampf(_wash_now * 1.6 + 0.3 * fc.thrust_fraction(), 0.0, 1.0) if quad.armed else 0.0
+	sensor.lens_wash = clampf(_wash_now * 1.6 + 0.3 * fc.thrust_fraction(), 0.0, 1.0) if (quad.armed and not quad.motor_cut) else 0.0
 	var rel_air: Vector3 = cam.global_transform.basis.inverse() * (quad.velocity() - _wind_now)
 	sensor.lens_air = Vector3(-rel_air.x, -rel_air.y, maxf(-rel_air.z, 0.0)) if _air_test == Vector3.ZERO else _air_test
 	rain_fx.amount_ratio = clampf(rain, 0.05, 1.0)
@@ -709,6 +714,9 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 # ------------------------------------------------------------------ flight
 func spawn() -> void:
 	autopilot.cancel()
+	_home_charging = false
+	_charge_t = 0.0
+	_charge_done = false
 	if hud and hud.minimap: hud.minimap.clear_trail()
 	var y := terrain.height(home.x, home.y) + 0.04
 	quad.reset(home.x, y, home.y, deg_to_rad(150.0))
@@ -804,6 +812,9 @@ func _process(delta: float) -> void:
 		gimbal_pitch = clampf(gimbal_pitch + _gimbal_rate * delta, deg_to_rad(-90.0), deg_to_rad(20.0))
 		hud.set_gimbal_value(gimbal_pitch)
 	_tick_clock(delta)
+	if not paused:
+		_update_home_recharge(delta)   # after a Return to Home landing: props stopped, battery charging
+	_check_home_landing()
 	if jobs != null and not paused:
 		jobs.tick(delta)   # session B: the channel keeps earning views and money between flights
 	if traffic != null and hud != null:
@@ -868,7 +879,7 @@ func _process(delta: float) -> void:
 		lit_dir = _moon_dir; lit_k = 0.3 * float(wx.cur["sun"]) * _moon_illum * (1.0 - _daylight)
 	var head_y := atan2(-(q * Vector3(0, 0, -1)).x, -(q * Vector3(0, 0, -1)).z)
 	drone_shadow.update(pos, head_y, lit_dir, lit_k)
-	drone_view.update_props(quad.s, sim_time, quad.armed)
+	drone_view.update_props(quad.s, sim_time, quad.armed and not quad.motor_cut)
 	# precipitation follows the camera
 	snow_fx.global_position = cam.global_position + Vector3(0, 12, 0)
 	rain_fx.global_position = cam.global_position + Vector3(0, 16, 0)
@@ -876,7 +887,7 @@ func _process(delta: float) -> void:
 	snow_mat.direction = Vector3(wdir.x, -1.0, wdir.z).normalized()
 	_apply_weather_state(delta)
 	_update_sensor_and_osd(delta)
-	ambient.update(delta, cam, wind.toward() * wind.speed, wind.gust, _sun_el, _sun_dir, _daylight, wx, quad.position(), quad.armed, _wash_now, float(af["armD"]))
+	ambient.update(delta, cam, wind.toward() * wind.speed, wind.gust, _sun_el, _sun_dir, _daylight, wx, quad.position(), quad.armed and not quad.motor_cut, _wash_now, float(af["armD"]))
 
 	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
 	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
@@ -1085,6 +1096,11 @@ func _screenshot_mode(arg: String) -> void:
 		elif c == "vidtube":      # session B dev hook: the VidTube Studio app
 			phone_os.open()
 			phone_os._open_app("studio")
+		elif c == "homelanded":  # session B dev hook: put the drone at home, cut the motors and watch the battery charge
+			var hy := terrain.height(home.x, home.y) + 0.04
+			quad.reset(home.x, hy, home.y, deg_to_rad(150.0))
+			quad.battery.soc = 0.2
+			_home_landed()
 		elif c == "market":      # session B dev hook: the Facade marketplace
 			phone_os.open()
 			phone_os._open_app("market")
@@ -1446,7 +1462,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 		"gimbalDeg": rad_to_deg(gimbal_pitch) if af["hasGimbal"] else rad_to_deg(float(af["camTilt"])),
 		"histogram": sensor.histogram, "lensName": sensor.lens_info()["name"], "airframe": af["name"],
 		"audio": audio.perspective_name() if audio.enabled else "off", "fps": int(_fps), "crashed": quad.crash_reason if (quad.crashed or not quad.armed) else "",
-		"armed": quad.armed, "touch": DisplayServer.is_touchscreen_available(), "mission": [],
+		"armed": quad.armed and not quad.motor_cut, "touch": DisplayServer.is_touchscreen_available(), "mission": [],
 		"windMs": _wind_now.length(), "windLevel": "", "homeBearing": atan2(home.x - dpos.x, -(home.y - dpos.z)), "stopHit": 0.0, "aero": "",
 	}
 	hud.show_crash(osd.t["crashed"])
@@ -1455,7 +1471,8 @@ func _update_sensor_and_osd(delta: float) -> void:
 	audio.strain_in(wind.turb, wind.burst, float(af["omegaMax"]), float(af["twr"]), int(af["nBlades"]))   # wind lane: motor strain sound
 	var om := PackedFloat64Array([quad.s[13], quad.s[14], quad.s[15], quad.s[16]])
 	var cov_f := terrain.cover_at(dpos.x, dpos.z).x
-	audio.update({"omega": om, "blades": af["nBlades"], "thrust": clampf(fc.thrust_fraction() ** 0.5, 0.0, 1.0), "vz": quad.s[4], "jerk": quad.ang_accel.length(), "vrs": quad.vrs,
+	var thrust_now := 0.0 if quad.motor_cut else clampf(fc.thrust_fraction() ** 0.5, 0.0, 1.0)
+	audio.update({"omega": om, "blades": af["nBlades"], "thrust": thrust_now, "vz": quad.s[4], "jerk": quad.ang_accel.length(), "vrs": quad.vrs,
 		"air_speed": (quad.velocity() - _wind_now).length(), "drone_pos": dpos, "drone_vel": quad.velocity(), "agl": agl, "wash": _wash_now,
 		"wind": Vector2(_canopy_wind.x, _canopy_wind.z).length(), "conifer": clampf(0.3 + 0.7 * cov_f, 0.0, 1.0), "gust": wind.gust}, delta)
 	hud.set_airborne(agl > 0.4)
@@ -1473,7 +1490,11 @@ func _autopilot_sticks(st: Vector4, p: Vector3, agl: float) -> Vector4:
 		autopilot.cancel("Assisted flight needs Normal or Sport mode")
 	else:
 		var lim: Dictionary = af["limits"]["S" if fc.mode == "S" else "N"]
+		var was_home_land := autopilot.state == AutoPilot.State.RTH_LAND
 		var cmd := autopilot.update(p, quad.velocity(), fc.heading, agl, home, float(lim["vH"]), float(lim["vUp"]))
+		if was_home_land and autopilot.state == AutoPilot.State.NONE and autopilot.message == "Landed":
+			_home_landed()
+			autopilot.message = ""   # the home landing has its own notice
 		var rth := autopilot.state in [AutoPilot.State.RTH_CLIMB, AutoPilot.State.RTH_FLY, AutoPilot.State.RTH_LAND]
 		if rth and maxf(maxf(absf(st.x), absf(st.y)), maxf(absf(st.z), absf(st.w))) > 0.25:
 			autopilot.cancel("Return to home cancelled")
@@ -1490,8 +1511,15 @@ func _takeoff_or_land() -> void:
 		hud.toast("Reset the drone first", true); return
 	if autopilot.state == AutoPilot.State.TAKEOFF or autopilot.state == AutoPilot.State.LAND:
 		autopilot.cancel("Cancelled"); return
+	if _home_charging:
+		hud.toast("Recharging at home. " + ("Ready in a moment." if not _charge_done else ""), false)
+		return
 	if agl > 0.4: autopilot.start_landing()
-	else: autopilot.start_takeoff()
+	else:
+		# a new mission starts from a charged, motor-off drone at home
+		quad.motor_cut = false
+		_charge_done = false
+		autopilot.start_takeoff()
 	if fc.mode == "M": hud.set_mode("N")
 
 func _toggle_rth() -> void:
@@ -1505,6 +1533,49 @@ func _toggle_rth() -> void:
 		hud.toast("Take off first", true); return
 	if fc.mode == "M": hud.set_mode("N")
 	autopilot.start_rth(agl)
+
+## The RTH landing finished at home: cut the motors and start the battery charging for the next mission.
+func _home_landed() -> void:
+	if _home_charging:
+		return
+	quad.motor_cut = true
+	quad.cmd.fill(0.0)
+	_home_charging = true
+	_charge_t = 0.0
+	_charge_done = false
+	if hud != null:
+		hud.toast("Home. Motors off. Recharging for the next flight.")
+
+## Fallback for the RTH-LAND to NONE transition, in case a frame misses the autopilot message.
+func _check_home_landing() -> void:
+	var ap_now := autopilot.state
+	if _prev_auto_state == AutoPilot.State.RTH_LAND and ap_now == AutoPilot.State.NONE and not _home_charging and quad != null:
+		var p: Vector3 = quad.position()
+		if p.y - terrain.height(p.x, p.z) < 0.35:
+			_home_landed()
+	_prev_auto_state = ap_now
+
+## While the drone sits at home with the motors cut, bring the battery back up over a few seconds.
+func _update_home_recharge(delta: float) -> void:
+	if not _home_charging:
+		return
+	if quad == null or quad.crashed:
+		_home_charging = false
+		return
+	var p: Vector3 = quad.position()
+	var agl := p.y - terrain.height(p.x, p.z)
+	if agl > 0.35:
+		_home_charging = false
+		return
+	_charge_t += delta
+	quad.battery.soc = clampf(quad.battery.soc + delta / RECHARGE_SECONDS, 0.0, 1.0)
+	if quad.battery.soc >= 0.999:
+		quad.battery.soc = 1.0
+		_home_charging = false
+		_charge_done = true
+		quad.battery.update(0.0, 0.0)
+		if hud != null:
+			hud.toast("Battery full. Ready for the next flight.")
 
 ## The shutter: a photo saves the finished video frame; in video mode it starts and stops a recording indicator.
 func _shutter_pressed() -> void:
