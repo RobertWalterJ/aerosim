@@ -39,6 +39,7 @@ static var _clear_grid := {}       # Vector2i cell -> Array[Vector2] of centreli
 static var _samples_by_route := {} # id -> Array[Vector2] centroid samples
 
 var terrain: Terrain
+var paths := {}                    # route id -> Array[Vector2] of the smooth centreline (traffic reads this)
 var _lengths := {}
 
 # ------------------------------------------------------------------ clearance for the world planting
@@ -81,8 +82,34 @@ static func near_road(x: float, z: float, margin := TREE_CLEARANCE) -> bool:
 func setup(t: Terrain) -> void:
 	terrain = t
 	for r in ROUTES:
+		paths[str(r["id"])] = _route_points(r)
+	for r in ROUTES:
 		_build_route(r)
 	print("roads: ", stats())
+
+func route_ids() -> Array:
+	return paths.keys()
+
+func path(id: String) -> Array:
+	return paths.get(id, [])
+
+## The point and direction at a distance along a route (metres), for traffic.
+func sample(id: String, s: float) -> Dictionary:
+	var pts: Array = paths.get(id, [])
+	if pts.size() < 2:
+		return {}
+	var total := 0.0
+	var i := 0
+	while i < pts.size() - 1:
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var d := a.distance_to(b)
+		if s <= total + d or i == pts.size() - 2:
+			var k := clampf((s - total) / maxf(d, 0.001), 0.0, 1.0)
+			return {"pos": a.lerp(b, k), "dir": (b - a).normalized(), "length": _lengths.get(id, 0.0)}
+		total += d
+		i += 1
+	return {}
 
 func _catmull(p0: Vector2, p1: Vector2, p2: Vector2, p3: Vector2, t: float) -> Vector2:
 	var t2 := t * t
