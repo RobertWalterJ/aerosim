@@ -29,7 +29,7 @@ const CAST := {
 	"Sam": {"role": "meteorologist", "colour": Color(0.24, 0.56, 0.52)},
 	"Riley": {"role": "park ranger", "colour": Color(0.72, 0.33, 0.26)},
 	"Jo": {"role": "events and bookings", "colour": Color(0.47, 0.35, 0.72)},
-	"Rennick": {"role": "Provincial Police, Halloway", "colour": Color(0.36, 0.46, 0.60)},
+	"Rennick": {"role": "Halloway Valley Constabulary", "colour": Color(0.36, 0.46, 0.60)},
 	"Unknown": {"role": "unknown account", "colour": Color(0.42, 0.42, 0.46)},
 	"Kit": {"role": "DroneBudz support", "colour": Color(0.74, 0.62, 0.36)},
 	"You": {"role": "pilot", "colour": Color(0.30, 0.65, 0.45)},

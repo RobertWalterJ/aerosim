@@ -1116,3 +1116,20 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - TH3. Should heat show through trees, or be occluded and make the search harder?
   - TH4. Should the thermal camera have a gain or contrast control on the flight screen?
   - TH5. Should cars show engine heat only while moving, or also when parked?
+## Message voice and point of view pass (lane/notify, session B, 2026-11-15)
+- **The rule:** no character refers to themselves in the third person. A friend's note is written in their own voice. App notices can be third person because the app is the sender.
+- **Rennick:** the last-flight note now reads "Hey, buddy. I appreciate everything you have done for me. I have one more ask: fly north to the old cabin and find Wren. Please." The old text was "The constable has one more favour." The first case note is "I am new at the Halloway detachment..." not "The new constable would like a word." The evidence note is "I have the photographs." not "Rennick has the photographs."
+- **Riley:** the night-pasture note now says "Finish the night pasture first, then the last flight. I need to know what is taking my sheep." It used to be a note from Rennick saying "Finish Riley's favour first."
+- **Trailhead and cabin:** Rennick's notes now say "I need you to start the last flight from there" and "I cannot see them from here". Ghost notes are titled "A message" instead of "Rennick", which removes the "Rennick: Rennick" notification banner.
+- **Jobs:** all job-pulled and too-close notes are first person from the contact, e.g. "I called. You went right over the graves..." instead of "Riley called..." The new-job and ready-to-send notes no longer append flight-app instructions to the contact's voice. The Maya note is "I am your editor now..." not "Maya is now your editor... she will edit it."
+- **Place discoveries:** these come from the DroneBudz app, not from Riley. The old note said "You found the railway..." from Riley, which read like an app guide in the ranger's mouth.
+- **Roles:** Rennick's chat role is Halloway Valley Constabulary, matching the Casebook. Sam's Casebook role is METEOROLOGIST, matching #weather.
+- **Grammar:** "The Pike jammer is off us now" is now "Pike's jammer is off us now. His hunter drones are not."
+- **Evidence:** docs/realism/messages/00_town_voice.jpg. Docs MESSAGE-VOICE.md.
+- **Honest limits:** this is a manual string pass, not a dialogue system. App and Casebook status text remains third person on purpose. Rennick is she in the Unknown account and the Casebook, but the case file does not otherwise state a gender. Older dynamic messages already saved in user://chat.json are not rewritten. The player's own messages are whatever they typed.
+- **Questions for Robert:**
+  - MSG1. Is Rennick's "hey, buddy" right, or should she stay formal?
+  - MSG2. Should Rennick be she, he or they in third-person references?
+  - MSG3. Should job failure notices come from the contact's chat, the app, or both?
+  - MSG4. Should place discoveries stay app notices or become Riley's messages again?
+  - MSG5. Should the player be able to answer these notes, or are one-way notifications enough?

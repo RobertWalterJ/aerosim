@@ -291,7 +291,7 @@ func _overview_view() -> void:
 	var rv: VBoxContainer = request["body"]
 	rv.add_child(UniverseUI.label("CURRENT REQUEST", 9, ACCENT))
 	var req := story.active_request()
-	var rtext := "No open request right now. Rennick will come back when she has something." if req == "" else req
+	var rtext := "No open request right now. Rennick will come back when there is something." if req == "" else req
 	var r := UniverseUI.label(rtext, 16, UniverseUI.CREAM)
 	r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rv.add_child(r)
@@ -449,7 +449,7 @@ func _contacts_view() -> void:
 		{"key": "riley", "name": "Riley", "role": "PARK RANGER", "note": "Knows the pasture, the flock and every track on the ridge."},
 		{"key": "maya", "name": "Maya", "role": "EDITOR", "note": "Cuts the channel footage. Has opinions about the last shot."},
 		{"key": "jo", "name": "Jo", "role": "EVENTS", "note": "Runs the festival and knows who was where on the night."},
-		{"key": "sam", "name": "Sam", "role": "CREW", "note": "Fixes the kit and hears things before the town does."},
+		{"key": "sam", "name": "Sam", "role": "METEOROLOGIST", "note": "Forecasts the valley and hears things before the town does."},
 	]
 	for p in people:
 		var c := _card(UniverseUI.LINE)

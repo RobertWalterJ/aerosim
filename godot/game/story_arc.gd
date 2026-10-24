@@ -159,7 +159,7 @@ func _start() -> void:
 	_begin(0)
 	if notes != null and not _start_notified:
 		_start_notified = true
-		notes.post_text("Rennick", "A favour", "The new constable at the Halloway detachment would like a word. Open DroneBudz and check #town.", 1)
+		notes.post_text("Rennick", "A favour", "I am new at the Halloway detachment. This is a favour, not a case yet. I have put a note in #town.", 1)
 
 func _begin(i: int) -> void:
 	if i < 0 or i >= CHAPTERS.size():
@@ -231,9 +231,9 @@ func _complete() -> void:
 			chat.post(CHANNEL, "Rennick", "I will come back to you when I have had a look. Thank you.")
 	if notes != null:
 		var title := "Evidence received: " + str(ch["title"])
-		var body := "Rennick has the photographs. Open the Casebook to see the file."
+		var body := "I have the photographs. The file is in the Casebook."
 		if chapter >= _last_index():
-			body = "The case is ready to close. Open the Casebook to decide what happens to the story."
+			body = "The case is ready to close. The file is in the Casebook when you are ready to decide what happens to the story."
 		notes.post_text("Rennick", title, body, 0)
 	var nxt := float(ch.get("next_hours", 0.0))
 	if chapter < _last_index():

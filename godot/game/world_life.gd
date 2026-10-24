@@ -221,7 +221,7 @@ func _discover(poi: Dictionary) -> void:
 	_discovered[id] = true
 	_save_discovered()
 	if notes != null:
-		notes.post_text("Riley", "You found " + str(poi["name"]), str(poi["note"]), 0)
+		notes.post_text("DroneBudz", "You found " + str(poi["name"]), str(poi["note"]), 0)
 
 ## Called by the photo library: a photo of a place counts as finding it too.
 func mark_discovered(names: Array) -> void:

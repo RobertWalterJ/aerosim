@@ -121,13 +121,13 @@ func _missing_requirement() -> String:
 func _prompt_missing(kind: String) -> void:
 	if kind == "thermal":
 		chat.post("town", "Rennick", "Not yet. There is one piece of kit you need before the last flight. A thermal camera, from Facade. Riley's night pasture will show you how to use it.", false)
-		notes.post_text("Rennick", "One more thing", "You need the thermal camera from Facade before the last flight. Riley's night pasture is the place to learn it.", 1)
+		notes.post_text("Rennick", "One more thing", "I need you to get the thermal camera from Facade before the last flight. Riley's night pasture is the place to learn it.", 1)
 	elif kind == "wildlife":
 		chat.post("town", "Riley", "Before the last flight, come and find what has been taking my sheep. The west pasture will teach you the thermal camera, and I need the answer.", false)
-		notes.post_text("Riley", "Night pasture first", "The last flight needs the thermal camera you learn in the west pasture. Finish Riley's favour first.", 1)
+		notes.post_text("Riley", "Night pasture first", "Finish the night pasture first, then the last flight. I need to know what is taking my sheep.", 1)
 	elif kind == "site":
 		chat.post("town", "Rennick", "Come north. The last flight should start from the ridge trailhead, not from the home pad. Drive the kit up, then open the map if you need the way.", false)
-		notes.post_text("Rennick", "Launch from the trailhead", "The last flight starts from the ridge trailhead or the north gate pull-off. Use the Map app to drive the kit there.", 1)
+		notes.post_text("Rennick", "Launch from the trailhead", "Drive the kit up to the ridge trailhead or the north gate pull-off. I need you to start the last flight from there.", 1)
 
 func _arrive_cabin() -> void:
 	objects.set_cabin_lights(true)
@@ -135,7 +135,7 @@ func _arrive_cabin() -> void:
 	hud.toast("The cabin lights are on. Wren has set out again on foot.", false, "DRONEBUDZ")
 	_nav_to(objects.hiker_world_pos(), "HEAT")
 	_ghost("The cabin is ahead. Wren set out again on foot, east of the cabin near the treeline. I cannot see them from here. Use the thermal camera.", "Rennick")
-	notes.post_text("Rennick", "The cabin", "Wren is on foot east of the cabin. Press T for the thermal camera and search the treeline.", 0)
+	notes.post_text("Rennick", "The cabin", "Wren is on foot east of the cabin, near the treeline. I cannot see them from here. Use the thermal camera and search the trees.", 0)
 	_set_objective("Search east of the cabin for Wren", "Press T for the thermal camera. Warm bodies show white and orange.")
 
 func _found() -> void:
@@ -175,7 +175,7 @@ func start() -> void:
 		chat.post("tech", "Alex", "The thermal camera is in the gimbal. The camera button is on your flight screen now. Press T or tap it. Warm bodies show white and orange.", false)
 	if thermal != null:
 		thermal.install()
-	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
+	_ghost("Pike's jammer is off us now. His hunter drones are not. Do not slow down over the trees.", "Rennick")
 	# The reveal. The officer the player has been talking to died forty years ago.
 	_ghost("I have to tell you something I should have told you at the start.", "Rennick")
 	_ghost("I am not the new constable. I died out here forty years ago, on the old plot past the north shore.", "Rennick")
@@ -183,12 +183,12 @@ func start() -> void:
 	_ghost("The person messaging you is Wren. They are lost. They were in the cabin watching your videos to work out where they were. I have been borrowing their phone.", "Rennick")
 	_ghost("I am sorry I lied. Please find Wren. Then I can go.", "Rennick")
 	chat.post("unknown", "Unknown", "please hurry. the lights in the cabin are not mine.", false)
-	notes.post_text("Rennick", "The last flight", "The constable has one more favour. Fly north to the old cabin and find Wren.", 1)
+	notes.post_text("Rennick", "One more ask", "Hey, buddy. I appreciate everything you have done for me. I have one more ask: fly north to the old cabin and find Wren. Please.", 1)
 	_print_reveal()
 
 func _ghost(text: String, from: String) -> void:
 	chat.post("town", from, text, false)
-	notes.post_text(from, "Rennick", text, 0)
+	notes.post_text(from, "A message", text, 0)
 
 func _print_reveal() -> void:
 	print("finale: started; state=", stats())
@@ -223,7 +223,7 @@ func debug_cabin() -> void:
 		thermal.install()
 		thermal.set_on(true)
 		objects.set_thermal_marker(true)
-	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
+	_ghost("Pike's jammer is off us now. His hunter drones are not. Do not slow down over the trees.", "Rennick")
 	_nav_to(objects.hiker_world_pos(), "HEAT")
 	_set_objective("Search east of the cabin for Wren", "Thermal camera on. Warm bodies show white and orange.")
 
@@ -244,6 +244,6 @@ func debug_thermal_view() -> void:
 		thermal.install()
 		thermal.set_on(true)
 		objects.set_thermal_marker(true)
-	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
+	_ghost("Pike's jammer is off us now. His hunter drones are not. Do not slow down over the trees.", "Rennick")
 	_nav_to(objects.hiker_world_pos(), "HEAT")
 	_set_objective("Search east of the cabin for Wren", "Thermal camera on. Warm bodies show white and orange.")

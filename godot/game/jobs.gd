@@ -26,7 +26,7 @@ const JOBS := [
 		"id": "chapel", "from": "Riley", "title": "The chapel for the heritage page",
 		"brief": "The trust is restoring the chapel and wants a clean photograph of it from the air for their page. Please keep clear of the graves on the way in.",
 		"potential": {"followers": 2, "views": 2}, "next": "fireworks",
-		"objectives": [{"kind": "photo", "subject": "chapel", "min_dist": 18.0, "max_dist": 400.0, "frame_margin": 0.16, "ideal_min": 35.0, "ideal_max": 180.0, "text": "Photograph the chapel", "safety": "Keep at least 18 m clear of the graves", "too_close": "Riley called. You went right over the graves. The trust has pulled the job."}],
+		"objectives": [{"kind": "photo", "subject": "chapel", "min_dist": 18.0, "max_dist": 400.0, "frame_margin": 0.16, "ideal_min": 35.0, "ideal_max": 180.0, "text": "Photograph the chapel", "safety": "Keep at least 18 m clear of the graves", "too_close": "I called. You went right over the graves. The trust has pulled the job."}],
 	},
 	{
 		"id": "fireworks", "from": "Jo", "title": "Fireworks coverage",
@@ -38,7 +38,7 @@ const JOBS := [
 		"id": "fields", "from": "Riley", "title": "The harvest postcard",
 		"brief": "The farm trust wants one good picture of the fields for their harvest postcard. Corn, barley, hay bales, whatever looks best. Get low over the rows if you can.",
 		"potential": {"followers": 2, "views": 3}, "next": "windmill",
-		"objectives": [{"kind": "photo", "subject": "fields", "min_dist": 30.0, "max_dist": 600.0, "frame_margin": 0.12, "ideal_min": 70.0, "ideal_max": 300.0, "text": "Photograph the farm fields", "safety": "Keep at least 30 m clear of the stock", "too_close": "Riley called. You came down over the sheep and scattered them. The job is pulled."}],
+		"objectives": [{"kind": "photo", "subject": "fields", "min_dist": 30.0, "max_dist": 600.0, "frame_margin": 0.12, "ideal_min": 70.0, "ideal_max": 300.0, "text": "Photograph the farm fields", "safety": "Keep at least 30 m clear of the stock", "too_close": "I called. You came down over the sheep and scattered them. The job is pulled."}],
 	},
 	{
 		"id": "favour_lake", "from": "Sam", "title": "A favour: lake reading",
@@ -50,19 +50,19 @@ const JOBS := [
 		"id": "favour_chapel", "from": "Jo", "title": "A favour: chapel handbill",
 		"brief": "The festival committee needs one clean photograph of the chapel for a handbill. Small thing, but they pay in cash and cake. Mostly cake.",
 		"potential": {"followers": 1, "views": 1}, "next": "", "favour_pay": 30,
-		"objectives": [{"kind": "photo", "subject": "chapel", "min_dist": 15.0, "max_dist": 500.0, "frame_margin": 0.14, "ideal_min": 30.0, "ideal_max": 200.0, "text": "Photograph the chapel for Jo", "safety": "Keep at least 15 m clear of the graves", "too_close": "Jo called. The committee saw the drone over the graves. They have taken the job back."}],
+		"objectives": [{"kind": "photo", "subject": "chapel", "min_dist": 15.0, "max_dist": 500.0, "frame_margin": 0.14, "ideal_min": 30.0, "ideal_max": 200.0, "text": "Photograph the chapel for Jo", "safety": "Keep at least 15 m clear of the graves", "too_close": "I called. The committee saw the drone over the graves. They have taken the job back."}],
 	},
 	{
 		"id": "favour_fields", "from": "Alex", "title": "A favour: field check",
 		"brief": "Riley wants to know which field is still standing after the wind. One photo over the rows will do. I will cover the fuel and a set of props.",
 		"potential": {"followers": 1, "views": 1}, "next": "", "favour_pay": 40,
-		"objectives": [{"kind": "photo", "subject": "fields", "min_dist": 30.0, "max_dist": 700.0, "frame_margin": 0.12, "ideal_min": 80.0, "ideal_max": 320.0, "text": "Photograph the fields for Alex", "safety": "Keep at least 30 m clear of the stock", "too_close": "Alex called. Riley saw the flock break for the hedges. The job is pulled."}],
+		"objectives": [{"kind": "photo", "subject": "fields", "min_dist": 30.0, "max_dist": 700.0, "frame_margin": 0.12, "ideal_min": 80.0, "ideal_max": 320.0, "text": "Photograph the fields for Alex", "safety": "Keep at least 30 m clear of the stock", "too_close": "I called. Riley saw the flock break for the hedges. The job is pulled."}],
 	},
 	{
 		"id": "windmill", "from": "Jo", "title": "The mill in detail",
 		"brief": "The heritage group wants a close study of the sails for their repair appeal. Get the mill large in frame, but keep a safe distance from the turning sails. If it is too small it is no use, and if you are too close they will call the estate.",
 		"potential": {"followers": 3, "views": 2}, "next": "",
-		"objectives": [{"kind": "photo", "subject": "windmill", "min_dist": 14.0, "max_dist": 90.0, "frame_margin": 0.18, "ideal_min": 22.0, "ideal_max": 60.0, "text": "Photograph the mill sails close but safe", "safety": "Keep at least 14 m clear of the turning sails", "too_close": "Jo called. The estate says you nearly hit the sails. They have pulled the job."}],
+		"objectives": [{"kind": "photo", "subject": "windmill", "min_dist": 14.0, "max_dist": 90.0, "frame_margin": 0.18, "ideal_min": 22.0, "ideal_max": 60.0, "text": "Photograph the mill sails close but safe", "safety": "Keep at least 14 m clear of the turning sails", "too_close": "I called. The estate says you nearly hit the sails. They have pulled the job."}],
 	},
 ]
 
@@ -205,7 +205,7 @@ func upload_photo(photo_id: int, meta: Dictionary, via_editor := false) -> Dicti
 		if _chat != null:
 			_chat.post("clips", "Maya", "Watched your upload. The light on that is really good, but the edit is doing nothing. I am your editor now. Send the next one in here and I will cut it before it goes up.", false)
 		if notes != null:
-			notes.post_text("Maya", "Maya is now your editor", "Upload to the DroneBudz #clips channel and she will edit it before it is published.", 1)
+			notes.post_text("Maya", "Your editor", "I am your editor now. Send the next clip to #clips and I will cut it before it goes up.", 1)
 	elif via_editor and _chat != null:
 		_chat.post("clips", "Maya", "Cut it and published it. %d views already. This is what happens when you let me edit." % views_gain, false)
 	if _chat != null and not via_editor:
@@ -374,8 +374,7 @@ func _announce_offer(job_id: String) -> void:
 	var job := _job(job_id)
 	if job.is_empty() or notes == null:
 		return
-	notes.post_text(str(job["from"]), "New job: " + str(job["title"]),
-		str(job["brief"]) + "  Open Flight > DroneBudz jobs to take it.", 0)
+	notes.post_text(str(job["from"]), "New job: " + str(job["title"]), str(job["brief"]), 0)
 	if _chat != null:
 		_chat.post("jobs", str(job["from"]), "New job on the board: %s. %s" % [str(job["title"]), str(job["brief"])], true)
 
@@ -388,7 +387,7 @@ func accept(job_id: String) -> void:
 	_save_state()
 	if notes != null:
 		var job := _job(job_id)
-		notes.post_text(str(job["from"]), "On it", "Thanks! Send it over when it is done.", 0)
+		notes.post_text(str(job["from"]), "Job accepted", "Send it over when it is done.", 0)
 		if _chat != null:
 			_chat.post("jobs", "You", "Accepted: " + str(job["title"]), false, true)
 	_refresh()
@@ -436,8 +435,7 @@ func on_photo(photo_id: int, meta: Dictionary) -> void:
 			continue
 		if done.size() == job["objectives"].size() and changed:
 			if notes != null:
-				notes.post_text(str(job["from"]), "Ready to send",
-					"The job is complete. Open Flight > DroneBudz jobs and hit Submit.", 1)
+				notes.post_text(str(job["from"]), "Ready to send", "The job is complete. Send it up when you are ready.", 1)
 	if changed:
 		_save_state()
 		_refresh()
@@ -488,11 +486,11 @@ func _fail_job(jid: String, mode: String, o: Dictionary) -> void:
 	if mode == "too_close":
 		msg = str(o.get("too_close", ""))
 		if msg == "":
-			msg = "%s called. You were too close to the subject and the job has been pulled." % who
+			msg = "I called. You were too close to the subject and the job has been pulled."
 	elif mode == "too_far":
-		msg = "%s called. The subject stayed out of useful range and the job has been pulled." % who
+		msg = "I called. The subject stayed out of useful range and the job has been pulled."
 	else:
-		msg = "%s called. The subject was never held cleanly inside the frame and the job has been pulled." % who
+		msg = "I called. The subject was never held cleanly inside the frame and the job has been pulled."
 	if _chat != null:
 		_chat.post("jobs", who, msg, true)
 	if notes != null:
@@ -633,13 +631,13 @@ func submit(job_id: String, edited := false) -> void:
 	_save_state()
 	if notes != null:
 		var body := "The channel is at %d followers and %d views from this one. Nice work." % [_followers, views_gain]
-		var title := "Published: +%d followers, +%d money" % [gain, money_gain]
+		var title := "Your shot is live: +%d followers, +%d money" % [gain, money_gain]
 		if grade == "excellent":
 			title = "That is the shot: +%d followers, +%d money" % [gain, money_gain]
-			body = "The contact says that is better than the brief and sent a 25 money bonus. %d followers and %d views from this one." % [gain, views_gain]
+			body = "That is better than the brief. I have sent a 25 money bonus. %d followers and %d views from this one." % [gain, views_gain]
 		elif grade == "poor":
-			title = "Published, but not the shot: +%d followers, +%d money" % [gain, money_gain]
-			body = "It went up, but the contact wanted more. The channel is at %d followers and %d views." % [_followers, views_gain]
+			title = "It is up, but not the shot I hoped for: +%d followers, +%d money" % [gain, money_gain]
+			body = "I wanted more from it. The channel is at %d followers and %d views." % [_followers, views_gain]
 		notes.post_text(str(job["from"]), title, body, 0)
 	if _chat != null:
 		_chat.post("jobs", str(job["from"]),
