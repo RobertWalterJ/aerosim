@@ -16,3 +16,5 @@ build/
 !assets/ui/avatars/**/*.png
 !assets/ui/items/**/*.png
 !assets/ui/thumbs/**/*.png
+# tablet OS / HUD / map art (lane osui) is generated source-of-truth too
+!assets/ui/osui/**/*.png
