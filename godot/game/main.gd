@@ -64,6 +64,8 @@ var unknown_thread: UnknownThread  # session B: the unknown direct message threa
 var thermal: ThermalCamera         # session B: the heat camera for the last flight (game/thermal.gd)
 var night_vision: NightVision      # session B: the Facade night vision add-on (game/night_vision.gd)
 var inventory: Inventory           # session B: the pilot's bought kit (game/inventory.gd)
+var wildlife_objects: WildlifeObjects  # session B: the sheep and the wolf in the west pasture
+var wildlife: WildlifeCase         # session B: Riley's night tracking favour and the thermal tutorial
 var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
 var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
@@ -376,12 +378,19 @@ func _ready() -> void:
 	add_child(thermal)
 	night_vision = NightVision.new()
 	add_child(night_vision)
+	# session B: the west pasture, the sheep and the wolf, and the thermal-camera tutorial favour
+	wildlife_objects = WildlifeObjects.new()
+	add_child(wildlife_objects)
+	wildlife_objects.setup(terrain)
+	wildlife = WildlifeCase.new()
+	add_child(wildlife)
+	wildlife.setup(hud, chat_data, phone_notes, story, inventory, thermal, wildlife_objects)
 	ending = Ending.new()
 	add_child(ending)
 	ending.setup(jobs)
 	finale = Finale.new()
 	add_child(finale)
-	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending)
+	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
 	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory)
@@ -831,6 +840,8 @@ func _process(delta: float) -> void:
 		story.update(delta)  # session B: the Lake Car story, in game hours
 	if unknown_thread != null and not paused:
 		unknown_thread.update(delta)   # session B: the unknown account's direct messages
+	if wildlife != null and not paused:
+		wildlife.update(delta, quad.position())   # session B: the night pasture thermal favour
 	if finale != null and not paused:
 		finale.update(delta, quad.position())   # session B: the last flight, the storm search and the ending
 	_celestial_t -= delta
@@ -914,7 +925,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_TAB: if phone_os != null: phone_os.toggle()   # session B: the in-game phone home screen
 		KEY_G: if hud.paused: photo_library.toggle()   # session B: photo gallery from the menu
 		KEY_J: if hud.paused: jobs.toggle()   # session B: DroneBudz jobs page from the menu
-		KEY_T: if thermal != null: thermal.toggle()   # session B: thermal camera in the last flight
+		KEY_T:   # session B: thermal camera, bought on Facade and taught in the night pasture
+			if inventory != null and inventory.has_addon("thermal_camera") and thermal != null:
+				thermal.install()
+				thermal.toggle()
+				hud.toast("Thermal camera " + ("on" if thermal.is_on() else "off"))
+			else:
+				hud.toast("No thermal camera. Buy one on Facade, then try Riley's night pasture.", true)
 		KEY_K:   # session B: night vision add-on from Facade
 			if inventory != null and inventory.has_addon("night_vision") and night_vision != null:
 				night_vision.toggle()
@@ -1147,6 +1164,32 @@ func _screenshot_mode(arg: String) -> void:
 			if not inventory.has_addon("night_vision"):
 				inventory.add_purchase(FacadeCatalog.item("night_vision"))
 			night_vision.set_on(true)
+		elif c == "wildlife":       # session B dev hook: the night pasture with the thermal camera fitted
+			story.debug_jump(2)
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			wildlife.debug_start()
+			thermal.set_on(true)
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("general")
+		elif c == "wildlifecomplete":  # session B dev hook: finish the night pasture
+			story.debug_jump(2)
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			wildlife.debug_complete()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("general")
+		elif c == "wildlifeworld":    # session B dev hook: the night pasture from the air, thermal fitted
+			story.debug_jump(2)
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			wildlife.debug_start()
+			thermal.set_on(true)
 		elif c == "raptorflight":     # session B dev hook: fly the bought Raptor
 			if not inventory.owns_drone("raptor"):
 				inventory.add_purchase(FacadeCatalog.item("drone_raptor"))
@@ -1357,6 +1400,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("story: ", story.stats())
 	print("unknown: ", unknown_thread.stats())
 	print("kit: ", inventory.stats())
+	print("wildlife: ", wildlife.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:

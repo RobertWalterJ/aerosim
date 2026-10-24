@@ -26,6 +26,12 @@ const ITEMS := [
 		"desc": "A small low-light sensor that patched into the gimbal. Press K in flight to see the valley in green. Grainy, but it sees.",
 	},
 	{
+		"id": "thermal_camera", "kind": "camera", "target": "thermal_camera",
+		"title": "Thermal camera module", "seller": "Alex", "place": "Halloway",
+		"condition": "Calibrated", "price": 120,
+		"desc": "A heat camera for the gimbal. Press T in flight to see warm bodies through the dark. Riley's pasture job will show you how to use it, and the last flight needs it.",
+	},
+	{
 		"id": "battery", "kind": "part", "target": "battery",
 		"title": "High-capacity battery pack", "seller": "Alex", "place": "Halloway",
 		"condition": "New cells", "price": 55,

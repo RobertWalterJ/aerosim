@@ -749,3 +749,20 @@ The phone home is now a tablet-style desktop rather than a plain app grid, with 
   - TAB3. Should the tablet frame/bezel from Claude be used, or keep the UI edge-to-edge?
   - TAB4. Should the app icons stay code-drawn if Claude's set does not match, or wait for the final set?
   - TAB5. Should the field-note widget stay, or become a full weather widget with a forecast?
+
+## The night pasture: a thermal upgrade and the wolf (lane/notify, session B, 2026-11-11)
+The thermal camera is now a real progression item. Riley's night pasture favour teaches its use, and the last flight will not start without it.
+- **The favour:** after the Lake Car reaches chapter 3, Riley asks about sheep being taken from the west pasture. The player must buy the thermal camera module on Facade (Alex, $120), fit it, then fly the west pasture after dark with thermal on and find the wolf. The objective card guides the purchase and the search. On success Riley explains: a thin young wolf, no collar, taking the weakest sheep; the flock is moved to the home field and a proper night pen is planned. Nothing is shot and no gore is shown.
+- **The thermal camera:** a Facade camera add-on, owned and fitted through the same kit system as night vision. T toggles it, but only when the module is owned; without it the HUD says to buy one on Facade.
+- **The gate:** the final flight now refuses to start until the thermal camera is owned and the night pasture is complete. Rennick or Riley prompts the missing step in #town, and the finale waits for it. The auto-start timer does not spam prompts.
+- **The world (`game/wildlife_objects.gd`):** seven code-placeholder sheep in the hay field, a code-placeholder wolf at the treeline, and heat shells for both. The wolf is hidden until the thermal camera is fitted and the favour starts. The sheep are ordinary farm life and visible from the start. All are cleared from the world planting via the CaseObjects evidence spots.
+- **The mission state (`game/wildlife_case.gd`):** saved to `user://wildlife_case.cfg`, with Riley's chat messages, phone notices, objective card, thermal-marker visibility and a humane resolution. It is optional to the rest of the sandbox but required for the ending.
+- **Evidence (docs/realism/wildlife/):** 00 Riley's night pasture request, 01 the thermal pass over the pasture, 02 the solved favour.
+- **Asset plan:** `docs/CLAUDE-WILDLIFE-ASSETS.md` and the board request. Priority 0 is the wolf in four poses, white and cream sheep in grazing/standing/lamb/ram variants, the trough, hay rack, salt lick, wool on wire, wolf and sheep tracks, a timber night pen and a hand-painted advisory sign. Priority 1 is the sheep bell, hay bale, straw, feed bucket, fur tuft, field gate, farm lantern and a tracking-collar variant. Priority 2 is a sheepdog, farm pickup, collar tracker and shearing kit for later cases.
+- **Honest limits:** the sheep, wolf and pen are placeholders until Claude's models land. The thermal pass works in daylight as well as night; the writing says after dark but the check is thermal-on plus distance, so the player is not locked out by the clock. The wolf only has a heat signature, not an animated behaviour. The night pasture does not have its own Casebook entry; it lives in chat and the objective card. The mission is triggered by the main story chapter, not by a separate mission select. The camera must be bought with channel money; a player with no money cannot progress until they earn some, which is intentional but could be a wall.
+- **Questions for Robert:**
+  - W1. Is $120 the right price for the thermal camera, or should the night pasture provide a loaner and the purchase be optional?
+  - W2. Should the night pasture be skippable for the ending, with only the thermal camera required, or stay a hard gate?
+  - W3. Should the thermal pass be night-only, or stay flexible so players are never stuck waiting for the clock?
+  - W4. Should the wolf be relocated, collared or simply left alone in the resolution?
+  - W5. Should this become a proper Casebook side case with photographs, or stay a chat favour and objective? 

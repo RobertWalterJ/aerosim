@@ -16,6 +16,8 @@ var objects: CaseObjects
 var weather_events: WeatherEvents
 var thermal: ThermalCamera
 var ending: Ending
+var inventory: Inventory
+var wildlife: WildlifeCase
 
 var started := false
 var ended := false
@@ -28,12 +30,13 @@ var _auto_timer := 0.0
 var _last_waypoint := -1
 var _found_announced := false
 var _debug_frozen := false
+var _missing_prompt := ""
 
 const CABIN_CLOSE := 190.0
 const HIKER_FIND := 105.0
 const WAYPOINTS := [700.0, 420.0, 190.0]
 
-func setup(h: Hud, c: ChatData, n: PhoneNotes, s: StoryArc, u: UnknownThread, o: CaseObjects, w: WeatherEvents, t: ThermalCamera, e: Ending) -> void:
+func setup(h: Hud, c: ChatData, n: PhoneNotes, s: StoryArc, u: UnknownThread, o: CaseObjects, w: WeatherEvents, t: ThermalCamera, e: Ending, inv: Inventory, wild: WildlifeCase) -> void:
 	hud = h
 	chat = c
 	notes = n
@@ -43,6 +46,8 @@ func setup(h: Hud, c: ChatData, n: PhoneNotes, s: StoryArc, u: UnknownThread, o:
 	weather_events = w
 	thermal = t
 	ending = e
+	inventory = inv
+	wildlife = wild
 	_build_objective()
 
 func _build_objective() -> void:
@@ -90,6 +95,12 @@ func update(delta: float, drone_pos: Vector3) -> void:
 		if auto_start and hud != null and hud.story_on and story != null and story.case_closed() and unknown != null and unknown.beat >= 5:
 			_auto_timer += delta
 			if _auto_timer > 3.0:
+				var missing := _missing_requirement()
+				if missing != "":
+					if _missing_prompt != missing:
+						_missing_prompt = missing
+						_prompt_missing(missing)
+					return
 				start()
 		return
 	if thermal == null:
@@ -118,6 +129,21 @@ func update(delta: float, drone_pos: Vector3) -> void:
 		if thermal.is_on() and hd <= HIKER_FIND:
 			_found()
 
+func _missing_requirement() -> String:
+	if inventory == null or not inventory.has_addon("thermal_camera"):
+		return "thermal"
+	if wildlife == null or not wildlife.completed():
+		return "wildlife"
+	return ""
+
+func _prompt_missing(kind: String) -> void:
+	if kind == "thermal":
+		chat.post("town", "Rennick", "Not yet. There is one piece of kit you need before the last flight. A thermal camera, from Facade. Riley's night pasture will show you how to use it.", false)
+		notes.post_text("Rennick", "One more thing", "You need the thermal camera from Facade before the last flight. Riley's night pasture is the place to learn it.", 1)
+	elif kind == "wildlife":
+		chat.post("town", "Riley", "Before the last flight, come and find what has been taking my sheep. The west pasture will teach you the thermal camera, and I need the answer.", false)
+		notes.post_text("Riley", "Night pasture first", "The last flight needs the thermal camera you learn in the west pasture. Finish Riley's favour first.", 1)
+
 func _arrive_cabin() -> void:
 	objects.set_cabin_lights(true)
 	objects.show_hiker()
@@ -142,6 +168,10 @@ func _found() -> void:
 
 func start() -> void:
 	if started:
+		return
+	var missing := _missing_requirement()
+	if missing != "":
+		_prompt_missing(missing)
 		return
 	started = true
 	stage = 0
@@ -185,6 +215,10 @@ func stats() -> Dictionary:
 
 ## Dev hooks for screenshots and the gate.
 func debug_start() -> void:
+	if inventory != null and not inventory.has_addon("thermal_camera"):
+		inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+	if wildlife != null and not wildlife.completed():
+		wildlife.debug_complete()
 	start()
 
 func debug_cabin() -> void:
