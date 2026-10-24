@@ -804,7 +804,7 @@ func _build_display_tab() -> void:
 	_choice(p, "Sound", ["On", "Off"], func(): return 0 if sound_on else 1, func(i): sound_on = i == 0; sound_changed.emit(sound_on))
 	_choice(p, "Phone messages", ["Off", "On"], func(): return 0 if phone_notes else 1, func(i): phone_notes = i == 0)
 	_choice(p, "Phone style", ["Android", "iPhone"], func(): return 0 if phone_style == 1 else 1, func(i): phone_style = 1 if i == 0 else 0)
-	_choice(p, "Story and jobs", ["Off", "On"], func(): return 1 if story_on else 0, func(i): story_on = i == 1)
+	_choice(p, "Story and jobs", ["Off", "On"], func(): return 1 if story_on else 0, func(i): story_on = i == 1; _save_mode())
 	_choice(p, "Listening position", ["Ground (the pilot)", "Onboard microphone", "Cinematic mix"], func(): return listening, func(i): listening = i; listening_changed.emit(i))
 	_gslider(p, "Volume", 0.0, 1.0, 0.05, func(): return sound_vol, func(x): sound_vol = x; volume_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_heading(p, "Performance")
@@ -903,6 +903,7 @@ func _load_mode() -> void:
 		_save_mode()
 		return
 	story_mode = bool(cf.get_value("mode", "story", true))
+	story_on = bool(cf.get_value("mode", "story_on", true))
 
 func _save_mode() -> void:
 	var cf := ConfigFile.new()

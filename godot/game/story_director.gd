@@ -16,10 +16,11 @@ var wildlife: WildlifeCase
 var inventory: Inventory
 var finale: Finale
 var ending: Ending
+var sites: LaunchSites
 
 var act := 0
 
-func setup(h: Hud, s: StoryArc, u: UnknownThread, w: WildlifeCase, inv: Inventory, f: Finale, e: Ending) -> void:
+func setup(h: Hud, s: StoryArc, u: UnknownThread, w: WildlifeCase, inv: Inventory, f: Finale, e: Ending, ls: LaunchSites = null) -> void:
 	hud = h
 	story = s
 	unknown = u
@@ -27,6 +28,7 @@ func setup(h: Hud, s: StoryArc, u: UnknownThread, w: WildlifeCase, inv: Inventor
 	inventory = inv
 	finale = f
 	ending = e
+	sites = ls
 	act = _act_from_state()
 
 func update(_delta: float) -> void:
@@ -36,6 +38,8 @@ func update(_delta: float) -> void:
 		act_changed.emit(act)
 
 func _act_from_state() -> int:
+	if story != null and story.is_completed():
+		return 4
 	if ending != null and ending.started:
 		return 4
 	if finale != null and finale.is_started():
@@ -53,6 +57,8 @@ func act_number() -> int:
 	return clampi(act + 1, 1, ACTS.size())
 
 func next_step() -> String:
+	if story != null and story.is_completed():
+		return "The story is complete. The valley is yours; the festival is still on, and the credits are in the Casebook."
 	if ending != null and ending.started:
 		return "The story is complete. The credits are rolling."
 	if finale != null and finale.is_started():
@@ -66,6 +72,8 @@ func next_step() -> String:
 			return "Rennick needs one more thing before the cabin: buy the thermal camera on Facade, then try Riley's night pasture."
 		if wildlife == null or not wildlife.completed():
 			return "The night pasture is still open. Use the thermal camera in the west pasture to find the wolf."
+		if sites != null and not (str(sites.active_id) in ["cabin_track", "north_ridge"]):
+			return "Drive the kit to the ridge trailhead or the north gate pull-off. The last flight starts from there, not from the home pad."
 		return "Everything is ready. Rennick is waiting at the cabin. Open #town and take the last flight."
 	if wildlife != null and story.chapter >= 2 and not wildlife.completed():
 		return "Riley's night pasture is open. Buy the thermal camera on Facade if you have not, then find the wolf in the west pasture."
@@ -74,6 +82,8 @@ func next_step() -> String:
 func chapter_line() -> String:
 	if story == null or not story.started:
 		return "No case yet"
+	if story.is_completed():
+		return "The file is closed"
 	if story.case_closed():
 		return "The Lake Car closed"
 	return "Chapter %d of %d  ·  %s" % [story.chapter + 1, story.chapter_count(), _act_title()]

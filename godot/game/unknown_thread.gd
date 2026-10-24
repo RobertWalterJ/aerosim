@@ -31,7 +31,7 @@ const MESSAGES := [
 	],
 	[
 		"they found the tow sticker, didn't they. and someone has been camping up by the railway.",
-		"the constable doesn't tell you everything. ask her about the file. ask her about 1974.",
+		"the constable doesn't tell you everything. ask her about the file. ask her about 1984.",
 		"she is new here. but she knew the garage before she knew the town.",
 	],
 	[
@@ -88,6 +88,9 @@ func update(delta: float) -> void:
 		return
 	if beat >= MESSAGES.size() - 1:
 		return
+	# In Story mode the chapter gate is the real pacing. Do not make the player wait real hours for the next DM.
+	if hud.story_mode and _abs_hours < _next_at:
+		_abs_hours = _next_at
 	if _abs_hours < _next_at:
 		return
 	var n := beat + 1

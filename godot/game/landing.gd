@@ -32,6 +32,10 @@ var _story_note: Label
 var _mode_desc: Label
 var _story_btn: Button
 var _sandbox_btn: Button
+var _callsign_edit: LineEdit
+var _real_name_check: CheckBox
+var _real_name_edit: LineEdit
+var _real_name_note: Label
 
 func _init() -> void:
 	layer = 5          # under the pause menu (layer 10), over the video
@@ -50,10 +54,14 @@ func build(drone_name: String, story_mode := true) -> void:
 	shade.texture = gt; shade.stretch_mode = TextureRect.STRETCH_SCALE; shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.anchor_right = 0.62; shade.offset_right = 0; shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(shade)
+	var scroll := ScrollContainer.new()
+	scroll.anchor_left = 0.05; scroll.anchor_right = 0.44; scroll.anchor_top = 0.0; scroll.anchor_bottom = 1.0
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_root.add_child(scroll)
 	var col := VBoxContainer.new(); col.add_theme_constant_override("separation", 8)
-	col.anchor_left = 0.05; col.anchor_right = 0.44; col.anchor_top = 0.0; col.anchor_bottom = 1.0
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	_root.add_child(col)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(col)
 	var title := Label.new(); title.text = "AeroSim"
 	title.add_theme_font_size_override("font_size", 54); title.add_theme_color_override("font_color", Color.WHITE)
 	var sub := Label.new(); sub.text = "A drone field story  ·  Halloway Valley"
@@ -77,9 +85,62 @@ func build(drone_name: String, story_mode := true) -> void:
 	_mode_desc.add_theme_font_size_override("font_size", 12)
 	_mode_desc.add_theme_color_override("font_color", MenuStyle.MUTED)
 	col.add_child(_mode_desc)
+	# the pilot identity: callsign always edited here; the computer name is only a suggestion
+	PlayerProfile.ensure_loaded()
+	var pilot_head := Label.new(); pilot_head.text = "PILOT"
+	pilot_head.add_theme_font_size_override("font_size", 11); pilot_head.add_theme_color_override("font_color", MenuStyle.ACCENT)
+	col.add_child(pilot_head)
+	var name_row := HBoxContainer.new(); name_row.add_theme_constant_override("separation", 8)
+	var name_label := Label.new(); name_label.text = "Callsign"; name_label.custom_minimum_size = Vector2(72, 0); name_label.add_theme_color_override("font_color", MenuStyle.MUTED)
+	name_row.add_child(name_label)
+	_callsign_edit = LineEdit.new()
+	_callsign_edit.text = PlayerProfile.callsign
+	_callsign_edit.placeholder_text = "What should the crew call you?"
+	_callsign_edit.max_length = PlayerProfile.MAX_CALLSIGN
+	_callsign_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_callsign_edit.custom_minimum_size = Vector2(0, 38)
+	_callsign_edit.tooltip_text = "Used in the DroneBudz chat, the Casebook and the credits."
+	_callsign_edit.text_changed.connect(func(value: String): PlayerProfile.set_callsign(value))
+	name_row.add_child(_callsign_edit)
+	col.add_child(name_row)
+	_real_name_check = CheckBox.new()
+	_real_name_check.text = "Use my computer name in the story"
+	_real_name_check.button_pressed = PlayerProfile.use_real_name
+	_real_name_check.tooltip_text = "Optional. Adds one festival volunteer with your first name at the end of the story. Nothing leaves this save."
+	_real_name_check.toggled.connect(func(on: bool):
+		PlayerProfile.set_use_real_name(on)
+		_real_name_edit.visible = on
+		_real_name_edit.text = PlayerProfile.real_name
+		_real_name_note.text = "Festival volunteer: " + PlayerProfile.festival_character_name() if on and PlayerProfile.festival_character_name() != "" else "No computer name found; you can type one below." if on else "Off. The festival volunteer stays unnamed.")
+	col.add_child(_real_name_check)
+	_real_name_note = Label.new()
+	_real_name_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_real_name_note.add_theme_font_size_override("font_size", 10)
+	_real_name_note.add_theme_color_override("font_color", MenuStyle.MUTED)
+	_real_name_note.text = "Off. The festival volunteer stays unnamed."
+	col.add_child(_real_name_note)
+	_real_name_edit = LineEdit.new()
+	_real_name_edit.text = PlayerProfile.real_name
+	_real_name_edit.placeholder_text = "First name only (optional)"
+	_real_name_edit.max_length = PlayerProfile.MAX_REAL_NAME
+	_real_name_edit.custom_minimum_size = Vector2(0, 36)
+	_real_name_edit.visible = PlayerProfile.use_real_name
+	_real_name_edit.tooltip_text = "Only used for one minor festival character. You can clear it at any time."
+	_real_name_edit.text_changed.connect(func(value: String):
+		PlayerProfile.set_real_name(value)
+		_real_name_note.text = "Festival volunteer: " + PlayerProfile.festival_character_name() if PlayerProfile.festival_character_name() != "" else "No name yet; the volunteer stays unnamed.")
+	col.add_child(_real_name_edit)
+	if PlayerProfile.has_computer_name() and not PlayerProfile.use_real_name:
+		_real_name_note.text = "Found on this computer: " + PlayerProfile.detected_name + ". Choose the box to use it."
+	elif PlayerProfile.use_real_name and PlayerProfile.festival_character_name() != "":
+		_real_name_note.text = "Festival volunteer: " + PlayerProfile.festival_character_name()
 	var fly := Button.new(); fly.text = "Fly"; fly.theme_type_variation = "Primary"; fly.custom_minimum_size = Vector2(0, 52)
 	fly.add_theme_font_size_override("font_size", 26)
-	fly.pressed.connect(func(): fly_pressed.emit())
+	fly.pressed.connect(func():
+		PlayerProfile.set_callsign(_callsign_edit.text)
+		PlayerProfile.set_real_name(_real_name_edit.text)
+		PlayerProfile.set_use_real_name(_real_name_check.button_pressed)
+		fly_pressed.emit())
 	col.add_child(fly)
 	_drone_label = Label.new(); _drone_label.text = drone_name
 	_drone_label.add_theme_font_size_override("font_size", 16); _drone_label.add_theme_color_override("font_color", MenuStyle.MUTED)

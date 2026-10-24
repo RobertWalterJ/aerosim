@@ -72,7 +72,7 @@ func update(delta: float, drone_pos: Vector3) -> void:
 	if ended or ending == null:
 		return
 	if not started:
-		if auto_start and hud != null and hud.story_on and story != null and story.case_closed() and unknown != null and unknown.beat >= 5:
+		if auto_start and hud != null and hud.story_on and story != null and story.case_closed() and not story.is_completed() and unknown != null and unknown.beat >= 5:
 			_auto_timer += delta
 			if _auto_timer > 3.0:
 				var missing := _missing_requirement()
@@ -170,6 +170,8 @@ func start() -> void:
 	started = true
 	stage = 0
 	_last_waypoint = -1
+	if anti_drone != null:
+		anti_drone.jammer_down_now()
 	_nav_to(objects.cabin_world_pos(), "CABIN")
 	_set_objective("Fly north to the abandoned cabin", "A storm is coming in. Press T for the thermal camera once it is installed.")
 	if weather_events != null:

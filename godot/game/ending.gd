@@ -94,7 +94,8 @@ func _build_card() -> void:
 	_end.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_end)
 	col.add_child(_gap(16))
-	var note := _label("Thank you for flying the valley.", 12, Color(0.52, 0.54, 0.50))
+	PlayerProfile.ensure_loaded()
+	var note := _label("Thank you for flying the valley, %s." % PlayerProfile.display_name(), 12, Color(0.52, 0.54, 0.50))
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_note = note
 	col.add_child(note)

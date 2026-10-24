@@ -99,7 +99,7 @@ func _build() -> void:
 	var you := PanelContainer.new()
 	you.custom_minimum_size = Vector2(34, 34)
 	you.add_theme_stylebox_override("panel", UniverseUI.box(Color(0.18, 0.32, 0.22), 17, UniverseUI.MOSS, 1, 0.0, 0.0))
-	var yl := UniverseUI.label("YOU", 8, UniverseUI.CREAM)
+	var yl := UniverseUI.label(PlayerProfile.initials(), 8, UniverseUI.CREAM)
 	yl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	yl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	you.add_child(yl)
@@ -108,7 +108,7 @@ func _build() -> void:
 	me_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	me_text.add_theme_constant_override("separation", 0)
 	me_row.add_child(me_text)
-	me_text.add_child(UniverseUI.label("You  ·  pilot", 13, UniverseUI.CREAM_DIM))
+	me_text.add_child(UniverseUI.label("You  ·  " + PlayerProfile.display_name(), 13, UniverseUI.CREAM_DIM))
 	_crew_label = UniverseUI.label("", 10, UniverseUI.MUTED)
 	me_text.add_child(_crew_label)
 	# ---------------- main column
@@ -285,8 +285,9 @@ func _message_row(msg: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 11)
 	pad.add_child(row)
+	var shown_from := PlayerProfile.display_name() if from == "You" else from
 	var col := chat.cast_colour(from) if not mine else UniverseUI.MOSS
-	row.add_child(UniverseUI.avatar(from.to_lower(), 36, col))
+	row.add_child(UniverseUI.avatar(shown_from.to_lower(), 36, col))
 	var col2 := VBoxContainer.new()
 	col2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col2.add_theme_constant_override("separation", 1)
@@ -294,7 +295,7 @@ func _message_row(msg: Dictionary) -> Control:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 7)
 	col2.add_child(top)
-	var who := UniverseUI.label(from, 13, col if not mine else UniverseUI.MOSS)
+	var who := UniverseUI.label(shown_from, 13, col if not mine else UniverseUI.MOSS)
 	top.add_child(who)
 	var role := UniverseUI.label(chat.cast_role(from).to_upper(), 8, UniverseUI.FAINT)
 	role.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

@@ -20,7 +20,7 @@ const CHAPTERS := [
 		"id": "car", "title": "A favour", "from": "Rennick",
 		"request": "There is an old blue estate on the north shore of the lake. No plates, nobody has claimed it. Could you get me two clear photographs of it and the ground around it, from the air, within eighty metres? Do not land.",
 		"evidence": [{"subject": "case_lake_car", "max_dist": 80.0, "count": 2, "text": "Photograph the abandoned car (2 angles)"}],
-		"reveal": "Thank you. No plates, and the boot will not open. There is a tow sticker on the back window, Voss and Son Motor Works. That garage closed before I moved here. Does the name mean anything to anyone?",
+		"reveal": "Thank you. No plates, and the boot will not open. There is an old workshop sticker on the back window, but the weather has taken most of it. I will need a closer look at the VIN.",
 		"beats": [
 			{"from": "Tom", "channel": "general", "text": "That car has been there since before the storm. I thought it was the ranger's."},
 			{"from": "Riley", "channel": "general", "text": "It is not ours. And the reeds on that shore are nesting ground, so keep some height."},
@@ -30,9 +30,9 @@ const CHAPTERS := [
 	},
 	{
 		"id": "vin", "title": "No plates", "from": "Rennick",
-		"request": "The car is locked. I need the VIN plate under the windscreen or inside the driver's door, and the tow sticker if it is still there. A close pass within fifteen metres, a torch at night is fine, whatever gets the number.",
+		"request": "The car is locked. I need the VIN plate under the windscreen or inside the driver door. A close pass within fifteen metres, a torch at night is fine, whatever gets the number. If the old workshop sticker is still legible, get that too.",
 		"evidence": [{"subject": "case_lake_car", "max_dist": 18.0, "count": 1, "text": "Close-up of the VIN or the tow sticker"}],
-		"reveal": "The VIN comes back to a 1987 blue estate, first registered to Ellis Voss. There is no missing person report and no crime report. He is not in trouble. I would just like to know he is all right.",
+		"reveal": "The VIN comes back to a 1987 blue estate, first registered to Ellis Voss. The old sticker reads Voss and Son Motor Works. There is no missing person report and no crime report. He is not in trouble. I would just like to know he is all right.",
 		"beats": [
 			{"from": "Alex", "channel": "tech", "text": "1987 estate, if the shape is right. Someone looked after it once."},
 			{"from": "Sam", "channel": "weather", "text": "Wind is light tonight. If you need the close pass, now is the window."},
@@ -83,7 +83,7 @@ const CHAPTERS := [
 		"id": "festival", "title": "The festival", "from": "Rennick",
 		"request": "The festival committee has given him the parade slot. The bus is at the festival field now, waiting for its first run in twenty two years. Get me two photographs of it there, from the air. This one can be published if Ellis agrees, and I think he will.",
 		"evidence": [{"subject": "case_bus", "max_dist": 220.0, "count": 2, "text": "Photograph the festival bus at the festival field"}],
-		"reveal": "He made it. The bus ran the whole parade route with the band on board and the festival committee in tears. He asked me to thank you properly, and he gave me the original festival programme for the archive. The file is closed, and the detachment owes you a favour.",
+		"reveal": "He made it. The bus ran the whole parade route with the band on board and the festival committee in tears. He asked me to thank you properly, and he gave me the original festival programme for the archive. The file is ready to close, and the detachment owes you a favour.",
 		"beats": [
 			{"from": "Jo", "channel": "general", "text": "The bus led the parade. The committee has already asked about next year."},
 			{"from": "Alex", "channel": "tech", "text": "It sounded terrible and it ran perfectly. That is the best kind of old bus."},
@@ -155,7 +155,11 @@ func _start() -> void:
 	started = true
 	_save()
 	if chat != null:
-		chat.post(CHANNEL, "Rennick", "Afternoon. I am Constable Rennick, new at the Halloway detachment. This is a favour, not a case yet. Is one of you the pilot with the drone?")
+		var greet := "Afternoon. I am Constable Rennick, new at the Halloway detachment. This is a favour, not a case yet. Is one of you the pilot with the drone?"
+		var pilot_name := PlayerProfile.display_name()
+		if pilot_name != "" and pilot_name != "Pilot":
+			greet = "Afternoon, %s. I am Constable Rennick, new at the Halloway detachment. This is a favour, not a case yet. Are you the pilot with the drone?" % pilot_name
+		chat.post(CHANNEL, "Rennick", greet)
 	_begin(0)
 	if notes != null and not _start_notified:
 		_start_notified = true
@@ -178,6 +182,8 @@ func _begin(i: int) -> void:
 	_save()
 
 func on_photo(photo_id: int, meta: Dictionary) -> void:
+	if hud != null and hud.story_on == false:
+		return
 	if not started or chapter < 0 or chapter >= CHAPTERS.size() or bool(_done.get(chapter, false)):
 		return
 	var reqs: Array = CHAPTERS[chapter]["evidence"]
@@ -220,12 +226,20 @@ func _complete() -> void:
 		return
 	var ch: Dictionary = CHAPTERS[chapter]
 	_done[chapter] = true
+	var reveal_text := str(ch["reveal"])
+	var minor_name := PlayerProfile.festival_character_name()
+	if chapter == _last_index() and minor_name != "":
+		reveal_text += "
+
+A festival volunteer called %s found the original programme in a box and made sure it reached the archive." % minor_name
 	if chat != null:
-		chat.post(CHANNEL, "Rennick", str(ch["reveal"]))
+		chat.post(CHANNEL, "Rennick", reveal_text)
 		for b in ch.get("beats", []):
 			chat.post(str(b.get("channel", "general")), str(b.get("from", "")), str(b.get("text", "")), false)
 		if chapter < _last_index():
 			chat.post(CHANNEL, "Rennick", "I will come back to you when I have had a look. Thank you.")
+		elif minor_name != "":
+			chat.post("general", "Jo", "%s on the gate found the original programme and would not let anyone file it in a drawer. The archive has it now." % minor_name)
 	if notes != null:
 		var title := "Evidence received: " + str(ch["title"])
 		var body := "I have the photographs. The file is in the Casebook."
@@ -379,6 +393,15 @@ func story_off_hint() -> bool:
 
 func chapter_count() -> int:
 	return CHAPTERS.size()
+
+## Player-facing wait inside the Casebook: the officer calls back now instead of the player waiting real hours.
+func wait_for_next() -> void:
+	if not waiting:
+		return
+	waiting = false
+	_next_at = 0.0
+	_save()
+	_begin(chapter + 1)
 
 # ------------------------------------------------------------------ persistence and dev hooks
 func _save() -> void:

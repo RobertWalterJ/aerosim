@@ -300,6 +300,19 @@ func _overview_view() -> void:
 		rv.add_child(r)
 		var st := UniverseUI.label("Status  ·  " + story.current_status(), 11, UniverseUI.MUTED)
 		rv.add_child(st)
+	if story.waiting:
+		var wait_card := _card(UniverseUI.MOSS)
+		var wv: VBoxContainer = wait_card["body"]
+		wv.add_child(UniverseUI.label("RENNICK IS LOOKING INTO IT", 9, UniverseUI.MOSS))
+		var wt := UniverseUI.label("The evidence is with the constable. Ask for the call back when you are ready.", 14, UniverseUI.CREAM)
+		wt.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		wv.add_child(wt)
+		var wait_btn := Button.new()
+		wait_btn.text = "Wait for Rennick to call back"
+		wait_btn.theme_type_variation = "Primary"
+		wait_btn.custom_minimum_size = Vector2(0, 38)
+		wait_btn.pressed.connect(func(): story.wait_for_next(); refresh())
+		wv.add_child(wait_btn)
 	# next step + director
 	if director != null:
 		_section("Next step")
@@ -483,7 +496,10 @@ func _chapters_view() -> void:
 func _contacts_view() -> void:
 	_page_title("Contacts", "The people connected to the file.")
 	var wren_found := story != null and story.is_completed()
+	var wren_known := story != null and story.started and (story.chapter >= 5 or wren_found)
+	PlayerProfile.ensure_loaded()
 	var people := [
+		{"key": "you", "name": PlayerProfile.display_name(), "role": "PILOT  ·  YOU", "note": "The one flying the drone. This file is written from the pilot side."},
 		{"key": "rennick", "name": "Constable Rennick", "role": "CASE OFFICER", "note": "Halloway Valley Constabulary. Keeps the file by the phone and the notes short."},
 		{"key": "wren", "name": "Wren", "role": "FOUND" if wren_found else "MISSING HIKER", "note": "Found east of the cabin. The file is closed and Wren is safe." if wren_found else "Last seen north of the cabin. The reason the file is still open."},
 		{"key": "riley", "name": "Riley", "role": "PARK RANGER", "note": "Knows the pasture, the flock and every track on the ridge."},
@@ -491,6 +507,8 @@ func _contacts_view() -> void:
 		{"key": "jo", "name": "Jo", "role": "EVENTS", "note": "Runs the festival and knows who was where on the night."},
 		{"key": "sam", "name": "Sam", "role": "METEOROLOGIST", "note": "Forecasts the valley and hears things before the town does."},
 	]
+	if not wren_known:
+		people = people.filter(func(p): return str(p["key"]) != "wren")
 	for p in people:
 		var c := _card(UniverseUI.LINE)
 		var v: VBoxContainer = c["body"]
@@ -507,6 +525,8 @@ func _contacts_view() -> void:
 		var note := UniverseUI.label(str(p["note"]), 11, UniverseUI.CREAM_DIM)
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(note)
+		if str(p["key"]) in ["you", "wren"]:
+			continue
 		var msg := Button.new()
 		msg.text = "Message"
 		msg.theme_type_variation = "Ghost"

@@ -422,7 +422,7 @@ func _ready() -> void:
 	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife, launch_sites)
 	director = StoryDirector.new()
 	add_child(director)
-	director.setup(hud, story, unknown_thread, wildlife, inventory, finale, ending)
+	director.setup(hud, story, unknown_thread, wildlife, inventory, finale, ending, launch_sites)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
 	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips, director, roads, launch_sites, finale, wildlife)
