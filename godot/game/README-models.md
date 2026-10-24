@@ -74,3 +74,48 @@ One entry point, because there are 26 models and each has three levels of detail
 
 How the finish works: the vertex colour carries the tint, and its alpha carries the grain direction (wood and hay: 1 up, 0.75 along x, 0.5 along z, 0.25 none) or, on a leaf, the way across the blade for veins and the pale midrib. Plants sway with `g_wind` (taller more), flutter at the leaf edge, lean away from the rotor downwash and take a per-field colour from where they stand. Fences, hay and soil darken and shine in rain (`g_wet`) and take snow and the cloud and drone shadows. Instancing: use a `MultiMesh` per model per level of detail; the plants' per-field colour reads the instance's world origin.
 Test: `test/new_models3_test.gd` (headless; finite, winding, budgets that must fall from near to far, real sizes, colliders inside their model, tiles whose edges meet, rebuilds identical, shaders and textures present). Sheets: `test/new_models3_sheet.gd` (needs a window; `set=fences|crops|ground`, `light=golden|overcast`) writes `docs/realism/models/new_models3_<set>_<light>.jpg`.
+
+## Batch 6: road vehicles and roadside furniture (`game/new_models4.gd` with `new_models4_big.gd` and `new_models4_props.gd`; class `NewModels4`; models6)
+
+Real metres, forward -z (a vehicle's front, a sign's face), up +y, origin on the ground in the middle of the vehicle's length. Three levels of detail everywhere (lod 0 near, under about 25 m; 1 middle, to about 80 m; 2 far). Everything is built once and kept. Finish: every surface is a `ShaderMaterial` of `game/shaders/vehicle.gdshader` (clear-coated car paint with metallic flake, wear, rust and road dirt on the lower panels; rubber; chrome and aluminium; reflective glass; trim plastic; glowing lamp lenses; painted sheet; concrete), or the farm wood and galvanised-steel materials of batch 5 for poles, gates and signs' backs. The vertex colour is the finish and its alpha is how worn it is (1 clean, lower dirtier and rustier). Do not swap in plain materials: the paint, glass and dirt live in the shader. Rain (`g_wet`), snow (`g_snow`) and the cloud and drone shadows act on all of it.
+
+Entry points:
+- `NewModels4.NAMES` lists every model. `CARS`, `BIG` (the farm and heavy vehicles) and `PROPS` split it.
+- `NewModels4.mesh(name, lod := 0, paint := Color(0, 0, 0, 0)) -> ArrayMesh`: the whole model as one still mesh, wheels in place. `paint` is the body colour in sRGB (transparent black = the model's own). `NewModels4.PAINTS` is a palette to pick from; each colour is built once and cached, so use a handful.
+- `NewModels4.vehicle(name, lod, paint) -> Dictionary` for the cars, pickups, vans, tractor, trailer, tanker, bus and motorcycle: `"body"` (ArrayMesh without wheels), `"wheels"` (Array of `{"name", "pos" (hub centre in the model frame), "radius", "steer" (true on the front wheels), "mesh"}`), `"size"` (Vector3 m), `"wheel_radius"`, `"track"` (distance between left and right hubs), `"wheelbase"`, `"colliders"`. A wheel mesh is made for its own side, with its axle along local x through the origin: spin it with `rotation.x -= distance / radius` for either side. A front wheel steers by turning its pivot about y.
+- `NewModels4.build_node(name, lod, paint) -> Node3D` is the easy way: a `Body` MeshInstance3D and one pivot Node3D per wheel named `wheel_fl`, `wheel_fr`, `wheel_rl`, `wheel_rr` (tractor and tanker also `wheel_a*`, `wheel_b*`; the motorcycle `wheel_f`, `wheel_r`) holding a `Wheel` MeshInstance3D. Steer by turning the pivot, roll by turning its `Wheel` child about x.
+- `NewModels4.colliders(name) -> Array` box strips (AABB, model frame) for everything a drone can hit.
+- `NewModels4.attachments(name) -> Array` of Vector3: where a wire hangs (the insulator tops of `telegraph_pole_a/b` and the insulator strings of `power_pylon_a/b`), so a wire mesh can span from model to model.
+
+| Name | Size and layout |
+|---|---|
+| `car_hatch_a` | 4.0 x 1.72 x 1.46 m supermini, alloy wheels, silver |
+| `car_hatch_b` | 4.3 x 1.80 x 1.45 m hatchback, alloy wheels, red, some wear |
+| `car_estate_a` | 4.7 x 1.82 x 1.5 m estate with roof rails, dark blue-grey |
+| `pickup_a` | 5.3 x 1.98 x 1.82 m full-size pickup, open bed, blue |
+| `pickup_b` | 4.9 x 1.82 x 1.7 m older compact pickup, steel wheels, sun-faded and rusty |
+| `van_a` | 5.3 x 1.98 x 2.1 m panel van, white, rear doors with windows |
+| `van_b` | 4.4 x 1.8 x 1.9 m small van, blue, blank rear doors |
+| `tractor_a` | 4.7 x 2.4 x 2.95 m cab tractor, lugged tyres, 3-point linkage and PTO; front wheels steer |
+| `tractor_wheels_a` | the tractor's four wheels in place as one mesh (stand-in); the wheels as parts are in `vehicle("tractor_a")` |
+| `tractor_trailer_a` | 6.6 x 2.4 x 2.05 m tandem-axle farm trailer, hitch eye at -z |
+| `milk_tanker_a` | 9.4 x 2.5 x 3.4 m rigid tanker: cab, stainless tank, manways, ladder, six wheels |
+| `bus_a` | 10.6 x 2.5 x 3.2 m single-decker, door on the +x side, blank destination board, cream with a red band |
+| `motorcycle_a` | 2.1 x 0.8 x 1.35 m naked motorcycle, no rider |
+| `telegraph_pole_a` | 8.6 m wooden pole with a four-pin crossarm and a top pin; wires along x |
+| `telegraph_pole_b` | 10.4 m distribution pole, three-pin crossarm, pole-mounted transformer |
+| `power_pylon_a` | 36 m steel lattice tower, three tiers of arms, glass insulator strings; wires along x |
+| `power_pylon_b` | 19.5 m tubular steel monopole, three tiers of arms |
+| `road_sign_bend_a` / `road_sign_junction_a` | yellow warning diamonds on a galvanised post, 2.3 m to the centre; face toward -z |
+| `road_sign_speed_a` | white regulatory sign reading 60, on a post |
+| `road_marker_a` | 1.1 m white roadside post with a black band and an amber reflector |
+| `cattle_grid_a` | 3.6 x 2.4 m steel-bar grid over a pit, concrete sills; lay it flush with the road (top at y = 0) |
+| `field_gate_a` | 3.6 m timber five-bar gate hung on two posts (x = 0 and 3.6) |
+| `field_gate_b` | 3.8 m galvanised livestock gate on tubular posts (x = 0 and 3.8) |
+| `bus_shelter_a` | 3 x 1.4 x 2.5 m shelter, glass back and ends, bench, timetable case, stop sign pole |
+| `post_box_a` | roadside rural mailbox on a wooden post, flag up |
+| `road_works_a` | striped barrier, four cones, a blank orange warning sign |
+| `milestone_a` | 0.9 m stone post with a white face reading 12 |
+| `road_bridge_rail_a` | 4 m of bridge parapet along +x: kerb, three steel posts, two rails |
+
+Tests: `test/new_models4_test.gd` (headless; finite, winding, budgets that must fall from near to far, real sizes, wheels named, on the ground and facing outward, colliders inside, wire attachment points on the poles, rebuilds identical). Sheets: `test/new_models4_sheet.gd` (needs a window; `set=cars|big|props`, `light=golden|overcast`, `only=<word>`, `cell=WxH`, `cols=N`, `views=N`). In the game's own sky and haze: screenshot token `models4demo:<name>+<name>` (see `game/model_demo4.gd`).
