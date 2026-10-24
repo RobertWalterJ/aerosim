@@ -18,7 +18,7 @@ display size; `sizes/<px>/` holds native renders for small slots. Pivot is the i
 | `avatar_rennick.png` | 512 x 512 | - | Rennick: Halloway Provincial Constabulary emblem (logo / badge; original) ACTIVE |
 | `avatar_riley.png` | 512 x 512 | - | Riley: a cartoon of her sheepdog (cartoon; original) ACTIVE |
 | `avatar_sam.png` | 512 x 512 | - | Sam: fair-weather cumulus in a blue sky (photo; CC0) ACTIVE |
-| `avatar_tom.png` | 512 x 512 | - | Tom: a lightning storm over an open field (photo composite; CC0) ACTIVE |
+| `avatar_tom.png` | 512 x 512 | - | Tom: a tornado over the Kansas plains (photo; public domain (NOAA employee work)) ACTIVE |
 | `avatar_unknown.png` | 512 x 512 | - | Unknown: a glitched default silhouette (pixel / glitch; original) ACTIVE |
 | `avatar_wren.png` | 512 x 512 | - | Wren: a gravel trail through the woods (photo; CC0) ACTIVE |
 | `avatar_you.png` | 512 x 512 | - | You: a sunrise over a misty field (photo; CC0) ACTIVE |
@@ -51,6 +51,7 @@ display size; `sizes/<px>/` holds native renders for small slots. Pivot is the i
 | `avatars_alt/cutout/sam_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
 | `avatars_alt/cutout/tom_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
 | `avatars_alt/cutout/tom_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/tom_lightning_eclectic.png` | 512 x 512 | - | circle crop, transparent [extra] |
 | `avatars_alt/cutout/unknown_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
 | `avatars_alt/cutout/unknown_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
 | `avatars_alt/cutout/wren_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
@@ -85,6 +86,7 @@ display size; `sizes/<px>/` holds native renders for small slots. Pivot is the i
 | `avatars_alt/sizes/48/sam_emblem.png` | 48 x 48 | - | [emblem set] |
 | `avatars_alt/sizes/48/tom_eclectic.png` | 48 x 48 | - | [eclectic set] |
 | `avatars_alt/sizes/48/tom_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/tom_lightning_eclectic.png` | 48 x 48 | - | [extra] |
 | `avatars_alt/sizes/48/unknown_eclectic.png` | 48 x 48 | - | [eclectic set] |
 | `avatars_alt/sizes/48/unknown_emblem.png` | 48 x 48 | - | [emblem set] |
 | `avatars_alt/sizes/48/wren_eclectic.png` | 48 x 48 | - | [eclectic set] |
@@ -107,14 +109,16 @@ display size; `sizes/<px>/` holds native renders for small slots. Pivot is the i
 | `avatars_alt/sizes/96/sam_emblem.png` | 96 x 96 | - | [emblem set] |
 | `avatars_alt/sizes/96/tom_eclectic.png` | 96 x 96 | - | [eclectic set] |
 | `avatars_alt/sizes/96/tom_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/tom_lightning_eclectic.png` | 96 x 96 | - | [extra] |
 | `avatars_alt/sizes/96/unknown_eclectic.png` | 96 x 96 | - | [eclectic set] |
 | `avatars_alt/sizes/96/unknown_emblem.png` | 96 x 96 | - | [emblem set] |
 | `avatars_alt/sizes/96/wren_eclectic.png` | 96 x 96 | - | [eclectic set] |
 | `avatars_alt/sizes/96/wren_emblem.png` | 96 x 96 | - | [emblem set] |
 | `avatars_alt/sizes/96/you_eclectic.png` | 96 x 96 | - | [eclectic set] |
 | `avatars_alt/sizes/96/you_emblem.png` | 96 x 96 | - | [emblem set] |
-| `avatars_alt/tom_eclectic.png` | 512 x 512 | - | Tom: a lightning storm over an open field (photo composite; CC0) |
+| `avatars_alt/tom_eclectic.png` | 512 x 512 | - | Tom: a tornado over the Kansas plains (photo; public domain (NOAA employee work)) |
 | `avatars_alt/tom_emblem.png` | 512 x 512 | - | Tom: storm cloud and bolt, flat vector emblem (alternate set) |
+| `avatars_alt/tom_lightning_eclectic.png` | 512 x 512 | - | Tom: lightning composite from CC0 photos (alternate to the NOAA tornado photo) |
 | `avatars_alt/unknown_eclectic.png` | 512 x 512 | - | Unknown: a glitched default silhouette (pixel / glitch; original) |
 | `avatars_alt/unknown_emblem.png` | 512 x 512 | - | Unknown account: pixel question mark, pixel emblem (alternate set) |
 | `avatars_alt/wren_eclectic.png` | 512 x 512 | - | Wren: a gravel trail through the woods (photo; CC0) |

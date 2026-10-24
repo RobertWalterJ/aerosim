@@ -88,8 +88,27 @@ def clean_sun(img):
     return cv2.inpaint(img, mask, 9, cv2.INPAINT_TELEA)
 
 
+TOM_SOURCE = ("`tom_photo_original.jpg`: 'Tornado over the Kansas plains (Nssl0232 - Flickr - NOAA Photo Library)', "
+              "https://commons.wikimedia.org/wiki/File:Tornado_over_the_Kansas_plains_(Nssl0232_-_Flickr_-_NOAA_Photo_Library).jpg, "
+              "photographer Sean Waugh, NOAA/NSSL, 23 May 2008, Kansas; public domain (made by a NOAA employee as part of "
+              "official duties, Commons PD-USGov-NOAA notice); 3888 x 2592, 3,401,943 bytes, downloaded 2026-10-24")
+
+
+def crop_tom():
+    """Square crop of the downloaded NOAA tornado photo, funnel centred, to tom_photo.jpg (1024)."""
+    src = os.path.join(OUT, "tom_photo_original.jpg")
+    if not os.path.exists(src):
+        return
+    im = Image.open(src).convert("RGB")
+    side, cx, top = 2000, 1640, 200
+    im.crop((cx - side // 2, top, cx + side // 2, top + side)).resize((1024, 1024), Image.LANCZOS).save(
+        os.path.join(OUT, "tom_photo.jpg"), quality=93)
+    print("source tom_photo")
+
+
 def build():
     os.makedirs(OUT, exist_ok=True)
+    crop_tom()
     pano = load_panoramas()
     for name, (src, yaw, pitch, fov, ex, wh) in VIEWS.items():
         img = tonemap(view(pano[src], yaw, pitch, fov), ex, wh)
@@ -102,6 +121,10 @@ def build():
                 "| File | Panorama | Source, author, licence | yaw, pitch, fov |\n|---|---|---|---|\n")
         for name, (src, yaw, pitch, fov, ex, wh) in VIEWS.items():
             f.write(f"| `{name}.jpg` | {src} | {SOURCES[src]} | {yaw:g}, {pitch:g}, {fov:g} |\n")
+        f.write("\n## Downloaded (the only file fetched, with Robert's go-ahead)\n\n"
+                f"- {TOM_SOURCE}.\n- `tom_photo.jpg`: square crop of it (2000 px around the funnel, x 640-2640, y 200-2200),"
+                " resized to 1024 px; Tom's active avatar. The earlier lightning composite is kept as"
+                " `assets/ui/avatars_alt/tom_lightning_eclectic.png`.\n")
 
 
 if __name__ == "__main__":

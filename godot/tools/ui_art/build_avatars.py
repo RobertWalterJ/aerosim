@@ -672,6 +672,11 @@ def manifest_rows(active=ACTIVE_SET):
             rows.append((cutp, 512, 512, None, ("circle crop" if name == "eclectic" else "emblem only") + ", transparent" + tag))
             for s, rel in sm.items():
                 rows.append((rel, s, s, None, tag.strip()))
+    extra = files_for("tom_lightning", "eclectic", False)          # round-2 storm composite, kept as an extra
+    rows.append((extra[0], 512, 512, None, "Tom: lightning composite from CC0 photos (alternate to the NOAA tornado photo)"))
+    rows.append((extra[1], 512, 512, None, "circle crop, transparent [extra]"))
+    for s, rel in extra[2].items():
+        rows.append((rel, s, s, None, "[extra]"))
     return rows
 
 
@@ -712,6 +717,9 @@ def build(sheet=False, active=ACTIVE_SET):
         for key, (master, cut) in rendered[name].items():
             write(key, master, cut, files_for(key, name, False))
         print("set", name)
+    import avatars_eclectic as E
+    lt = E.tom_lightning().convert("RGBA")
+    write("tom_lightning", lt, circle_cut(lt), files_for("tom_lightning", "eclectic", False))
     for key, (master, cut) in rendered[active].items():
         write(key, master, cut, files_for(key, active, True))
     update_manifest(active)
