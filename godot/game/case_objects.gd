@@ -29,6 +29,7 @@ var _cabin_lights: Array[OmniLight3D] = []
 var _cabin_windows: Array[MeshInstance3D] = []
 var _cabin_root: Node3D
 var _hiker: Node3D
+var _hiker_anim: AnimationPlayer
 var _hiker_heat: Node3D
 var _dog_heat: Node3D
 var _cabin_on := false
@@ -504,13 +505,20 @@ func show_hiker() -> void:
 		return
 	_hiker.visible = true
 	_hiker.position = search_world_pos()
-	_hiker.rotation.y = 2.2
+	_hiker.rotation.y = PI + 2.2
 	_hiker.set_physics_process(true)
-	if _hiker is CharacterActor:
+	if _hiker_anim != null:
+		_hiker_anim.play("idle")
+	elif _hiker is CharacterActor:
 		(_hiker as CharacterActor).set_animation("stand")
 
 func wave_hiker() -> void:
-	if _hiker is CharacterActor:
+	if _hiker_anim != null:
+		if _hiker_anim.has_animation("wave_up"):
+			_hiker_anim.play("wave_up")
+		elif _hiker_anim.has_animation("wave"):
+			_hiker_anim.play("wave")
+	elif _hiker is CharacterActor:
 		(_hiker as CharacterActor).set_animation("wave")
 
 func face_hiker_towards(world_pos: Vector3) -> void:
@@ -730,6 +738,18 @@ func _build_cruiser(pos: Vector3) -> void:
 	root.rotation.y = 0.9
 
 func _build_hiker() -> void:
+	var person := PeopleAssets.person("wren", "idle")
+	if person != null:
+		_hiker = person
+		add_child(_hiker)
+		PeopleAssets.tint_skin(_hiker, Color(0.56, 0.40, 0.30))
+		_hiker_anim = _hiker.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		_hiker.position = search_world_pos()
+		_hiker.rotation.y = PI + 2.2
+		_hiker.visible = false
+		_hiker_heat = ThermalHeat.person(_hiker, Vector3.ZERO)
+		_hiker_heat.visible = false
+		return
 	var actor := CharacterActor.new()
 	actor.name = "Wren"
 	_hiker = actor
