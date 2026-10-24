@@ -602,3 +602,22 @@ The full six chapter arc is now in the game. The story starts after the first pu
   - T4. Should the camp and bus be animated people places (Ellis visible at a distance, crew arriving, flags and bunting) or stay quiet for now?
   - T5. Should the after-case state unlock Rennick as a recurring contact and small cases, or is the arc complete enough for now?
   - T6. Where should the town itself fit next: a Halloway high street with the garage, police house and pub, or more valley evidence cases first?
+
+## Tornado look tweak and storm narrative plan (lane/notify, session B, 2026-11-03)
+A small visual pass on the funnel, and a design plan for weaving storms into the Halloway mystery.
+- **The look tweak (`game/shaders/vortex_wisp_draw.gdshader`, `vortex_wisp.gdshader`, `game/funnel.gd`):** wisp sprites are now stretched vertically (about 1.35x on the wisps, less on droplets) so the column reads as streaks rather than dots. The colour palettes are darker (wisps 0.46 grey, core 0.30), the alpha is a little stronger, the dust skirt is heavier and has 500 particles instead of 400, and the debris pieces are roughly twice the size. A new lightning term reads the existing `g_bolt` global in the draw shader and brightens the funnel for the duration of a flash, and lifts its alpha slightly. The particle count is unchanged, no new shader layer and no new draw calls.
+- **Evidence (docs/realism/weather/vortex/):** 08 the tweaked tornado from 400 m, 09 from 120 m, 10 at dusk. Compared with the previous pass the column is darker, the wisps read more as strands and the dust and debris are easier to see. It is still lighter and hazier than the photographic references, and at 400 m it is faint.
+- **What Claude is needed for:** not the funnel body, which is particles and shaders. Claude is needed for the things the storm leaves behind: debris pieces, storm damage, the buried shelter, the chapel bell, the old weather station and the storm archive. The full list and priorities are in `godot/docs/story/STORM-NARRATIVE.md` and on the board.
+- **Storm narrative plan:** `godot/docs/story/STORM-NARRATIVE.md` describes three threads that use the weather as the story clock and the thing that uncovers the town's past.
+  - After the storm: the buried shelter. A tornado scours a field and exposes a 1970s festival storm shelter with a storm diary, programmes and a drawing of the old funnel, linked to Ellis and Anne Voss. Two evidence chapters, a new place, the festival archive.
+  - The bell in the rain: a spooky episodic case. A chapel bell rings and a light moves against the wind during a storm; almost everything has an ordinary explanation, but the knotted bell rope does not.
+  - The storm glass: a quiet archive clue. An old barometer and record book mark every storm since 1974, and the marks line up with the festival and the buried shelter.
+- **How it would work:** WeatherEvents emits storm start, touchdown and clear signals; the story layer listens. There is no forced weather. Damage and shelter evidence is photographed after the storm; the bell and lights during the next storm. The Casebook gets a Storm watch card and #town and #weather carry the messages. Sam, Tom, Alex, Riley, Jo and Maya each have a storm part. The drone is never damaged and the story switch turns it all off.
+- **Honest limits:** this is a plan and a look tweak, not the storm case itself. No storm signals, storm cases or storm assets are implemented yet. The funnel still does not match the references at close range. The storm narrative leans on new Claude assets for the shelter and the bell.
+- **Questions for Robert:**
+  - ST1. Is the spooky but grounded tone right, with no supernatural confirmation, or should one thread stay genuinely unexplained?
+  - ST2. Should storm cases wait for a real storm, or can Rennick ask and the player start a storm from the menu?
+  - ST3. Should the storm cases sit between the Lake Car chapters, or come after the main arc as the first recurring cases?
+  - ST4. Is the 1974 festival shelter and the Anne Voss archive the right emotional link, or should the buried thing belong to different town history?
+  - ST5. Is a loose bell rope and a lantern enough for the spooky beat, or do you want a stronger unexplained image in the rain?
+  - ST6. Should the storm glass live in the pub, the garage or the police house?

@@ -184,7 +184,8 @@ func _emit(mode: int, normal: int, life: float, world_uniforms: bool) -> GPUPart
 	dm.shader = load("res://game/shaders/vortex_wisp_draw.gdshader")
 	dm.set_shader_parameter("px_per_m", 0.0016)
 	dm.set_shader_parameter("opacity", 1.0)
-	dm.set_shader_parameter("tint", Vector3(0.50, 0.51, 0.52) if mode == 0 else (Vector3(0.34, 0.35, 0.37) if mode == 2 else Vector3(0.80, 0.83, 0.86)))
+	dm.set_shader_parameter("stretch", 1.0 if mode == 0 else (1.15 if mode == 2 else 0.55))
+	dm.set_shader_parameter("tint", Vector3(0.46, 0.47, 0.48) if mode == 0 else (Vector3(0.30, 0.31, 0.33) if mode == 2 else Vector3(0.86, 0.89, 0.92)))
 	var q := QuadMesh.new(); q.size = Vector2(1, 1); q.material = dm
 	p.draw_pass_1 = q
 	var pm := ShaderMaterial.new()
@@ -205,7 +206,7 @@ func _build_particles() -> void:
 	_core = _emit(2, 1200, 4.6, true)
 	_core_mat = _core.get_meta("proc_mat")
 	if kind == TORNADO:
-		_dust = _spray_like(1, 400, 4.2, Color(0.55, 0.50, 0.44), 0.75)
+		_dust = _spray_like(1, 500, 4.2, Color(0.55, 0.50, 0.44), 0.90)
 		_dust_mat = _dust.get_meta("proc_mat")
 	elif kind == WSPOUT:
 		_spray = _spray_like(0, 320, 2.4, Color(0.85, 0.90, 0.95), 1.0)
@@ -294,7 +295,7 @@ func _build_debris() -> void:
 				"rad": rng.randf_range(0.55, 1.5),
 				"t0": rng.randf() * 0.75,
 				"rise": rng.randf_range(0.25, 1.0),
-				"size": rng.randf_range(0.6, 2.2),
+				"size": rng.randf_range(1.1, 3.0),
 				"tumble": Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU),
 				"spin": rng.randf_range(1.0, 5.0),
 			})

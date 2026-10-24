@@ -66,7 +66,7 @@ void process() {
 	p.y += sin(ang * 1.7 + age * 6.0) * 3.0 * rr / max(base_radius, 1.0);
 	float sz = COLOR.r * (1.0 + 1.8 * age);
 	float fade = smoothstep(0.0, 0.12, age) * (1.0 - smoothstep(0.62, 1.0, age));
-	float alpha = fade * strength * ((mode == 0) ? 0.42 : ((mode == 2) ? 0.32 : 0.90));
+	float alpha = fade * strength * ((mode == 0) ? 0.48 : ((mode == 2) ? 0.38 : 0.98));
 	COLOR = vec4(COLOR.r, 0.0, 0.0, alpha);
 	TRANSFORM = mat4(vec4(sz, 0.0, 0.0, 0.0), vec4(0.0, sz, 0.0, 0.0), vec4(0.0, 0.0, sz, 0.0), vec4(p, 1.0));
 }

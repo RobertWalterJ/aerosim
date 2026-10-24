@@ -6,6 +6,8 @@ render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled;
 uniform float px_per_m = 0.0016;
 uniform vec3 tint : source_color = vec3(1.0);
 uniform float opacity = 1.0;
+uniform float stretch = 1.0;      // vertical elongation of the sprite, so wisps read as strands rather than dots
+global uniform vec4 g_bolt;          // xyz direction, w lightning flash strength
 
 varying vec3 v_col;
 varying float v_alpha;
@@ -24,7 +26,7 @@ void vertex() {
 	float depth = max(-vp.z, 0.05);
 	sz = max(sz, 2.0 * depth * px_per_m);
 	vec3 vpos = vp.xyz;
-	vpos.xy += VERTEX.xy * sz;
+	vpos.xy += VERTEX.xy * sz * vec2(0.82, 1.35 * stretch);
 	POSITION = PROJECTION_MATRIX * vec4(vpos, 1.0);
 	v_col = tint;
 	v_alpha = COLOR.a * smoothstep(1.0, 6.0, depth);
@@ -38,6 +40,6 @@ void fragment() {
 	float lobes = 0.7 + 0.3 * sin(uv.x * 7.0 + v_seed * 6.0 + TIME * 0.8) * sin(uv.y * 5.0 - TIME * 0.6 + v_seed * 4.0);
 	float a = exp(-r2 * 3.4) * lobes;
 	a *= 0.7 + 0.3 * noise(uv * 4.0 + v_seed * 20.0);
-	ALBEDO = v_col;
-	ALPHA = clamp(v_alpha * a * opacity, 0.0, 1.0);
+	ALBEDO = v_col * (1.0 + clamp(g_bolt.w, 0.0, 1.0) * 1.8);
+	ALPHA = clamp(v_alpha * a * opacity * (1.0 + clamp(g_bolt.w, 0.0, 1.0) * 0.35), 0.0, 1.0);
 }
