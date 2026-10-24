@@ -39,39 +39,59 @@ person("ellis", body="male", hero=True,
            _g("elvs_male_flat_cap1", tint=(0.25, 0.22, 0.18), fabric="poly_wool_herringbone", tile=4, detail=0.6, mat="cap", covers=False, hat=True),
        ])
 
-# ------------------------------------------------------------------ Constable Ada Rennick, present day (plain clothes)
-person("rennick", body="female", hero=True,
-       macro={"gender": 0.0, "age": 0.62, "muscle": 0.55, "weight": 0.45, "height": 0.6, "proportions": 0.6},
-       race=CAUC, skin="middleage_caucasian_female", eye_color="brownlight", brows="eyebrow010", lashes="eyelashes03",
-       hair={"asset": "ponytail01", "tint": (0.25, 0.16, 0.10)},
-       clothes=[
-           _g("elvs_hooded_sweat_jacket1", tint=(0.08, 0.10, 0.16), fabric="polar_fleece", tile=6, detail=0.35, mat="jacket"),
-           _g("mindfront_female_trousers_1", tint=(0.11, 0.12, 0.15), fabric="poly_wool_herringbone", tile=7, detail=0.35, mat="trousers"),
-           _g("toigo_ankle_boots_male", tint=(0.06, 0.06, 0.07), fabric="brown_leather", tile=3, detail=0.3, mat="boots", rim=False),
-       ],
-       extras=["belt_kit"], belt_dz=0.035, tri_budget=8100)
+# ================================================================== Constable Ada Rennick (lane/rennick, remade to the brief)
+# docs/CLAUDE-CHARACTER-BRIEF-2026-11-15.md (lane/notify), cast row 10: a Black woman, 32 when she died in 1984, skin tone 2
+# (warm brown), short natural hair under the cap, 1.68 m, she/her; calm, careful, quiet authority ("this is a favour, not a
+# case"). She does not age: the plain-clothes and uniform figures are the same woman as 1984. All three share one body
+# and face (RENNICK_BODY); the ghost (rennick_1984_ghost.glb) is the 1984 build with drained, pale materials baked in.
+# Fictional service: the Halloway constabulary. Its mark (people_rennick.emblem) is a lit lantern in a ring, no lettering.
+RENNICK_BODY = dict(
+    body="female", hero=True,
+    macro={"gender": 0.0, "age": 0.554, "muscle": 0.58, "weight": 0.46, "height": 0.49, "proportions": 0.62},
+    race={"caucasian": 0.08, "african": 0.92, "asian": 0.0}, skin="young_african_female", skin_tint=(1.10, 1.19, 0.98),
+    eye_color="brown", iris=(0.17, 0.095, 0.05), brows="eyebrow005", lashes="eyelashes02", cloth_tex=2048)
+_RHAIR = {"asset": "afro01", "tint": (0.045, 0.036, 0.03), "rough": 0.74}
 
-# ------------------------------------------------------------------ Rennick in uniform (police house), no weapon belt
-person("rennick_uniform", body="female", hero=True,
-       macro={"gender": 0.0, "age": 0.62, "muscle": 0.55, "weight": 0.45, "height": 0.6, "proportions": 0.6},
-       race=CAUC, skin="middleage_caucasian_female", eye_color="brownlight", brows="eyebrow010", lashes="eyelashes03",
-       hair={"asset": "ponytail01", "tint": (0.25, 0.16, 0.10)},
+# plain clothes (today's story figures: rennick_standing_a, _walking_a, _knocking_a): a camel wool jacket over a charcoal
+# knit, charcoal trousers, black leather ankle boots; a close natural crop
+person("rennick", **RENNICK_BODY,
+       hair=dict(_RHAIR, shrink=0.42),
        clothes=[
-           _g("toigo_female_double-breasted_suit", tint=(0.07, 0.09, 0.16), fabric="poly_wool_herringbone", tile=7, detail=0.35, mat="tunic"),
-           _g("toigo_ankle_boots_male", tint=(0.04, 0.04, 0.05), fabric="brown_leather", tile=3, detail=0.3, mat="boots", rim=False),
-       ],
-       extras=["peaked_cap"], cap_color=(0.06, 0.07, 0.12))
+           _g("toigo_female_double-breasted_suit", tint=(0.44, 0.33, 0.21), fabric="caban", tile=6, detail=0.45, mat="jacket",
+              regions={"white": (0.12, 0.12, 0.13), "other": (0.12, 0.12, 0.13)},
+              lower={"dz": 0.0, "tint": (0.10, 0.10, 0.11)}),
+           _g("toigo_ankle_boots_female", tint=(0.035, 0.032, 0.03), fabric="brown_leather", tile=3, detail=0.3, mat="boots",
+              rim=False, rough_scale=0.7),
+       ], tri_budget=8600)
 
-# ------------------------------------------------------------------ Rennick 1984 (and the ghost, by material)
-person("rennick_1984", body="female", hero=True,
-       macro={"gender": 0.0, "age": 0.55, "muscle": 0.55, "weight": 0.45, "height": 0.6, "proportions": 0.6},
-       race=CAUC, skin="young_caucasian_female", eye_color="brownlight", brows="eyebrow010", lashes="eyelashes03",
-       hair={"asset": "ponytail01", "tint": (0.30, 0.19, 0.11)},
+# today's uniform (rennick_uniform_a, _writing): a fictional provincial-constabulary patrol uniform: navy soft-shell
+# jacket with the embroidered lantern flash on both sleeves, navy cargo uniform trousers, black duty boots, the peaked cap
+# with its badge, a nylon duty belt with radio and torch, and a shoulder speaker-mic. No weapon.
+person("rennick_uniform", **RENNICK_BODY,
+       hair=dict(_RHAIR, shrink=0.3),
        clothes=[
-           _g("toigo_female_suit_2", tint=(0.08, 0.09, 0.14), fabric="caban", tile=6, detail=0.45, mat="tunic"),
-           _g("toigo_ankle_boots_male", tint=(0.03, 0.03, 0.035), fabric="brown_leather", tile=3, detail=0.3, mat="boots", rim=False),
+           _g("elvs_hooded_sweat_jacket1", tint=(0.055, 0.07, 0.13), fabric="stretch_poplin", tile=6, detail=0.4, mat="jacket",
+              rough_scale=0.8),
+           _g("cortu_cargo_pants", tint=(0.06, 0.07, 0.12), fabric="poly_wool_herringbone", tile=7, detail=0.4, mat="trousers"),
+           _g("mindfront_shoes_biker_boots_female", tint=(0.03, 0.03, 0.032), tint_mix=0.9, fabric="brown_leather", tile=3,
+              detail=0.3, mat="boots", rim=False, rough_scale=0.75),
        ],
-       extras=["peaked_cap", "belt_kit"], cap_color=(0.07, 0.07, 0.11), belt_dz=0.05, tri_budget=7900)
+       extras=["uniform_cap", "duty_belt", "shoulder_radio", "shoulder_flash"], cap_style="modern", cap_color=(0.05, 0.06, 0.12),
+       cap_band=(0.05, 0.06, 0.12), belt_dz=0.03, tri_budget=8600)
+
+# 1984 (rennick_1984_standing_a, _notebook, and the ghost): a fitted navy wool tunic and trousers, pale blue shirt and a
+# dark tie, polished black boots, the 1980s peaked cap with a black band and gold chinstrap and badge, a black leather
+# duty belt with a brass buckle, the big handset radio with its whip aerial and a long metal torch.
+person("rennick_1984", **RENNICK_BODY,
+       hair=dict(_RHAIR, shrink=0.3),
+       clothes=[
+           _g("toigo_female_suit_2", tint=(0.065, 0.075, 0.14), fabric="caban", tile=6, detail=0.45, mat="tunic",
+              regions={"white": (0.60, 0.69, 0.80), "other": (0.035, 0.035, 0.05)}, patches="suit2_tie"),
+           _g("toigo_ankle_boots_male", tint=(0.02, 0.02, 0.022), fabric="brown_leather", tile=3, detail=0.25, mat="boots",
+              rim=False, rough_scale=0.5),
+       ],
+       extras=["uniform_cap", "duty_belt"], cap_style="1984", cap_color=(0.06, 0.07, 0.13), cap_band=(0.012, 0.012, 0.014),
+       belt_dz=0.045, tri_budget=8800, ghost_file="rennick_1984_ghost")
 
 # Wren: rebuilt to the character brief by lane/antidrone (see the end of this file).
 

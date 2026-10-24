@@ -425,7 +425,10 @@ def make_garment_textures(key, mhclo_path, g, size=1024, obj=None):
         nrm = np.zeros((size, size, 4), np.float32); nrm[..., 0] = 0.5; nrm[..., 1] = 0.5; nrm[..., 2] = 1.0; nrm[..., 3] = 1
     rough = np.full((size, size), g.get("rough", 0.85), np.float32)
     rgb = base[..., :3]
-    if g.get("tint") is not None and not g.get("keep_color"):
+    if g.get("regions") or g.get("lower") or g.get("patches"):
+        # lane/rennick: region-aware recolouring (shirt, tie, buttons, a trousers/jacket split, emblem patches)
+        rgb = region_tint(rgb, g, obj, size)
+    elif g.get("tint") is not None and not g.get("keep_color"):
         luma = rgb @ np.array([0.2126, 0.7152, 0.0722], np.float32)
         m = None
         if obj is not None and obj.data.uv_layers:
@@ -462,6 +465,130 @@ def make_garment_textures(key, mhclo_path, g, size=1024, obj=None):
     diff = np.concatenate([np.clip(rgb, 0, 1), np.ones_like(rgb[..., :1])], -1)
     orm = np.stack([np.ones_like(rough), rough, np.zeros_like(rough), np.ones_like(rough)], -1)
     save_px(diff, out["diff"]); save_px(nrm, out["nor"], quality=92); save_px(orm, out["orm"])
+    return out
+
+def uv_mask(obj, size, face_test, islands=True):
+    """size x size mask (row 0 = bottom, as Blender stores images) of the UV area of the faces where face_test(world
+    centre) is true. A small rasteriser: each polygon's UVs are fanned into triangles and filled by barycentric test."""
+    mask = np.zeros((size, size), bool)
+    if obj is None or not obj.data.uv_layers:
+        return mask
+    uvl = obj.data.uv_layers.active.data
+    mw = obj.matrix_world
+    polys = obj.data.polygons
+    chosen = [face_test(mw @ pl.center) for pl in polys]
+    if islands:
+        # decide per UV island (faces joined by an edge with the same UVs): the island goes with the majority of its area
+        parent = list(range(len(polys)))
+        def find(i):
+            while parent[i] != i:
+                parent[i] = parent[parent[i]]
+                i = parent[i]
+            return i
+        seen = {}
+        loops = obj.data.loops
+        for pl in polys:
+            n = len(pl.loop_indices)
+            for k in range(n):
+                l0, l1 = pl.loop_indices[k], pl.loop_indices[(k + 1) % n]
+                a = (loops[l0].vertex_index, round(uvl[l0].uv[0], 4), round(uvl[l0].uv[1], 4))
+                b = (loops[l1].vertex_index, round(uvl[l1].uv[0], 4), round(uvl[l1].uv[1], 4))
+                e = (a, b) if a < b else (b, a)
+                if e in seen:
+                    ra, rb = find(seen[e]), find(pl.index)
+                    if ra != rb:
+                        parent[ra] = rb
+                else:
+                    seen[e] = pl.index
+        votes = {}
+        for pl in polys:
+            r = find(pl.index)
+            v = votes.setdefault(r, [0.0, 0.0])
+            v[0 if chosen[pl.index] else 1] += pl.area
+        chosen = [votes[find(pl.index)][0] > votes[find(pl.index)][1] for pl in polys]
+    for pl in polys:
+        if not chosen[pl.index]:
+            continue
+        uv = np.array([uvl[li].uv[:] for li in pl.loop_indices], np.float64) * size
+        for k in range(1, len(uv) - 1):
+            a, b, c = uv[0], uv[k], uv[k + 1]
+            x0, y0 = np.floor(np.minimum(np.minimum(a, b), c)).astype(int) - 1
+            x1, y1 = np.ceil(np.maximum(np.maximum(a, b), c)).astype(int) + 1
+            x0, y0 = max(x0, 0), max(y0, 0)
+            x1, y1 = min(x1, size - 1), min(y1, size - 1)
+            if x1 < x0 or y1 < y0:
+                continue
+            ys, xs = np.mgrid[y0:y1 + 1, x0:x1 + 1]
+            px, py = xs + 0.5, ys + 0.5
+            d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+            if abs(d) < 1e-9:
+                continue
+            l1 = ((b[1] - c[1]) * (px - c[0]) + (c[0] - b[0]) * (py - c[1])) / d
+            l2 = ((c[1] - a[1]) * (px - c[0]) + (a[0] - c[0]) * (py - c[1])) / d
+            inside = (l1 >= -0.02) & (l2 >= -0.02) & (1 - l1 - l2 >= -0.02)
+            mask[y0:y1 + 1, x0:x1 + 1] |= inside
+    return mask
+
+def region_tint(rgb, g, obj, size):
+    """Recolour a garment texture by region, keeping its shading (each region is shaded against its own median):
+      g["tint"]      the main cloth colour
+      g["regions"]   {"white": colour, "grey": colour, "dark": colour, "other": colour}: classes of the source texture
+                     (white = shirt and tape, grey = collars and linings, dark = print and lettering, other = anything far
+                     from the garment's main colour: ties, buttons, prints). Unlisted classes take the main tint.
+      g["lower"]     {"tint": colour, "z": world height}: faces below z (trousers of a one-piece suit) take this colour
+      g["patches"]   [(x0, y0, x1, y1, painter)]: UV rectangles (0..1, from the image's top-left) painted by painter(h, w)
+                     -> RGB array; used to replace a real organisation's logo with a fictional emblem."""
+    luma = rgb @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = (mx - mn) / np.maximum(mx, 1e-3)
+    own = None
+    if obj is not None and obj.data.uv_layers:
+        uv = np.zeros(len(obj.data.loops) * 2, np.float32)
+        obj.data.uv_layers.active.data.foreach_get("uv", uv)
+        uv = uv.reshape(-1, 2) % 1.0
+        ys = np.clip((uv[:, 1] * size).astype(int), 0, size - 1)
+        xs = np.clip((uv[:, 0] * size).astype(int), 0, size - 1)
+        own = rgb[ys, xs]
+    dom = np.median(own if own is not None and len(own) else rgb.reshape(-1, 3), axis=0)
+    dist = np.linalg.norm(rgb - dom[None, None, :], axis=-1)
+    cls = np.zeros(luma.shape, np.int8)                      # 0 main
+    regions = g.get("regions", {})
+    if "other" in regions:
+        cls[dist > g.get("other_dist", 0.22)] = 4
+    if "grey" in regions:
+        cls[(sat < 0.18) & (luma > 0.22) & (luma <= 0.7) & (dist > 0.12)] = 2
+    if "dark" in regions:
+        cls[(luma < 0.12) & (dist > 0.12)] = 3
+    if "white" in regions:
+        cls[(luma > 0.7) & (sat < 0.2)] = 1
+    tints = {0: g["tint"], 1: regions.get("white"), 2: regions.get("grey"), 3: regions.get("dark"), 4: regions.get("other")}
+    out = np.zeros_like(rgb)
+    sg = g.get("shade_gamma", 0.8)
+    for c, t in tints.items():
+        m = cls == c
+        if t is None or not m.any():
+            if m.any():
+                out[m] = rgb[m]
+            continue
+        med = max(float(np.median(luma[m])), 1e-3)
+        gam = g.get("other_gamma", 0.12) if c == 4 else sg     # prints (a floral tie) go nearly flat
+        shade = np.clip(luma[m] / med, 0.0, 2.0) ** gam
+        out[m] = shade[:, None] * np.array(t, np.float32)[None, :]
+    if g.get("lower"):
+        lw = g["lower"]
+        mask = uv_mask(obj, size, lambda c: c.z < lw["z"]) & (cls == 0)
+        if mask.any():
+            med = max(float(np.median(luma[mask])), 1e-3)
+            shade = np.clip(luma[mask] / med, 0.0, 2.0) ** sg
+            out[mask] = shade[:, None] * np.array(lw["tint"], np.float32)[None, :]
+    patches = g.get("patches", [])
+    if isinstance(patches, str):
+        import people_rennick
+        patches = people_rennick.PATCHES[patches]
+    for (x0, y0, x1, y1, painter) in patches:
+        r0, r1 = int((1 - y1) * size), int((1 - y0) * size)      # image rows run bottom-up
+        c0, c1 = int(x0 * size), int(x1 * size)
+        out[r0:r1, c0:c1] = painter(r1 - r0, c1 - c0)[::-1]
     return out
 
 def make_skin_texture(key, skin_name, size=1024, tint=None):
@@ -706,12 +833,24 @@ def join(objs, name):
 # ---------------------------------------------------------------------------------------------------- assembling
 LOD_RATIOS = (1.0, 0.4, 0.12)
 
-def eye_texture(color):
+def eye_texture(color, iris=None):
     src = os.path.join(data_dir(), "eyes", "materials", f"{color}_eye.png")
-    out = os.path.join(TEXCACHE, f"eye_{color}.jpg")
+    out = os.path.join(TEXCACHE, f"eye_{color}.jpg" if iris is None else "eye_%s_%02d%02d%02d.jpg" % (color, *[int(c * 99) for c in iris]))
     if not os.path.exists(out):
         os.makedirs(TEXCACHE, exist_ok=True)
-        save_px(load_px(src, 256), out)
+        px = load_px(src, 256)
+        if iris is not None:
+            # lane/rennick: recolour the iris (the saturated texels) to a natural dark brown, keeping its fibres
+            rgb = px[..., :3]
+            mx, mn = rgb.max(-1), rgb.min(-1)
+            sat = (mx - mn) / np.maximum(mx, 1e-3)
+            m = sat > 0.35
+            lum = rgb @ np.array([0.2126, 0.7152, 0.0722], np.float32)
+            med = max(float(np.median(lum[m])), 1e-3) if m.any() else 0.3
+            k = np.clip((sat - 0.25) / 0.2, 0, 1)[..., None]
+            new = np.clip(lum / med, 0, 2)[..., None] ** 0.8 * np.array(iris, np.float32)
+            px[..., :3] = rgb * (1 - k) + new * k
+        save_px(px, out)
     return out
 
 def small_normal(key, src, size):
@@ -753,6 +892,19 @@ def flatten_hair_under_hat(p, above_eyes):
                 k = min(1.0, (w.z - ez - above_eyes) / 0.02)
                 v.co = inv @ w.lerp(loc + nrm * 0.004, k)
 
+def shrink_hair(p, k, min_lift=0.004):
+    """Pull the hair toward the scalp by factor k (0.5 = half the volume): a close natural crop from a fuller asset."""
+    bvh = body_mesh_eval(p.basemesh)
+    mw = p.hair.matrix_world
+    inv = mw.inverted()
+    for v in p.hair.data.vertices:
+        w = mw @ v.co
+        loc, nrm, _, dist = bvh.find_nearest(w)
+        if loc is None:
+            continue
+        lift = max((w - loc).length * k, min_lift)
+        v.co = inv @ (loc + (w - loc).normalized() * lift)
+
 def build_character(spec):
     """Build a character from a roster spec. Returns (rig, {lod: [objects]}) ready to export."""
     key = spec["name"]
@@ -764,7 +916,7 @@ def build_character(spec):
     # ------------------------------------------------ materials
     mats = {}
     mats["skin"] = new_material("skin", diff=make_skin_texture(key, spec["skin"], spec.get("skin_tex", 1024), spec.get("skin_tint")), rough=0.52)
-    mats["eye"] = new_material("eye", diff=eye_texture(spec.get("eye_color", "brown")), rough=0.08)
+    mats["eye"] = new_material("eye", diff=eye_texture(spec.get("eye_color", "brown"), spec.get("iris")), rough=0.08)
     brow_src = mhmat_textures(asset_path("eyebrows", spec.get("brows", "eyebrow001"))).get("diffuse")
     lash_src = mhmat_textures(asset_path("eyelashes", spec.get("lashes", "eyelashes01"))).get("diffuse")
     hair_tint = spec.get("hair", {}).get("tint")
@@ -781,13 +933,16 @@ def build_character(spec):
         hsize = hs.get("tex", 512 if spec.get("hero") else 256)
         hd = copy_alpha_texture(f"{key}_hair", tx["diffuse"], hsize, hs.get("tint"))
         hn = small_normal(f"{key}_hair_nor", tx.get("normal"), hsize // 2)
-        mats["hair"] = new_material("hair", diff=hd, nor=hn, alpha=True, blend="HASHED", double=True, rough=0.62)
+        mats["hair"] = new_material("hair", diff=hd, nor=hn, alpha=True, blend="HASHED", double=True, rough=hs.get("rough", 0.62))
         assign_single_material(p.hair, mats["hair"])
-        if any(g.get("hat") for _, g in p.clothes) or "peaked_cap" in spec.get("extras", []):
+        if hs.get("shrink"):
+            shrink_hair(p, hs["shrink"], hs.get("min_lift", 0.004))
+        if any(g.get("hat") for _, g in p.clothes) or "peaked_cap" in spec.get("extras", []) or "uniform_cap" in spec.get("extras", []):
             flatten_hair_under_hat(p, spec.get("hat_line", 0.035))
         decimate(p.hair, min(1.0, hs.get("budget", 900) / max(tri_count(p.hair), 1)))
     cloth_tris = sum(tri_count(o) for o, _ in p.clothes)
-    gear_est = {"backpack": 1300, "belt_kit": 450, "peaked_cap": 420, "scarf": 300}
+    gear_est = {"backpack": 1300, "belt_kit": 450, "peaked_cap": 420, "scarf": 300, "uniform_cap": 700, "duty_belt": 900,
+                "shoulder_radio": 150}
     fixed = tri_count(skin) + min(tri_count(p.hair) if p.hair else 0, 900) + tri_count(p.eyes) + tri_count(p.brows) + tri_count(p.lashes)
     budget = spec.get("clothes_budget", min(3300, spec.get("tri_budget", 8100) - fixed - sum(gear_est.get(e, 400) for e in spec.get("extras", []))))
     cloth_ratio = min(1.0, max(budget, 1200) / max(cloth_tris, 1))
@@ -796,6 +951,9 @@ def build_character(spec):
     garments = []
     for i, (o, g) in enumerate(p.clothes):
         mk = g.get("mat", g["asset"])
+        if g.get("lower") and "dz" in g["lower"]:
+            g = dict(g)
+            g["lower"] = dict(g["lower"], z=(rig.matrix_world @ rig.data.bones["pelvis"].head_local).z + g["lower"]["dz"])
         tex = make_garment_textures(f"{key}_{mk}", asset_path("clothes", g["asset"]), g, obj=o)
         garments.append((o, tex))
         decimate(o, g.get("decimate", cloth_ratio))
@@ -804,8 +962,10 @@ def build_character(spec):
         o["node"] = g.get("node", "clothes")
     # extras modelled in Blender (backpack, belt kit, scarf...) share the clothes atlas
     import people_gear
+    import people_rennick  # noqa: registers lane/rennick gear (uniform caps, duty belts, radios) in people_gear.BUILDERS
     for extra in spec.get("extras", []):
         for o, tex, node in people_gear.build(extra, p, spec):
+            log("gear", extra, o.name, tri_count(o))
             o["node"] = node
             garments.append((o, tex))
             p.clothes.append((o, {"asset": extra}))

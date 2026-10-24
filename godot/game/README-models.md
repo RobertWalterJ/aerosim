@@ -849,3 +849,33 @@ trousers, brown scarf, backpack); the old red-jacket Wren is gone. Routing: `Peo
 `antidrone_final_people_textures.jpg`. Checks: `test/people_blender_test.gd` (all 38 people). Note for lane/notify:
 `case_objects.gd` there tints Wren's skin darker (`PeopleAssets.tint_skin(_hiker, Color(0.56, 0.40, 0.30))`); with the rebuilt
 Wren that tint should be removed, or Wren goes near black.
+
+## Constable Rennick (lane/rennick)
+
+Rennick remade to `docs/CLAUDE-CHARACTER-BRIEF-2026-11-15.md` (lane/notify, cast row 10): a Black woman in her early
+thirties, warm brown skin (tone 2), short natural hair, 1.68 m, calm and slightly stern, she/her. Same pipeline, skeleton
+and shared clips as Blender 2 (people); built with `sh tools/blender/run_people.sh people_build.py -- rennick rennick_uniform
+rennick_1984` (set `PEOPLE_RETEX=1` after a texture change). Specs: `RENNICK_BODY` and the three entries in
+`tools/blender/people_roster.py`; gear and the ghost bake in `tools/blender/people_rennick.py`.
+
+| File | Story names (unchanged) | What it is |
+|---|---|---|
+| `people/rennick.glb` | `rennick_standing_a`, `_standing_a_clipboard`, `_walking_a`, `_knocking_a` | plain clothes: camel wool jacket, charcoal knit and trousers, black ankle boots |
+| `people/rennick_uniform.glb` | `rennick_uniform_a`, `_uniform_a_writing` | today's fictional constabulary uniform: navy soft-shell with lantern sleeve flashes, navy cargo trousers, duty boots, peaked cap and badge, nylon duty belt with radio and torch, shoulder speaker-mic |
+| `people/rennick_1984.glb` | `rennick_1984_standing_a`, `_standing_a_notebook` | 1984: navy wool tunic and trousers, pale blue shirt, dark tie, polished boots, peaked cap with black band, gold chinstrap and badge, leather duty belt, brass buckle, big handset radio with whip aerial, long metal torch |
+| `people/rennick_1984_ghost.glb` | `rennick_1984_ghost_a` | the 1984 build with pale, drained, faintly cool textures baked in |
+
+Props are unchanged and still attach by name: `clipboard`, `notebook`, `pen` (people_props.glb), `rennick_hat_a`,
+`rennick_case_file_a`, `rennick_portrait_a` (story/gear). The 36 px and app avatars are the emblem/eclectic set (lane/avatars)
+and are not touched.
+
+Ghost contract: `PeopleAssets.instance("rennick_1984_ghost_a")` gives the ghost on `game/shaders/people_ghost.gdshader`
+(opaque, dithered fade, cool rim, low self-light, no shadow, hair/brows/lashes alpha-cut, eyes without rim). The old
+alpha-blended ghost let the eyeballs, scalp and inner clothing show through; this one writes depth like any solid, so they
+cannot. `PeopleAssets.set_ghost_fade(node, fade, translucency := -1)` fades her (0 = gone, which also hides the meshes) and
+optionally lets the scene through the middle of the figure (0..0.8, the rim stays). If only `rennick_1984.glb` is present the
+loader falls back to it and the shader drains the colours itself. Do not run `PeopleAssets.tint_skin` (lane/notify,
+`case_objects.gd`) on any Rennick file: her tone is baked, and a tint would double-darken the living files and stain the ghost.
+Checks: `test/people_blender_test.gd` (rennick_checks: same skeleton in all four, warm-brown living skin, pale cool ghost,
+height 1.64 to 1.72 m, ghost on the opaque shader with the right cut-outs, fade, props and avatars present).
+Sheets: `docs/realism/models/rennick_final_views.jpg`, `rennick_final_textures.jpg`.
