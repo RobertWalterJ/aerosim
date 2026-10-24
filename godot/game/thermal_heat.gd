@@ -54,10 +54,11 @@ static func person(parent: Node3D, pos: Vector3, scale := 1.0) -> Node3D:
 	root.scale = Vector3.ONE * scale
 	parent.add_child(root)
 	# The coat insulates the torso; the head and hands are the warmer exposed parts.
-	shell(root, capsule(0.30, 1.02), Transform3D(Basis(), Vector3(0.0, 0.92, 0.0)), WARM)
-	shell(root, sphere(0.17), Transform3D(Basis(), Vector3(0.0, 1.61, 0.0)), BODY)
+	# These dimensions match CharacterActor (torso 0.205 x 1.06, head 0.108, hands at ~0.83 m).
+	shell(root, capsule(0.24, 0.52), Transform3D(Basis(), Vector3(0.0, 1.16, 0.0)), WARM)
+	shell(root, sphere(0.115), Transform3D(Basis(), Vector3(0.0, 1.58, 0.0)), BODY)
 	for sx in [-1.0, 1.0]:
-		shell(root, sphere(0.075), Transform3D(Basis(), Vector3(sx * 0.31, 1.03, -0.05)), BODY)
+		shell(root, sphere(0.050), Transform3D(Basis(), Vector3(sx * 0.272, 0.83, -0.02)), BODY)
 	return root
 
 ## A four-legged animal body, head and a small warm patch at the muzzle.

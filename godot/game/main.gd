@@ -1048,6 +1048,8 @@ func _sync_thermal_heat() -> void:
 		wildlife_objects.set_thermal_markers(on)
 	if traffic != null:
 		traffic.set_thermal_heat(on)
+	if village != null:
+		village.set_thermal_heat(on)
 # ------------------------------------------------------------------ camera add-ons on the flight screen
 func _toggle_thermal() -> void:
 	if inventory != null and inventory.has_addon("thermal_camera") and thermal != null:
@@ -1526,6 +1528,87 @@ func _screenshot_mode(arg: String) -> void:
 			var sp2 := wildlife_objects.first_sheep_position()
 			quad.reset(sp2.x, terrain.height(sp2.x, sp2.z) + 14.0, sp2.z, 0.0)
 			gimbal_pitch = deg_to_rad(-82.0)
+			_apply_pose()
+		elif c == "villageshot":    # session B dev hook: the village street and its people
+			quad.reset(420.0, terrain.height(420.0, 292.0) + 2.0, 292.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-4.0)
+			_apply_pose()
+		elif c == "wrenshot":       # session B dev hook: Wren on foot at the treeline
+			case_objects.show_hiker()
+		elif c == "wrenshow":       # session B dev hook: show Wren without moving the camera
+			case_objects.show_hiker()
+		elif c == "wrenvillage":    # session B dev hook: a close, flat check of the Wren actor
+			case_objects.show_hiker()
+			case_objects._hiker.position = Vector3(360.0, terrain.height(360.0, 274.0), 274.0)
+			case_objects._hiker.rotation.y = 0.0
+			quad.reset(360.0, terrain.height(360.0, 280.0) + 1.8, 280.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-8.0)
+			_apply_pose()
+		elif c == "peopleclose":    # session B dev hook: a close check of the village cast
+			quad.reset(356.0, terrain.height(356.0, 278.0) + 1.7, 282.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-4.0)
+			_apply_pose()
+		elif c == "sitshot":        # session B dev hook: a seated actor on a real bench anchor
+			village._bench(Vector2(38.0, -744.0), 0.0)
+			var sitter = village._people[6]
+			sitter.route.clear()
+			sitter.position = Vector3(38.0, terrain.height(38.0, -744.0), -744.0)
+			sitter.rotation.y = 0.0
+			sitter.seated = true
+			sitter._set_pose("sit")
+		elif c == "walkshot":       # session B dev hook: a walking actor in front of the default camera
+			var walker = village._people[0]
+			walker.route.clear()
+			walker.route.append(Vector3(34.0, terrain.height(34.0, -744.0), -744.0))
+			walker.route.append(Vector3(46.0, terrain.height(46.0, -744.0), -744.0))
+			walker.route_index = 0
+			walker.position = walker.route[0]
+			walker.rotation.y = PI
+			walker.set_physics_process(true)
+		elif c == "wrenspawnthermal": # session B dev hook: Wren thermal signature in front of the default camera
+			case_objects.show_hiker()
+			var sp4 := Vector3(38.0, 0.0, -746.0)
+			sp4.y = terrain.height(sp4.x, sp4.z)
+			case_objects._hiker.position = sp4
+			case_objects._hiker.rotation.y = PI
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			thermal.set_on(true)
+		elif c == "castline":       # session B dev hook: a close line of the village cast for the skin and scale check
+			var cast_x := 34.0
+			for i in mini(4, village._people.size()):
+				var person = village._people[i]
+				person.route.clear()
+				person.seated = false
+				person._set_pose("stand")
+				person.position = Vector3(cast_x, terrain.height(cast_x, -744.0), -744.0)
+				person.rotation.y = PI
+				person.set_physics_process(false)
+				cast_x += 2.2
+		elif c == "wrenspawn":      # session B dev hook: Wren in front of the default camera
+			case_objects.show_hiker()
+			var sp3 := Vector3(38.0, 0.0, -746.0)
+			sp3.y = terrain.height(sp3.x, sp3.z)
+			case_objects._hiker.position = sp3
+			case_objects._hiker.rotation.y = PI
+		elif c == "wrenhigh":       # session B dev hook: Wren from a safe look-down height
+			case_objects.show_hiker()
+			case_objects._hiker.position = Vector3(360.0, terrain.height(360.0, 274.0), 274.0)
+			case_objects._hiker.rotation.y = 0.0
+			quad.reset(360.0, terrain.height(360.0, 278.0) + 5.0, 278.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-22.0)
+			_apply_pose()
+		elif c == "peoplehigh":     # session B dev hook: the village cast from a safe look-down height
+			quad.reset(356.0, terrain.height(356.0, 282.0) + 5.0, 282.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-22.0)
+			_apply_pose()
+		elif c == "wrennear":       # session B dev hook: Wren at eye level, a few metres away
+			case_objects.show_hiker()
+			case_objects._hiker.position = Vector3(360.0, terrain.height(360.0, 274.0), 274.0)
+			case_objects._hiker.rotation.y = 0.0
+			quad.reset(360.0, terrain.height(360.0, 274.0) + 1.7, 278.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-2.0)
 			_apply_pose()
 		elif c == "thermalvillage":  # session B dev hook: thermal on, looking at the village parked cars
 			if not inventory.has_addon("thermal_camera"):

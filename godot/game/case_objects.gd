@@ -467,6 +467,7 @@ func show_hiker() -> void:
 	_hiker.visible = true
 	_hiker.position = search_world_pos()
 	_hiker.rotation.y = 2.2
+	_hiker.set_physics_process(true)
 
 func hiker_world_pos() -> Vector3:
 	return _hiker.position if _hiker != null else search_world_pos()
@@ -658,56 +659,29 @@ func _build_cruiser(pos: Vector3) -> void:
 	root.rotation.y = 0.9
 
 func _build_hiker() -> void:
-	_hiker = Node3D.new()
+	var actor := CharacterActor.new()
+	actor.name = "Wren"
+	_hiker = actor
+	add_child(actor)
+	actor.setup({
+		"terrain": terrain,
+		"name": "Wren",
+		"skin": 1,
+		"hair": "crop",
+		"hair_color": 0,
+		"outfit": Color(0.64, 0.42, 0.18),
+		"trousers": Color(0.15, 0.19, 0.18),
+		"scarf": Color(0.44, 0.22, 0.12),
+		"backpack": true,
+		"hiker": true,
+		"height": 0.98,
+		"position": Vector3(SEARCH_SPOT.x, terrain.height(SEARCH_SPOT.x, SEARCH_SPOT.y), SEARCH_SPOT.y),
+	})
 	_hiker.visible = false
-	add_child(_hiker)
-	var coat := StandardMaterial3D.new()
-	coat.albedo_color = Color(0.75, 0.45, 0.12)
-	coat.roughness = 0.8
-	var body := CapsuleMesh.new()
-	body.radius = 0.32
-	body.height = 1.1
-	var bmi := MeshInstance3D.new()
-	bmi.mesh = body
-	bmi.material_override = coat
-	bmi.position.y = 0.95
-	_hiker.add_child(bmi)
-	var head := SphereMesh.new()
-	head.radius = 0.19
-	head.height = 0.38
-	var hmi := MeshInstance3D.new()
-	hmi.mesh = head
-	var skin := StandardMaterial3D.new()
-	skin.albedo_color = Color(0.72, 0.58, 0.46)
-	hmi.material_override = skin
-	hmi.position.y = 1.65
-	_hiker.add_child(hmi)
-	var pack := BoxMesh.new()
-	pack.size = Vector3(0.55, 0.6, 0.35)
-	var pmi := MeshInstance3D.new()
-	pmi.mesh = pack
-	var pack_mat := StandardMaterial3D.new()
-	pack_mat.albedo_color = Color(0.18, 0.25, 0.28)
-	pmi.material_override = pack_mat
-	pmi.position = Vector3(0.0, 1.15, 0.33)
-	_hiker.add_child(pmi)
-	for sx in [-1.0, 1.0]:
-		var leg := BoxMesh.new()
-		leg.size = Vector3(0.16, 0.7, 0.18)
-		var lmi := MeshInstance3D.new()
-		lmi.mesh = leg
-		lmi.material_override = black_material()
-		lmi.position = Vector3(sx * 0.16, 0.35, 0.0)
-		_hiker.add_child(lmi)
+	_hiker.set_physics_process(false)
 	# a white-hot person signature: torso, head and hands, shown only through the thermal camera
 	_hiker_heat = ThermalHeat.person(_hiker, Vector3.ZERO)
 	_hiker_heat.visible = false
-func black_material() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.08, 0.08, 0.09)
-	m.roughness = 1.0
-	return m
-
 func _process(delta: float) -> void:
 	_time += delta
 	if _campfire != null:

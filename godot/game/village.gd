@@ -16,6 +16,7 @@ const FESTIVAL := Vector2(300.0, 300.0)
 var terrain: Terrain
 var _stats := {}
 var _car_heats: Array[Node3D] = []
+var _people: Array[CharacterActor] = []
 
 static func near_village(x: float, z: float, margin := 5.0) -> bool:
 	return BOUNDS.grow(margin).has_point(Vector2(x, z))
@@ -84,9 +85,11 @@ func _build() -> void:
 	_forecourt(Vector2(470.0, 294.0), 18.0, 9.0, _tex("gravel", Color(0.72, 0.68, 0.60), 0.97, 0.7))
 	_driveway(Vector2(414.0, 284.0), 5.0, 24.0, _tex("gravel", Color(0.68, 0.64, 0.56), 0.97, 0.8))
 	_driveway(Vector2(470.0, 284.0), 5.0, 24.0, _tex("gravel", Color(0.68, 0.64, 0.56), 0.97, 0.8))
+	_build_people()
 	_stats["buildings"] = 9
 	_stats["furniture"] = 9
 	_stats["trees"] = 1
+	_stats["people"] = _people.size()
 
 func _cottage(pos: Vector2, yaw: float, w: float, d: float, h: float, wall: StandardMaterial3D, roof: StandardMaterial3D, trim: StandardMaterial3D, glass: StandardMaterial3D, name: String) -> void:
 	var node := Node3D.new()
@@ -94,6 +97,7 @@ func _cottage(pos: Vector2, yaw: float, w: float, d: float, h: float, wall: Stan
 	node.rotation.y = yaw
 	add_child(node)
 	_box(node, Vector3(w, h, d), Vector3(0.0, h * 0.5, 0.0), wall)
+	_solid(node, Vector3(w, h, d), Vector3(0.0, h * 0.5, 0.0))
 	_roof(node, w, d, h, roof)
 	_door(node, Vector3(0.0, 1.05, -d * 0.5 - 0.07), 1.05, 2.1, trim)
 	_window(node, Vector3(-w * 0.30, h * 0.58, -d * 0.5 - 0.07), 1.0, 1.1, glass)
@@ -110,6 +114,7 @@ func _pub(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMate
 	node.rotation.y = yaw
 	add_child(node)
 	_box(node, Vector3(15.0, 6.2, 10.0), Vector3(0.0, 3.1, 0.0), wall)
+	_solid(node, Vector3(15.0, 6.2, 10.0), Vector3(0.0, 3.1, 0.0))
 	_roof(node, 15.0, 10.0, 6.2, roof)
 	_door(node, Vector3(-3.4, 1.15, -5.07), 1.4, 2.3, trim)
 	_window(node, Vector3(1.0, 3.7, -5.07), 1.5, 1.4, trim)
@@ -134,6 +139,7 @@ func _shop(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMat
 	node.rotation.y = yaw
 	add_child(node)
 	_box(node, Vector3(11.0, 4.6, 8.0), Vector3(0.0, 2.3, 0.0), wall)
+	_solid(node, Vector3(11.0, 4.6, 8.0), Vector3(0.0, 2.3, 0.0))
 	_roof(node, 11.0, 8.0, 4.6, roof)
 	_door(node, Vector3(-3.5, 1.1, -4.07), 1.2, 2.2, trim)
 	_window(node, Vector3(1.0, 2.3, -4.07), 3.4, 1.8, glass)
@@ -149,6 +155,7 @@ func _garage(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardM
 	node.rotation.y = yaw
 	add_child(node)
 	_box(node, Vector3(14.0, 4.8, 9.0), Vector3(0.0, 2.4, 0.0), wall)
+	_solid(node, Vector3(14.0, 4.8, 9.0), Vector3(0.0, 2.4, 0.0))
 	_roof(node, 14.0, 9.0, 4.8, roof)
 	for i in 2:
 		var bay := _box(node, Vector3(4.2, 3.1, 0.12), Vector3(-3.4 + float(i) * 6.8, 1.55, -4.57), glass)
@@ -179,6 +186,7 @@ func _phone_box(pos: Vector2) -> void:
 	add_child(node)
 	var red := _mat(Color(0.55, 0.08, 0.06), 0.55)
 	_box(node, Vector3(1.0, 2.5, 1.0), Vector3(0.0, 1.25, 0.0), red)
+	_solid(node, Vector3(1.0, 2.5, 1.0), Vector3(0.0, 1.25, 0.0))
 	var glass := _box(node, Vector3(0.72, 1.3, 0.05), Vector3(0.0, 1.45, -0.52), _mat(Color(0.18, 0.24, 0.23), 0.2))
 	glass.material_override = _mat(Color(0.18, 0.24, 0.23), 0.2)
 	var cap := MeshInstance3D.new()
@@ -197,6 +205,7 @@ func _bus_shelter(pos: Vector2) -> void:
 	var wood := _mat(Color(0.20, 0.16, 0.12), 0.9)
 	var glass := _mat(Color(0.24, 0.30, 0.28), 0.2)
 	_box(node, Vector3(4.0, 0.12, 2.2), Vector3(0.0, 2.5, 0.0), wood)
+	_solid(node, Vector3(4.0, 2.5, 0.12), Vector3(0.0, 1.25, -1.1))
 	_box(node, Vector3(0.12, 2.5, 2.2), Vector3(-2.0, 1.25, 0.0), wood)
 	_box(node, Vector3(0.12, 2.5, 2.2), Vector3(2.0, 1.25, 0.0), wood)
 	_box(node, Vector3(4.0, 1.8, 0.06), Vector3(0.0, 1.1, -1.1), glass)
@@ -216,6 +225,7 @@ func _post_box(pos: Vector2) -> void:
 	pole.position = Vector3(0.0, 0.55, 0.0)
 	node.add_child(pole)
 	_box(node, Vector3(0.65, 0.9, 0.55), Vector3(0.0, 1.35, 0.0), red)
+	_solid(node, Vector3(0.55, 1.4, 0.45), Vector3(0.0, 0.70, 0.0))
 	_inc("post_box")
 
 func _bench(pos: Vector2, yaw: float) -> void:
@@ -227,6 +237,7 @@ func _bench(pos: Vector2, yaw: float) -> void:
 	var iron := _mat(Color(0.13, 0.13, 0.12), 0.7)
 	_box(node, Vector3(1.8, 0.10, 0.48), Vector3(0.0, 0.48, 0.0), wood)
 	_box(node, Vector3(1.8, 0.48, 0.10), Vector3(0.0, 0.74, 0.20), wood)
+	_solid(node, Vector3(1.8, 0.82, 0.50), Vector3(0.0, 0.41, 0.0))
 	for sx in [-0.75, 0.75]:
 		_box(node, Vector3(0.10, 0.48, 0.10), Vector3(sx, 0.24, 0.0), iron)
 	_inc("bench")
@@ -261,6 +272,7 @@ func _parked_car(pos: Vector2, yaw: float, colour: Color) -> void:
 	var glass := _mat(Color(0.10, 0.14, 0.16), 0.25)
 	var rubber := _mat(Color(0.06, 0.06, 0.06), 0.9)
 	_box(node, Vector3(1.8, 0.62, 4.0), Vector3(0.0, 0.52, 0.0), body_mat)
+	_solid(node, Vector3(1.8, 0.9, 4.0), Vector3(0.0, 0.55, 0.0))
 	var cabin := _box(node, Vector3(1.55, 0.55, 2.0), Vector3(0.0, 1.02, 0.10), glass)
 	cabin.rotation.x = deg_to_rad(-2.0)
 	for wz in [-1.35, 1.35]:
@@ -283,12 +295,15 @@ func _parked_car(pos: Vector2, yaw: float, colour: Color) -> void:
 func set_thermal_heat(on: bool) -> void:
 	for m in _car_heats:
 		m.visible = on
+	for p in _people:
+		p.set_thermal_marker(on)
 func _hedge(pos: Vector2, yaw: float, length: float) -> void:
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
 	add_child(node)
 	_box(node, Vector3(length, 1.1, 0.7), Vector3(0.0, 0.55, 0.0), _mat(Color(0.17, 0.26, 0.12), 0.95))
+	_solid(node, Vector3(length, 1.1, 0.7), Vector3(0.0, 0.55, 0.0))
 	_inc("hedge")
 
 func _driveway(pos: Vector2, w: float, d: float, mat: StandardMaterial3D) -> void:
@@ -326,6 +341,87 @@ func _chimney(parent: Node3D, pos: Vector3, w: float, h: float, d: float, mat: S
 func _footpath(parent: Node3D, pos: Vector3, w: float, d: float) -> void:
 	_box(parent, Vector3(w, 0.05, d), pos, _mat(Color(0.47, 0.44, 0.39), 0.95))
 
+
+# ------------------------------------------------------------------ the people on the street
+## The village cast is deliberately ordinary and deliberately varied. These are the visible Black and Asian
+## characters in the valley, alongside white and mixed-heritage neighbours; the roles are jobs, not tokens.
+## Wren is the central hiker in case_objects.gd and uses the same actor.
+func _build_people() -> void:
+	_person({"name": "Ifeoma Okafor", "skin": 0, "hair": "braids", "hair_color": 0,
+		"outfit": Color(0.14, 0.36, 0.34), "trousers": Color(0.13, 0.16, 0.16), "scarf": Color(0.76, 0.46, 0.16),
+		"height": 0.99, "speed": 0.85, "route": [[356.0, 278.0], [380.0, 280.0], [404.0, 279.0], [380.0, 280.0]]})
+	_person({"name": "Mei Lin", "skin": 7, "hair": "short", "hair_color": 0,
+		"outfit": Color(0.52, 0.17, 0.15), "trousers": Color(0.16, 0.18, 0.20), "scarf": Color(0.82, 0.66, 0.30),
+		"height": 0.94, "speed": 0.95, "route": [[404.0, 286.0], [416.0, 290.0], [410.0, 281.0], [400.0, 278.0]]})
+	_person({"name": "Ravi Patel", "skin": 8, "hair": "crop", "hair_color": 0,
+		"outfit": Color(0.22, 0.27, 0.38), "trousers": Color(0.14, 0.16, 0.18), "scarf": Color(0.55, 0.16, 0.12),
+		"height": 1.05, "speed": 0.9, "route": [[458.0, 292.0], [478.0, 290.0], [470.0, 285.0], [460.0, 294.0]]})
+	_person({"name": "Grace Adeyemi", "skin": 2, "hair": "bun", "hair_color": 1,
+		"outfit": Color(0.48, 0.34, 0.15), "trousers": Color(0.16, 0.17, 0.15), "scarf": Color(0.18, 0.28, 0.25),
+		"height": 0.97, "speed": 0.8, "route": [[368.0, 284.0], [380.0, 284.0], [392.0, 286.0], [380.0, 284.0]]})
+	_person({"name": "Hana Sato", "skin": 3, "hair": "ponytail", "hair_color": 0,
+		"outfit": Color(0.22, 0.30, 0.44), "trousers": Color(0.18, 0.18, 0.20), "scarf": Color(0.68, 0.22, 0.17),
+		"height": 0.93, "speed": 0.9, "route": [[394.0, 258.0], [408.0, 260.0], [420.0, 258.0], [408.0, 260.0]]})
+	_person({"name": "Priya Nair", "skin": 5, "hair": "long", "hair_color": 0,
+		"outfit": Color(0.20, 0.35, 0.24), "trousers": Color(0.17, 0.16, 0.15), "scarf": Color(0.58, 0.38, 0.18),
+		"height": 0.95, "speed": 0.82, "route": [[338.0, 266.0], [346.0, 274.0], [338.0, 280.0], [346.0, 274.0]]})
+	_person({"name": "Daniel Whitlock", "skin": 6, "hair": "short", "hair_color": 2,
+		"outfit": Color(0.30, 0.34, 0.28), "trousers": Color(0.15, 0.16, 0.15), "scarf": Color(0.40, 0.26, 0.18),
+		"height": 1.02, "seated": true, "position": [350.0, 280.0], "yaw": 0.2})
+	_person({"name": "Arthur Bell", "skin": 4, "hair": "short", "hair_color": 4,
+		"outfit": Color(0.26, 0.25, 0.23), "trousers": Color(0.12, 0.13, 0.13), "scarf": Color(0.36, 0.18, 0.12),
+		"height": 1.0, "speed": 0.62, "route": [[428.0, 268.0], [446.0, 270.0], [432.0, 276.0], [446.0, 270.0]]})
+
+func _person(data: Dictionary) -> void:
+	var actor := CharacterActor.new()
+	actor.name = str(data.get("name", "Villager"))
+	add_child(actor)
+	var opts := {
+		"terrain": terrain,
+		"name": str(data.get("name", "Villager")),
+		"skin": int(data.get("skin", 4)),
+		"hair": str(data.get("hair", "short")),
+		"hair_color": int(data.get("hair_color", 0)),
+		"outfit": data.get("outfit", Color(0.25, 0.34, 0.32)),
+		"trousers": data.get("trousers", Color(0.16, 0.18, 0.18)),
+		"scarf": data.get("scarf", Color(0.60, 0.22, 0.16)),
+		"height": float(data.get("height", 1.0)),
+		"speed": float(data.get("speed", 1.0)),
+		"thermal": true,
+	}
+	if bool(data.get("seated", false)):
+		var sp: Array = data.get("position", [350.0, 280.0])
+		var sx := float(sp[0])
+		var sz := float(sp[1])
+		opts["seated"] = true
+		opts["seat_height"] = 0.53
+		opts["position"] = Vector3(sx, terrain.height(sx, sz), sz)
+		opts["yaw"] = float(data.get("yaw", 0.0))
+	else:
+		var pts: Array = data.get("route", [])
+		var route: Array[Vector3] = []
+		for point in pts:
+			var px := float(point[0])
+			var pz := float(point[1])
+			route.append(Vector3(px, terrain.height(px, pz), pz))
+		if route.is_empty():
+			route.append(Vector3(0.0, 0.0, 0.0))
+		opts["route"] = route
+		opts["position"] = route[0]
+	actor.setup(opts)
+	_people.append(actor)
+
+func _solid(parent: Node3D, sz: Vector3, pos: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = sz
+	shape.shape = box
+	shape.position = pos
+	body.add_child(shape)
+	parent.add_child(body)
 func _box(parent: Node3D, sz: Vector3, pos: Vector3, mat: StandardMaterial3D) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	var bm := BoxMesh.new()
