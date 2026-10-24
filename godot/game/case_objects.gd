@@ -155,6 +155,10 @@ func _build_car(pos: Vector3) -> void:
 	var root := Node3D.new()
 	root.position = pos
 	add_child(root)
+	if _try_lake_car_asset(root):
+		root.rotation.y = 0.92
+		root.rotation.z = 0.035
+		return
 	var faded := StandardMaterial3D.new()
 	faded.albedo_color = Color(0.30, 0.36, 0.44)
 	faded.roughness = 0.7
@@ -223,6 +227,23 @@ func _build_car(pos: Vector3) -> void:
 		root.add_child(smi)
 
 # ------------------------------------------------------------------ the garage
+## The first real Blender model in this lane: the Lake Car. The code primitives below stay as the fallback until
+## the asset imports. The GLB is authored with its origin on the ground, forward local -Z, right +X.
+func _try_lake_car_asset(root: Node3D) -> bool:
+	var path := "res://assets/story/lake_car.glb"
+	if not ResourceLoader.exists(path):
+		return false
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return false
+	var inst := packed.instantiate()
+	if not inst is Node3D:
+		inst.queue_free()
+		return false
+	root.add_child(inst)
+	print("lake car: Blender GLB loaded")
+	return true
+
 func _build_garage(pos: Vector3) -> void:
 	var root := Node3D.new()
 	root.position = pos

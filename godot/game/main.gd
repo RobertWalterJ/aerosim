@@ -1592,6 +1592,16 @@ func _screenshot_mode(arg: String) -> void:
 				person.rotation.y = PI
 				person.set_physics_process(false)
 				cast_x += 2.2
+		elif c == "nolink":         # session B dev hook: disable the video-link macroblocking for a clean model shot
+			hud.link_fx = false
+			if sensor != null:
+				sensor.link_effects = false
+		elif c == "lakecar":        # session B dev hook: the Blender Lake Car at the north shore
+			var lp: Vector3 = case_objects._items[0]["pos"]
+			quad.reset(lp.x + 8.0, terrain.height(lp.x + 8.0, lp.z + 8.0) + 8.0, lp.z + 8.0, deg_to_rad(45.0))
+			gimbal_pitch = deg_to_rad(-22.0)
+			_apply_pose()
+			print("lakecar: car=", lp, " quad=", quad.position())
 		elif c == "wrenwave":       # session B dev hook: the end-beat Wren wave in front of the default camera
 			case_objects.show_hiker()
 			var spw := Vector3(38.0, 0.0, -746.0)
