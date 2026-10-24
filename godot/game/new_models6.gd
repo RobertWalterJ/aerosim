@@ -99,7 +99,7 @@ static func _std(key: String) -> StandardMaterial3D:
 			m.albedo_color = Color(1.0, 0.93, 0.78); m.emission_enabled = true; m.emission = Color(1.0, 0.86, 0.6); m.emission_energy_multiplier = 2.4
 		"steam":
 			m.vertex_color_use_as_albedo = false
-			m.albedo_color = Color(0.9, 0.9, 0.92, 0.16); m.roughness = 1.0
+			m.albedo_color = Color(0.8, 0.8, 0.84, 0.07); m.roughness = 1.0
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		"warm":
 			m.vertex_color_use_as_albedo = false
