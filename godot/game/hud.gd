@@ -38,6 +38,7 @@ signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects 
 signal fireworks_changed(show: int)                  # session B: "Fireworks show" in the Weather tab
 signal surprise_changed(on: bool)                    # session B: "Surprise shows"
 signal birds_changed(on: bool)                       # session B: Display > Graphics "Birds"
+signal attachment_requested(id: String)              # a camera add-on button on the flight screen
 signal sky_quality_changed(i: int)                   # sky lane: cloud raymarch quality
 
 const WEATHER_FILE := "user://weather.cfg"
@@ -118,7 +119,13 @@ var _pv_btn: RoundButton
 var _shutter: ShutterButton
 var _gimbal: VSlider
 var _toast: Label
+var _toast_source: Label
 var _toast_tween: Tween
+var _nav_panel: PanelContainer
+var _nav_label: Label
+var nav_pos := Vector3.INF
+var nav_name := ""
+var _attach_btns := {}
 var _flash: ColorRect
 var _crash_box: VBoxContainer
 var _crash_label: Label
@@ -197,6 +204,7 @@ func _build_flight_hud() -> void:
 	_rth_btn = RoundButton.new("home", 52); _rth_btn.label = "Return"; _rth_btn.pressed.connect(func(): rth_requested.emit()); _root.add_child(_rth_btn)
 	_view_btn = RoundButton.new("eye", 52); _view_btn.label = "View"; _view_btn.pressed.connect(func(): set_chase(not chase)); _root.add_child(_view_btn)
 	_pv_btn = RoundButton.new("camera", 44); _pv_btn.pressed.connect(toggle_photo_video); _root.add_child(_pv_btn)
+	_build_attachment_buttons()
 	_shutter = ShutterButton.new(80); _shutter.pressed.connect(func(): photo_requested.emit()); _root.add_child(_shutter)
 	minimap = MiniMap.new(150); _root.add_child(minimap)
 	# the gimbal: the data overlay draws the scale; this invisible slider sits over it to take the touch
@@ -215,6 +223,16 @@ func _build_flight_hud() -> void:
 	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast.modulate.a = 0.0
 	_root.add_child(_toast)
+	_toast_source = Label.new()
+	_toast_source.add_theme_font_size_override("font_size", 10)
+	_toast_source.add_theme_color_override("font_color", Color(0.86, 0.72, 0.42))
+	_toast_source.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_toast_source.add_theme_constant_override("outline_size", 3)
+	_toast_source.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_source.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast_source.modulate.a = 0.0
+	_root.add_child(_toast_source)
+	_build_nav_panel()
 	# photo flash
 	_flash = ColorRect.new()
 	_flash.color = Color(1, 1, 1, 0)
@@ -241,6 +259,78 @@ func _build_flight_hud() -> void:
 	rb.pressed.connect(func(): reset_requested.emit())
 	_crash_box.add_child(rb)
 
+# ------------------------------------------------------------------ camera add-ons and navigation
+func _build_attachment_buttons() -> void:
+	for id in ["thermal", "night"]:
+		var b := Button.new()
+		b.visible = false
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_size_override("font_size", 12)
+		b.pressed.connect(func(): attachment_requested.emit(str(id)))
+		_root.add_child(b)
+		_attach_btns[id] = b
+
+func set_attachment_state(id: String, available: bool, on: bool, label: String, key: String) -> void:
+	var b: Button = _attach_btns.get(id)
+	if b == null:
+		return
+	b.visible = available
+	if not available:
+		return
+	b.text = "%s%s  ·  %s" % [label, " ON" if on else "", key]
+	b.tooltip_text = ("Turn off " + label.to_lower()) if on else ("Turn on " + label.to_lower())
+	var sb := _box(Color(0.10, 0.12, 0.10, 0.88), Color(0.72, 0.62, 0.34) if on else Color(1, 1, 1, 0.22), 8, 7)
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", _box(Color(0.16, 0.18, 0.14, 0.92), Color(0.86, 0.74, 0.42), 8, 7))
+	b.add_theme_stylebox_override("pressed", sb)
+	b.add_theme_color_override("font_color", Color(0.98, 0.82, 0.46) if on else Color(0.82, 0.86, 0.82))
+
+func _build_nav_panel() -> void:
+	_nav_panel = PanelContainer.new()
+	_nav_panel.visible = false
+	_nav_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := _box(Color(0.06, 0.08, 0.09, 0.82), Color(0.72, 0.62, 0.34, 0.75), 9, 6)
+	_nav_panel.add_theme_stylebox_override("panel", sb)
+	_nav_label = Label.new()
+	_nav_label.add_theme_font_size_override("font_size", 12)
+	_nav_label.add_theme_color_override("font_color", Color(0.96, 0.88, 0.68))
+	_nav_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_nav_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_nav_panel.add_child(_nav_label)
+	_root.add_child(_nav_panel)
+
+## A waypoint in the flight app, not a game instruction box. The minimap and the nav strip both carry it.
+func set_nav_target(pos: Vector3, label: String) -> void:
+	nav_pos = pos
+	nav_name = label
+	if minimap != null:
+		minimap.nav_target = Vector2(pos.x, pos.z)
+		minimap.nav_name = label
+	if _nav_panel != null:
+		_nav_panel.visible = true
+	_update_nav()
+
+func clear_nav_target() -> void:
+	nav_pos = Vector3.INF
+	nav_name = ""
+	if minimap != null:
+		minimap.nav_target = Vector2.INF
+		minimap.nav_name = ""
+	if _nav_panel != null:
+		_nav_panel.visible = false
+
+func _update_nav() -> void:
+	if _nav_panel == null or not _nav_panel.visible:
+		return
+	var d := 0.0
+	if minimap != null:
+		d = Vector2(nav_pos.x, nav_pos.z).distance_to(Vector2(minimap.drone.x, minimap.drone.z))
+	_nav_label.text = "NAV   ·   %s   ·   %d m" % [nav_name, int(round(d))]
+
+func _process(_delta: float) -> void:
+	if _nav_panel != null and _nav_panel.visible:
+		_update_nav()
+		_nav_panel.position = Vector2((get_viewport().get_visible_rect().size.x - _nav_panel.size.x) * 0.5, get_viewport().get_visible_rect().size.y - 150.0)
 func _place(c: Control, pos: Vector2, d: float) -> void:
 	c.position = pos
 	if c.size != Vector2(d, d):
@@ -274,20 +364,29 @@ func layout_for(frame: Rect2) -> void:
 	_gimbal.size = Vector2(44.0 * u, frame.size.y * 0.44)
 	_gimbal.position = Vector2(frame.end.x - 48.0 * u, frame.position.y + frame.size.y * 0.28)
 	_toast.size = Vector2(vp.x, 36.0)
-	_toast.position = Vector2(0, frame.position.y + bar + 6.0 * u)
+	_toast.position = Vector2(0, frame.position.y + bar + 18.0 * u)
+	_toast_source.size = Vector2(vp.x, 14.0)
+	_toast_source.position = Vector2(0, frame.position.y + bar + 4.0 * u)
+	for id in _attach_btns:
+		var b: Button = _attach_btns[id]
+		b.size = Vector2(154.0 * u, 30.0 * u)
+		b.position = Vector2(right - 168.0 * u, frame.position.y + bar + (8.0 + (34.0 if id == "night" else 0.0)) * u)
 	_crash_box.position = Vector2(vp.x * 0.5 - 160.0, vp.y * 0.5 - 10.0)
 	_flash.size = vp
 
 # ------------------------------------------------------------------ notices and state shown on the buttons
 ## A short notice under the top bar, like "Returning to home".
-func toast(text: String, warn := false) -> void:
+func toast(text: String, warn := false, source := "DRONE OS") -> void:
 	_toast.text = text
 	_toast.add_theme_color_override("font_color", Color(1, 0.72, 0.35) if warn else Color.WHITE)
+	_toast_source.text = source.to_upper()
 	if _toast_tween != null and _toast_tween.is_valid(): _toast_tween.kill()
 	_toast.modulate.a = 1.0
+	_toast_source.modulate.a = 1.0
 	_toast_tween = create_tween()
 	_toast_tween.tween_interval(2.2)
 	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.6)
+	_toast_tween.parallel().tween_property(_toast_source, "modulate:a", 0.0, 0.6)
 
 func flash_photo() -> void:
 	_flash.color = Color(1, 1, 1, 0.75)
@@ -709,7 +808,7 @@ func _sync() -> void:
 ## Welcome screen on or off: the flight controls are hidden while it is up.
 func set_landing(on: bool) -> void:
 	landing_mode = on
-	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _crash_box]:
+	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _toast_source, _nav_panel, _crash_box] + _attach_btns.values():
 		(c as CanvasItem).visible = not on and not paused
 
 ## Open the settings page on a tab (0 Flight, 1 Drone, 2 Weather, 3 Camera, 4 Display, 5 Controls).
@@ -726,7 +825,7 @@ func set_paused(on: bool) -> void:
 	if _quit_btn: _quit_btn.text = "Exit game"
 	_menu_dim.visible = on
 	# the settings page covers the flight screen the way an app's settings page does
-	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _crash_box]:
+	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _toast_source, _nav_panel, _crash_box] + _attach_btns.values():
 		(c as CanvasItem).visible = not on and not landing_mode
 	if on: _sync()
 	pause_changed.emit(on)

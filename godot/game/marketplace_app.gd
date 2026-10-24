@@ -244,11 +244,11 @@ func _buy(item: Dictionary) -> void:
 	var price := int(item.get("price", 0))
 	if not jobs.spend(price):
 		if hud != null:
-			hud.toast("Facade: not enough in the channel pot for " + str(item.get("title", "that")))
+			hud.toast("Not enough in the channel pot for " + str(item.get("title", "that")), true, "FACADE")
 		return
 	inventory.add_purchase(item)
 	if hud != null:
-		hud.toast("Facade: " + str(item.get("title", "purchase")) + " added to your kit")
+		hud.toast(str(item.get("title", "purchase")) + " added to your kit", false, "FACADE")
 	refresh()
 
 func _build_kit() -> void:

@@ -112,7 +112,7 @@ func jammer_down_now() -> void:
 		chat.post("town", "Riley", "If you go north, go fast. The hunters are slow to turn but they are patient.", false)
 		chat.post("tech", "Alex", "The jammer is off. You will have a signal. Do not stop to look at the cabin.", false)
 		notes.post_text("Rennick", "The north is open", "Pike's jammer is down. The hunter drones are still up. Keep high and fast, and do not stop.", 1)
-		hud.toast("Rennick: Pike's jammer is down. Keep high and fast.", true)
+		hud.toast("Rennick: Pike jammer is down. Keep high and fast.", true, "DRONEBUDZ")
 
 func _maybe_introduce() -> void:
 	if intro_done or hud == null or not hud.story_mode or story == null:

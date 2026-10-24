@@ -496,7 +496,7 @@ func _tick_storm(delta: float, cam_pos: Vector3, drone_pos: Vector3) -> void:
 	if dstorm < 420.0 and float(_storm.get("next_warn", 0.0)) <= _time:
 		_storm["next_warn"] = _time + 25.0
 		if hud != null:
-			hud.toast("Storm nearby. The air is rough.")
+			hud.toast("Storm nearby. The air is rough.", false, "SKYSYNC")
 
 func _pilot_pos() -> Vector3:
 	return Vector3(HOME.x, terrain.height(HOME.x, HOME.y) + 1.7, HOME.y)

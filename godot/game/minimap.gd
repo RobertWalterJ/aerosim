@@ -12,6 +12,8 @@ var home := Vector2.ZERO
 var features: Array[Rect2] = [] # rectangles to outline, in world x,z
 var paths: Array[PackedVector2Array] = []   # park paths as lines, in world x,z
 var roads: Array[PackedVector2Array] = []   # the country roads as lines, under the park paths
+var nav_target := Vector2.INF            # the flight app waypoint, in world x,z
+var nav_name := ""
 var _tex: ImageTexture
 var _size_m := 1600.0
 var _trail := PackedVector2Array()
@@ -84,6 +86,17 @@ func _draw() -> void:
 		var pts := PackedVector2Array()
 		for p in _trail: pts.append(_w2m(p))
 		draw_polyline(pts, Color(0.35, 0.7, 1.0, 0.9), 1.8, true)
+	if nav_target != Vector2.INF:
+		var np := _w2m(nav_target)
+		var edge := np.clamp(Vector2(12, 12), size - Vector2(12, 12))
+		var off_map := edge.distance_to(np) > 0.5
+		if off_map:
+			draw_line(c, edge, Color(0.92, 0.76, 0.40, 0.55), 1.4, true)
+		draw_circle(edge, 6.0, Color(0.04, 0.04, 0.03, 0.85), true, -1.0, true)
+		draw_circle(edge, 4.0, Color(0.96, 0.80, 0.42), true, -1.0, true)
+		if nav_name != "":
+			var nvf := HudIcons.bold_font()
+			draw_string(nvf, edge + Vector2(8, 4), nav_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.98, 0.88, 0.62))
 	# home marker and the drone, always pointing up (the map turns, not the arrow)
 	HudIcons.home_marker(self, _w2m(home), 8.5)
 	HudIcons.drone_marker(self, c, 11.0, 0.0, Color(0.22, 0.58, 1.0))

@@ -498,7 +498,7 @@ func _fail_job(jid: String, mode: String, o: Dictionary) -> void:
 	if notes != null:
 		notes.post_text(who, "Job pulled", msg, 1)
 	if hud != null:
-		hud.toast("Job pulled: " + failure_text(jid), true)
+		hud.toast("Job pulled: " + failure_text(jid), true, "DRONEBUDZ")
 	_refresh()
 
 func _miss(jid: String, oi: int, mode: String, o: Dictionary) -> void:
@@ -520,7 +520,7 @@ func _miss(jid: String, oi: int, mode: String, o: Dictionary) -> void:
 	if notes != null:
 		notes.post_text(who, "Retake needed (%d/3)" % count, msg, 0)
 	if hud != null:
-		hud.toast("Retake needed: " + ("too far" if mode == "too_far" else "subject clipped"), true)
+		hud.toast("Retake needed: " + ("too far" if mode == "too_far" else "subject clipped"), true, "DRONEBUDZ")
 	_save_state()
 
 func failure_text(jid: String) -> String:

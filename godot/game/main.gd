@@ -461,6 +461,9 @@ func _ready() -> void:
 	drone_shadow.setup(af, terrain)
 	if sensor.simple:
 		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC; env.glow_enabled = true; env.glow_intensity = 0.25; env.glow_bloom = 0.02
+	if hud != null:
+		hud.attachment_requested.connect(_on_attachment_requested)
+		_sync_attachments()
 	_loaded = true
 	if hud != null: hud.set_story_mode(hud.story_mode)
 	if q_arg == "" and not _apstest and not _selftest and not "nolanding" in OS.get_cmdline_user_args(): _show_landing()
@@ -902,6 +905,10 @@ func _apply_pose() -> void:
 
 func _process(delta: float) -> void:
 	if quad == null or not _loaded: return
+	_attach_sync += delta
+	if _attach_sync > 0.4:
+		_attach_sync = 0.0
+		_sync_attachments()
 	if _gallery_cam:
 		return
 	# Q and E tilt a gimbal camera smoothly while held: it speeds up, then eases to a stop when released
@@ -1018,25 +1025,43 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_TAB: if phone_os != null: phone_os.toggle()   # session B: the in-game phone home screen
 		KEY_G: if hud.paused: photo_library.toggle()   # session B: photo gallery from the menu
 		KEY_J: if hud.paused: jobs.toggle()   # session B: DroneBudz jobs page from the menu
-		KEY_T:   # session B: thermal camera, bought on Facade and taught in the night pasture
-			if inventory != null and inventory.has_addon("thermal_camera") and thermal != null:
-				thermal.install()
-				thermal.toggle()
-				hud.toast("Thermal camera " + ("on" if thermal.is_on() else "off"))
-			else:
-				hud.toast("No thermal camera. Buy one on Facade, then try Riley's night pasture.", true)
-		KEY_K:   # session B: night vision add-on from Facade
-			if inventory != null and inventory.has_addon("night_vision") and night_vision != null:
-				night_vision.toggle()
-				hud.toast("Night vision " + ("on" if night_vision.is_on() else "off"))
-			else:
-				hud.toast("No night vision module. Facade has one on the board.")
+		KEY_T: _toggle_thermal()
+		KEY_K: _toggle_night()
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
 		KEY_Q, KEY_E:
 			if not af["hasGimbal"]: hud.toast("This drone's camera is fixed. Pick the Gimbal Mini or the Cinema drone to tilt it.")
 
+# ------------------------------------------------------------------ camera add-ons on the flight screen
+func _toggle_thermal() -> void:
+	if inventory != null and inventory.has_addon("thermal_camera") and thermal != null:
+		thermal.install()
+		thermal.toggle()
+		hud.toast("Thermal camera " + ("ON" if thermal.is_on() else "OFF"), false, "CAMERA")
+	else:
+		hud.toast("No thermal module fitted. The Facade listing has one.", true, "CAMERA")
+	_sync_attachments()
+
+func _toggle_night() -> void:
+	if inventory != null and inventory.has_addon("night_vision") and night_vision != null:
+		night_vision.toggle()
+		hud.toast("Night vision " + ("ON" if night_vision.is_on() else "OFF"), false, "CAMERA")
+	else:
+		hud.toast("No night vision module fitted. The Facade listing has one.", true, "CAMERA")
+	_sync_attachments()
+
+func _on_attachment_requested(id: String) -> void:
+	match id:
+		"thermal": _toggle_thermal()
+		"night": _toggle_night()
+
+var _attach_sync := 0.0
+func _sync_attachments() -> void:
+	if hud == null or inventory == null:
+		return
+	hud.set_attachment_state("thermal", inventory.has_addon("thermal_camera"), thermal != null and thermal.is_on(), "THERMAL", "T")
+	hud.set_attachment_state("night", inventory.has_addon("night_vision"), night_vision != null and night_vision.is_on(), "NIGHT", "K")
 # ------------------------------------------------------------------ screenshot helper for development
 func _screenshot_mode(arg: String) -> void:
 	var parts := arg.split(",")
@@ -1455,6 +1480,8 @@ func _screenshot_mode(arg: String) -> void:
 			finale.debug_thermal_view()
 		elif c == "endingdemo":   # session B dev hook: the fade and the credits
 			finale.debug_found()
+		elif c == "hudtoast":      # session B dev hook: a camera app notice
+			hud.toast("Photo taken", false, "CAMERA")
 		elif c == "pikezone":      # session B dev hook: drop into the jammer field
 			var jp := Vector2(-260.0, -807.0)
 			quad.reset(jp.x, terrain.height(jp.x, jp.y) + 8.0, jp.y, deg_to_rad(0.0))
@@ -1821,11 +1848,11 @@ func _on_anti_return(reason: String) -> void:
 		return
 	match reason:
 		"jammer":
-			hud.toast("Harlan Pike's jammer dropped the link. The drone returned to " + launch_sites.name() + ".", true)
+			hud.toast("Harlan Pike's jammer dropped the link. The drone returned to " + launch_sites.name() + ".", true, "LINK")
 		"shotgun":
-			hud.toast("Pike fired on the drone. It returned to " + launch_sites.name() + ". Stay high and keep moving.", true)
+			hud.toast("Pike fired on the drone. It returned to " + launch_sites.name() + ". Stay high and keep moving.", true, "LINK")
 		_:
-			hud.toast("A Pike hunter drone struck the airframe. The drone returned to " + launch_sites.name() + ". Fly faster.", true)
+			hud.toast("A Pike hunter drone struck the airframe. The drone returned to " + launch_sites.name() + ". Fly faster.", true, "LINK")
 	spawn()
 # ------------------------------------------------------------------ the end card and the free walk
 func _on_ending_began() -> void:

@@ -134,7 +134,7 @@ func set_course(i: int) -> void:
 		_build_photo_markers()
 	_course_changed = false
 	if hud != null:
-		hud.toast("Course: " + NAMES[course] + ". Fly through the first glowing gate." if course >= EASY and course <= SLALOM else ("Photograph the five named places." if course == PHOTO else "Courses off."))
+		hud.toast("Course: " + NAMES[course] + ". Fly through the first glowing gate." if course >= EASY and course <= SLALOM else ("Photograph the five named places." if course == PHOTO else "Courses off."), false, "DRONE OS")
 
 func _build_gates(def: Array) -> void:
 	var mat_on := StandardMaterial3D.new()

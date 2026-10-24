@@ -24,7 +24,7 @@ func _ready() -> void:
 	_rect.material = mat
 	add_child(_rect)
 	_badge = Label.new()
-	_badge.text = "  THERMAL CAMERA  "
+	_badge.text = "  THERMAL CAMERA  ·  T  "
 	_badge.add_theme_font_size_override("font_size", 16)
 	_badge.add_theme_color_override("font_color", Color(0.95, 0.92, 0.80))
 	_badge.position = Vector2(18, 16)

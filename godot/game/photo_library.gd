@@ -70,7 +70,7 @@ func capture(img: Image, meta: Dictionary) -> int:
 			names.append(str(s.get("id", "")))
 		world_life.mark_discovered(names)
 	if hud != null:
-		hud.toast("Saved to the photo gallery")
+		hud.toast("Saved to the photo gallery", false, "CAMERA")
 	photo_saved.emit(id, meta)
 	return id
 
@@ -359,7 +359,7 @@ func _export_current() -> void:
 	if out != null:
 		out.store_buffer(data)
 		if hud != null:
-			hud.toast("Exported a copy to " + ProjectSettings.globalize_path(dst))
+			hud.toast("Exported a copy to the gallery folder.", false, "CAMERA")
 
 func _upload_current(via_editor: bool) -> void:
 	if _detail_index < 0 or _detail_index >= _index.size() or jobs == null:
@@ -368,9 +368,9 @@ func _upload_current(via_editor: bool) -> void:
 	var rec_out := jobs.upload_photo(int(rec.get("id", -1)), rec.get("meta", {}), via_editor)
 	if hud != null:
 		if via_editor:
-			hud.toast("Sent to Maya: edited cut published with %d views" % int(rec_out.get("views", 0)))
+			hud.toast("Sent to Maya: edited cut published with %d views" % int(rec_out.get("views", 0)), false, "VIDTUBE")
 		else:
-			hud.toast("Uploaded to VidTube Studio: %d views, +%d followers" % [int(rec_out.get("views", 0)), int(rec_out.get("followers", 0))])
+			hud.toast("Uploaded to VidTube Studio: %d views, +%d followers" % [int(rec_out.get("views", 0)), int(rec_out.get("followers", 0))], false, "VIDTUBE")
 
 func _delete_current() -> void:
 	if _detail_index < 0 or _detail_index >= _index.size():

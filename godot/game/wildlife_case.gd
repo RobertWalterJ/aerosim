@@ -41,31 +41,14 @@ func setup(h: Hud, c: ChatData, n: PhoneNotes, s: StoryArc, inv: Inventory, t: T
 		_layer.visible = false
 
 func _build_objective() -> void:
+	# No out-of-world objective card. Riley's messages, the phone note and the flight app NAV waypoint carry the favour.
 	_layer = CanvasLayer.new()
 	_layer.layer = 3
 	_layer.visible = false
 	add_child(_layer)
-	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	panel.offset_left = 330
-	panel.offset_right = -330
-	panel.offset_top = 74
-	panel.offset_bottom = 146
-	var sb := UniverseUI.box(Color(0.06, 0.08, 0.06, 0.92), 10, UniverseUI.MOSS, 1, 10.0, 10.0)
-	panel.add_theme_stylebox_override("panel", sb)
-	_layer.add_child(panel)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 3)
-	panel.add_child(col)
-	_objective = UniverseUI.label("", 16, UniverseUI.CREAM)
-	col.add_child(_objective)
-	_hint = UniverseUI.label("", 12, UniverseUI.MUTED)
-	col.add_child(_hint)
-
 func _set_objective(title: String, hint := "") -> void:
-	_objective.text = title
-	_hint.text = hint
-	_layer.visible = true
+	# Kept as a state note only; the player hears the favour from Riley and sees the route as a NAV waypoint.
+	pass
 
 func update(delta: float, drone_pos: Vector3) -> void:
 	if done:
@@ -92,6 +75,8 @@ func update(delta: float, drone_pos: Vector3) -> void:
 			chat.post("general", "Riley", "That is the thermal camera fitted. West pasture, after dark. The flock is in the hay field, the wolf is somewhere along the trees. Keep high and do not land.", false)
 		if notes != null:
 			notes.post_text("Riley", "Night pasture", "Thermal camera fitted. Fly the west pasture with T on and find the wolf.", 0)
+		if hud != null and objects != null:
+			hud.set_nav_target(objects.wolf_position(), "WOLF")
 	_set_objective("Night pasture: find the wolf with the thermal camera", "Press T for thermal. Fly the west pasture, keep high, and look for the heat signature along the trees. Launch from the farm gate if you are far away.")
 	if thermal != null and thermal.is_on() and objects != null:
 		if drone_pos.distance_to(objects.wolf_position()) < FIND_DIST:
@@ -113,14 +98,15 @@ func _complete() -> void:
 	done = true
 	stage = 2
 	_save()
-	_layer.visible = false
+	if hud != null:
+		hud.clear_nav_target()
 	if chat != null:
 		chat.post("general", "Riley", "There it is. A young wolf, thin, no collar, a long way from the hills. It has been taking the weakest sheep because the flock is out in the open.", false)
 		chat.post("general", "Riley", "We are moving the flock to the home field and putting up a proper night pen. Nobody is shooting it. Thank you for the pass. You know how to use that camera now.", false)
 	if notes != null:
 		notes.post_text("Riley", "Night pasture solved", "The wolf is young and hungry, not a monster. The flock is being penned. The thermal camera is part of the kit now.", 0)
 	if hud != null:
-		hud.toast("Night pasture solved. The wolf was real, and the sheep will be safer for it.")
+		hud.toast("Night pasture solved. The wolf was real, and the sheep will be safer for it.", false, "DRONEBUDZ")
 
 func completed() -> bool:
 	return done

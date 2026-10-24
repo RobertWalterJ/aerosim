@@ -1086,3 +1086,19 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - VILL4. Should the village have a war memorial, a church or a school, or keep those in the cemetery?
   - VILL5. Should the village lane carry traffic, or stay a quiet no-through lane?
   - VILL6. Should the pavements come back as proper kerbed footways once Claude's modular set lands?
+## In-world HUD, NAV waypoints and camera attachment buttons (lane/notify, session B, 2026-11-15)
+- **The out-of-world objective cards are gone:** the finale top-of-screen objective card and the night-pasture objective card no longer draw. They are replaced by friend messages/phone notes and the flight app's NAV waypoint.
+- **NAV strip:** the HUD now shows a small amber strip at the bottom centre, `NAV  ·  CABIN  ·  520 m`, with the distance updating in flight. The minimap draws the same target as an amber dot, clamped to the rim with a line when the target is off the thumbnail.
+- **The last flight:** Rennick's `#town` messages and phone notes carry the route; the NAV target points to the cabin, then to the heat signature after the cabin arrival. The target is cleared when Wren is found.
+- **The night pasture:** Riley's `#general` messages and phone note carry the favour; the NAV target points to the wolf after the thermal camera is fitted. It is cleared when the pasture is solved.
+- **Camera attachment buttons:** when the thermal module is owned, the flight screen gains a `THERMAL · T` button which becomes `THERMAL ON · T` while the thermal pass is on. When night vision is owned, a `NIGHT · K` button sits below it. Both are real buttons wired to the same toggles as the keys. The thermal camera also shows `THERMAL CAMERA · T` on its badge.
+- **Source-tagged notices:** the HUD notice line now has a small source tag above the text: DRONE OS, CAMERA, SKYSYNC, DRONEBUDZ, FACADE, LINK, VIDTUBE. The exported-photo notice no longer exposes a Windows filesystem path.
+- **Photo and job notifications:** the camera, weather, job, courses, marketplace and anti-drone notices now name the app that owns them rather than appearing as generic dialogue.
+- **Evidence:** docs/realism/hud/00_nav_waypoint.jpg, 01_thermal_attachment.jpg, 02_camera_notice.jpg. Docs HUD-IN-WORLD.md.
+- **Honest limits:** the NAV strip is straight-line distance, not routing around terrain, the jammer or no-fly land; the minimap target is a heading-up thumbnail marker, not a 3D world beacon. The attachment buttons are plain buttons, not a camera tray with lens choices; thermal and night vision are the only add-ons with a flight-screen control. Source tags are text, not app icons. The phone notification banner can still cover the top strip for a few seconds; the NAV strip sits at the bottom. The old objective code remains as hidden debug state and draws nothing.
+- **Questions for Robert:**
+  - HUD1. Should the NAV strip show a bearing arrow or turn hint as well as distance?
+  - HUD2. Should the player be able to clear the NAV target, or should the current story beat always own it?
+  - HUD3. Should the thermal and night buttons sit in one camera tray, or stay as a top-right stack?
+  - HUD4. Should the source line use app icons as well as names?
+  - HUD5. Should the phone notification banner move so it never covers the top of the flight screen?

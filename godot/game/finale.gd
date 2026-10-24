@@ -54,42 +54,19 @@ func setup(h: Hud, c: ChatData, n: PhoneNotes, s: StoryArc, u: UnknownThread, o:
 	_build_objective()
 
 func _build_objective() -> void:
+	# The old top-of-screen objective box was an out-of-world game card. The last flight now uses Rennick's messages,
+	# the phone notes and the flight app NAV strip on the HUD instead.
 	_objective_layer = CanvasLayer.new()
 	_objective_layer.layer = 3
 	_objective_layer.visible = false
 	add_child(_objective_layer)
-	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	panel.offset_left = 300
-	panel.offset_right = -300
-	panel.offset_top = 74
-	panel.offset_bottom = 142
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.08, 0.11, 0.88)
-	sb.set_corner_radius_all(10)
-	sb.border_width_left = 3
-	sb.border_color = Color(0.72, 0.56, 0.30)
-	panel.add_theme_stylebox_override("panel", sb)
-	_objective_layer.add_child(panel)
-	var m := MarginContainer.new()
-	for side in ["left", "right", "top", "bottom"]:
-		m.add_theme_constant_override("margin_" + side, 10)
-	panel.add_child(m)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 3)
-	m.add_child(col)
-	_objective = Label.new()
-	_objective.add_theme_font_size_override("font_size", 16)
-	_objective.add_theme_color_override("font_color", Color(0.95, 0.92, 0.80))
-	col.add_child(_objective)
-	_hint = Label.new()
-	_hint.add_theme_font_size_override("font_size", 12)
-	_hint.add_theme_color_override("font_color", Color(0.68, 0.74, 0.80))
-	col.add_child(_hint)
 
+func _nav_to(pos: Vector3, label: String) -> void:
+	if hud != null:
+		hud.set_nav_target(pos, label)
 func _set_objective(text: String, hint := "") -> void:
-	_objective.text = text
-	_hint.text = hint
+	# Kept only as a debug/state note; the player sees the route as a NAV waypoint and hears it from Rennick.
+	pass
 
 func update(delta: float, drone_pos: Vector3) -> void:
 	if ended or ending == null:
@@ -155,7 +132,8 @@ func _prompt_missing(kind: String) -> void:
 func _arrive_cabin() -> void:
 	objects.set_cabin_lights(true)
 	objects.show_hiker()
-	hud.toast("The cabin lights are on. Wren has set out again on foot.")
+	hud.toast("The cabin lights are on. Wren has set out again on foot.", false, "DRONEBUDZ")
+	_nav_to(objects.hiker_world_pos(), "HEAT")
 	_ghost("The cabin is ahead. Wren set out again on foot, east of the cabin near the treeline. I cannot see them from here. Use the thermal camera.", "Rennick")
 	notes.post_text("Rennick", "The cabin", "Wren is on foot east of the cabin. Press T for the thermal camera and search the treeline.", 0)
 	_set_objective("Search east of the cabin for Wren", "Press T for the thermal camera. Warm bodies show white and orange.")
@@ -168,7 +146,8 @@ func _found() -> void:
 	stage = 4
 	_ghost("You found them. Thank you. Tell Wren the lights in the cabin were not the storm. Tell them I am sorry it took so long.", "Rennick")
 	chat.post("unknown", "Unknown", "thank you. i can see the drone. i am waving.", false)
-	_objective_layer.visible = false
+	if hud != null:
+		hud.clear_nav_target()
 	if thermal != null:
 		thermal.set_on(false)
 	if ending != null:
@@ -184,7 +163,7 @@ func start() -> void:
 	started = true
 	stage = 0
 	_last_waypoint = -1
-	_objective_layer.visible = true
+	_nav_to(objects.cabin_world_pos(), "CABIN")
 	_set_objective("Fly north to the abandoned cabin", "A storm is coming in. Press T for the thermal camera once it is installed.")
 	if weather_events != null:
 		weather_events.debug_event("storm")
@@ -192,7 +171,8 @@ func start() -> void:
 		hud.weather["hour"] = 20.5
 		hud.weather["wind"] = 8.5
 		hud.apply_look()
-		hud.toast("Alex: thermal camera patched into the gimbal. Press T to toggle it.")
+		hud.toast("Thermal camera patched into the gimbal. The camera button is on the flight screen.", false, "CAMERA")
+		chat.post("tech", "Alex", "The thermal camera is in the gimbal. The camera button is on your flight screen now. Press T or tap it. Warm bodies show white and orange.", false)
 	if thermal != null:
 		thermal.install()
 	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
@@ -244,6 +224,7 @@ func debug_cabin() -> void:
 		thermal.set_on(true)
 		objects.set_thermal_marker(true)
 	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
+	_nav_to(objects.hiker_world_pos(), "HEAT")
 	_set_objective("Search east of the cabin for Wren", "Thermal camera on. Warm bodies show white and orange.")
 
 func debug_found() -> void:
@@ -264,4 +245,5 @@ func debug_thermal_view() -> void:
 		thermal.set_on(true)
 		objects.set_thermal_marker(true)
 	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
+	_nav_to(objects.hiker_world_pos(), "HEAT")
 	_set_objective("Search east of the cabin for Wren", "Thermal camera on. Warm bodies show white and orange.")
