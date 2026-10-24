@@ -17,6 +17,8 @@ const LODS := {"festival_bus_restored": true, "festival_bus_restored_open": true
 
 ## Where each name is written: assets/models/story/<dir>/<name>.glb (lod 1 and 2 as <name>_lod1.glb where the model has them).
 static func group_of(name: String) -> String:
+	var g7 := NewModels7.group_of(name)
+	if g7 != "": return g7
 	if name.begins_with("ellis_") or name.begins_with("biscuit_") or name.begins_with("rennick_") or name == "dog_bowl_a" or name == "police_clipboard_a":
 		return "characters"
 	if name.begins_with("camp_"): return "camp"
@@ -37,6 +39,7 @@ static func names() -> Array[String]:
 	out.append_array(NewModels6Hall.NAMES)
 	out.append_array(NewModels6Evid.NAMES)
 	out.append_array(NewModels6Later.NAMES)
+	out.append_array(NewModels7.names())
 	return out
 
 # ================================================================== materials
@@ -45,7 +48,7 @@ static var _xmats := {}
 
 ## Material keys. Textured (shader) keys carry a photographed set in the game; the exported glTF gets a plain vertex-colour
 ## stand-in with the same resource name, so a loader can swap the kit material in by name.
-const SHADER_KEYS := ["wood", "steel", "paintwood", "brick", "roof", "stone", "concrete"]
+const SHADER_KEYS := ["wood", "steel", "paintwood", "brick", "roof", "stone", "concrete", "soil", "mud", "hay"]
 
 static func _brick_material() -> ShaderMaterial:
 	if _mats.has("brick"): return _mats["brick"]
@@ -87,9 +90,17 @@ static func _std(key: String) -> StandardMaterial3D:
 			m.vertex_color_use_as_albedo = false
 			m.albedo_color = Color(0.05, 0.07, 0.08, 0.5); m.roughness = 0.04; m.metallic = 0.7
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		"water":
+			m.vertex_color_use_as_albedo = false
+			m.albedo_color = Color(0.24, 0.2, 0.12, 0.82); m.roughness = 0.04; m.metallic_specular = 0.7
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		"lamp":
 			m.vertex_color_use_as_albedo = false
 			m.albedo_color = Color(1.0, 0.93, 0.78); m.emission_enabled = true; m.emission = Color(1.0, 0.86, 0.6); m.emission_energy_multiplier = 2.4
+		"steam":
+			m.vertex_color_use_as_albedo = false
+			m.albedo_color = Color(0.9, 0.9, 0.92, 0.16); m.roughness = 1.0
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA; m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		"warm":
 			m.vertex_color_use_as_albedo = false
 			m.albedo_color = Color(1.0, 0.85, 0.6); m.emission_enabled = true; m.emission = Color(1.0, 0.72, 0.4); m.emission_energy_multiplier = 1.1
@@ -119,6 +130,7 @@ static func mat(key: String) -> Material:
 	match key:
 		"wood": m = NewModels3._mat("wood")
 		"steel": m = NewModels3._mat("steel")
+		"soil", "mud", "hay": m = NewModels3._mat(key)
 		"paintwood": m = NewModels2.farm_material("wood")
 		"roof": m = NewModels2.farm_material("roof")
 		"stone": m = NewModels2.farm_material("stone")
@@ -170,7 +182,8 @@ static func build(name: String, lod := 0) -> Model:
 	if _cache.has(k): return _cache[k]
 	var md := Model.new()
 	var ok := NewModels6Chars.build(name, md, lod) or NewModels6Camp.build(name, md, lod) or NewModels6Bus.build(name, md, lod) \
-		or NewModels6Town.build(name, md, lod) or NewModels6Hall.build(name, md, lod) or NewModels6Evid.build(name, md, lod) or NewModels6Later.build(name, md, lod)
+		or NewModels6Town.build(name, md, lod) or NewModels6Hall.build(name, md, lod) or NewModels6Evid.build(name, md, lod) or NewModels6Later.build(name, md, lod) \
+			or NewModels7.build(name, md, lod)
 	if not ok:
 		push_error("NewModels6: no model called " + name)
 	_cache[k] = md

@@ -11,7 +11,7 @@ func _initialize() -> void:
 	var n := 0
 	for nm in NewModels6.names():
 		if only != "" and not nm.begins_with(only): continue
-		var lods := [0] if not NewModels6.LODS.has(nm) else [0, 1, 2]
+		var lods := [0] if not (NewModels6.LODS.has(nm) or NewModels7.LODS.has(nm)) else [0, 1, 2]
 		for lod in lods:
 			var root := NewModels6.scene(nm, lod, true)
 			var doc := GLTFDocument.new()

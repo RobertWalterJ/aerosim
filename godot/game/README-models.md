@@ -92,3 +92,15 @@ Same names, same sizes and colliders; what changed is how they look and what the
 - **Fences (lod 0):** soil collar at each post, three cracks and lichen patches, staples on wire posts, strands of wire with ten segments so the sag is a curve.
 - `game/farm_demo.gd` places a patch of all of it in the real scene: screenshot token `farmdemo<x>_<z>` in `game/main.gd` (put it after the `at...` token).
 
+
+## Batch 9: storm and tornado assets, then the endgame props and cabin (models9; `game/new_models7*.gd`)
+
+Same loader and frame as Batch 8: `StoryAssets.place(parent, name, Transform3D, lod := 0)` loads `assets/models/story/<group>/<name>.glb` (groups `storm`, `cabin`, `gear`), gives the nodes the farm kit's photographed materials back by name, and falls back to building from code. Metres, +Z front, origin at the base. **Debris pieces are centred on their own origin** (for the tornado MultiMesh). Three material keys are new in the exported files: `soil`, `mud`, `hay` (the farm_props photographed sets), plus the plain `water` and `steam` (translucent). Regenerate: `Godot --headless --path godot -s res://tools/export_story.gd -- only=<prefix>`; check: `test/story_probe.gd` (triangles and sizes), `test/story_load_test.gd` (every exported file loads with its named nodes), `test/story_sheet.gd` (contact sheets, `cols=` and `views=1` for a one-view grid).
+
+### Storm (group `storm`; `new_models7_storm.gd`, `new_models7_archive.gd`)
+- **Debris, centred (0.3 to 3 m):** `storm_debris_plank_a` `_plank_b` `_roof_sheet_a` (real corrugation, 76 mm pitch) `_shingles_a` `_branch_a` `_fence_a` `_tin_a` `_barrel_a` `_sack_a` `_leaves_a`.
+- **Damage props:** `storm_barn_panel_a` (collider) `storm_tree_fallen_a` (colliders) `storm_fence_broken_a` (colliders) `storm_scoured_patch_a` `storm_post_uprooted_a` `storm_sign_twisted_a`.
+- **Buried shelter:** `storm_shelter_hatch_closed_a`, `storm_shelter_hatch_open_a` (node `hatch`, pivot on the hinge edge; collider on the surround) `storm_shelter_steps_a` (origin at the top step, +Z leads down) `storm_shelter_wall_a` (collider) `storm_shelter_debris_a` (5 x 5 m spread).
+- **Archive:** `storm_weather_station_a` (nodes `cups`, `vane`: spin them) `storm_rain_gauge_a` `storm_glass_a` `storm_barometer_a` `storm_diary_a` `_open` `storm_archive_box_a` `storm_drawing_a`. The festival programme is `camp_programme_a`.
+- **Priority 1:** `storm_bell_a` and `storm_bell_a_knotted` (nodes `bell` swings about the axle at y 2.0, `rope` hangs from the wheel rim) `storm_lantern_a` (node `flame`) `_off` `storm_coat_post_a` `storm_logbook_a` `_open` `storm_map_a` `storm_sandbags_a` `storm_tarp_a`. The railway signal lamp is `railway_signal_lamp_a`.
+- **Priority 2:** `storm_shelter_interior_a` `storm_chapel_interior_a` (node `window_light`) `storm_rail_hut_a` (collider) `storm_ditch_flooded_a` `storm_power_line_a` (dead, with a cone) `storm_sign_damaged_a` (node `board`) `storm_crowd_watching_a` `storm_crowd_sheltering_a` (placeholder figures, being replaced).
