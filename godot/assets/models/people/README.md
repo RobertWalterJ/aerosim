@@ -67,3 +67,34 @@ people the story names (Harlan Pike, the farmer, Nora Pike, Councillor Bain). Sa
 Avoided: `rehmanpolanski_hair_bun_brown` (AGPL header). Gaps against the brief: no aprons, reading glasses or medical bag (no
 asset; Grace's and Mei's aprons are indoor garments), Grace's bun sits high rather than low, Priya wears a ponytail (her braid
 asset broke the LOD2 budget).
+
+## Constable Ada Rennick remade by lane/rennick (2026-10-24)
+
+`rennick.glb` (plain clothes), `rennick_uniform.glb` (today's uniform), `rennick_1984.glb` (1984 uniform) and the new
+`rennick_1984_ghost.glb` are rebuilt to the character brief (`docs/CLAUDE-CHARACTER-BRIEF-2026-11-15.md`, cast row 10): a Black
+woman, 32 when she died in 1984 (she does not age, so all four are the same woman), warm brown skin (tone 2), short natural
+hair, 1.68 m, calm and quiet authority. One body and face in every file (`RENNICK_BODY` in `people_roster.py`); the gear
+(peaked caps, duty belts with radio and torch, speaker-mic, sleeve flashes) is modelled in `tools/blender/people_rennick.py`
+and is original. The constabulary is fictional: its mark is a lit lantern in a ring, drawn in code, with no lettering, no crown
+and nothing taken from a real force. No weapon, no cuffs, no baton.
+
+| Asset | Author | Licence | Used for |
+|---|---|---|---|
+| skin `young_african_female` (tinted to tone 2), hair `afro01` (pulled close to the scalp for a short crop), `eyebrow005`, `eyelashes02`, brown eyes (iris recoloured darker) | MakeHuman team | CC0 | all four |
+| `toigo_female_double-breasted_suit` (jacket camel, trousers charcoal, shirt and tie areas a charcoal knit), `toigo_ankle_boots_female` | MRT | CC0 | plain clothes |
+| `elvs_hooded_sweat_jacket1` (navy soft-shell patrol jacket) | Elvaerwyn | CC BY | today's uniform |
+| `cortu_cargo_pants` (navy uniform trousers) | cortu | CC0 | today's uniform |
+| `mindfront_shoes_biker_boots_female` (black duty boots) | Mindfront (Sweden) | CC BY 4.0 | today's uniform |
+| `toigo_female_suit_2` (navy tunic and trousers, pale blue shirt; its floral tie and pocket square painted out to a plain dark tie), `toigo_ankle_boots_male` (flat polished boots) | MRT | CC0 | 1984 and the ghost |
+
+Fabrics (Poly Haven, CC0, see `godot/assets/textures/README.md`): `caban` (camel jacket, 1984 tunic, cap crowns),
+`poly_wool_herringbone` (trousers), `stretch_poplin` (soft-shell, cap bands), `brown_leather` (boots, 1984 belt), `terlenka`
+(modern nylon belt). Tried and dropped: `elvs_emt_uniform_jacket_female` / `_pants_female` (CC BY 4.0): its logo panel can
+be painted out, but the jacket breaks up badly at the game's triangle budget.
+
+The ghost: `rennick_1984_ghost.glb` is the 1984 build with every texture drained to a pale, faintly cool grey-white that keeps
+its own tones (her face, lips, brows, the uniform's seams), plus a low emission. In the game `PeopleAssets` puts it on
+`game/shaders/people_ghost.gdshader` (opaque with a dithered fade, a soft cool rim, no glowing eyes);
+`PeopleAssets.set_ghost_fade(node, fade, translucency)` fades her in and out. Note for the brief: section 4.3 asked for
+her ghost to keep her skin tone; Robert chose the drained, pale ghost instead (2026-10-24). Her living files and any
+portrait stay full-tone.

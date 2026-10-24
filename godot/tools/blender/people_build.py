@@ -22,6 +22,13 @@ for nm in names:
     path = os.path.join(L.OUT_DIR, nm + ".glb")
     L.export_glb(path, rig, objs)
     L.log("wrote", path, os.path.getsize(path))
+    if spec.get("ghost_file"):
+        # lane/rennick: the same build with drained, pale materials baked in (people_rennick.ghostify)
+        import people_rennick
+        people_rennick.ghostify(objs, nm)
+        gpath = os.path.join(L.OUT_DIR, spec["ghost_file"] + ".glb")
+        L.export_glb(gpath, rig, objs)
+        L.log("wrote", gpath, os.path.getsize(gpath))
     if save_blend:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(L.TOOLS, "blend", nm + ".blend"))
 rp = os.path.join(L.TOOLS, "build_report.json")

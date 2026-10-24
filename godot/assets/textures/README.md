@@ -176,6 +176,12 @@ the result is packed into one clothes atlas per person and embedded in `assets/m
 | `wool_boucle` | https://polyhaven.com/a/wool_boucle | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.31 m | crowd_f2's sweater |
 | `polar_fleece` | https://polyhaven.com/a/polar_fleece | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | the pilot's fleece |
 
+lane/rennick (2026-10-24) reuses these fabrics for Constable Rennick, no new downloads: `caban` (her camel plain-clothes
+jacket, the 1984 tunic, both cap crowns), `poly_wool_herringbone` (her trousers), `stretch_poplin` (today's navy soft-shell
+patrol jacket and the cap bands), `brown_leather` (all her boots and the 1984 duty belt, tinted black), `terlenka` (today's
+nylon duty belt). The cap badges and sleeve flashes carry a fictional lantern emblem drawn in code
+(`tools/blender/people_rennick.py`, original work). Sheet: `docs/realism/models/rennick_final_textures.jpg`.
+
 ## Drones (lane/drones, Blender 4)
 
 `drones/drone_*.jpg`, 1024 px, made by `tools/blender/drones_prep_textures.py` from the ambientCG 1K-JPG sets (re-saved with PIL;
