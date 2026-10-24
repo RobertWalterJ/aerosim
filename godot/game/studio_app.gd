@@ -170,13 +170,13 @@ func refresh() -> void:
 			_editor_label.text = "Editor: Maya (friend) · send a photo to #clips and she cuts it" if jobs.editor_friend() else "No editor yet · uploads go straight to VidTube"
 	var st: Dictionary = jobs.stats() if jobs != null else {}
 	var uploads: Array = jobs.videos() if jobs != null else []
-	_videos.text = str(int(st.get("done", 0)) + uploads.size())
+	_videos.text = str(uploads.size())
 	for ch in _list.get_children():
 		ch.queue_free()
 	var names := {"lake": "Lake at golden hour", "chapel": "The chapel for the heritage page", "fireworks": "Festival fireworks coverage", "fields": "The harvest postcard"}
 	var done_ids: Array = []
 	if jobs != null:
-		done_ids = jobs._done.duplicate()
+		done_ids = []
 	if done_ids.is_empty() and uploads.is_empty():
 		var none := Label.new()
 		none.text = "No videos yet. Finish a job or upload a photo from the camera roll."

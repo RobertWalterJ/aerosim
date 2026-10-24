@@ -552,3 +552,19 @@ Robert said he likes the idea of different friends in the chat having different 
   - C4. Should the crew react to photos by name (Maya grading a shot, Alex talking about the lens) or stay on channel and jobs?
   - C5. Should a friend ever be wrong or out of date (Sam's forecast drifting, Tom overhyping a storm) for flavour, or should the information always be reliable?
   - C6. Should the player be able to mute a friend or a channel without turning off all notifications?
+
+## Potential, not promised numbers (lane/notify, session B, 2026-10-29)
+Robert asked that tasks stop promising a set number of followers up front. Instead the player should see that something has high potential for followers or views, and that a proper edit can lift it further.
+- **Jobs no longer advertise rewards.** Every job has a follower potential and a view potential, each written in words (low, moderate, high, very high), plus a line saying that a proper edit by Maya lifts both further. The fixed reward and money values are gone from the job data and the job cards.
+- **The payout is earned when it is published.** When every objective is ticked the card offers "Publish raw" and, once Maya is the editor friend, "Send to Maya (edited)". The actual result is computed at that moment from the job's potential, the quality of the photo the job was completed with (subjects, night, fireworks, storm), the current channel size and whether Maya cut it. An edited publish applies a 1.9x views, 1.6x followers and 1.5x money multiplier. The result is posted as a normal video in VidTube Studio and in the #jobs channel as views, followers and money so far, not as a promise beforehand.
+- **The camera roll shows potential too.** A photo's detail page now has a Reach potential line before uploading: what kind of views and followers it could get and whether Maya's edit could lift it. The upload buttons and the editor button no longer imply a fixed payout; the numbers only appear after publishing.
+- **Studio and the crew stay consistent:** completed jobs now become normal videos in the VidTube list (edited ones marked edited by Maya), and Maya's chat feedback talks about what a cut would do rather than a fixed figure.
+- **Evidence (docs/realism/potential/):** 00 a completed job showing follower and view potential plus Publish raw and Send to Maya (edited), 01 a photo's reach potential before upload with Send to Maya enabled, 02 the VidTube Studio after publishing, with dynamic views, followers and money for raw and edited videos.
+- **Honest limits:** potential is a word, not a range or a prediction, and the player never sees the formula. The publish estimate is based on photo metadata and the job's rating, so two shots from the same job can land differently. There is no separate money potential shown, only views and followers; money is derived from the result. The duplicate video rows in the Studio shot are from repeated test publishes.
+- **Questions for Robert:**
+  - N1. Are the four potential words (low, moderate, high, very high) enough, or do you want stars, a range, or a short description of why it is high?
+  - N2. Should the player see the potential before accepting a job, only after completing it, or both (it is both now)?
+  - N3. Should a raw publish always be clearly worse than an edited one, or should some jobs be fine raw so editing stays a choice rather than an obligation?
+  - N4. Should the same job be repeatable later with different results, or stay a one-off story job?
+  - N5. Do you want a money or gear potential line as well, or should money stay a consequence of views and followers?
+  - N6. Should the potential depend on the weather and time at the moment of the shot (a storm makes a high-view job even higher), or stay fixed per job?

@@ -1004,6 +1004,14 @@ func _screenshot_mode(arg: String) -> void:
 			jobs.open_page()
 		elif c == "jobsdemo":     # session B dev hook: accept a job, complete it with the newest photo, open the page
 			jobs.debug_demo()
+		elif c == "jobsedit":     # session B dev hook: complete and publish the current job with Maya's edit
+			jobs.debug_demo()
+			var act: Array = jobs.active_list()
+			if not act.is_empty():
+				jobs.submit(str(act[act.size() - 1]["id"]), true)
+			jobs.close_page()
+			phone_os.open()
+			phone_os._open_app("studio")
 		elif c == "phone":        # session B dev hook: the phone home screen
 			phone_os.open()
 		elif c == "phonechat":    # session B dev hook: straight into the DroneBudz chat

@@ -20,6 +20,7 @@ signal photo_saved(id: int, meta: Dictionary)
 var hud: Hud
 var jobs: Jobs                   # assigned by main: uploads to VidTube and the editor
 var chat: ChatData
+var _send_edit: Button
 var world_life: WorldLife
 var _index: Array = []
 var _next_id := 1
@@ -79,6 +80,13 @@ func texture_for(photo_id: int) -> Texture2D:
 		if int(rec.get("id", -1)) == photo_id:
 			return _thumb_texture(rec)
 	return null
+
+## The metadata for a photo id, for job scoring and the detail page.
+func meta_for(photo_id: int) -> Dictionary:
+	for rec in _index:
+		if int(rec.get("id", -1)) == photo_id:
+			return rec.get("meta", {})
+	return {}
 
 func _remove_files(rec: Dictionary) -> void:
 	for key in ["full", "thumb"]:
@@ -238,11 +246,11 @@ func _build_detail() -> void:
 	var upload := Button.new(); upload.text = "Upload to VidTube Studio"; upload.custom_minimum_size = Vector2(0, 42)
 	upload.pressed.connect(func(): _upload_current(false))
 	side.add_child(upload)
-	var send_edit := Button.new(); send_edit.text = "Send to Maya to edit"; send_edit.custom_minimum_size = Vector2(0, 42)
-	send_edit.disabled = jobs == null or not jobs.editor_friend()
-	send_edit.tooltip_text = "Uploaded to the DroneBudz #clips channel first, then Maya cuts and publishes it"
-	send_edit.pressed.connect(func(): _upload_current(true))
-	side.add_child(send_edit)
+	_send_edit = Button.new(); _send_edit.text = "Send to Maya to edit"; _send_edit.custom_minimum_size = Vector2(0, 42)
+	_send_edit.disabled = jobs == null or not jobs.editor_friend()
+	_send_edit.tooltip_text = "Uploaded to the DroneBudz #clips channel first, then Maya cuts and publishes it"
+	_send_edit.pressed.connect(func(): _upload_current(true))
+	side.add_child(_send_edit)
 	var del := Button.new(); del.text = "Delete photo"; del.custom_minimum_size = Vector2(0, 42)
 	del.add_theme_color_override("font_color", Color(0.95, 0.55, 0.50))
 	del.pressed.connect(_delete_current)
@@ -291,11 +299,13 @@ func _open_detail(i: int) -> void:
 		return
 	_detail_index = i
 	var rec: Dictionary = _index[i]
+	if _send_edit != null:
+		_send_edit.disabled = jobs == null or not jobs.editor_friend()
 	var path := ProjectSettings.globalize_path(str(rec.get("full", "")))
 	var img := Image.load_from_file(path)
 	if img != null:
 		_detail_tex.texture = ImageTexture.create_from_image(img)
-	_detail_info.text = _describe(rec)
+	_detail_info.text = _describe(rec) + ("\n\n" + jobs.photo_potential(rec.get("meta", {})) if jobs != null else "")
 	_detail.visible = true
 
 func _close_detail() -> void:

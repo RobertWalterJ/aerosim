@@ -19,25 +19,25 @@ const JOBS := [
 	{
 		"id": "lake", "from": "Maya", "title": "The lake at golden hour",
 		"brief": "First video for the channel. Get me the lake with the light low over the water, something with the hills in it. Any drone will do.",
-		"reward": 35, "money": 60, "next": "chapel",
+		"potential": {"followers": 2, "views": 3}, "next": "chapel",
 		"objectives": [{"kind": "photo", "subject": "lake", "max_dist": 900.0, "text": "Photograph the lake"}],
 	},
 	{
 		"id": "chapel", "from": "Riley", "title": "The chapel for the heritage page",
 		"brief": "The trust is restoring the chapel and wants a clean photograph of it from the air for their page. Please keep clear of the graves on the way in.",
-		"reward": 30, "money": 45, "next": "fireworks",
+		"potential": {"followers": 2, "views": 2}, "next": "fireworks",
 		"objectives": [{"kind": "photo", "subject": "chapel", "max_dist": 400.0, "text": "Photograph the chapel"}],
 	},
 	{
 		"id": "fireworks", "from": "Jo", "title": "Fireworks coverage",
 		"brief": "The festival needs one good burst for the poster. Wait for a show, get up high and catch a shell while the show is running. Night only, obviously.",
-		"reward": 80, "money": 140, "next": "fields",
+		"potential": {"followers": 3, "views": 3}, "next": "fields",
 		"objectives": [{"kind": "photo", "fireworks": true, "night": true, "text": "Photograph a burst during a night show"}],
 	},
 	{
 		"id": "fields", "from": "Riley", "title": "The harvest postcard",
 		"brief": "The farm trust wants one good picture of the fields for their harvest postcard. Corn, barley, hay bales, whatever looks best. Get low over the rows if you can.",
-		"reward": 55, "money": 70, "next": "",
+		"potential": {"followers": 2, "views": 3}, "next": "",
 		"objectives": [{"kind": "photo", "subject": "fields", "max_dist": 600.0, "text": "Photograph the farm fields"}],
 	},
 ]
@@ -129,14 +129,7 @@ func editor_friend() -> bool:
 ## the channel and offers to cut the next one.
 func upload_photo(photo_id: int, meta: Dictionary, via_editor := false) -> Dictionary:
 	var subjects: Array = meta.get("subjects", [])
-	var quality := 0.65 + 0.14 * minf(subjects.size(), 3)
-	if bool(meta.get("night", false)):
-		quality += 0.08
-	if bool(meta.get("fireworks", false)):
-		quality += 0.35
-	if bool(meta.get("storm", false)):
-		quality += 0.25
-	quality = clampf(quality, 0.5, 1.8)
+	var quality := _quality(meta)
 	var mult := 2.3 if via_editor else 1.0
 	var base_views := 30.0 + float(_followers) * 0.45
 	var views_gain := int(base_views * quality * mult)
@@ -191,6 +184,48 @@ func _job(id: String) -> Dictionary:
 		if str(j["id"]) == id:
 			return j
 	return {}
+
+# ------------------------------------------------------------------ potential, not promises
+const POTENTIAL_NAMES := ["low", "moderate", "high", "very high"]
+
+func _potential_word(n: int) -> String:
+	return POTENTIAL_NAMES[clampi(n, 0, POTENTIAL_NAMES.size() - 1)]
+
+## What the job could do for the channel, in words. Exact numbers are never promised: the same job lands differently
+## depending on the shot, the timing and whether Maya cuts it first.
+func potential_text(job: Dictionary) -> String:
+	var p: Dictionary = job.get("potential", {})
+	var f := _potential_word(int(p.get("followers", 1)))
+	var v := _potential_word(int(p.get("views", 1)))
+	var text := "Follower potential: %s. View potential: %s." % [f, v]
+	if _editor:
+		text += " A proper edit by Maya lifts both further."
+	else:
+		text += " An editor would lift both further."
+	return text
+
+## The same idea for a single photo in the camera roll, before it is published.
+func photo_potential(meta: Dictionary) -> String:
+	var q := _quality(meta)
+	var f := _potential_word(0 if q < 0.9 else (1 if q < 1.2 else (2 if q < 1.5 else 3)))
+	var v := _potential_word(1 if q < 0.9 else (2 if q < 1.3 else 3))
+	var text := "Reach potential: %s views, %s followers." % [v, f]
+	if _editor:
+		text += " Maya's edit can lift this a lot."
+	else:
+		text += " An editor could lift this a lot."
+	return text
+
+func _quality(meta: Dictionary) -> float:
+	var subjects: Array = meta.get("subjects", [])
+	var q := 0.65 + 0.14 * minf(subjects.size(), 3)
+	if bool(meta.get("night", false)):
+		q += 0.08
+	if bool(meta.get("fireworks", false)):
+		q += 0.35
+	if bool(meta.get("storm", false)):
+		q += 0.25
+	return clampf(q, 0.5, 1.8)
 
 func _announce_offer(job_id: String) -> void:
 	var job := _job(job_id)
@@ -264,28 +299,44 @@ func _matches(o: Dictionary, meta: Dictionary) -> bool:
 		return false
 	return true
 
-func submit(job_id: String) -> void:
+func submit(job_id: String, edited := false) -> void:
 	if not job_id in _active:
 		return
 	var done: Array = _obj_done.get(job_id, [])
 	var job := _job(job_id)
 	if job.is_empty() or done.size() < job["objectives"].size():
 		return
+	if edited and not _editor:
+		edited = false
 	_active.erase(job_id)
 	_done.append(job_id)
 	var before_followers := _followers
 	var before_money := _money
-	_followers += int(job.get("reward", 0))
-	_money += int(job.get("money", 0))
+	# the payout is earned, not promised: the job's potential, the photo quality and Maya's cut all matter
+	var pot: Dictionary = job.get("potential", {})
+	var pid := photo_for(job_id, 0)
+	var meta: Dictionary = {}
+	if library != null and pid >= 0:
+		meta = library.meta_for(pid)
+	var quality := _quality(meta) if not meta.is_empty() else 1.0
+	var mult := 1.9 if edited else 1.0
+	var views_gain := int((90.0 + 110.0 * float(int(pot.get("views", 1)))) * (1.0 + float(_followers) * 0.012) * quality * mult)
+	var gain := maxi(2, int((4.0 + 6.0 * float(int(pot.get("followers", 1)))) * (1.0 + float(_followers) * 0.004) * quality * (1.6 if edited else 1.0)))
+	var money_gain := int(float(views_gain) * 0.025 * (1.5 if edited else 1.0)) + 10
+	_views += views_gain
+	_followers += gain
+	_money += money_gain
+	_videos.append({"title": str(job.get("title", "")), "views": views_gain, "followers": gain,
+		"money": money_gain, "edited": edited, "photo": pid, "quality": snappedf(quality, 0.01)})
 	_save_state()
 	if notes != null:
-		notes.post_text(str(job["from"]), "Paid: +%d followers, +%d money" % [int(job.get("reward", 0)), int(job.get("money", 0))],
-			"The channel is at %d followers and we are %d up. Nice work." % [_followers, _money], 0)
+		notes.post_text(str(job["from"]), "Published: +%d followers, +%d money" % [gain, money_gain],
+			"The channel is at %d followers and %d views from this one. Nice work." % [_followers, views_gain], 0)
 	if _chat != null:
 		_chat.post("jobs", str(job["from"]),
-			"Job done: %s. Paid %d money and %d followers to the pilot." % [str(job.get("title", "")), int(job.get("money", 0)), int(job.get("reward", 0))],
-			true)
-		# the story marks the numbers that matter to the crew, once each
+			"Published: %s. %d views, %d followers and %d money so far." % [str(job.get("title", "")), views_gain, gain, money_gain], true)
+		if edited:
+			_chat.post("clips", "Maya", "I cut the job footage before it went up. %d views so far. That is what an edit does." % views_gain, false)
 		for th in [30, 60, 120, 250]:
 			if before_followers < th and _followers >= th:
 				_chat.post("clips", "Maya", "%d followers! That is the biggest week this channel has had. Keep the shots coming." % th, false)
@@ -394,7 +445,7 @@ func _refresh() -> void:
 	for jid in _done:
 		var job := _job(str(jid))
 		var l := Label.new()
-		l.text = "Done: %s  (+%d followers, +%d money)" % [str(job.get("title", "")), int(job.get("reward", 0)), int(job.get("money", 0))]
+		l.text = "Done: %s  ·  published" % str(job.get("title", ""))
 		l.add_theme_font_size_override("font_size", 14)
 		l.add_theme_color_override("font_color", Color(0.62, 0.74, 0.66))
 		_list.add_child(l)
@@ -443,15 +494,15 @@ func _offer_card(jid: String) -> PanelContainer:
 	brief.add_theme_font_size_override("font_size", 14)
 	brief.add_theme_color_override("font_color", Color(0.76, 0.78, 0.82))
 	col.add_child(brief)
+	var potential := Label.new()
+	potential.text = potential_text(job)
+	potential.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	potential.add_theme_font_size_override("font_size", 13)
+	potential.add_theme_color_override("font_color", Color(0.66, 0.82, 0.70))
+	col.add_child(potential)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	col.add_child(row)
-	var reward := Label.new()
-	reward.text = "+%d followers, +%d money" % [int(job.get("reward", 0)), int(job.get("money", 0))]
-	reward.add_theme_font_size_override("font_size", 14)
-	reward.add_theme_color_override("font_color", Color(0.66, 0.82, 0.70))
-	reward.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(reward)
 	var take := Button.new(); take.text = "Accept job"; take.custom_minimum_size = Vector2(130, 40)
 	take.pressed.connect(func(): accept(jid))
 	row.add_child(take)
@@ -494,19 +545,26 @@ func _active_card(jid: String) -> PanelContainer:
 				pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 				row.add_child(pic)
 	var all_done := done.size() >= objectives.size()
+	var potential := Label.new()
+	potential.text = potential_text(job)
+	potential.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	potential.add_theme_font_size_override("font_size", 13)
+	potential.add_theme_color_override("font_color", Color(0.66, 0.82, 0.70))
+	col.add_child(potential)
 	var row2 := HBoxContainer.new()
 	row2.add_theme_constant_override("separation", 8)
 	col.add_child(row2)
-	var reward := Label.new()
-	reward.text = "+%d followers, +%d money when submitted" % [int(job.get("reward", 0)), int(job.get("money", 0))]
-	reward.add_theme_font_size_override("font_size", 13)
-	reward.add_theme_color_override("font_color", Color(0.66, 0.82, 0.70))
-	reward.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row2.add_child(reward)
-	var submit_btn := Button.new(); submit_btn.text = "Submit job"; submit_btn.custom_minimum_size = Vector2(140, 40)
-	submit_btn.disabled = not all_done
-	submit_btn.pressed.connect(func(): submit(jid))
-	row2.add_child(submit_btn)
+	var raw_btn := Button.new(); raw_btn.text = "Publish raw"; raw_btn.custom_minimum_size = Vector2(120, 40)
+	raw_btn.disabled = not all_done
+	raw_btn.tooltip_text = "Publish the footage as it is. The result depends on the shot and the channel."
+	raw_btn.pressed.connect(func(): submit(jid, false))
+	row2.add_child(raw_btn)
+	if _editor:
+		var edit_btn := Button.new(); edit_btn.text = "Send to Maya (edited)"; edit_btn.custom_minimum_size = Vector2(180, 40)
+		edit_btn.disabled = not all_done
+		edit_btn.tooltip_text = "Maya cuts it first. A proper edit lifts views and followers a lot."
+		edit_btn.pressed.connect(func(): submit(jid, true))
+		row2.add_child(edit_btn)
 	return parts["card"]
 
 func open_page() -> void:
