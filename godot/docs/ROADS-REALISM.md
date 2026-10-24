@@ -26,8 +26,8 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 
 `game/road_signs.gd` now puts the traffic language on the roads:
 
-- **Stop signs** on the eight minor approaches to the main junctions: the south lane, festival lane, east lane at both ends, lakeside lane at the farm, launch lane, cabin track and west lane. Each stop sign has a white stop line across the approach.
-- **Speed limit plates** at every route entry: 40 on the valley highway and ridge, 30 on the east lane, 25 on the lakeside lane, 20 on the south and west lanes, 15 on the cabin track and 10 on the festival and launch lanes.
+- **Stop signs** on the six minor approaches to the main junctions: the south lane, east lane at both ends, lakeside lane at the farm, launch lane and west lane. Each stop sign has a white stop line across the approach.
+- **Speed limit plates** at the route entries: 40 on the valley highway and ridge, 30 on the east lane, 25 on the lakeside lane, 20 on the south and west lanes and 10 on the boat launch lane.
 - **Junction warning diamonds** before the south-lane, east-gate and west-lane junctions.
 - **A fingerpost** at the east gate car park pointing to Halloway Lake.
 - **Traffic behaviour:** vehicles are capped at 85 percent of the route speed limit in `traffic.gd`; the signs and the traffic share the same limits in `roads.gd`.
@@ -45,7 +45,7 @@ The road network now has explicit turnoffs instead of signs floating beside a th
 
 - the main lanes approach all four cemetery gates, and the east gate has its car park;
 - the short gate, farm and festival asphalt spurs were removed after they left untidy tongues at the junctions;
-- the boat launch lane remains a real access, and the cabin, camp, garage and lake are reached from the ridge and lake roads.
+- the boat launch lane remains a real access, and the camp, garage and lake are reached from the ridge and lake roads. The old cabin is different: its last approach is the separate dirt and gravel track in `game/cabin_track.gd`, not asphalt.
 
 The traffic route pool only uses the through roads, so vehicles do not loop around a 10 m driveway. The cemetery audit uses the actual wall line at 238 m and still reports `inside_cemetery: 0`.
 
@@ -57,6 +57,15 @@ The traffic route pool only uses the through roads, so vehicles do not loop arou
 
 The final gateway and place-sign art is requested in `docs/CLAUDE-LOCATION-SIGNS-ASSETS.md`.
 
+## The old cabin track
+
+The abandoned cabin is deliberately not served by a country highway. `game/cabin_track.gd` builds a narrow dirt and gravel track from the ridge road at (45, -760) through the trees to the cabin at (-250, -820). It has two worn wheel ruts, no markings, no shoulders and no asphalt connection.
+
+The track is obstructed by two fallen trees lying across it and two rockfalls. A cave entrance sits in an outcrop west of the cabin, with a dark mouth, boulder arch, bare rock apron and an old KEEP OUT board. The cave is a named photo subject. None of the obstructions have collisions; they are scenery for the air and for the cabin approach.
+
+Evidence: `docs/realism/cabin_track/00_dirt_track.jpg`, `01_fallen_tree.jpg`, `02_cave_entrance.jpg`.
+
+Honest limits: the track is a simple unshaded ribbon with ruts, not a full gravel road with individual stones. The fallen trees and rocks are code-built primitives. The cave is a rock cluster around a dark mouth, not a modelled cave interior. The cave is difficult to see from directly above because the entrance faces the cabin, which is why the evidence uses an oblique view.
 ## Intersections and flashing red beacons
 
 - **Five rural flashing-red beacons** hang from cables between two 6.5 m timber poles at the east gate, south junction, Toby Farm junction, north gate and west junction. Each has a yellow diamond backplate, black housing, red lenses on both faces and a pulsing red OmniLight. Lens and light flash together, about 0.68 seconds on and 0.67 off.

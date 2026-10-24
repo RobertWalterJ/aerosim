@@ -909,3 +909,19 @@ Every app screen now exists, and the story director is a real system rather than
   - JUNC2. Should the junction aprons be smaller, larger, or shaped with visible kerbs?
   - JUNC3. Should the farm and festival get a proper signed entrance road from the main road in a later pass?
   - JUNC4. Should the gates have a gravel apron and parking bay just outside the wall?
+
+## The old cabin track, blocked way and cave (lane/notify, session B, 2026-11-15)
+- **No cabin highway:** the asphalt `cabin` route, its speed plate, stop sign and stop-ahead sign were removed. The cabin is no longer connected to the country highway network.
+- **Old dirt and gravel track (`game/cabin_track.gd`):** a narrow 3.4 m track from the ridge road pull-off at (45, -760) through (-76, -789), (-158, -806) and (-206, -813) to the cabin at (-250, -820). It has two worn ruts, no markings, no shoulders and no asphalt. The surface is a visible dirt ribbon with a path texture, unshaded so it reads in dull weather.
+- **Obstructions:** two fallen trees lie across the track (at -76 and -158) and two rockfalls cover the way (-206 and -232). They are code-built trunks, roots, branches and boulders; no collisions, but they read as a blocked way from the air and the cabin approach.
+- **Cave entrance (`CaseObjects.CAVE_SPOT` -292, -806):** a broken rock outcrop with a boulder arch, a dark mouth, a bare rock apron and an old CAVE / KEEP OUT board. It is west of the cabin, oriented toward it, and is a named photo subject `cave_entrance`.
+- **World integration:** the track and cave clear trees through `CabinTrack.near_track` and `CaseObjects.near_evidence`; the track corridor is stamped into the road grass mask so the old way is not swallowed by the meadow. It is not in the road network, so traffic never uses it.
+- **Evidence:** `docs/realism/cabin_track/00_dirt_track.jpg`, `01_fallen_tree.jpg`, `02_cave_entrance.jpg`.
+- **Asset brief:** `docs/CLAUDE-CABIN-TRACK-ASSETS.md` covers the dirt strip and ruts, two fallen trees, two rockfalls, the outcrop and dark mouth, cave apron, warning board, puddle, leaf drift, old gate and wear details.
+- **Honest limits:** the track is a simple unshaded ribbon with ruts, not individual gravel stones. The fallen trees and rocks are code primitives. The cave is a rock cluster around a dark box mouth, not a modelled cave interior. It is hard to see the cave mouth from directly above because it faces the cabin. The track still starts on the asphalt ridge road at a pull-off, but from there it is dirt and gravel, not highway. There are no tyre-mark or walk-through interactions.
+- **Questions for Robert:**
+  - CAB1. Is the dirt track route the right length and line, or should it curve differently through the trees?
+  - CAB2. Should the fallen trees and rockfalls be solid collisions for a future on-foot mode, or stay scenery?
+  - CAB3. Should the cave be a simple exterior entrance, or eventually a walkable interior?
+  - CAB4. Should there be a small parking pull-off at the ridge end of the track?
+  - CAB5. Should the cave connect to the Lake Car story, or stay an optional place to photograph?

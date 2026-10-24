@@ -94,6 +94,7 @@ func _trees() -> void:
 		var x: float = tr[0]; var y: float = tr[1]; var z: float = tr[2]
 		if Lake.is_wet(x, z): continue          # no tree stands in the lake or on its edge
 		if Roads.near_road(x, z): continue       # session B: keep the country roads clear
+		if CabinTrack.near_track(x, z, 6.0): continue   # session B: the old dirt track to the cabin
 		if Farmland.inside_any(x, z, 3.0): continue   # session B: the farm fields
 		if CaseObjects.near_evidence(x, z): continue  # session B: the Lake Car evidence landmarks
 		var p := Vector2(x, z)
@@ -148,6 +149,7 @@ func _far_trees(touch_device: bool) -> void:
 			var x: float = arr[o]; var z: float = arr[o + 2]
 			if Lake.is_wet(x, z): continue
 			if Roads.near_road(x, z): continue
+			if CabinTrack.near_track(x, z, 6.0): continue
 			if Farmland.inside_any(x, z, 3.0): continue
 			if CaseObjects.near_evidence(x, z): continue
 			var xf := Transform3D(Basis(Vector3.UP, float(arr[o + 3])).scaled(Vector3(arr[o + 4], arr[o + 5], arr[o + 4])), Vector3(x, arr[o + 1], z))

@@ -166,7 +166,6 @@ func _build_stop_signs() -> void:
 		[Vector2(22.0, -255.0), Vector2(1.0, 0.0), 5.0],      # east lane approaching the north gate junction
 		[Vector2(207.0, 505.0), Vector2(-1.0, 0.0), 4.8],     # lakeside lane approaching the farm junction
 		[Vector2(-414.0, 115.0), Vector2(-1.0, 0.0), 4.6],    # launch lane approaching the lakeside lane
-		[Vector2(38.0, -760.0), Vector2(-1.0, 0.0), 4.6],     # cabin track approaching the ridge road
 		[Vector2(-300.0, 292.0), Vector2(0.0, -1.0), 4.6],    # west lane approaching the lakeside lane
 	]
 	for s in stops:
@@ -193,7 +192,6 @@ func _build_stop_ahead() -> void:
 	_sign(Vector2(250.0, 255.0), Vector2(-1.0, 0.0), 4.8, "warn", "STOP")
 	_sign(Vector2(270.0, 18.0), Vector2(0.0, -1.0), 5.0, "warn", "STOP")
 	_sign(Vector2(185.0, 505.0), Vector2(-1.0, 0.0), 4.8, "warn", "STOP")
-	_sign(Vector2(10.0, -760.0), Vector2(-1.0, 0.0), 4.6, "warn", "STOP")
 
 func _build_speed_signs() -> void:
 	# one speed plate at each route entry, on the side the traffic reads it from
@@ -204,7 +202,6 @@ func _build_speed_signs() -> void:
 		["south_lane", Vector2(200.0, 255.0), Vector2(1.0, 0.0)],
 		["lake", Vector2(90.0, 470.0), Vector2(-1.0, 0.0)],
 		["west_link", Vector2(-292.0, 200.0), Vector2(0.0, 1.0)],
-		["cabin", Vector2(-60.0, -790.0), Vector2(1.0, 0.0)],
 		["launch", Vector2(-418.0, 118.0), Vector2(1.0, 0.0)],
 	]
 	for spec in limits:

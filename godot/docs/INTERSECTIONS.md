@@ -41,7 +41,7 @@ The lens and light flash together, on for about 0.68 seconds and off for about 0
 ## Intersection markings
 
 - **Stop bars:** each stop sign has a white stop bar across its approach.
-- **Stop ahead signs:** yellow warning diamonds reading STOP sit further back on the busier stop approaches (south lane, east lane, farm, cabin track).
+- **Stop ahead signs:** yellow warning diamonds reading STOP sit further back on the busier stop approaches (south lane, east lane, farm, launch lane).
 - **Junction line suppression:** the asphalt shader now samples a junction mask built in `roads.gd`. The painted edge and centre lines fade through the junction apron, so a lane line does not run straight across a crossing.
 - **Existing junction signs:** yellow warning diamonds and the speed plates at each route entry remain in `road_signs.gd`.
 

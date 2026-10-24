@@ -72,6 +72,7 @@ var finale: Finale                 # session B: the cabin, the ghost and Wren (g
 var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
 var boat_launch: BoatLaunch        # session B: the Halloway Lake boat launch at the end of the launch lane
+var cabin_track: CabinTrack        # session B: the dirt and gravel track, fallen trees, rockfall and cave
 var road_signs: RoadSigns          # session B: stop signs, speed limits and junction warnings
 var landmark_signs: LandmarkSigns  # session B: the cemetery gateway and the place and business signs
 var intersection_signals: IntersectionSignals  # session B: the flashing red beacons over the junctions
@@ -494,6 +495,9 @@ func _build_world() -> void:
 	boat_launch = BoatLaunch.new()
 	add_child(boat_launch)
 	boat_launch.setup(terrain)
+	cabin_track = CabinTrack.new()
+	add_child(cabin_track)
+	cabin_track.setup(terrain)
 	var hills := FarHills.new()
 	add_child(hills)
 	hills.build(terrain)
@@ -1454,6 +1458,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("landmark signs: ", landmark_signs.stats())
 	print("intersection signals: ", intersection_signals.stats())
 	print("boat launch: placed at ", CaseObjects.BOAT_LAUNCH_SPOT)
+	print("cabin track: placed at ", CaseObjects.CABIN_SPOT)
 	print("farmland: ", farmland.stats())
 	print("traffic: ", traffic.stats())
 	print("crew: ", crew.stats())

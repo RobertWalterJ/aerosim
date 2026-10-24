@@ -13,7 +13,7 @@ const TREE_CLEARANCE := 10.0
 const MASK_N := 1024
 const JUNCTIONS := [
 	Vector2(270.0, 42.0), Vector2(286.0, 260.0), Vector2(215.0, 505.0), Vector2(12.0, -255.0),
-	Vector2(-300.0, 300.0), Vector2(-410.0, 120.0), Vector2(45.0, -760.0),
+	Vector2(-300.0, 300.0), Vector2(-410.0, 120.0),
 ]
 
 const ROUTES := [
@@ -39,11 +39,6 @@ const ROUTES := [
 		# north gate north to the garage and the camp, outside the west side of the park
 		"points": [Vector2(12.0, -255.0), Vector2(30.0, -320.0), Vector2(48.0, -420.0), Vector2(58.0, -520.0),
 			Vector2(55.0, -600.0), Vector2(45.0, -760.0), Vector2(36.0, -900.0), Vector2(36.0, -1120.0)],
-	},
-	{
-		"id": "cabin", "name": "cabin track", "width": 4.5, "shoulder": 1.6, "speed_limit": 15,
-		# branch from the ridge road out to the old cabin
-		"points": [Vector2(45.0, -760.0), Vector2(-60.0, -790.0), Vector2(-160.0, -810.0), Vector2(-250.0, -820.0)],
 	},
 	{
 		"id": "lake", "name": "lakeside lane", "width": 5.0, "shoulder": 1.8, "speed_limit": 25,
@@ -197,6 +192,26 @@ func _build_road_mask() -> void:
 				(float(zz2) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
 			if wp2.distance_to(launch) <= 18.0:
 				img.set_pixel(xx2, zz2, Color.WHITE)
+	# the old dirt track to the cabin keeps its own grass-free corridor, but narrower than an asphalt road
+	for i in CabinTrack.POINTS.size() - 1:
+		var ta: Vector2 = CabinTrack.POINTS[i]
+		var tb: Vector2 = CabinTrack.POINTS[i + 1]
+		var tsteps := maxi(1, int(ceil(ta.distance_to(tb) / 2.0)))
+		for k in tsteps:
+			var tp := ta.lerp(tb, float(k) / float(tsteps))
+			var tcx := int((tp.x / Terrain.SIZE + 0.5) * MASK_N)
+			var tcz := int((tp.y / Terrain.SIZE + 0.5) * MASK_N)
+			var tpr := int(ceil(4.5 / Terrain.SIZE * MASK_N))
+			for dzz in range(-tpr, tpr + 1):
+				for dxx in range(-tpr, tpr + 1):
+					var txx := tcx + dxx
+					var tzz := tcz + dzz
+					if txx < 0 or tzz < 0 or txx >= MASK_N or tzz >= MASK_N:
+						continue
+					var twp := Vector2((float(txx) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5,
+						(float(tzz) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
+					if twp.distance_to(tp) <= 4.5:
+						img.set_pixel(txx, tzz, Color.WHITE)
 	road_mask = ImageTexture.create_from_image(img)
 ## Rasterise the junction aprons. The asphalt shader fades the painted lines through these circles, so a centre line does
 ## not run straight across a T junction.
