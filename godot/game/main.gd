@@ -1596,6 +1596,31 @@ func _screenshot_mode(arg: String) -> void:
 			hud.link_fx = false
 			if sensor != null:
 				sensor.link_effects = false
+		elif c == "trafficmodels":  # session B dev hook: the five Blender traffic GLBs in a row
+			var names := ["hatchback_a", "hatchback_b", "pickup_a", "van_a", "tractor_a"]
+			var base: Vector3 = quad.position()
+			var q: Quaternion = quad.attitude()
+			var fwd: Vector3 = q * Vector3(0, 0, -1)
+			fwd.y = 0.0
+			fwd = fwd.normalized()
+			var side := Vector3(-fwd.z, 0.0, fwd.x)
+			for i in names.size():
+				var mpath := "res://assets/traffic/%s.glb" % names[i]
+				if ResourceLoader.exists(mpath):
+					var ps := load(mpath) as PackedScene
+					if ps != null:
+						var car := ps.instantiate() as Node3D
+						var p: Vector3 = base + fwd * 12.0 + side * (-8.0 + float(i) * 4.0)
+						p.y = terrain.height(p.x, p.z)
+						car.position = p
+						add_child(car)
+			print("trafficmodels placed in front of camera")
+		elif c == "trafficcar":     # session B dev hook: a Blender traffic vehicle close up
+			var tp: Vector3 = traffic.first_vehicle_position()
+			print("trafficcar pos=", tp)
+			quad.reset(tp.x + 6.0, terrain.height(tp.x + 6.0, tp.z + 6.0) + 5.0, tp.z + 6.0, deg_to_rad(45.0))
+			gimbal_pitch = deg_to_rad(-12.0)
+			_apply_pose()
 		elif c == "lakecar":        # session B dev hook: the Blender Lake Car at the north shore
 			var lp: Vector3 = case_objects._items[0]["pos"]
 			quad.reset(lp.x + 8.0, terrain.height(lp.x + 8.0, lp.z + 8.0) + 8.0, lp.z + 8.0, deg_to_rad(45.0))

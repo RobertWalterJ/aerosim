@@ -7,7 +7,7 @@ The full matrix is in `docs/REVIEW-CLAUDE-2026-11-15.md`. This page is the short
 ## The count
 
 - **13 briefs** ask for roughly **450 to 480 named files**.
-- **0 of those files were present before the Lake Car Blender slice.** The Lake Car is now the first real model in this project: `assets/story/lake_car.glb`, built by `tools/blender/build_lake_car.py`.
+- **0 of those files were present before this modelling pass.** Now present: the Lake Car (`assets/story/lake_car.glb`, built by `tools/blender/build_lake_car.py`) and all five Priority 0 traffic fleet GLBs in `assets/traffic/`.
 - The only Claude-model loader hook in the game is `game/traffic.gd:52-53` for the traffic fleet.
 - App icons, avatars and Casebook stamps have code fallbacks and hooks in `game/ui_theme.gd:71-126`; the village has a texture hook only at `game/village.gd:353`.
 - `assets/` contains 23 `.glb` files: 20 tree LODs, `env/all.glb` (cemetery and ground cover), `world/park.glb` (one merged park) and `world/props.glb` (cemetery props plus seven web-derived vehicle variants with none of the brief's wheel or lamp nodes).
