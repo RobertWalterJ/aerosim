@@ -12,7 +12,11 @@ const ITEMS := ["raptor", "nightowl", "thermal_camera", "night_vision", "battery
 static func groups() -> Dictionary:
 	var p0: Array = []
 	for k in APP_KEYS: p0.append(["icon_%s.png" % k, 256])
-	for k in AVATARS: p0.append(["avatar_%s.png" % k, 512])
+	for k in AVATARS:
+		p0.append(["avatar_%s.png" % k, 512])
+		p0.append(["sizes/96/avatar_%s.png" % k, 96])      # lane avatars: native small sizes and the emblem cutout
+		p0.append(["sizes/48/avatar_%s.png" % k, 48])
+		p0.append(["avatars/cutout/%s.png" % k, 512])
 	for k in ITEMS: p0.append(["item_%s.png" % k, 512])
 	for n in ["status_signal", "status_wifi", "status_battery", "status_battery_low", "status_notification", "status_search",
 			"nav_home", "nav_back", "nav_recents", "nav_close", "nav_more"]:
