@@ -99,3 +99,32 @@ The `.import` files are committed with them.
 ## Leaf cards (`cards/*.png`, models5b)
 Original drawings made by `test/gen_card_textures.gd` (curves painted with a width profile, midrib and veins; no source photographs, no licence issue). They are data textures, not colour: r is the shade, g marks stem, husk or head, b marks the accents (tassel, umbel, silk, flower) and a is the cut-out. `corn_card`, `corn_top` (seen from above), `barley_card_a/b`, `alfalfa_card_a/b`, `weeds_card`. Re-run the script after changing a drawing, then import.
 
+
+
+## Buildings (October 2026, lane/buildings)
+
+`bld_*` sets for the Blender-made Halloway buildings, garage and cabin, read by `game/building_mats.gd` (an ORM material;
+uv1_scale is 1 / one repeat, and the .glb UVs are in metres). Downloaded 2026-10-24 as Poly Haven 1k JPEGs (`diff`,
+`nor_gl`, `arm`, and `disp` for the two bricks) by `tools/blender/fetch_textures.py`, and re-saved by
+`tools/blender/make_building_textures.py` (1024 px, albedo and ARM quality 85, normals 90; `bld_paint` and `bld_floor` at
+512 px). All CC0. Their `.import` files are committed (VRAM compressed, mipmaps, normal maps flagged).
+
+| Files | Source | Author | One repeat | Used for |
+|---|---|---|---|---|
+| `bld_brick_*` | Poly Haven `red_brick`, https://polyhaven.com/a/red_brick | Rob Tuytel | 1.4 m (19 courses of 74 mm) | police house, shop A, school, chimneys |
+| `bld_brick2_*` | Poly Haven `medieval_red_brick`, https://polyhaven.com/a/medieval_red_brick | Rob Tuytel | 2.0 m | shop B, bakery, garage |
+| `bld_render_*` | Poly Haven `painted_plaster_wall`, https://polyhaven.com/a/painted_plaster_wall | Amal Kumar | 2.0 m (1.2 m as stone dressings, 0.8 m on clay) | pub, chip shop, sills, lintels, quoins, pots |
+| `bld_slate_*` | Poly Haven `roof_slates_03`, https://polyhaven.com/a/roof_slates_03 | Rob Tuytel | 3.0 m | slate roofs |
+| `bld_slate2_*` | Poly Haven `roof_slates_02`, https://polyhaven.com/a/roof_slates_02 | Rob Tuytel | 3.0 m | church roof and spire |
+| `bld_corrugated_*` | Poly Haven `corrugated_iron_02`, https://polyhaven.com/a/corrugated_iron_02 | Jenelle van Heerden, Sergej Majboroda | 2.7 m | garage roof, roller door |
+| `bld_corrugated_rust_*` | Poly Haven `worn_corrugated_iron`, https://polyhaven.com/a/worn_corrugated_iron | Jenelle van Heerden, Dimitrios Savva | 1.8 m | cabin roofs |
+| `bld_weatherboard_*` | Poly Haven `distressed_painted_planks`, https://polyhaven.com/a/distressed_painted_planks; turned 90 degrees (its normal vectors turned with it) and desaturated so the paint colour comes from the vertex colour | Rob Tuytel | 1.6 m | village hall |
+| `bld_timber_*` | Poly Haven `weathered_plank_siding`, https://polyhaven.com/a/weathered_plank_siding | Dimitrios Savva | 1.57 m | cabin walls |
+| `bld_paint_*` | Poly Haven `plastered_wall_02`, https://polyhaven.com/a/plastered_wall_02 | Charlotte Baglioni | 2.23 m | painted joinery, fascias, signs |
+| `bld_wood_*` | Poly Haven `old_planks_02`, https://polyhaven.com/a/old_planks_02 | Rob Tuytel | 2.0 m | cabin deck, door, shutters |
+| `bld_floor_*` | Poly Haven `wood_floor_worn`, https://polyhaven.com/a/wood_floor_worn | Dimitrios Savva | 2.0 m | floors seen through windows |
+| `bld_concrete_*` | Poly Haven `concrete_floor_painted`, https://polyhaven.com/a/concrete_floor_painted | Rob Tuytel | 2.0 m | garage floor, steps |
+| `bld_grime.png` | own work, drawn by `make_building_textures.py` | AeroSim | one per decal | run-off streaks |
+
+The church walls reuse `ashlar_*` (at a 2.6 m repeat). The lettering fonts (used as glyph geometry only) are Playfair
+Display SC Bold, Alfa Slab One and PT Sans Narrow Bold, all under the SIL Open Font License 1.1 (`tools/blender/fonts/OFL-*.txt`).

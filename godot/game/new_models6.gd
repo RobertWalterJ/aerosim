@@ -126,6 +126,7 @@ static func _std(key: String) -> StandardMaterial3D:
 ## The in-game material for a key (shader-textured where the farm kit has a set).
 static func mat(key: String) -> Material:
 	if _mats.has(key): return _mats[key]
+	if BuildingMats.has(key): return BuildingMats.get_mat(key)    # the Blender-made buildings (lane/buildings)
 	var m: Material
 	match key:
 		"wood": m = NewModels3._mat("wood")

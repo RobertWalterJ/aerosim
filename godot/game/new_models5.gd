@@ -1149,6 +1149,30 @@ static func _mooring_post(p: Parts, lod: int) -> void:
 		for i in 13: ring.append(Vector3(0.0, 0.3 + sin(i * TAU / 12.0) * 0.06, -0.15 + cos(i * TAU / 12.0) * 0.06 - 0.06))
 		_limb(p.b("steel"), ring, 0.009, 0.009, 5, Color(0.25, 0.24, 0.23), 1.0, Color(0.25, 0.24, 0.23), Transform3D.IDENTITY, 0)
 
+## Appends the triangles of a small .glb (positions, normals, vertex colours) to a buffer; alpha sets the paint's wear.
+static func _merge_glb(b: NewModels2.Buf, path: String, alpha: float) -> void:
+	if not ResourceLoader.exists(path): return
+	var ps := load(path) as PackedScene
+	if ps == null: return
+	var inst := ps.instantiate()
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m: Mesh = (mi as MeshInstance3D).mesh
+		var xf: Transform3D = (mi as MeshInstance3D).transform
+		for s in m.get_surface_count():
+			var arr := m.surface_get_arrays(s)
+			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var nr: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+			var cl = arr[Mesh.ARRAY_COLOR]
+			var idx = arr[Mesh.ARRAY_INDEX]
+			var n: int = (idx as PackedInt32Array).size() if idx != null else v.size()
+			for t in n:
+				var i: int = idx[t] if idx != null else t
+				b.pos.append(xf * v[i]); b.nrm.append((xf.basis * nr[i]).normalized())
+				var c: Color = (cl as PackedColorArray)[i] if cl != null else Color(0.08, 0.08, 0.08)
+				c.a = alpha
+				b.cols.append(c)
+	inst.free()
+
 static func _buoy(p: Parts, lod: int) -> void:
 	# a channel marker buoy: red and white, a steel cage and a lamp on top; origin at the waterline, half of it below
 	p.part("body")
@@ -1169,6 +1193,9 @@ static func _buoy(p: Parts, lod: int) -> void:
 				var rm := (float(prof[i][1]) + float(prof[i + 1][1])) * 0.5
 				st.append([Vector3(0, ym - 0.001, 0), rm, rm, c]); st.append([Vector3(0, ym + 0.001, 0), rm, rm, cn])
 	_sweep(p.b("hull"), st, seg, red, Color(-1, 0, 0), Transform3D.IDENTITY, Vector3.FORWARD, 3)
+	# the lettering (the number 4 both sides, HALLOWAY LAKE round the band): real glyphs wrapped to the hull, made in
+	# Blender (tools/blender/build_buoys.py) and read in here so it is crisp, spelled right and not mirrored
+	if lod < 2: _merge_glb(p.b("paint"), "res://assets/models/lettering/buoy_a_lettering.glb", 0.1)
 	var steel := Color(0.35, 0.36, 0.37, 0.2)
 	for k in 4:
 		var a := TAU * k / 4.0 + PI * 0.25
