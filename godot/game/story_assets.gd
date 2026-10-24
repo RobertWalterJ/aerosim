@@ -13,6 +13,15 @@ static func path_of(name: String, lod := 0) -> String:
 	return "res://assets/models/story/%s/%s%s.glb" % [NewModels6.group_of(name), name, "" if lod == 0 else "_lod%d" % lod]
 
 static func instance(name: String, lod := 0) -> Node3D:
+	# the story vehicles (bus, ice cream van, parade tractor and trailer, the abandoned estate, the police cars, the 1984
+	# cruiser) come from the Blender batch (game/vehicle_assets.gd), turned to this frame (+Z forward), with colliders
+	if VehicleAssets.has(name):
+		var veh := VehicleAssets.instance(name, Color(0, 0, 0, 0), true)
+		VehicleAssets.add_colliders(veh)
+		return veh
+	if PeopleAssets.handles(name):     # Blender 2: the rigged Blender people replace the code-built figures when their file is present
+		var pn := PeopleAssets.instance(name)
+		if pn != null: return pn
 	var p := path_of(name, lod)
 	if lod > 0 and not ResourceLoader.exists(p): p = path_of(name, 0)
 	var ps := load(p) as PackedScene if ResourceLoader.exists(p) else null
@@ -49,8 +58,13 @@ static func dev_row(parent: Node, terrain: Object, cam: Camera3D, dist: float, n
 	var widths: Array[float] = []
 	var total := 0.0
 	for nm in names:
-		var probe := instance(nm, 0)
 		var w := 1.0
+		if VehicleAssets.has(nm):
+			var vs: Vector3 = VehicleAssets._v3(VehicleAssets.info(nm)["size"])
+			widths.append(maxf(vs.x, vs.z) + 0.8)
+			total += maxf(vs.x, vs.z) + 0.8
+			continue
+		var probe := instance(nm, 0)
 		for ch in probe.get_children():
 			if ch is MeshInstance3D and (ch as MeshInstance3D).mesh != null:
 				var bb := (ch as MeshInstance3D).mesh.get_aabb()

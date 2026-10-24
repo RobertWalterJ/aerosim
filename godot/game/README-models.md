@@ -221,6 +221,163 @@ The people (Wren, Constable Rennick in 1984, the ghost variant) and the vehicles
 - **Gear:** `thermal_pod_a` (52 x 42 x 62 mm, origin at the mounting face, top flat; node `led`) `thermal_pod_led_a` `_off` `thermal_pod_mount_a`; `lake_buoy_a` `dive_marker_a` (waterline at y 0, line and weight hang below) `anne_photo_a`; `cruiser_plate_a` `cruiser_lightbar_a` (nodes `lightbar_red`, `lightbar_blue`: swap in the `lamp_red` and `lamp_blue` materials to light them) `cruiser_aerial_a` `cruiser_door_lettering_a` `cruiser_boot_kit_a` `cruiser_old_kit_a`; `wren_backpack_a` `wren_phone_a` `wren_torch_a` (node `beam`) `_off` `wren_space_blanket_a` `_b` `wren_water_bottle_a` `wren_hiking_gear_a` `wren_tent_a`; `rennick_hat_a` `rennick_case_file_a` `rennick_portrait_a`; `cabin_thermos_a` `cabin_newspaper_a`.
 - **Textures used:** `docs/realism/models/storm_endgame_final_textures.jpg` (labelled swatches: name, Poly Haven source, author, licence, where used), built by `test/story_textures_sheet.gd`; views of every asset: `storm_endgame_final_views.jpg` (golden hour) and `storm_endgame_final_views_overcast.jpg`.
 
+## Blender 3: vehicles (lane/vehicles)
+
+Modelled in Blender 4.2 by headless scripts in `tools/blender/` (regenerate with
+`blender -b --factory-startup --python godot/tools/blender/build_vehicles.py -- [only=a,b] [nobake] [render=<dir>]`), exported as
+rigged glTF 2.0 to `assets/models/vehicles/<name>.glb`, loaded by `game/vehicle_assets.gd` (class `VehicleAssets`). These replace
+the batch 6 code-built vehicles (which stay as the fallback when a file is missing) and give the story its vehicles.
+
+**Frame:** metres, forward **-z**, up +y, right +x, origin on the ground at the middle of the length (the batch 6 frame).
+`VehicleAssets.instance(name, paint, front_plus_z := true)` turns it to the story frame (+z forward); `StoryAssets.instance/place`
+does this for every vehicle name automatically and adds box colliders.
+
+**One file per vehicle:** one armature, three skinned meshes on it, `<name>_LOD0` (near), `_LOD1` (about 35 %), `_LOD2` (far),
+switched by visibility range at 25 m and 80 m. Real modelling: a lofted body with pressed shoulder and belt creases, real panel
+gaps with return flanges, doors, bonnet and tailgate cut out as their own panels, wheel arches cut with wheel wells, lamp units
+(chrome reflector behind a clear lens; tail, brake, indicator and reverse sections), grille, plates in recesses (blank fictional
+plates), handles, mirrors, wipers, exhaust, tyres turned from a real section with tread and sidewall, alloy or steel rims with
+nuts, brake disc and caliper, and an interior (seats, dash, steering wheel, door cards, headliner) seen through transparent glass.
+UVs in metres (box projection), tangents exported, ambient occlusion baked into the vertex colour (red), the finish condition
+in the vertex alpha (1 clean, lower = worn and rusty).
+
+**Material slots** (names are the contract; `VehicleAssets` swaps in `game/shaders/vehicle_pbr.gdshader`, `vehicle_pbr_ds.gdshader`
+(cabin, both sides) and `vehicle_glass.gdshader`, all with rain `g_wet`, snow `g_snow` and the cloud and drone shadows):
+`paint` (the instance's paint colour), `paint2` (livery), `glass`, `glass_tint`, `chrome`, `mirror`, `rubber`, `rim`, `rim_steel`,
+`metal`, `caliper`, `trim`, `trim_grey`, `interior`, `seat`, `dash`, `plate`, `plate_text`, `lettering`, `lettering2`, `primer`,
+`sheet_white`, `canvas`, `wood`, `straw`, `flag_a/b/c`, and the lamps `lamp_front`, `lamp_reflector`, `lamp_tail`, `lamp_brake`,
+`lamp_ind_l`, `lamp_ind_r`, `lamp_reverse`, `lamp_beacon`, `lightbar_red`, `lightbar_blue` (each vehicle gets its own lamp materials
+so its lights switch alone). The shader reads the vertex colour as occlusion and condition; the colour comes from `tint`.
+
+**Bones.** Every pivot bone points along its turning axis, so a part turns about the bone's own +Y. Common to all:
+`root` (on the ground), `body` (child of root: lift, pitch and roll it for suspension; everything on the body follows),
+`wheel_fl wheel_fr wheel_rl wheel_rr` (spin about the axle), `steer_fl steer_fr` (parents of the front wheels; turn about vertical).
+Three-axle trucks add `wheel_m1l wheel_m1r`; the motorcycle has `steer_f wheel_f wheel_r stand`. Twin rear tyres share one bone.
+Doors and panels (children of body): `door_fl door_fr door_rl door_rr` (front-hinged), `bonnet`, `tailgate` or `boot`,
+`door_rear_l door_rear_r` (van barn doors), `door_slide_r` (van sliding door), `bus_door_a bus_door_b` (bus folding leaves),
+`serving_window` (ice cream van), `door_rear` (ice cream van), `shutter` (lorry roller shutter), `tip_bed` (tipping trailer),
+`drawbar`, `hitch` (the trailer eye / tractor hitch point, child of root), `pto` (tractor power take-off), `valve` (milk tanker
+outlet hand wheel), `destination_board` (buses), `wiper_l wiper_r` (or `wiper_f` on the tractor), `steering_wheel`, `handlebar` (quad).
+The manifest (`game/vehicle_manifest.gd`, generated) lists every vehicle's bones, animations, wheels (bone, hub position in the game
+frame, radius, steer), sizes, triangle counts, paints, hinge angles, colliders and its defect checks.
+
+**Animations** (AnimationPlayer, baked from Blender actions): `doors_open doors_close door_driver_open door_driver_close`,
+`bonnet_open/_close`, `tailgate_open/_close` or `boot_open/_close`, `rear_doors_open/_close`, `slide_door_open/_close`, `wipers`
+(one sweep, loopable), `steer_left steer_right` (front wheels to full lock and the steering wheel 1.25 turns), and per vehicle:
+`bus_door_open/_close`, `serving_window_open/_close`, `shutter_open/_close`, `valve_open/_close`, `tip_raise tip_lower`, `pto_spin`,
+`stand_down`. Wheels are not animated: drive them from code.
+
+**Calls:**
+- `VehicleAssets.place(parent, name, Transform3D, paint := Color(0,0,0,0), front_plus_z := false) -> Node3D` (a root named after the
+  vehicle holding `rig`, the imported scene). `instance(...)` the same without adding it. `has(name)`, `names()`, `info(name)`.
+- `VehicleAssets.roll(v, metres)` turns every wheel by -distance / radius; `steer(v, radians)` (+ = left); `bounce(v, lift, pitch, roll)`.
+- `VehicleAssets.play(v, "doors_open")`, `pose(v, "tailgate_open", at := 1.0)` (jump to a point of an animation).
+- `VehicleAssets.set_lights(v, {"head": 1, "tail": 1, "brake": 0, "ind_l": 0, "ind_r": 0, "reverse": 0, "beacon_red": 1, "beacon_blue": 1, "beacon_amber": 0})`.
+- `VehicleAssets.add_colliders(v)` (a StaticBody3D of the manifest boxes), `colliders(name)`.
+- Posed variants by name: `cruiser_1984_a_driver_open`, `cruiser_1984_a_open`, `festival_bus_restored_open`, `lake_car_estate_a_closed`,
+  `festival_ice_cream_van_a_open`.
+
+| Name | What it is | Notes |
+|---|---|---|
+| `car_hatch_a` | 4.0 m three-door supermini, TAMSIN, silver | 185/60R15 alloys |
+| `car_hatch_b` | 4.3 m five-door hatchback, ARDEN, red | 205/55R16 alloys |
+| `car_estate_a` | 4.8 m estate, VELIA, dark grey-green, roof rails | 215/55R17 multi-spoke |
+| `pickup_a` | 5.3 m crew-cab pickup, CORVAN, blue | separate bed with liner and its own `tailgate` (hinged at the bottom) |
+| `pickup_b` | 4.9 m older pickup, BRASK, sun-faded and rusty | chrome front bumper, steel wheels with caps |
+| `van_a` | 5.3 m panel van, white | sliding door, barn doors with windows, cargo lining |
+| `van_b` | 4.4 m small van, blue | blank barn doors |
+| `police_suv_a` | 4.9 m provincial police SUV (fictional HALLOWAY PROVINCIAL POLICE livery) | low lightbar, push bar, lower cladding |
+| `police_saloon_a` | 4.85 m plain grey saloon | low lightbar, thin fictional stripe and door lettering |
+| `lake_car_estate_a` / `_b` | the Lake Car: late-1980s boxy blue estate (BRASK 245) | rust, flat rear tyre, smashed rear window, plates missing, posed with the tailgate open; `_b` has the VOSS & SON tow sticker |
+| `cruiser_1984_a` | 1984 provincial police cruiser: long boxy saloon, white with dark roof and doors | faded HALLOWAY / PROVINCIAL POLICE lettering, 1980s domed lightbar, whip aerial, A-pillar spotlight, rusted sills, chrome bumpers |
+| `bus_a`, `bus_b` | 10.6 / 11.2 m single-deckers (VALLEY LINES cream and red; KESTREL COACHES white and blue) | twin rear tyres, folding door on +x, lit destination board, rows of seats |
+| `festival_bus_restored` | 9 m 1960s green and cream single-decker, HALLOWAY FESTIVAL | split screen, chrome bumpers, roof rack, VOSS & SON maker's sticker |
+| `festival_bus_garage` | the same bus before restoration | faded, rusted, a grey primer panel, a blue tarp half over the roof |
+| `festival_ice_cream_van_a` | 5.75 m coachbuilt soft-serve van, HALLOWAY ICES | sliding serving window, counter, striped awning, menu boards, roof cone and swirl, lit ICES sign, chime horns, soft-serve machine and freezer inside |
+| `lorry_a` | 8.4 m rigid box lorry, MARSH & DAUGHTERS | roller shutter, side guards, fuel tank, exhaust stack |
+| `milk_tanker_a` | 9.4 m three-axle milk tanker, VALLEY DAIRY | stainless tank, walkway and rails, manways, ladder, rear cabinet, hose, `valve` |
+| `tractor_a` | 1990s four-post-cab tractor, HALDEN 6140, blue | 18.4R38 / 14.9R28 lugged tyres with sidewall lettering, cab interior, perforated louvres, exhaust heat shield, three-point linkage with assist rams, PTO, couplers, front weights, beacon, work lamps |
+| `tractor_wheels_a` | the tractor's four wheels alone | |
+| `parade_tractor_a` | 1950s TAMSIN Series 2, red with cream wheels | chrome radiator bars, pan seat, clamshell fenders, festival rosette |
+| `tractor_trailer_a` | 6.6 m tandem tipping trailer | leaf springs, tipping ram, `tip_bed` |
+| `parade_trailer_a` | festival flatbed: timber deck, straw bales, bunting, HALLOWAY FESTIVAL banners | |
+| `motorcycle_a` | naked roadster | |
+| `farm_quad_a` | 450 cc utility quad, KESTREL 450 4x4 | wishbones and coil-over shocks, racks, winch, handlebar on its own bone |
+
+Checks: `test/vehicles_blender_test.gd` (headless: every file loads, bones and animations named in the manifest exist, sizes in metres,
+wheels on the ground, front toward -z, triangle budgets, no NaN, winding matches the normals, no floating parts, painted faces face
+outward, the rig really rolls, steers and opens doors, the story names resolve). Sheets: `test/vehicles_blender_sheet.gd` (views,
+lights golden / overcast / backlit / wet, animation strips) and `test/vehicles_textures_sheet.gd` (every material on a sphere with its
+source and licence), written to `docs/realism/models/vehicles_*.jpg`.
+## Blender 2: people (lane/people)
+
+Loader `game/people_assets.gd` (class `PeopleAssets`). Story names for the endgame people (`wren_standing_phone_a`, `wren_sitting_porch_a`, `wren_walking_torch_a`, `wren_waving_a`, `wren_crouched_a`, `rennick_1984_standing_a`, `rennick_1984_standing_a_notebook`, `rennick_1984_ghost_a`) are served here; the Wren and Rennick props stay in Batch 9.
+
+Rigged, animated, photographed-texture people made in Blender 4.2 by scripts in `godot/tools/blender/` (they regenerate
+everything). They replace the code-built figures of Batch 8 under the same story names; the old builders stay as the
+fallback when a file is missing. Sources and licences: `assets/models/people/README.md`.
+- **Files:** `assets/models/people/<person>.glb` for 19 people: `ellis`, `rennick`, `rennick_uniform`, `rennick_1984`,
+  `wren`, `crowd_m1..m3`, `crowd_f1..f3`, `child_boy`, `child_girl`, `band_singer`, `band_guitar`, `band_fiddle`,
+  `band_drummer`, `pilot`, `bystander`. Clips: `anim_male.glb`, `anim_female.glb`, `anim_child.glb`. Props:
+  `people_props.glb` (root nodes `prop_<name>`).
+- **Frame:** metres, Y up, +Z is the front, origin on the ground between the feet (seated: the ground under the seat).
+- **Nodes:** `<person>/Armature/Skeleton3D/` with skinned meshes `head_LOD0..2` (face, eyes, brows, lashes, hair),
+  `body_LOD0..2` (the skin that shows; skin hidden under clothes is deleted), `clothes_LOD0..2`, and where present
+  `coat_LODn` (Wren's rain jacket) and `backpack_LODn` (Wren), so a thermal mask can pick `head`, `body`, `coat` and
+  `backpack` apart. PeopleAssets sets visibility ranges: LOD0 to 14 m, LOD1 14 to 45 m, LOD2 45 to 400 m.
+- **Triangles** (LOD0 / LOD1 / LOD2): about 8.5k to 9.5k / 3.6k to 4k / 1.2k to 1.4k per person, checked by the test
+  (limits 9.6k / 4.4k / 1.7k).
+- **Skeleton:** one rig for everyone (MakeHuman game_engine rig, 53 bones, renamed to Godot's SkeletonProfileHumanoid names)
+  plus `LeftEye` and `RightEye`: Root, Hips, Spine, Chest, UpperChest, Neck, Head, Left/RightEye,
+  Left/RightShoulder, UpperArm, LowerArm, Hand, ThumbMetacarpal/Proximal/Distal, Index/Middle/Ring/Little
+  Proximal/Intermediate/Distal, UpperLeg, LowerLeg, Foot, Toes. No Jaw bone: the mouth is blend shapes. Limbs are
+  IK-ready chains (UpperArm-LowerArm-Hand, UpperLeg-LowerLeg-Foot) for SkeletonIK3D or TwoBoneIK3D. Weights are the
+  MakeHuman weights, at most 4 per vertex.
+- **Face:** `head_LOD0` has blend shapes `blink`, `smile`, `mouth_open`, `mouth_o`, `mouth_e`, `mouth_mbp`, `brow_up`
+  (made from the MakeHuman expression units). `PeopleFace` (added by PeopleAssets) blinks at random and moves the mouth
+  during `talk` and `sing`.
+- **Clips** (looping, in place, 30 fps): idle, idle_shift, walk, walk_torch, sit_idle, sit_mug, sit_hug_knees, talk, wave,
+  wave_up, look_around, look_up, clap, sway, cheer, point, pockets, hands_hips, crouch, kneel, toolbox_kneel, lie_creeper,
+  clipboard_hold, clipboard_write, notebook_hold, knock, phone_hold, flag_wave, sing, play_guitar, play_fiddle, play_drum,
+  play_cornet. They are keyed on a reference body; PeopleAssets copies them onto each person keeping rotations for every
+  bone and the Hips position scaled to the person's hip height (so they retarget to adults and children alike).
+  Walking is in place: move the node yourself, about 1.3 m/s for the walk clip at speed 1.
+- **API:** `PeopleAssets.place(parent, name, xf)` / `PeopleAssets.instance(name)` for story names;
+  `PeopleAssets.person(person, clip, props, tint, ghost, seed)` for anything else (props are `"mug:R"`, `"clipboard:L"`,
+  `"guitar:C"`, `"camp_chair"` or `"creeper@x,y,z,yaw"`). `StoryAssets.instance()` routes every story people name here
+  first. `PeopleAssets.STORY` is the table of story name -> person, clip, props (the old Ellis, Rennick and crowd names,
+  and Wren and Rennick 1984 names from the endgame brief). `crowd_band_a` builds the four-piece band.
+- **Materials:** the glTF carries PBR materials (skin, eye, brow, lash, hair, cloth). PeopleAssets adds subsurface
+  scattering with transmission to skin (Forward+ only), alpha-to-coverage hair, double-sided cloth with a slight rim;
+  `tint` multiplies the cloth colour for crowd variety. Rennick's ghost uses `game/shaders/people_ghost.gdshader`
+  (translucent, soft rim, slow breath; no shadows).
+- **Regenerate** (Blender 4.2.3 portable in `_tools/blender-4.2.3-windows-x64`, MPFB and the MakeHuman packs in the
+  private user folder `_tools/people/bluser`, set up once by `people_setup.py`): from `godot/tools/blender`,
+  `sh run_people.sh people_build.py -- all` (people), `sh run_people.sh people_anims.py` (clips),
+  `sh run_people.sh people_props.py` (props), `sh run_people.sh people_sheet.py -- --out <dir> --names ellis`
+  (Blender contact sheets). The roster (body sliders, skins, clothes, colours, fabrics) is `people_roster.py`; the clips
+  are `people_clips.py`.
+- **Checks:** `test/people_blender_test.gd` (headless: every person loads, bones, LOD budgets, height, NaN, clips, blend
+  shapes, every story name animates with its props). In the scene: `tools/people_scene.sh <out.png> <names> <hour> <distance>`.
+
+## Blender 4: drones (lane/drones; `game/drone_assets.gd`, class `DroneAssets`)
+
+The Facade kit drones from session B's request of 2026-11-07, modelled in Blender 4.2 by `tools/blender/build_drones.py` (with `drones_lib.py`, `drones_parts.py`) and exported as glTF 2.0 into `assets/models/drones/`: `<name>.glb`, `<name>_lod1.glb`, `<name>_lod2.glb` and a manifest `<name>.json`. Robert's direction is photoreal, so LOD 0 carries real detail instead of the brief's 2 to 3k triangles (see the honest limits below).
+
+| Name | What it is | Triangles lod 0 / 1 / 2 |
+|---|---|---|
+| `raptor_race_a` | 5-inch 6S race quad, 550 g class, orange anodised and dark carbon. 5 mm unibody with angular pads and arm slots, 2 mm top plate on orange hex standoffs, camera side plates, a 19 mm FPV camera tilted 40 degrees, an action camera fixed on a printed mount at 25 degrees, a 30 x 30 stack on orange soft-mount grommets (ESC with MOSFETs, flight controller with MCU, gyro, sockets, USB-C, blue status LED), finned VTX, pagoda VTX antenna on a TPU mount, receiver whiskers in orange tubes, 2207 motors (spun-aluminium bell tops with windows onto the copper windings and stator, 14 nickel magnets, sealed top bearing, titanium shaft), tri-blade 5.1 inch props with washer and M5 lock nut, a 6S pack on a rubber pad with a woven strap and buckle, leads and a balance lead, mated XT60s, a low-ESR capacitor, motor leads in heat-shrink, cable ties, button-head screws | 19.6k / 7.0k / 3.0k |
+| `nightowl_a` | quiet 4-inch gimbal ship, 480 g class, navy and black. 4 mm unibody, a navy moulded canopy with side vents showing the stack, carbon battery tray with slotted navy rails and a hinged latch, 4S pack and strap, 2004 navy motors, two-blade wide swept low-noise props (black, blue tips), a compact 3-axis gimbal on four rubber dampers (yaw, roll and pitch motors, camera head with a coated lens), the night-vision pod clipped under the front left, a landing light (reflector, emitter, clear lens), carbon landing legs with rubber feet, paddle aerials, receiver whiskers, a rear status LED bar | 22.8k / 9.6k / 4.1k |
+| `night_vision_pod_a` | clip-on low-light camera, 40 x 34 x 46 mm (beside the 52 x 42 x 62 mm `thermal_pod_a`): dark grey anodised case with cooling fins, clip plate with rails and a knurled thumbscrew, knurled bezel, a fast lens with a green coating, two infrared LEDs, a green status LED, a lead out of the back | 1.9k / 0.9k / 0.3k |
+
+- **Frame in the files:** metres, +Y up, **+Z is the nose**, the model's right is -x, origin on the ground under the middle (the lowest point of the feet or pads). The pod's origin is the middle of its **mounting face (its top)**; it hangs below y = 0, lens towards +Z.
+- **Nodes** (each pivot on its own axis, no rest rotation): `body`, `battery`, `prop_fr` `prop_rr` `prop_rl` `prop_fl` (pivot on the motor shaft at the hub; **fr and rl turn clockwise seen from above, rr and fl anticlockwise**, which is how DroneView spins them), `camera_lens`, `status_led`, `led_fr` `led_rr` `led_rl` `led_fl` (navigation lamps: green front right, red front left, white behind). Raptor: `camera_fpv` (child `camera_lens`), `action_cam` (children `action_cam_lens`, `action_cam_led`). Night Owl: `gimbal_yaw` > `gimbal_roll` > `gimbal_pitch` > `camera_lens` (yaw about y, roll about z, pitch about x, each pivot on its motor axis), `nv_pod` (children `nv_lens`, `nv_led`, and `nv_led_ir` at lod 0), `landing_light`. Pod: `body`, `camera_lens`, `status_led`.
+- **Use:** `DroneAssets.place(parent, name, Transform3D, lod := 0)` or `DroneAssets.instance(name, lod)`. Level of detail: lod 0 inside about 3 m, lod 1 to about 12 m, lod 2 beyond (the importer adds its own automatic LODs too). Lamps are the materials named `lamp_*` (emissive): swap or dim them to switch a lamp.
+- **In flight:** `DroneView.model()` asks `DroneAssets.model_data(airframe id)` first. `DroneAssets.MODEL_FOR` maps the Facade airframes `raptor` and `nightowl` (lane/notify's physics/airframes.gd) to these files; Race and Gimbal Mini keep their own code models. DroneView hangs the file under a holder that turns it into the body frame (`DroneAssets.body_xf`: half a turn about y, the manifest's centre of mass at the origin), spins the file's own prop nodes, adds blur discs from the manifest (radius, chord, blur colours), hides `camera_fpv` (Raptor) or `gimbal_yaw` (Night Owl) in the FPV view, and phones (mobile and compatibility renderers) take lod 1. The drone chooser's picture (DroneThumbs) and drawing (DroneSchematic) come from the same data (the manifest's per-part plan and side outlines). Evidence: `docs/realism/drones/00` to `06`.
+- **Textures:** the files embed their PBR textures (so they stand alone in Blender or elsewhere); the game's import (`gltf/embedded_image_handling=0`; the `.glb.import` files are committed) discards them and `DroneAssets` puts the one shared set from `assets/textures/drones/` back by material name (one material per name for every drone and level of detail). Sources and licences: `assets/textures/README.md` and `docs/realism/models/drones_final_textures.jpg`.
+- **Fallback:** if a file is missing the code placeholder stands in (DroneView's Race for the Raptor, the Mini for the Night Owl, the story `thermal_pod_a` for the pod).
+- **Regenerate:** `python tools/blender/drones_prep_textures.py <folder with the extracted ambientCG 1K-JPG sets>`, then `blender -b -P tools/blender/build_drones.py [-- only=<name>] [stats]`. Checks: `test/drones_blender_test.gd` (headless: files, nodes, materials and shared textures, lamps, base and nose, budgets falling from near to far, props on the motors and twisted the right way for their spin, tip to tip, DroneView builds the Facade drones with four props, blur discs and FPV hiding, Race and Mini untouched), `test/drones_sheet.gd` (views in the game's renderer, golden and overcast), `test/drones_chooser_shot.gd` (needs lane/notify's airframes), `tools/blender/render_drones.py` (Cycles views and the 512 px listing photos in `docs/realism/models/drones_thumbs/`), `tools/blender/drones_sheets.py` (`drones_final_views.jpg`, `drones_final_textures.jpg`). Godot runs go through `tools/blender/godot_locked.sh` (the shared godot-run.lock).
+- **Honest limits:** LOD 0 is 19.6k and 22.8k triangles, above the 8 to 15k aimed at (the motors with magnets and windings, and the screws, cost the most); the ambientCG sets are CC0 but procedural (no CC0 photographed carbon weave exists on Poly Haven or ambientCG); the lens coating sits under opaque glass, so in Godot the lenses read as glossy black with only a faint tint; screw sockets are round recesses, not hexagons; wires are smooth tubes; the gimbal does not move yet (the nodes are ready); the Night Owl is a 4-inch model on lane/notify's 5-inch airframe numbers (R 0.0635), so the chooser's "5.0 in" label and tip-to-tip figure disagree with the drawn discs until the airframe says R 0.0508; its gimbal lens sits about 4.6 cm below and 2 cm ahead of the physics camOffset (the Raptor's FPV lens is within 2 cm).
 
 ## Buildings pass (lane/buildings)
 

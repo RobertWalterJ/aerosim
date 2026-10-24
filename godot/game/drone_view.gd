@@ -16,6 +16,7 @@ var _last_t := 0.0
 var _wing := false
 var _wing_spin := 1.0
 var _wing_radius := 0.127
+var _hide_fpv: Array[Node3D] = []     # lane/drones: nodes of a Blender model hidden in the FPV view
 
 # Each airframe is modelled once and kept: its meshes, where its props and lights go, and the outlines of every part
 # (for the technical drawing in the drone chooser). Building the same drone again only places nodes.
@@ -36,9 +37,13 @@ static func reach(af: Dictionary) -> float:
 static func model(af: Dictionary) -> Dictionary:
 	var id: String = af["id"]
 	if not _cache.has(id):
-		var v := DroneView.new()
-		_cache[id] = v._make(af)
-		v.free()
+		var gl := DroneAssets.model_data(id)      # lane/drones: a Blender model (game/drone_assets.gd) replaces the code one when its file is there
+		if not gl.is_empty():
+			_cache[id] = gl
+		else:
+			var v := DroneView.new()
+			_cache[id] = v._make(af)
+			v.free()
 	return _cache[id]
 
 func build(af: Dictionary, _record := false) -> void:
@@ -52,6 +57,11 @@ func build(af: Dictionary, _record := false) -> void:
 		set_fpv(_fpv)
 		return
 	var md := model(af)
+	_hide_fpv.clear()
+	if md.has("glb"):         # lane/drones
+		_build_glb(af, md)
+		set_fpv(_fpv)
+		return
 	var body := MeshInstance3D.new(); body.mesh = md["body"]; add_child(body)
 	_gimbal = Node3D.new()
 	_gimbal.transform = md["gimbal_xf"]
@@ -87,6 +97,39 @@ func build(af: Dictionary, _record := false) -> void:
 		led.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(led)
 	set_fpv(_fpv)
+
+## lane/drones: a drone modelled in Blender (DroneAssets). The file is in the story frame, so it hangs under a holder that
+## turns it into the body frame; its own prop nodes spin, its own lamps light, and a blur disc stands in for each fast prop.
+## Phones (the mobile and compatibility renderers) take the middle level of detail.
+func _build_glb(af: Dictionary, md: Dictionary) -> void:
+	var name: String = md["glb"]
+	var lod := 0 if RenderingServer.get_current_rendering_method() == "forward_plus" else 1
+	var holder := Node3D.new(); holder.name = "model"
+	holder.transform = DroneAssets.body_xf(name)
+	var inst := DroneAssets.instance(name, lod)
+	holder.add_child(inst)
+	add_child(holder)
+	_gimbal = null
+	for nm in md["fpv_hide"]:
+		var h := inst.find_child(nm, true, false) as Node3D
+		if h != null: _hide_fpv.append(h)
+	var r: float = md["prop_radius"]
+	var dshader: Shader = load("res://game/shaders/prop_blur.gdshader")
+	for i in 4:
+		var prop := inst.find_child(DroneAssets.PROPS[i], true, false) as Node3D
+		if prop == null:
+			prop = Node3D.new(); prop.position = md["prop_pos"][i]; add_child(prop)
+		_props.append(prop)
+		var disc := MeshInstance3D.new()
+		var dm := CylinderMesh.new(); dm.top_radius = r; dm.bottom_radius = r; dm.height = 0.001; dm.radial_segments = 32
+		var dmat := ShaderMaterial.new()
+		dmat.shader = dshader
+		dmat.set_shader_parameter("radius", r); dmat.set_shader_parameter("n_blades", float(md["blades"]))
+		dmat.set_shader_parameter("chord", md["chord"])
+		dmat.set_shader_parameter("body_col", md["blur_body"]); dmat.set_shader_parameter("tip_col", md["blur_tip"])
+		disc.mesh = dm; disc.material_override = dmat; disc.position = (md["prop_pos"][i] as Vector3) + Vector3(0, 0.001, 0)
+		disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF; disc.visible = false
+		add_child(disc); _discs.append(disc)
 
 ## The FPV plane model comes from NewModels.plane(): one pusher prop that spins about +Z.
 func _build_wing(af: Dictionary) -> void:
@@ -156,6 +199,7 @@ func _make(af: Dictionary) -> Dictionary:
 func set_fpv(on: bool) -> void:
 	_fpv = on
 	if _gimbal: _gimbal.visible = not on
+	for n in _hide_fpv: n.visible = not on      # lane/drones
 
 func update_props(motor_omega: PackedFloat64Array, t: float, armed: bool) -> void:
 	var dt := clampf(t - _last_t, 0.0, 0.1)
