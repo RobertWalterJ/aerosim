@@ -1,8 +1,9 @@
 """Regenerate all phone app art (lane appui2) into godot/assets/ui, then the manifest and contact sheets.
 
   python build_appui.py [--renders <dir>]
-The portrait and product renders come from Blender (slow, run separately):
-  sh ../blender/run_people.sh appui_portraits.py -- --out <dir>/portraits      (MPFB people pipeline, about 25 min)
+Avatars are drawn in code by build_avatars.py (lane avatars: illustrated emblems). The old MakeHuman portrait path
+(appui_portraits.py + gen_portraits.py) is retired and no longer called.
+The product renders come from Blender (slow, run separately):
   blender -b --factory-startup --python ../blender/appui_products.py -- --out <dir>/products
 Default <dir> is RWJ Coding Projects/_tools/appui2_renders (outside the repository).
 Needs Pillow + numpy. The tablet kit (build_all.py) must exist first: page dots are copied from it.
@@ -10,7 +11,7 @@ Needs Pillow + numpy. The tablet kit (build_all.py) must exist first: page dots 
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import appui_lib as A
-import gen_app_glyphs, gen_casebook, gen_phone_icons, gen_map_extras, gen_portraits, gen_products, gen_appui_sheets
+import gen_app_glyphs, gen_casebook, gen_phone_icons, gen_map_extras, build_avatars, gen_products, gen_appui_sheets
 
 RENDERS = os.path.normpath(os.path.join(A.HERE, "..", "..", "..", "..", "_tools", "appui2_renders"))
 
@@ -39,7 +40,7 @@ if __name__ == "__main__":
     gen_app_glyphs.build(); print("glyphs")
     gen_casebook.build(); print("casebook")
     gen_map_extras.build(); print("map and extras")
-    gen_portraits.build(os.path.join(rd, "portraits")); print("portraits")
+    build_avatars.build(); A.MANIFEST.extend(build_avatars.manifest_rows()); print("avatars")   # lane avatars
     gen_products.build(os.path.join(rd, "products")); print("products")
     print("manifest rows", manifest())
     gen_appui_sheets.build(); print("sheets")

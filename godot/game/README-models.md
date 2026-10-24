@@ -680,6 +680,15 @@ banners and thumbnail overlays. Fonts in `assets/fonts/` (Work Sans, IBM Plex Se
 - Sheets: `docs/realism/appui2/*.jpg` (one per group, with file names), `docs/realism/models/appui2_final_views.jpg`,
   `appui2_final_textures.jpg`.
 
+## Avatars (lane/avatars)
+
+The eleven chat and Casebook avatars are illustrated emblems, not people renders (Robert's call): a prop, animal, mascot
+or mark per account, one rounded tile, border and palette, a different style family per person. Same file names and sizes
+as appui2 (`assets/ui/avatar_<key>.png` 512, `sizes/96|48/avatar_<key>.png`, `avatars/cutout/<key>.png`), so no code
+change. Generator `tools/ui_art/build_avatars.py --sheet` (Pillow, 2048 px master); `build_appui.py` now calls it instead
+of the retired portrait path. Cast table in `assets/ui/APPUI-README.md`. Sheets `docs/realism/models/avatars_final_views.jpg`
+and `avatars_final_textures.jpg`. `test/appui_paths_test.gd` also checks the 96/48 and cutout variants.
+
 ## Wreck and dive van (lane/wreckvan)
 
 The two endgame vehicles that were still missing from `docs/story/CLAUDE-ENDGAME-ASSETS.md`, modelled in Blender with the
