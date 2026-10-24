@@ -16,6 +16,7 @@ const CABIN_SPOT := Vector2(-250.0, -820.0)
 const SEARCH_SPOT := Vector2(-70.0, -790.0)
 const SHEEP_SPOT := Vector2(55.0, 585.0)
 const WOLF_SPOT := Vector2(18.0, 552.0)
+const BOAT_LAUNCH_SPOT := Vector2(-430.0, 112.0)
 
 var terrain: Terrain
 var _items: Array[Dictionary] = []
@@ -40,7 +41,7 @@ static func prepare(t: Terrain) -> void:
 static func near_evidence(x: float, z: float, margin := 30.0) -> bool:
 	if _car_spot != Vector2.INF and Vector2(x, z).distance_to(_car_spot) < margin:
 		return true
-	for p in [GARAGE_SPOT, CAMP_SPOT, FESTIVAL_SPOT, CABIN_SPOT, SEARCH_SPOT, SHEEP_SPOT, WOLF_SPOT]:
+	for p in [GARAGE_SPOT, CAMP_SPOT, FESTIVAL_SPOT, CABIN_SPOT, SEARCH_SPOT, SHEEP_SPOT, WOLF_SPOT, BOAT_LAUNCH_SPOT]:
 		if Vector2(x, z).distance_to(p) < margin:
 			return true
 	return false
@@ -56,6 +57,7 @@ func setup(t: Terrain) -> void:
 	_items.append({"id": "case_bus", "name": "the old festival bus", "pos": bus_pos, "radius": 7.0})
 	_items.append({"id": "case_cabin", "name": "the abandoned cabin", "pos": Vector3(CABIN_SPOT.x, t.height(CABIN_SPOT.x, CABIN_SPOT.y), CABIN_SPOT.y), "radius": 7.0})
 	_items.append({"id": "case_cruiser", "name": "the old police cruiser", "pos": Vector3(CABIN_SPOT.x + 9.0, t.height(CABIN_SPOT.x + 9.0, CABIN_SPOT.y - 5.0), CABIN_SPOT.y - 5.0), "radius": 4.0})
+	_items.append({"id": "boat_launch", "name": "the boat launch", "pos": Vector3(BOAT_LAUNCH_SPOT.x, t.height(BOAT_LAUNCH_SPOT.x, BOAT_LAUNCH_SPOT.y), BOAT_LAUNCH_SPOT.y), "radius": 11.0})
 	_build_car(_items[0]["pos"])
 	_build_garage(_items[1]["pos"])
 	_build_camp(_items[2]["pos"])

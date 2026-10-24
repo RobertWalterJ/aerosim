@@ -27,8 +27,11 @@ Every asphalt centreline stays outside a 248 m square around the cemetery. Insid
 | lakeside lane | farm | lake overlook | south and west outside the park |
 | festival lane | valley at (286, 260) | festival field | festival field moved out of the cemetery to (300, 300) |
 | west boundary lane | lakeside lane at (-300, 300) | west gate | access to the west gate and close the ring |
+| boat launch lane | lakeside lane at (-410, 120) | boat launch apron | short lane to the Halloway Lake boat launch |
 
 The four gates are now the only motor entrances to the cemetery. The east gate keeps its existing car park. The home pad and chapel are reached by the park paths, not by cars. The festival bus field has moved from inside the park at (24, -96) to the field at (300, 300), so the bus and festival are no longer parked among the graves.
+
+The boat launch lane leaves the lakeside lane at its old overlook end and runs the last few metres to the gravel apron at `CaseObjects.BOAT_LAUNCH_SPOT`, where the concrete ramp goes down into Halloway Lake. The launch itself is built in `game/boat_launch.gd`; see `docs/CLAUDE-BOAT-LAUNCH-ASSETS.md` for the asset brief.
 
 ## Map
 

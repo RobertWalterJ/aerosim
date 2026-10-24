@@ -10,6 +10,7 @@ const STEP := 3.0
 const CLEAR_STEP := 6.0
 const CLEAR_CELL := 24.0
 const TREE_CLEARANCE := 10.0
+const MASK_N := 1024
 
 const ROUTES := [
 	{
@@ -55,7 +56,12 @@ const ROUTES := [
 		"id": "west_link", "name": "west boundary lane", "width": 5.0, "shoulder": 1.8,
 		# from the lakeside lane up the outside of the west wall to the west gate
 		"points": [Vector2(-300.0, 300.0), Vector2(-292.0, 200.0), Vector2(-285.0, 100.0), Vector2(-280.0, 0.0),
-			Vector2(-245.0, -4.0)],
+			Vector2(-252.0, -4.0)],
+	},
+	{
+		"id": "launch", "name": "boat launch lane", "width": 4.5, "shoulder": 1.6,
+		# the last few metres from the lakeside lane to the boat launch parking apron
+		"points": [Vector2(-410.0, 120.0), Vector2(-432.0, 112.0)],
 	},
 ]
 
@@ -66,6 +72,15 @@ static var _samples_by_route := {} # id -> Array[Vector2] centroid samples
 var terrain: Terrain
 var paths := {}                    # route id -> Array[Vector2] of the smooth centreline (traffic reads this)
 var _lengths := {}
+var _materials: Array[ShaderMaterial] = []
+var _wetness := -1.0
+var _asphalt_diff: Texture2D
+var _asphalt_nor: Texture2D
+var _asphalt_arm: Texture2D
+var _gravel_diff: Texture2D
+var _gravel_nor: Texture2D
+var _gravel_arm: Texture2D
+var road_mask: ImageTexture       # 1024 px mask of the asphalt and shoulder corridors, for the grass shader
 
 # ------------------------------------------------------------------ clearance for the world planting
 static func _ensure_index() -> void:
@@ -106,11 +121,71 @@ static func near_road(x: float, z: float, margin := TREE_CLEARANCE) -> bool:
 # ------------------------------------------------------------------ meshes
 func setup(t: Terrain) -> void:
 	terrain = t
+	_asphalt_diff = load("res://assets/textures/asphalt_diff.jpg")
+	_asphalt_nor = load("res://assets/textures/asphalt_nor.jpg")
+	_asphalt_arm = load("res://assets/textures/asphalt_arm.jpg")
+	_gravel_diff = load("res://assets/textures/gravel_diff.jpg")
+	_gravel_nor = load("res://assets/textures/gravel_nor.jpg")
+	_gravel_arm = load("res://assets/textures/gravel_arm.jpg")
 	for r in ROUTES:
 		paths[str(r["id"])] = _route_points(r)
+	_build_road_mask()
 	for r in ROUTES:
 		_build_route(r)
 	print("roads: ", stats(), " audit: ", audit())
+
+## Rasterise the road corridor into a small mask. Grass reads it and keeps clear of the asphalt and the bare shoulder,
+## which is what stops the meadow growing up through the carriageway.
+func _build_road_mask() -> void:
+	var img := Image.create(MASK_N, MASK_N, false, Image.FORMAT_L8)
+	img.fill(Color(0, 0, 0, 1))
+	for r in ROUTES:
+		var pts: Array = paths.get(str(r["id"]), [])
+		var rad := float(r["width"]) * 0.5 + float(r["shoulder"]) + 3.0
+		for i in pts.size() - 1:
+			var a: Vector2 = pts[i]
+			var b: Vector2 = pts[i + 1]
+			var steps := maxi(1, int(ceil(a.distance_to(b) / 1.5)))
+			for k in steps:
+				var p := a.lerp(b, float(k) / float(steps))
+				var cx := int((p.x / Terrain.SIZE + 0.5) * MASK_N)
+				var cz := int((p.y / Terrain.SIZE + 0.5) * MASK_N)
+				var pr := int(ceil(rad / Terrain.SIZE * MASK_N))
+				for dzz in range(-pr, pr + 1):
+					for dxx in range(-pr, pr + 1):
+						var xx := cx + dxx
+						var zz := cz + dzz
+						if xx < 0 or zz < 0 or xx >= MASK_N or zz >= MASK_N:
+							continue
+						var wp := Vector2((float(xx) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5,
+							(float(zz) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
+						if wp.distance_to(p) <= rad:
+							img.set_pixel(xx, zz, Color.WHITE)
+	# the boat launch parking apron and ramp head are paved too, so no meadow grows through the gravel
+	var launch := CaseObjects.BOAT_LAUNCH_SPOT
+	var lx := int((launch.x / Terrain.SIZE + 0.5) * MASK_N)
+	var lz := int((launch.y / Terrain.SIZE + 0.5) * MASK_N)
+	var lr := int(ceil(18.0 / Terrain.SIZE * MASK_N))
+	for dzz in range(-lr, lr + 1):
+		for dxx in range(-lr, lr + 1):
+			var xx2 := lx + dxx
+			var zz2 := lz + dzz
+			if xx2 < 0 or zz2 < 0 or xx2 >= MASK_N or zz2 >= MASK_N:
+				continue
+			var wp2 := Vector2((float(xx2) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5,
+				(float(zz2) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
+			if wp2.distance_to(launch) <= 18.0:
+				img.set_pixel(xx2, zz2, Color.WHITE)
+	road_mask = ImageTexture.create_from_image(img)
+## Rain darkens the roads and lifts a little reflection on the wheel tracks. The weather owns the value; this only
+## forwards it to the asphalt and shoulder shaders when it changes.
+func set_wetness(w: float) -> void:
+	var v := clampf(w, 0.0, 1.0)
+	if absf(v - _wetness) < 0.01:
+		return
+	_wetness = v
+	for m in _materials:
+		m.set_shader_parameter("wetness", v)
 
 func route_ids() -> Array:
 	return paths.keys()
@@ -167,11 +242,13 @@ func _build_route(route: Dictionary) -> void:
 	# -- asphalt
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
+	var tangents := PackedFloat32Array()
 	var uvs := PackedVector2Array()
 	var idx := PackedInt32Array()
 	# -- shoulders
 	var sverts := PackedVector3Array()
 	var snorms := PackedVector3Array()
+	var stangents := PackedFloat32Array()
 	var suvs := PackedVector2Array()
 	var sidx := PackedInt32Array()
 	var dist := 0.0
@@ -190,20 +267,30 @@ func _build_route(route: Dictionary) -> void:
 			t = (pts[i + 1] - pts[i - 1]).normalized()
 		var side := Vector2(-t.y, t.x)
 		var h := terrain.height(p.x, p.y) + 0.14
-		var hl := terrain.height(p.x - side.x * half, p.y - side.y * half) + 0.14
-		var hr := terrain.height(p.x + side.x * half, p.y + side.y * half) + 0.14
-		var ho_l := terrain.height(p.x - side.x * outer, p.y - side.y * outer) + 0.08
-		var ho_r := terrain.height(p.x + side.x * outer, p.y + side.y * outer) + 0.08
+		var hl := terrain.height(p.x - side.x * half, p.y - side.y * half) + 0.11
+		var hr := terrain.height(p.x + side.x * half, p.y + side.y * half) + 0.11
+		# the outer lip sinks below the ground so the shoulder blends instead of hovering
+		var ho_l := terrain.height(p.x - side.x * outer, p.y - side.y * outer) - 0.12
+		var ho_r := terrain.height(p.x + side.x * outer, p.y + side.y * outer) - 0.12
+		var nl := (terrain.normal_at(p.x, p.y) + Vector3.UP * 1.6).normalized()
+		var nl2 := (terrain.normal_at(p.x - side.x * half, p.y - side.y * half) + Vector3.UP * 1.6).normalized()
+		var nr2 := (terrain.normal_at(p.x + side.x * half, p.y + side.y * half) + Vector3.UP * 1.6).normalized()
+		var tangent := Vector3(t.x, 0.0, t.y).normalized()
+		var tl := (tangent - nl2 * nl2.dot(tangent)).normalized()
+		var tr := (tangent - nr2 * nr2.dot(tangent)).normalized()
 		verts.append(Vector3(p.x - side.x * half, hl, p.y - side.y * half))
 		verts.append(Vector3(p.x + side.x * half, hr, p.y + side.y * half))
-		norms.append(Vector3.UP); norms.append(Vector3.UP)
+		norms.append(nl2); norms.append(nr2)
+		# the road vertices carry the forward tangents, orthogonalised against their own side normal
+		tangents.append_array([tl.x, tl.y, tl.z, 1.0, tr.x, tr.y, tr.z, 1.0])
 		uvs.append(Vector2(0.0, dist / 8.0)); uvs.append(Vector2(1.0, dist / 8.0))
 		sverts.append(Vector3(p.x - side.x * outer, ho_l, p.y - side.y * outer))
 		sverts.append(Vector3(p.x - side.x * half, hl, p.y - side.y * half))
 		sverts.append(Vector3(p.x + side.x * half, hr, p.y + side.y * half))
 		sverts.append(Vector3(p.x + side.x * outer, ho_r, p.y + side.y * outer))
-		for k in 4:
-			snorms.append(Vector3.UP)
+		snorms.append(nl); snorms.append(nl2); snorms.append(nr2); snorms.append(nl)
+		stangents.append_array([tl.x, tl.y, tl.z, 1.0, tl.x, tl.y, tl.z, 1.0,
+			tr.x, tr.y, tr.z, 1.0, tr.x, tr.y, tr.z, 1.0])
 		suvs.append(Vector2(0.0, dist / 4.0)); suvs.append(Vector2(1.0, dist / 4.0))
 		suvs.append(Vector2(0.0, dist / 4.0)); suvs.append(Vector2(1.0, dist / 4.0))
 	for i in pts.size() - 1:
@@ -220,12 +307,20 @@ func _build_route(route: Dictionary) -> void:
 	arr.resize(Mesh.ARRAY_MAX)
 	arr[Mesh.ARRAY_VERTEX] = verts
 	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_TANGENT] = tangents
 	arr[Mesh.ARRAY_TEX_UV] = uvs
 	arr[Mesh.ARRAY_INDEX] = idx
 	road_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://game/shaders/road_asphalt.gdshader")
-	mat.set_shader_parameter("width_m", width)
+	mat.set_shader_parameter("uAlbedo", _asphalt_diff)
+	mat.set_shader_parameter("uNormal", _asphalt_nor)
+	mat.set_shader_parameter("uArm", _asphalt_arm)
+	var has_lines := width >= 6.5
+	mat.set_shader_parameter("edge_marks", 1.0 if has_lines else 0.0)
+	mat.set_shader_parameter("center_line", 1.0 if has_lines else 0.0)
+	mat.set_shader_parameter("wetness", maxf(_wetness, 0.0))
+	_materials.append(mat)
 	var mi := MeshInstance3D.new()
 	mi.mesh = road_mesh
 	mi.material_override = mat
@@ -236,16 +331,85 @@ func _build_route(route: Dictionary) -> void:
 	sarr.resize(Mesh.ARRAY_MAX)
 	sarr[Mesh.ARRAY_VERTEX] = sverts
 	sarr[Mesh.ARRAY_NORMAL] = snorms
+	sarr[Mesh.ARRAY_TANGENT] = stangents
 	sarr[Mesh.ARRAY_TEX_UV] = suvs
 	sarr[Mesh.ARRAY_INDEX] = sidx
 	sh_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, sarr)
 	var smat := ShaderMaterial.new()
 	smat.shader = load("res://game/shaders/road_gravel.gdshader")
+	smat.set_shader_parameter("uAlbedo", _gravel_diff)
+	smat.set_shader_parameter("uNormal", _gravel_nor)
+	smat.set_shader_parameter("uArm", _gravel_arm)
+	smat.set_shader_parameter("wetness", maxf(_wetness, 0.0))
+	_materials.append(smat)
 	var smi := MeshInstance3D.new()
 	smi.mesh = sh_mesh
 	smi.material_override = smat
 	smi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(smi)
+	if has_lines:
+		_build_reflector_posts(pts, outer, route)
+
+## White delineator posts with red reflectors along the wider roads, every 60 m on both sides.
+func _build_reflector_posts(pts: Array, outer: float, _route: Dictionary) -> void:
+	var post_transforms: Array[Transform3D] = []
+	var cap_transforms: Array[Transform3D] = []
+	var next := 30.0
+	var walked := 0.0
+	for i in pts.size() - 1:
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var seg := a.distance_to(b)
+		if seg < 0.01:
+			continue
+		while next <= walked + seg:
+			var f := clampf((next - walked) / seg, 0.0, 1.0)
+			var p := a.lerp(b, f)
+			var dir := (b - a).normalized()
+			var side := Vector2(-dir.y, dir.x)
+			for sd in [-1.0, 1.0]:
+				var q: Vector2 = p + side * float(sd) * (outer + 0.35)
+				var y := terrain.height(q.x, q.y)
+				post_transforms.append(Transform3D(Basis(), Vector3(q.x, y + 0.46, q.y)))
+				cap_transforms.append(Transform3D(Basis(), Vector3(q.x, y + 0.79, q.y)))
+			next += 60.0
+		walked += seg
+	if post_transforms.is_empty():
+		return
+	var post_mesh := BoxMesh.new()
+	post_mesh.size = Vector3(0.10, 0.92, 0.10)
+	var post_mat := StandardMaterial3D.new()
+	post_mat.albedo_color = Color(0.82, 0.80, 0.72)
+	post_mat.roughness = 0.8
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = post_mesh
+	mm.instance_count = post_transforms.size()
+	for i in post_transforms.size():
+		mm.set_instance_transform(i, post_transforms[i])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.material_override = post_mat
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi)
+	var cap_mesh := BoxMesh.new()
+	cap_mesh.size = Vector3(0.085, 0.11, 0.075)
+	var cap_mat := StandardMaterial3D.new()
+	cap_mat.albedo_color = Color(0.58, 0.10, 0.07)
+	cap_mat.emission_enabled = true
+	cap_mat.emission = Color(0.42, 0.03, 0.02)
+	cap_mat.emission_energy_multiplier = 0.6
+	var cm := MultiMesh.new()
+	cm.transform_format = MultiMesh.TRANSFORM_3D
+	cm.mesh = cap_mesh
+	cm.instance_count = cap_transforms.size()
+	for i in cap_transforms.size():
+		cm.set_instance_transform(i, cap_transforms[i])
+	var cmi := MultiMeshInstance3D.new()
+	cmi.multimesh = cm
+	cmi.material_override = cap_mat
+	cmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(cmi)
 
 func stats() -> Dictionary:
 	var total := 0.0

@@ -817,3 +817,30 @@ Every app screen now exists, and the story director is a real system rather than
   - APP3. Should the avatars be illustrated portraits, or stylised role badges with no faces?
   - APP4. Should Facade product art be photography, illustration, or diagram-style?
   - APP5. Do you want a video detail screen with a "play" animation even though there is no video file?
+
+## Boat launch and road realism (lane/notify, session B, 2026-11-15)
+### The boat launch
+- **Placement:** east shore of Halloway Lake, at `CaseObjects.BOAT_LAUNCH_SPOT` (-430, 112), at the end of a new `launch` lane off the lakeside lane. The ramp slopes from the gravel apron at about 84 m down to the water at 76 m over roughly 30 m at z 112, with a short timber dock north of the ramp.
+- **Placeholder assets (`game/boat_launch.gd`):** gravel parking apron with wheel-turn strips, concrete ramp with curbs and segment grooves, timber dock on posts with white floats and a cleat, a floating aluminium boat, an empty trailer with a second hull on the bunks, a two-post timber sign with the words HALLOWAY LAKE / BOAT LAUNCH, a life ring, and two bollards at the ramp head. No collisions.
+- **World integration:** the site is cleared through `CaseObjects.near_evidence`, is a named photo subject `boat_launch`, is included in the road raster mask so grass keeps off the gravel, and is linked by the new road route. The minimap picks up the road automatically.
+- **Assets still needed:** `docs/CLAUDE-BOAT-LAUNCH-ASSETS.md`. Priority 0 is the concrete ramp slab and curbs, gravel apron, timber dock with posts and floats, two-post sign, life ring, aluminium hull, outboard, trailer, winch and trailer hull. Priority 1 is bollards, wheel stops, rope, fuel tank, oar, marker, bin, notice board and gravel patches. Priority 2 is a tarp cover, tackle box, gate, weather post and damage decals.
+- **Evidence:** `docs/realism/boat_launch/00_boat_launch_aerial.jpg`, `01_boat_launch_ramp.jpg`.
+
+### The road realism pass
+- **Grass mask:** `Roads` now bakes a 1024 px mask of every asphalt and shoulder corridor plus the boat launch apron. The grass shader samples it and keeps the meadow off the carriageway, which was the biggest visual problem before this pass.
+- **Materials:** the road samples `asphalt_diff`, `asphalt_nor` and `asphalt_arm`; the shoulder samples the matching gravel maps. The meshes now carry tangents and terrain-following normals, so the normal maps and lighting work.
+- **Markings:** edge lines and a worn dashed centre line only on roads 6.5 m and wider. Narrow lanes are unmarked. Lines are wider and brighter but still worn.
+- **Shoulders:** the outer lip sinks below the terrain; the gravel shader adds stones, ruts, grass and wetness at the edge.
+- **Delineator posts:** white posts with red reflectors every 60 m on both sides of the wider roads, built as multi-meshes.
+- **Rain:** the weather's wetness value is forwarded to the asphalt and gravel shaders; wet roads darken and pick up a little reflection on the wheel tracks.
+- **Evidence:** `docs/realism/roads/12_road_surface_and_posts.jpg`, `13_wet_road.jpg`, `14_clean_shoulder.jpg`.
+- **Docs:** `docs/ROADS-REALISM.md`; route notes in `docs/ROADS-PLAN.md`.
+- **Honest limits:** asphalt and gravel maps tile visibly at extreme close range; no standing puddles or spray; no camber, banking or deformation; no guardrails, chevrons or road signs yet; the grass mask edge is coarse at 1024 px over 4 km; traffic leaves no tyre marks or dust; wet roads do not change grip. The boat launch is placeholder geometry until Claude's assets land, and the launch lane is unmarked narrow asphalt rather than gravel.
+- **Questions for Robert:**
+  - BOAT1. Is the launch on the right shore, and is the ramp slope and dock position right?
+  - BOAT2. Should the launch lane turn to gravel for the last stretch, or stay asphalt to the apron?
+  - BOAT3. Should the launch get a small wooden gate and a parking fee/notice board?
+  - ROADR1. Do you want road signs, chevrons and gate markers next, or are the delineator posts enough?
+  - ROADR2. Should the wider roads get a yellow centre line, or stay white?
+  - ROADR3. Do you want visible puddles and wet tyre tracks in rain, or is the darkening enough?
+  - ROADR4. Should the narrow lanes become gravel roads with a different surface, rather than unmarked asphalt?

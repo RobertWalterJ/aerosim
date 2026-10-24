@@ -71,6 +71,7 @@ var director: StoryDirector        # session B: the one player-facing route thro
 var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
 var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
+var boat_launch: BoatLaunch        # session B: the Halloway Lake boat launch at the end of the launch lane
 var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
 var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
 var crew: Crew                     # session B: the six friends, each giving the pilot different information (game/crew.gd)
@@ -477,13 +478,17 @@ func _build_world() -> void:
 	var lake := Lake.new()
 	add_child(lake)
 	lake.build(terrain)
+	# session B: the boat launch at the end of the lakeside lane
+	boat_launch = BoatLaunch.new()
+	add_child(boat_launch)
+	boat_launch.setup(terrain)
 	var hills := FarHills.new()
 	add_child(hills)
 	hills.build(terrain)
 	await _stage("Growing the grass", 0.7)
 	grass = Grass.new()
 	add_child(grass)
-	if not "nograss" in dev_args: grass.build(terrain, "low" if OS.has_feature("mobile") else "high", world.exclusions, home)
+	if not "nograss" in dev_args: grass.build(terrain, "low" if OS.has_feature("mobile") else "high", world.exclusions, home, roads.road_mask)
 	# sun, sky and atmosphere
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -850,6 +855,8 @@ func _process(delta: float) -> void:
 		jobs.tick(delta)   # session B: the channel keeps earning views and money between flights
 	if traffic != null and hud != null:
 		traffic.update(delta, float(hud.weather.get("hour", 12.0)), paused)   # session B: life on the roads
+	if roads != null and hud != null:
+		roads.set_wetness(float(hud.weather.get("wet", 0.0)))   # session B: rain darkens and polishes the asphalt
 	if crew != null and not paused:
 		crew.update(delta)   # session B: the crew react to weather, storms, uploads and discoveries
 	if story != null and not paused:
@@ -1431,6 +1438,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("phone: ", phone_os.stats())
 	print("channel: ", {"views": jobs.views(), "videos": jobs.videos().size(), "editor": jobs.editor_friend()})
 	print("roads: ", roads.stats())
+	print("boat launch: placed at ", CaseObjects.BOAT_LAUNCH_SPOT)
 	print("farmland: ", farmland.stats())
 	print("traffic: ", traffic.stats())
 	print("crew: ", crew.stats())

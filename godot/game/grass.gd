@@ -18,7 +18,7 @@ static func add_globals() -> void:
 			["g_wet", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0], ["g_cloud", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.2, 0, 0, 0)], ["g_fx", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(1, 1, 0, 0)], ["g_dsA", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0, 0, 0, 0.1)], ["g_dsB", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0, 0, 1, 1)], ["g_dsC", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0, 1, 0.064, 0)]]:
 		RenderingServer.global_shader_parameter_add(g[0], g[1], g[2])
 
-func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Vector2) -> void:
+func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Vector2, road_mask: Texture2D = null) -> void:
 	var counts: Array = QUALITY_COUNTS.get(quality, QUALITY_COUNTS["medium"])
 	var layers := [
 		# the close carpet: thousands of fine short blades per square metre around the camera, so that low over the lawn it reads as turf and not as a flat green sheet
@@ -65,6 +65,8 @@ func build(terrain: Terrain, quality: String, excl: Array[Rect2], pad_centre: Ve
 		mat.set_shader_parameter("uDesire", GroundDetail.desire_array())
 		mat.set_shader_parameter("uDesireN", GroundDetail.DESIRE.size())
 		mat.set_shader_parameter("uPathT", terrain.path_tex)
+		if road_mask != null:
+			mat.set_shader_parameter("uRoadMask", road_mask)
 		var mi := MultiMeshInstance3D.new()
 		mi.multimesh = mm
 		mi.material_override = mat
