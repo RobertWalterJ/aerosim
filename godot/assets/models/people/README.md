@@ -46,6 +46,24 @@ a political cap), weapons and tactical vests, and two hair assets whose files st
 
 ## Files
 
-`<person>.glb` (19 people), `anim_male.glb`, `anim_female.glb`, `anim_child.glb` (the shared clips on a reference body),
+`<person>.glb` (38 people: the 19 of lane/people and 19 added by lane/antidrone, see below; Wren rebuilt), `anim_male.glb`, `anim_female.glb`, `anim_child.glb` (the shared clips on a reference body),
 `people_props.glb` (props, one root node each, named `prop_<name>`). Build report with triangle counts:
 `_tools/people/build_report.json` (outside the repository). Sizes are listed in the Blender 2 contract.
+
+## Added by lane/antidrone (2026-10-24)
+
+The village cast of `docs/CLAUDE-CHARACTER-BRIEF-2026-11-15.md` (Ifeoma Okafor, Mei Lin, Ravi Patel, Grace Adeyemi, Hana Sato,
+Priya Nair, Daniel Whitlock, Arthur Bell), Wren rebuilt to that brief (rich brown skin, crop, mustard rain jacket, dark trousers,
+brown scarf, backpack), the DroneBudz crew to match their app portraits (Maya, Jo, Riley, Tom, Alex, Sam, Kit), and the other
+people the story names (Harlan Pike, the farmer, Nora Pike, Councillor Bain). Same pipeline, rig and clips. New MakeHuman assets:
+
+| Asset | Author | Licence | Worn by |
+|---|---|---|---|
+| `elvs_male_coveralls_1`, `elvs_male_shirt_untucked_bd1`, `elvs_slouchy_beanie1`, `elvs_braided_rows`, `elvs_braid_bun` | Elvaerwyn | CC BY | Ravi, Alex (coveralls); Jo (shirt); Harlan Pike (beanie); Ifeoma, Sam (braided rows); Grace (bun) |
+| `mindfront_knitted_sweater_02`, `mindfront_fishing_hat_01` | Mindfront | CC BY 4.0 | Maya, Riley; Tom |
+| `toigo_blunt_bob`, `toigo_female_suit`, `toigo_male_suit_tie_and_jacket` | MRT | CC0 | Mei; Priya; Councillor Bain |
+| `culturalibre_male_boots` | culturalibre | CC0 | Riley, Harlan Pike |
+
+Avoided: `rehmanpolanski_hair_bun_brown` (AGPL header). Gaps against the brief: no aprons, reading glasses or medical bag (no
+asset; Grace's and Mei's aprons are indoor garments), Grace's bun sits high rather than low, Priya wears a ponytail (her braid
+asset broke the LOD2 budget).

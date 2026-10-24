@@ -830,3 +830,20 @@ hunters at real scale in the clearing), `antidrone_night.jpg`, `antidrone_final_
 tubes that vanish beyond about 40 m; the corrugated roofs are sine heightfields; the tarp is a heightfield with nothing under
 it; the hunters are 2 to 3k triangles, so motors and props are simple; the smoke is three crossed cards, not particles; rotor
 blur, the net and the mast animation are left to the code (the nodes and helpers are ready).
+
+## Anti-drone people (lane/antidrone, job 2)
+
+Nineteen more rigged people for `PeopleAssets` (Blender 2 contract above: same MakeHuman rig, 53 bones with Godot humanoid
+names, LOD0..2, face blend shapes, and the 33 shared clips from `anim_male.glb` / `anim_female.glb`), built by
+`sh run_people.sh people_build.py -- <names>` from the entries at the end of `tools/blender/people_roster.py`:
+`ifeoma_okafor`, `mei_lin`, `ravi_patel`, `grace_adeyemi`, `hana_sato`, `priya_nair`, `daniel_whitlock`, `arthur_bell` (the village
+cast of `docs/CLAUDE-CHARACTER-BRIEF-2026-11-15.md`, ages, heights, skin tones 0 to 8 and costumes from the brief), `maya`, `jo`,
+`riley`, `tom`, `alex`, `sam`, `kit` (the crew, matching their app portraits), `harlan_pike`, `farmer`, `nora_pike`,
+`councillor_bain`. **`wren` is rebuilt to the brief** (rich brown skin, crop, mustard rain jacket on the `coat` mesh, dark
+trousers, brown scarf, backpack); the old red-jacket Wren is gone. Routing: `PeopleAssets.BODY` lists them (so
+`StoryAssets.instance("<name>")` and `PeopleAssets.person("<name>", clip)` work), and `PeopleAssets.ALIASES` /
+`PeopleAssets.resolve(name)` map display names ("Ifeoma Okafor", "Ada Okafor", "Riley", "Harlan Pike") to files. Sheets:
+`docs/realism/models/antidrone_final_people_views.jpg` (three-quarter and face, Godot render) and
+`antidrone_final_people_textures.jpg`. Checks: `test/people_blender_test.gd` (all 38 people). Note for lane/notify:
+`case_objects.gd` there tints Wren's skin darker (`PeopleAssets.tint_skin(_hiker, Color(0.56, 0.40, 0.30))`); with the rebuilt
+Wren that tint should be removed, or Wren goes near black.

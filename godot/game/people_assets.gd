@@ -22,7 +22,29 @@ const BODY := {
 	"crowd_m1": "male", "crowd_m2": "male", "crowd_m3": "male", "crowd_f1": "female", "crowd_f2": "female", "crowd_f3": "female",
 	"child_boy": "child", "child_girl": "child", "band_singer": "female", "band_guitar": "male", "band_fiddle": "male",
 	"band_drummer": "male", "pilot": "male", "bystander": "female",
+	# lane/antidrone: the village cast of the character brief, the DroneBudz crew and the other people the story names
+	"ifeoma_okafor": "female", "mei_lin": "female", "ravi_patel": "male", "grace_adeyemi": "female", "hana_sato": "female",
+	"priya_nair": "female", "daniel_whitlock": "male", "arthur_bell": "male",
+	"maya": "female", "jo": "female", "riley": "male", "tom": "male", "alex": "male", "sam": "female", "kit": "male",
+	"harlan_pike": "male", "farmer": "male", "nora_pike": "female", "councillor_bain": "male",
 }
+
+## Display names and village ids (village.gd, character_data) -> person file, so code can ask by the name it already uses.
+const ALIASES := {
+	"Ifeoma Okafor": "ifeoma_okafor", "Ada Okafor": "ifeoma_okafor", "Mei Lin": "mei_lin", "Ravi Patel": "ravi_patel",
+	"Grace Adeyemi": "grace_adeyemi", "Hana Sato": "hana_sato", "Priya Nair": "priya_nair",
+	"Daniel Whitlock": "daniel_whitlock", "Arthur Bell": "arthur_bell", "Wren": "wren", "Maya": "maya", "Jo": "jo",
+	"Riley": "riley", "Tom": "tom", "Alex": "alex", "Sam": "sam", "Kit": "kit", "Harlan Pike": "harlan_pike",
+	"Nora Pike": "nora_pike", "Councillor Bain": "councillor_bain", "Ellis Voss": "ellis", "Ellis": "ellis",
+	"Rennick": "rennick", "Constable Ada Rennick": "rennick_1984",
+}
+
+## The person file for a display name, id or file name ("" if none).
+static func resolve(name: String) -> String:
+	if BODY.has(name): return name
+	if ALIASES.has(name): return ALIASES[name]
+	var k := name.to_lower().replace(" ", "_")
+	return k if BODY.has(k) else ""
 
 ## Story asset name -> person, clip, props ("name:L" / "name:R" in a hand, "name:C" on the chest, "name" on the ground,
 ## "name@x,y,z,yaw" on the ground with an offset in the person's frame), optional cloth tint and ghost.
@@ -87,7 +109,7 @@ static var _mats := {}
 static var _ghost: ShaderMaterial = null
 
 static func handles(name: String) -> bool:
-	return STORY.has(name) or name == "crowd_band_a" or BODY.has(name)
+	return STORY.has(name) or name == "crowd_band_a" or BODY.has(name) or ALIASES.has(name)
 
 static func available(person_name: String) -> bool:
 	return ResourceLoader.exists(DIR + person_name + ".glb")
@@ -96,8 +118,8 @@ static func available(person_name: String) -> bool:
 static func instance(name: String) -> Node3D:
 	if name == "crowd_band_a":
 		return band()
-	if BODY.has(name):
-		return person(name, "idle")
+	if BODY.has(name) or ALIASES.has(name):
+		return person(resolve(name), "idle")
 	if not STORY.has(name):
 		return null
 	var s: Dictionary = STORY[name]
