@@ -67,6 +67,9 @@ var night_vision: NightVision      # session B: the Facade night vision add-on (
 var inventory: Inventory           # session B: the pilot's bought kit (game/inventory.gd)
 var wildlife_objects: WildlifeObjects  # session B: the sheep and the wolf in the west pasture
 var wildlife: WildlifeCase         # session B: Riley's night tracking favour and the thermal tutorial
+var launch_sites: LaunchSites       # session B: where the kit is parked and where the next flight starts
+var launch_pos := Vector2(-18.0, 36.0)
+var launch_yaw := 150.0
 var director: StoryDirector        # session B: the one player-facing route through all the story arcs
 var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
 var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
@@ -211,6 +214,10 @@ func _ready() -> void:
 	await _build_world()
 	inventory = Inventory.new()
 	inventory.setup()
+	launch_sites = LaunchSites.new()
+	launch_sites.setup()
+	launch_pos = launch_sites.pos()
+	launch_yaw = launch_sites.yaw()
 	af = inventory.apply_airframe(Airframes.make(airframe_id), airframe_id)
 	if airframe_id == "wing":
 		quad = FPVPlane.new(af)                       # plane lane: fixed wing (physics/plane.gd)
@@ -401,21 +408,22 @@ func _ready() -> void:
 	ending.setup(jobs)
 	finale = Finale.new()
 	add_child(finale)
-	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife)
+	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife, launch_sites)
 	director = StoryDirector.new()
 	add_child(director)
 	director.setup(hud, story, unknown_thread, wildlife, inventory, finale, ending)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
-	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips, director)
+	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips, director, roads, launch_sites, finale, wildlife)
 	phone_os.fly_drone.connect(switch_drone)
+	phone_os.travel_requested.connect(travel_to_site)
 	# a notification's "Open DroneBudz" button goes straight into the chat app
 	phone_notes.app_requested.connect(func(app: String):
 		phone_os.open()
 		phone_os._open_app(app))
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
-	hud.minimap.home = home
+	hud.minimap.home = launch_pos
 	var pl: Array[PackedVector2Array] = []
 	for p in terrain.layout["paths"]:
 		var pts := PackedVector2Array()
@@ -768,27 +776,27 @@ func spawn() -> void:
 	_charge_t = 0.0
 	_charge_done = false
 	if hud and hud.minimap: hud.minimap.clear_trail()
-	var y := terrain.height(home.x, home.y) + 0.04
-	quad.reset(home.x, y, home.y, deg_to_rad(150.0))
+	var y := terrain.height(launch_pos.x, launch_pos.y) + 0.04
+	quad.reset(launch_pos.x, y, launch_pos.y, deg_to_rad(launch_yaw))
 	if airframe_id == "wing":
 		# hand launch: 3 m up, 10 m/s along the nose, nose up 10 degrees; the controller climbs gently for 3 s
 		# ground roll: on the grass, nose level, no speed; the pilot throttles up to lift off
-		var hd := deg_to_rad(150.0)
+		var hd := deg_to_rad(launch_yaw)
 		if hud and hud.plane_launch == 1:
 			var ql := Quaternion(Vector3.UP, hd)
-			quad.s[1] = terrain.height(home.x, home.y) + 0.2
+			quad.s[1] = terrain.height(launch_pos.x, launch_pos.y) + 0.2
 			quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
 			quad.s[3] = 0.0; quad.s[4] = 0.0; quad.s[5] = 0.0
 		else:
 			var ql := Quaternion(Vector3.UP, hd) * Quaternion(Vector3.RIGHT, deg_to_rad(10.0))
-			quad.s[1] = terrain.height(home.x, home.y) + 3.0
+			quad.s[1] = terrain.height(launch_pos.x, launch_pos.y) + 3.0
 			quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
 			var fwd := ql * Vector3(0, 0, -1)
 			quad.s[3] = fwd.x * 10.0; quad.s[4] = fwd.y * 10.0; quad.s[5] = fwd.z * 10.0
-	fc.reset_state(); fc.mode = hud.mode if hud else "N"; fc.heading = deg_to_rad(150.0)
+	fc.reset_state(); fc.mode = hud.mode if hud else "N"; fc.heading = deg_to_rad(launch_yaw)
 	if airframe_id == "wing" and hud and hud.plane_launch == 1:
 		fc.set_ground_roll()
-	_cam_yaw = deg_to_rad(150.0)
+	_cam_yaw = deg_to_rad(launch_yaw)
 	_apply_pose()
 	drone_node.reset_physics_interpolation()
 	if hud: hud.show_crash("")
@@ -806,6 +814,26 @@ func switch_drone(id: String) -> void:
 	hud.show_gimbal(af["hasGimbal"])
 	spawn()
 
+## The map app's travel button. The drone has to be on the ground; the kit is then driven to the new site and unpacked.
+func travel_to_site(site_id: String) -> void:
+	if launch_sites == null or quad == null:
+		return
+	var p: Vector3 = quad.position()
+	var agl := p.y - terrain.height(p.x, p.z)
+	if quad.armed and agl > 0.4:
+		if phone_os != null and phone_os._map_app != null:
+			phone_os._map_app.set_status("Land the drone before driving to a new launch site.", true)
+		return
+	if not launch_sites.set_active(site_id):
+		return
+	var s := launch_sites.current()
+	launch_pos = s["pos"]
+	launch_yaw = float(s["yaw"])
+	hud.minimap.home = launch_pos
+	spawn()
+	if phone_os != null:
+		phone_os.close()
+	hud.toast("Drove the kit to " + str(s["name"]) + ". Ready at the new launch site.")
 func _read_sticks() -> Vector4:
 	# x = throttle, y = yaw, z = pitch, w = roll, each -1..1
 	var th := 0.0; var yw := 0.0; var pt := 0.0; var rl := 0.0
@@ -1138,6 +1166,11 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os._open_app("studio")
 		elif c == "phone":        # session B dev hook: the phone home screen
 			phone_os.open()
+		elif c == "phonemap":     # session B dev hook: the valley map app
+			phone_os.open()
+			phone_os._open_app("map")
+		elif c.begins_with("travel="):   # session B dev hook: drive the kit to a launch site
+			travel_to_site(c.substr(7))
 		elif c == "phonechat":    # session B dev hook: straight into the DroneBudz chat
 			phone_os.open()
 			phone_os._open_app("chat")
@@ -1622,7 +1655,7 @@ func _autopilot_sticks(st: Vector4, p: Vector3, agl: float) -> Vector4:
 	else:
 		var lim: Dictionary = af["limits"]["S" if fc.mode == "S" else "N"]
 		var was_home_land := autopilot.state == AutoPilot.State.RTH_LAND
-		var cmd := autopilot.update(p, quad.velocity(), fc.heading, agl, home, float(lim["vH"]), float(lim["vUp"]))
+		var cmd := autopilot.update(p, quad.velocity(), fc.heading, agl, launch_pos, float(lim["vH"]), float(lim["vUp"]))
 		if was_home_land and autopilot.state == AutoPilot.State.NONE and autopilot.message == "Landed":
 			_home_landed()
 			autopilot.message = ""   # the home landing has its own notice
@@ -1675,7 +1708,7 @@ func _home_landed() -> void:
 	_charge_t = 0.0
 	_charge_done = false
 	if hud != null:
-		hud.toast("Home. Motors off. Recharging for the next flight.")
+		hud.toast("At the launch site. Motors off. Recharging for the next flight.")
 
 ## Fallback for the RTH-LAND to NONE transition, in case a frame misses the autopilot message.
 func _check_home_landing() -> void:

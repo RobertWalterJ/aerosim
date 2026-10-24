@@ -18,6 +18,7 @@ var thermal: ThermalCamera
 var ending: Ending
 var inventory: Inventory
 var wildlife: WildlifeCase
+var sites: LaunchSites
 
 var started := false
 var ended := false
@@ -36,7 +37,7 @@ const CABIN_CLOSE := 190.0
 const HIKER_FIND := 105.0
 const WAYPOINTS := [700.0, 420.0, 190.0]
 
-func setup(h: Hud, c: ChatData, n: PhoneNotes, s: StoryArc, u: UnknownThread, o: CaseObjects, w: WeatherEvents, t: ThermalCamera, e: Ending, inv: Inventory, wild: WildlifeCase) -> void:
+func setup(h: Hud, c: ChatData, n: PhoneNotes, s: StoryArc, u: UnknownThread, o: CaseObjects, w: WeatherEvents, t: ThermalCamera, e: Ending, inv: Inventory, wild: WildlifeCase, ls: LaunchSites = null) -> void:
 	hud = h
 	chat = c
 	notes = n
@@ -48,6 +49,7 @@ func setup(h: Hud, c: ChatData, n: PhoneNotes, s: StoryArc, u: UnknownThread, o:
 	ending = e
 	inventory = inv
 	wildlife = wild
+	sites = ls
 	_build_objective()
 
 func _build_objective() -> void:
@@ -134,6 +136,8 @@ func _missing_requirement() -> String:
 		return "thermal"
 	if wildlife == null or not wildlife.completed():
 		return "wildlife"
+	if sites != null and not (str(sites.active_id) in ["cabin_track", "north_ridge"]):
+		return "site"
 	return ""
 
 func _prompt_missing(kind: String) -> void:
@@ -143,6 +147,9 @@ func _prompt_missing(kind: String) -> void:
 	elif kind == "wildlife":
 		chat.post("town", "Riley", "Before the last flight, come and find what has been taking my sheep. The west pasture will teach you the thermal camera, and I need the answer.", false)
 		notes.post_text("Riley", "Night pasture first", "The last flight needs the thermal camera you learn in the west pasture. Finish Riley's favour first.", 1)
+	elif kind == "site":
+		chat.post("town", "Rennick", "Come north. The last flight should start from the ridge trailhead, not from the home pad. Drive the kit up, then open the map if you need the way.", false)
+		notes.post_text("Rennick", "Launch from the trailhead", "The last flight starts from the ridge trailhead or the north gate pull-off. Use the Map app to drive the kit there.", 1)
 
 func _arrive_cabin() -> void:
 	objects.set_cabin_lights(true)
@@ -219,6 +226,8 @@ func debug_start() -> void:
 		inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
 	if wildlife != null and not wildlife.completed():
 		wildlife.debug_complete()
+	if sites != null:
+		sites.set_active("cabin_track")
 	start()
 
 func debug_cabin() -> void:

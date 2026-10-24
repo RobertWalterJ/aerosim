@@ -74,6 +74,7 @@ static func app_colour(key: String) -> Color:
 		"jobs": return AMBER
 		"casebook": return Color(0.545, 0.575, 0.700)
 		"market": return Color(0.760, 0.520, 0.280)
+		"map": return Color(0.470, 0.640, 0.470)
 		_: return MUTED
 
 static func _button(t: Theme, type: String, normal: StyleBox, hover: StyleBox, pressed: StyleBox, font: Color, font_pressed: Color) -> void:

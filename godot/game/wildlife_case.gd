@@ -81,7 +81,7 @@ func update(delta: float, drone_pos: Vector3) -> void:
 		thermal.install()
 	if not has_thermal:
 		if stage == 0:
-			_set_objective("Get a thermal camera from Facade", "Facade has a thermal module. Buy it, fit it, then fly the west pasture.")
+			_set_objective("Get a thermal camera from Facade", "Facade has a thermal module. Buy it, fit it, then fly the west pasture. The farm gate is the closest launch site on the map.")
 		return
 	if stage == 0:
 		stage = 1
@@ -92,7 +92,7 @@ func update(delta: float, drone_pos: Vector3) -> void:
 			chat.post("general", "Riley", "That is the thermal camera fitted. West pasture, after dark. The flock is in the hay field, the wolf is somewhere along the trees. Keep high and do not land.", false)
 		if notes != null:
 			notes.post_text("Riley", "Night pasture", "Thermal camera fitted. Fly the west pasture with T on and find the wolf.", 0)
-	_set_objective("Night pasture: find the wolf with the thermal camera", "Press T for thermal. Fly the west pasture, keep high, and look for the heat signature along the trees.")
+	_set_objective("Night pasture: find the wolf with the thermal camera", "Press T for thermal. Fly the west pasture, keep high, and look for the heat signature along the trees. Launch from the farm gate if you are far away.")
 	if thermal != null and thermal.is_on() and objects != null:
 		if drone_pos.distance_to(objects.wolf_position()) < FIND_DIST:
 			_complete()
@@ -152,7 +152,7 @@ func debug_start() -> void:
 		stage = 1
 		if objects != null:
 			objects.show_wolf()
-	_set_objective("Night pasture: find the wolf with the thermal camera", "Press T for thermal. Fly the west pasture, keep high, and look for the heat signature along the trees.")
+	_set_objective("Night pasture: find the wolf with the thermal camera", "Press T for thermal. Fly the west pasture, keep high, and look for the heat signature along the trees. Launch from the farm gate if you are far away.")
 
 func debug_complete() -> void:
 	debug_start()

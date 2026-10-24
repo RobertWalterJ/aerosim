@@ -954,3 +954,20 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - VEH3. Are the fictional plates and the period details for the Lake Car, bus and cruiser right?
   - VEH4. Should parked cars and story vehicles share the same LOD/material kit, or be separate hero assets?
   - VEH5. Should the traffic have engine and tyre audio once the models land?
+
+## Launch sites and the map app (lane/notify, session B, 2026-11-15)
+- **Why:** the drone was flying every chapter from the cemetery home pad even when the story was at the lake, the farm or the north cabin. That made the valley feel small. The pilot can now drive the kit to a roadside launch site, and the map makes the distance and the choice visible.
+- **Launch sites (`game/launch_sites.gd`):** nine sites: home, east gate car park, north gate pull-off, Toby Farm gate, boat launch, Voss and Son yard, ridge trailhead, ridge camp and festival field. Each has a position, a facing yaw, a short description and a saved id.
+- **Map app (`game/map_app.gd`):** the seventh app on the phone home screen. It draws a schematic road atlas from the real road paths, the cemetery, the western lake and a 100 m grid, then pins the sites. The current and suggested sites are highlighted, the list puts the current site first, and each card shows distance and approximate drive time. Pressing Drive here sends the travel request to `main.gd`.
+- **Travel behaviour:** the drone must be on the ground. The map app says to land if it is flying. On a successful move the app closes, the drone is unpacked at the new site, the HUD minimap home marker moves and a toast names the site. The new site is saved in `user://launch_site.cfg`. The battery is refreshed by the travel and launch.
+- **Mission staging:** the map suggests the lake site for the car chapter, the garage for the VIN, the camp for the camp beat and the festival for the bus. Riley's night pasture suggests Toby Farm gate. The last flight hard-requires the ridge trailhead or the north gate pull-off: `finale.gd` will not start until the kit is staged there, and Rennick tells the player to drive up. This is the implied travel between story elements.
+- **Return to Home** now returns to the current launch site, not the old home pad. The RTH and landing messages say launch site. The minimap home marker follows the site.
+- **Evidence:** `docs/realism/launch_sites/00_map.jpg`, `01_map_home.jpg`.
+- **Docs:** `docs/LAUNCH-SITES.md`.
+- **Honest limits:** the drive is implied; there is no animation or time passing. The map is schematic, not the live minimap, and the lake shape is approximate. The drive time and distance are straight-line estimates, not routed. The sites have no dedicated pad, windsock or parked kit prop yet. Every site is available from the start; only the last flight is hard-staged. The site save is separate from the story save, and travel refreshes the battery.
+- **Questions for Robert:**
+  - SITE1. Should the sites stay open from the start, or unlock as the story reaches each place?
+  - SITE2. Should there be a small physical pad, windsock or parked kit prop at each launch site?
+  - SITE3. Should travel take in-game time and cost a small fee, or stay instant and free?
+  - SITE4. Should every story chapter hard-require its suggested launch site, or stay a soft highlight like now?
+  - SITE5. Should the map show the roads' names and the story waypoints, or stay a clean road atlas?

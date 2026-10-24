@@ -101,6 +101,15 @@ func _draw() -> void:
 			draw_polygon(tag, PackedColorArray([Color(ink.r, ink.g, ink.b, 0.94)]))
 			draw_circle(c + Vector2(-s * 0.14, 0), s * 0.045, Color(accent.r, accent.g, accent.b, 0.9))
 			draw_line(c + Vector2(0, -s * 0.08), c + Vector2(0, s * 0.08), Color(accent.r, accent.g, accent.b, 0.9), maxf(1.2, s * 0.03))
+		"map":
+			# a folded road map with a route and a pin
+			var sheet := PackedVector2Array([c + Vector2(-s * 0.27, -s * 0.22), c + Vector2(-s * 0.02, -s * 0.16), c + Vector2(s * 0.24, -s * 0.22), c + Vector2(s * 0.24, s * 0.20), c + Vector2(-s * 0.02, s * 0.14), c + Vector2(-s * 0.27, s * 0.20)])
+			draw_colored_polygon(sheet, Color(ink.r, ink.g, ink.b, 0.9))
+			draw_line(c + Vector2(-s * 0.02, -s * 0.16), c + Vector2(-s * 0.02, s * 0.14), Color(accent.r, accent.g, accent.b, 0.5), maxf(1.0, s * 0.02))
+			draw_line(c + Vector2(-s * 0.20, s * 0.08), c + Vector2(-s * 0.05, -s * 0.04), Color(accent.r, accent.g, accent.b, 0.9), maxf(1.4, s * 0.035))
+			draw_line(c + Vector2(-s * 0.05, -s * 0.04), c + Vector2(s * 0.16, s * 0.10), Color(accent.r, accent.g, accent.b, 0.9), maxf(1.4, s * 0.035))
+			draw_circle(c + Vector2(s * 0.10, -s * 0.10), s * 0.055, UniverseUI.AMBER)
+			draw_circle(c + Vector2(s * 0.10, -s * 0.10), s * 0.02, UniverseUI.NIGHT)
 		"settings":
 			for i in 8:
 				var a2 := float(i) * TAU / 8.0

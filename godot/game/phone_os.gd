@@ -2,6 +2,7 @@ class_name PhoneOS
 extends CanvasLayer
 
 signal fly_drone(id: String)
+signal travel_requested(site_id: String)
 ## The in-game phone (session B): a home screen, an app switcher and full-screen apps, opened with Tab.
 ##
 ## The phone exists because the DroneBudz story lives in apps: a Discord-style server where the crew talk about the
@@ -24,9 +25,14 @@ var _studio_app: StudioApp
 var story: StoryArc
 var _casebook_app: CasebookApp
 var _marketplace_app: MarketplaceApp
+var _map_app: MapApp
 var inventory: Inventory
 var clips: ClipLibrary
 var director: StoryDirector
+var roads: Roads
+var sites: LaunchSites
+var finale: Finale
+var wildlife: WildlifeCase
 var _root: Control
 var _home: Control
 var _apps: Control
@@ -48,7 +54,8 @@ var _battery_pct := 0.74
 var _open := false
 var _current_app := "home"
 
-func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc, inv: Inventory, cl: ClipLibrary, dr: StoryDirector = null) -> void:
+func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc, inv: Inventory, cl: ClipLibrary, dr: StoryDirector = null,
+		rd: Roads = null, ls: LaunchSites = null, fn: Finale = null, wl: WildlifeCase = null) -> void:
 	hud = h
 	jobs = j
 	photos = p
@@ -58,6 +65,10 @@ func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc
 	inventory = inv
 	clips = cl
 	director = dr
+	roads = rd
+	sites = ls
+	finale = fn
+	wildlife = wl
 	layer = 28
 	_build()
 	_show_home()
@@ -207,6 +218,7 @@ func _build() -> void:
 		{"key": "jobs", "letter": "JB", "name": "Jobs", "kind": "board"},
 		{"key": "casebook", "letter": "CB", "name": "Casebook", "kind": "case file"},
 		{"key": "market", "letter": "FC", "name": "Facade", "kind": "marketplace"},
+		{"key": "map", "letter": "MP", "name": "Map", "kind": "road atlas"},
 	]
 	for a in apps:
 		var cell := VBoxContainer.new()
@@ -334,6 +346,12 @@ func _build() -> void:
 	_marketplace_app.visible = false
 	_apps.add_child(_marketplace_app)
 	_marketplace_app.setup(jobs, inventory, hud)
+	_map_app = MapApp.new()
+	_map_app.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_map_app.visible = false
+	_apps.add_child(_map_app)
+	_map_app.setup(hud, roads, sites, story, wildlife, finale)
+	_map_app.travel_requested.connect(func(id: String): travel_requested.emit(id))
 	_marketplace_app.fly_requested.connect(func(id: String):
 		fly_drone.emit(id)
 		close())
@@ -424,6 +442,7 @@ func _show_switcher() -> void:
 		{"key": "jobs", "name": "Jobs", "desc": "Paid work on the valley board"},
 		{"key": "casebook", "name": "Casebook", "desc": "Rennick's file, evidence and chapter trail"},
 		{"key": "market", "name": "Facade", "desc": "The valley classifieds: drones, cameras, motors and parts"},
+		{"key": "map", "name": "Map", "desc": "The valley road map and launch sites"},
 	]
 	for a in apps:
 		var key := str(a["key"])
@@ -467,10 +486,13 @@ func _app_letter(key: String) -> String:
 		"jobs": return "JB"
 		"casebook": return "CB"
 		"market": return "FC"
+		"map": return "MP"
 	return "?"
 
 func _open_app(key: String) -> void:
 	_switcher.visible = false
+	if _map_app != null:
+		_map_app.visible = false
 	match key:
 		"chat":
 			_current_app = "chat"
@@ -500,6 +522,16 @@ func _open_app(key: String) -> void:
 			_marketplace_app.visible = false
 			_casebook_app.visible = true
 			_casebook_app.refresh()
+		"map":
+			_current_app = "map"
+			_home.visible = false
+			_apps.visible = true
+			_chat_app.visible = false
+			_studio_app.visible = false
+			_casebook_app.visible = false
+			_marketplace_app.visible = false
+			_map_app.visible = true
+			_map_app.refresh()
 		"market":
 			_current_app = "market"
 			_home.visible = false
