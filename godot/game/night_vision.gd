@@ -1,0 +1,30 @@
+class_name NightVision
+extends CanvasLayer
+## The night vision camera add-on bought on Facade (session B). A green low-light pass over the world, under the HUD,
+## toggled with K when the module is owned. It is an image intensifier, not true thermal.
+
+var _on := false
+var _rect: ColorRect
+
+func _ready() -> void:
+	layer = 8
+	visible = false
+	_rect = ColorRect.new()
+	_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_rect.size = get_viewport().get_visible_rect().size
+	_rect.position = Vector2.ZERO
+	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://game/shaders/night_vision.gdshader")
+	_rect.material = mat
+	add_child(_rect)
+
+func is_on() -> bool:
+	return _on
+
+func set_on(on: bool) -> void:
+	_on = on
+	visible = on
+
+func toggle() -> void:
+	set_on(not _on)

@@ -58,6 +58,7 @@ No pure white surfaces. No neon cyan. No blue-purple gradients. No drop shadows 
 - **VidTube Studio:** rust channel mark, a channel banner, four metric cards (followers, money, videos, views) with coloured left edges, and a list of uploads with a play tile. Warm, not corporate.
 - **Photos:** a quiet gallery grid, warm panel, cream header, no bright chrome.
 - **Jobs:** a board of cards with the potential line, a photograph, and raw or edited publish actions. Amber accents, not a marketplace.
+- **Facade:** the valley classifieds, with a warm brass mark and MugShot Motors as the slightly dodgy drone seller. Market cards show seller, place, condition, price and a clear Buy or Fly action. The Your kit tab is the inventory: owned drones with Fly, fitted motors, camera add-ons and the battery.
 - **Casebook:** brass case accent, a request card, evidence thumbnails, the chapter trail and the ending choice. It should read like a police file kept in a drawer.
 - **HUD menus:** the same palette and component language, brass selected tabs, warm cards, dark pine panel. The old cool cyan is gone.
 - **Notifications:** Android heads-up cards in warm charcoal, the DroneBudz mark in moss, urgency in amber or rust, no glass.

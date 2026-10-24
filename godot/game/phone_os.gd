@@ -1,5 +1,7 @@
 class_name PhoneOS
 extends CanvasLayer
+
+signal fly_drone(id: String)
 ## The in-game phone (session B): a home screen, an app switcher and full-screen apps, opened with Tab.
 ##
 ## The phone exists because the DroneBudz story lives in apps: a Discord-style server where the crew talk about the
@@ -21,6 +23,8 @@ var _chat_app: ChatApp
 var _studio_app: StudioApp
 var story: StoryArc
 var _casebook_app: CasebookApp
+var _marketplace_app: MarketplaceApp
+var inventory: Inventory
 var _root: Control
 var _home: Control
 var _apps: Control
@@ -36,13 +40,14 @@ var _drone_budz_badge: Label
 var _open := false
 var _current_app := "home"
 
-func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc) -> void:
+func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc, inv: Inventory) -> void:
 	hud = h
 	jobs = j
 	photos = p
 	chat = c
 	crew = cr
 	story = st
+	inventory = inv
 	layer = 28
 	_build()
 	_show_home()
@@ -153,6 +158,7 @@ func _build() -> void:
 		{"key": "photos", "letter": "PH", "name": "Photos", "kind": "camera roll"},
 		{"key": "jobs", "letter": "JB", "name": "Jobs", "kind": "board"},
 		{"key": "casebook", "letter": "CB", "name": "Casebook", "kind": "case file"},
+		{"key": "market", "letter": "FC", "name": "Facade", "kind": "marketplace"},
 	]
 	for a in apps:
 		var cell := VBoxContainer.new()
@@ -249,6 +255,7 @@ func _build() -> void:
 	_studio_app.chat_requested.connect(func(): _open_app("chat"))
 	_studio_app.jobs_requested.connect(func(): jobs.open_page())
 	_studio_app.upload_requested.connect(func(): photos.open_gallery())
+	_studio_app.market_requested.connect(func(): _open_app("market"))
 	_casebook_app = CasebookApp.new()
 	_casebook_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_casebook_app.visible = false
@@ -257,6 +264,14 @@ func _build() -> void:
 	_casebook_app.chat_requested.connect(func():
 		_open_app("chat")
 		_chat_app.open("town"))
+	_marketplace_app = MarketplaceApp.new()
+	_marketplace_app.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_marketplace_app.visible = false
+	_apps.add_child(_marketplace_app)
+	_marketplace_app.setup(jobs, inventory, hud)
+	_marketplace_app.fly_requested.connect(func(id: String):
+		fly_drone.emit(id)
+		close())
 	# switcher
 	_switcher = Control.new()
 	_switcher.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -343,6 +358,7 @@ func _show_switcher() -> void:
 		{"key": "photos", "name": "Photos", "desc": "Everything the drone has photographed"},
 		{"key": "jobs", "name": "Jobs", "desc": "Paid work on the valley board"},
 		{"key": "casebook", "name": "Casebook", "desc": "Rennick's file, evidence and chapter trail"},
+		{"key": "market", "name": "Facade", "desc": "The valley classifieds: drones, cameras, motors and parts"},
 	]
 	for a in apps:
 		var key := str(a["key"])
@@ -388,6 +404,7 @@ func _app_letter(key: String) -> String:
 		"photos": return "PH"
 		"jobs": return "JB"
 		"casebook": return "CB"
+		"market": return "FC"
 	return "?"
 
 func _open_app(key: String) -> void:
@@ -399,6 +416,7 @@ func _open_app(key: String) -> void:
 			_apps.visible = true
 			_studio_app.visible = false
 			_casebook_app.visible = false
+			_marketplace_app.visible = false
 			_chat_app.visible = true
 			_chat_app.open("general")
 			chat.unread_total()
@@ -408,6 +426,7 @@ func _open_app(key: String) -> void:
 			_apps.visible = true
 			_chat_app.visible = false
 			_casebook_app.visible = false
+			_marketplace_app.visible = false
 			_studio_app.visible = true
 			_studio_app.refresh()
 		"casebook":
@@ -416,8 +435,18 @@ func _open_app(key: String) -> void:
 			_apps.visible = true
 			_chat_app.visible = false
 			_studio_app.visible = false
+			_marketplace_app.visible = false
 			_casebook_app.visible = true
 			_casebook_app.refresh()
+		"market":
+			_current_app = "market"
+			_home.visible = false
+			_apps.visible = true
+			_chat_app.visible = false
+			_studio_app.visible = false
+			_casebook_app.visible = false
+			_marketplace_app.visible = true
+			_marketplace_app.refresh()
 		"photos":
 			if photos != null:
 				photos.open_gallery()

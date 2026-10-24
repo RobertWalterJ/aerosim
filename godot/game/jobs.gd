@@ -40,6 +40,24 @@ const JOBS := [
 		"potential": {"followers": 2, "views": 3}, "next": "",
 		"objectives": [{"kind": "photo", "subject": "fields", "max_dist": 600.0, "text": "Photograph the farm fields"}],
 	},
+	{
+		"id": "favour_lake", "from": "Sam", "title": "A favour: lake reading",
+		"brief": "Not a channel job. I need a photograph of the lake for the weather board, same view every week. I will put something in the channel pot for the fuel.",
+		"potential": {"followers": 1, "views": 1}, "next": "", "favour_pay": 35,
+		"objectives": [{"kind": "photo", "subject": "lake", "max_dist": 900.0, "text": "Photograph the lake for Sam"}],
+	},
+	{
+		"id": "favour_chapel", "from": "Jo", "title": "A favour: chapel handbill",
+		"brief": "The festival committee needs one clean photograph of the chapel for a handbill. Small thing, but they pay in cash and cake. Mostly cake.",
+		"potential": {"followers": 1, "views": 1}, "next": "", "favour_pay": 30,
+		"objectives": [{"kind": "photo", "subject": "chapel", "max_dist": 500.0, "text": "Photograph the chapel for Jo"}],
+	},
+	{
+		"id": "favour_fields", "from": "Alex", "title": "A favour: field check",
+		"brief": "Riley wants to know which field is still standing after the wind. One photo over the rows will do. I will cover the fuel and a set of props.",
+		"potential": {"followers": 1, "views": 1}, "next": "", "favour_pay": 40,
+		"objectives": [{"kind": "photo", "subject": "fields", "max_dist": 700.0, "text": "Photograph the fields for Alex"}],
+	},
 ]
 
 var hud: Hud
@@ -71,9 +89,10 @@ func setup(h: Hud, lib: PhotoLibrary, n: PhoneNotes) -> void:
 	_load_state()
 	_build_ui()
 	if _offers.is_empty() and _active.is_empty() and _done.is_empty():
-		_offers.append("lake")
+		_offers.append_array(["lake", "favour_lake", "favour_chapel", "favour_fields"])
 		_save_state()
-		_announce_offer("lake")
+		for jid in ["lake", "favour_lake", "favour_chapel", "favour_fields"]:
+			_announce_offer(str(jid))
 
 func _story_on() -> bool:
 	return hud == null or bool(hud.story_on)
@@ -122,6 +141,16 @@ func add_money(amount: int) -> void:
 func add_followers(amount: int) -> void:
 	_followers += amount
 	_save_state()
+
+## Facade purchases come out of the same channel pot the Studio shows. Returns false when the pot is too small.
+func spend(amount: int) -> bool:
+	if amount <= 0:
+		return true
+	if _money < amount:
+		return false
+	_money -= amount
+	_save_state()
+	return true
 
 func views() -> int:
 	return _views
@@ -331,7 +360,7 @@ func submit(job_id: String, edited := false) -> void:
 	var mult := 1.9 if edited else 1.0
 	var views_gain := int((90.0 + 110.0 * float(int(pot.get("views", 1)))) * (1.0 + float(_followers) * 0.012) * quality * mult)
 	var gain := maxi(2, int((4.0 + 6.0 * float(int(pot.get("followers", 1)))) * (1.0 + float(_followers) * 0.004) * quality * (1.6 if edited else 1.0)))
-	var money_gain := int(float(views_gain) * 0.025 * (1.5 if edited else 1.0)) + 10
+	var money_gain := int(float(views_gain) * 0.025 * (1.5 if edited else 1.0)) + 10 + int(job.get("favour_pay", 0))
 	_views += views_gain
 	_followers += gain
 	_money += money_gain

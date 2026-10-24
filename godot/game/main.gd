@@ -62,6 +62,8 @@ var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks 
 var story: StoryArc                # session B: the Lake Car story arc (game/story_arc.gd)
 var unknown_thread: UnknownThread  # session B: the unknown direct message thread (game/unknown_thread.gd)
 var thermal: ThermalCamera         # session B: the heat camera for the last flight (game/thermal.gd)
+var night_vision: NightVision      # session B: the Facade night vision add-on (game/night_vision.gd)
+var inventory: Inventory           # session B: the pilot's bought kit (game/inventory.gd)
 var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
 var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
@@ -190,7 +192,9 @@ func _ready() -> void:
 	Grass.add_globals()
 	Fireworks.add_globals()        # session B: the burst light colour that the smoke and the lake read (g_fire)
 	await _build_world()
-	af = Airframes.make(airframe_id)
+	inventory = Inventory.new()
+	inventory.setup()
+	af = inventory.apply_airframe(Airframes.make(airframe_id), airframe_id)
 	if airframe_id == "wing":
 		quad = FPVPlane.new(af)                       # plane lane: fixed wing (physics/plane.gd)
 		fc = PlaneController.new(af, quad)
@@ -362,6 +366,8 @@ func _ready() -> void:
 	# session B: the final flight. Thermal camera, the storm search, the ghost and the credits.
 	thermal = ThermalCamera.new()
 	add_child(thermal)
+	night_vision = NightVision.new()
+	add_child(night_vision)
 	ending = Ending.new()
 	add_child(ending)
 	ending.setup(jobs)
@@ -370,7 +376,8 @@ func _ready() -> void:
 	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
-	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story)
+	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory)
+	phone_os.fly_drone.connect(switch_drone)
 	# a notification's "Open DroneBudz" button goes straight into the chat app
 	phone_notes.app_requested.connect(func(app: String):
 		phone_os.open()
@@ -730,7 +737,7 @@ func spawn() -> void:
 
 func switch_drone(id: String) -> void:
 	airframe_id = id
-	af = Airframes.make(id)
+	af = inventory.apply_airframe(Airframes.make(id), id) if inventory != null else Airframes.make(id)
 	quad.set_airframe(af)
 	fc.set_airframe(af)
 	drone_view.build(af)
@@ -891,6 +898,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_G: if hud.paused: photo_library.toggle()   # session B: photo gallery from the menu
 		KEY_J: if hud.paused: jobs.toggle()   # session B: DroneBudz jobs page from the menu
 		KEY_T: if thermal != null: thermal.toggle()   # session B: thermal camera in the last flight
+		KEY_K:   # session B: night vision add-on from Facade
+			if inventory != null and inventory.has_addon("night_vision") and night_vision != null:
+				night_vision.toggle()
+				hud.toast("Night vision " + ("on" if night_vision.is_on() else "off"))
+			else:
+				hud.toast("No night vision module. Facade has one on the board.")
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
@@ -1072,6 +1085,36 @@ func _screenshot_mode(arg: String) -> void:
 		elif c == "vidtube":      # session B dev hook: the VidTube Studio app
 			phone_os.open()
 			phone_os._open_app("studio")
+		elif c == "market":      # session B dev hook: the Facade marketplace
+			phone_os.open()
+			phone_os._open_app("market")
+		elif c == "marketkit":   # session B dev hook: the owned kit, with a couple of purchases
+			jobs.add_money(1000)
+			for iid in ["drone_raptor", "night_vision", "motor_mini", "battery"]:
+				inventory.add_purchase(FacadeCatalog.item(str(iid)))
+			phone_os.open()
+			phone_os._open_app("market")
+			phone_os._marketplace_app.debug_tab("kit")
+		elif c == "marketcheck":  # session B dev hook: buy one item through the real purchase path
+			jobs.add_money(500)
+			phone_os.open()
+			phone_os._open_app("market")
+			phone_os._marketplace_app._buy(FacadeCatalog.item("night_vision"))
+			print("marketcheck: money=", jobs.money(), " kit=", inventory.stats())
+		elif c == "marketbuy":   # session B dev hook: the market after a Raptor and the night vision have been bought
+			jobs.add_money(1000)
+			for iid in ["drone_raptor", "night_vision", "motor_raptor"]:
+				inventory.add_purchase(FacadeCatalog.item(str(iid)))
+			phone_os.open()
+			phone_os._open_app("market")
+		elif c == "nightvisiondemo":  # session B dev hook: the night vision add-on switched on
+			if not inventory.has_addon("night_vision"):
+				inventory.add_purchase(FacadeCatalog.item("night_vision"))
+			night_vision.set_on(true)
+		elif c == "raptorflight":     # session B dev hook: fly the bought Raptor
+			if not inventory.owns_drone("raptor"):
+				inventory.add_purchase(FacadeCatalog.item("drone_raptor"))
+			switch_drone("raptor")
 		elif c == "trafficdemo":  # session B dev hook: line the traffic up on the valley highway
 			traffic.debug_line_up()
 		elif c == "crewdemo":     # session B dev hook: ask every friend once and open the weather channel
@@ -1277,6 +1320,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("crew: ", crew.stats())
 	print("story: ", story.stats())
 	print("unknown: ", unknown_thread.stats())
+	print("kit: ", inventory.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:

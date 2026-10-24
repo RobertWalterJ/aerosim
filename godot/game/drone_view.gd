@@ -214,7 +214,7 @@ static func _wear_tex() -> ImageTexture:
 	return _wear
 
 func _make_materials(id: String) -> void:
-	var accent_col: Color = {"freestyle": Color(1.0, 0.42, 0.08), "race": Color(0.25, 0.95, 0.45), "cinewhoop": Color(0.2, 0.6, 1.0),
+	var accent_col: Color = {"freestyle": Color(1.0, 0.42, 0.08), "race": Color(0.25, 0.95, 0.45), "raptor": Color(0.92, 0.35, 0.18), "nightowl": Color(0.35, 0.55, 0.70), "cinewhoop": Color(0.2, 0.6, 1.0),
 		"mini": Color(0.55, 0.57, 0.6), "cinema": Color(0.9, 0.22, 0.16)}.get(id, Color(1.0, 0.5, 0.1))
 	_m = {
 		"carbon": _mat(Color(0.05, 0.053, 0.06), 0.32, 0.35),

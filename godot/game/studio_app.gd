@@ -9,6 +9,7 @@ extends Control
 signal chat_requested
 signal jobs_requested
 signal upload_requested
+signal market_requested
 
 var hud: Hud
 var jobs: Jobs
@@ -85,6 +86,12 @@ func _build() -> void:
 	up_btn.custom_minimum_size = Vector2(216, 38)
 	up_btn.pressed.connect(func(): upload_requested.emit())
 	actions.add_child(up_btn)
+	var market_btn := Button.new()
+	market_btn.text = "Spend on Facade"
+	market_btn.theme_type_variation = "Ghost"
+	market_btn.custom_minimum_size = Vector2(172, 34)
+	market_btn.pressed.connect(func(): market_requested.emit())
+	actions.add_child(market_btn)
 	# ---------------- metrics
 	var metrics_pad := MarginContainer.new()
 	metrics_pad.add_theme_constant_override("margin_left", 22)
