@@ -1,3 +1,5 @@
+> **MODELS: use Claude's, do not rebuild them (Robert's instruction, 2026-11-16).** Claude (Opus, Blender) has delivered photoreal, rigged, animated models: people, animals and wildlife props, 26+ vehicles including the wreck and dive van, drones, the Halloway buildings and cabin, boat launch, cabin track and cave, farm, roadside, storm and endgame props, and the tablet UI kit. Wire these in wherever they exist and retire any DSH-built placeholder (the code-built ones stay only as loader fallbacks). Contracts: `game/README-models.md`. Contact sheets: `docs/realism/models/*_final_views.jpg`. Index of what exists: board entry "NOTICE TO ALL DSH SESSIONS". Need something new? Post one batched `[REQUEST CLAUDE]`. Rules for any art lane: `docs/CLAUDE-LANE-RULES.md`.
+
 # Handoff to DSH: where things stand, and how to work without Claude
 
 Written 2026-10-23, because the owner (Robert) is near his Claude usage limit and wants the rest of this project run by DSH

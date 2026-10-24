@@ -48,6 +48,10 @@ const EXPECT := {
 	"car_estate_roofbox_a": [4.6, 4.95, 2.0, 2.3, 1.8, 2.0, 37000],
 	"car_estate_dogguard_a": [4.6, 4.95, 2.0, 2.3, 1.42, 1.62, 37000],
 	"cruiser_1984_flat": [5.2, 5.65, 2.1, 2.45, 1.4, 2.2, 36000],
+	# lane/wreckvan (tools/blender/vk_wreckvan.py). The wreck's size is its silt bed (about 3.6 x 6.1 m round a 4.3 m car);
+	# the car sits sunk into it (manifest "sunk"), so its lowest point is below the origin.
+	"anne_car_wreck_a": [5.8, 6.4, 3.3, 3.9, 1.2, 1.7, 50000],
+	"police_dive_van_a": [5.9, 6.2, 2.25, 2.6, 3.2, 3.55, 46000],
 }
 func lod_meshes(rig: Node) -> Array:
 	var out := [null, null, null]
@@ -122,7 +126,11 @@ func _initialize() -> void:
 		check(nm + " length", sz.z >= e[0] and sz.z <= e[1], "%.2f m (want %.2f to %.2f)" % [sz.z, e[0], e[1]])
 		check(nm + " width", sz.x >= e[2] and sz.x <= e[3], "%.2f m (want %.2f to %.2f)" % [sz.x, e[2], e[3]])
 		check(nm + " height", sz.y >= e[4] and sz.y <= e[5], "%.2f m (want %.2f to %.2f)" % [sz.y, e[4], e[5]])
-		check(nm + " on the ground", absf((m0["lo"] as Vector3).y) < 0.03, "lowest point %.3f m" % (m0["lo"] as Vector3).y)
+		var sunk := float(d.get("sunk", 0.0))     # a wreck settled into its silt bed: nothing deeper than the declared depth
+		if sunk > 0.0:
+			check(nm + " sunk no deeper than declared", (m0["lo"] as Vector3).y > -sunk and (m0["lo"] as Vector3).y < 0.0, "lowest point %.3f m (sunk %.2f)" % [(m0["lo"] as Vector3).y, sunk])
+		else:
+			check(nm + " on the ground", absf((m0["lo"] as Vector3).y) < 0.03, "lowest point %.3f m" % (m0["lo"] as Vector3).y)
 		check(nm + " centred", absf(((m0["lo"] as Vector3).z + (m0["hi"] as Vector3).z) * 0.5) < 0.6, "middle of length at z %.2f" % (((m0["lo"] as Vector3).z + (m0["hi"] as Vector3).z) * 0.5))
 		check(nm + " LOD0 budget", tr[0] <= e[6] and tr[0] >= 1500, "%d tris (max %d)" % [tr[0], e[6]])
 		check(nm + " LOD1 ~35%", tr[1] < tr[0] and tr[1] <= tr[0] * 0.55, "%d tris (%.0f%%)" % [tr[1], 100.0 * tr[1] / max(1, tr[0])])
@@ -174,6 +182,7 @@ func _initialize() -> void:
 			skel.force_update_all_bone_transforms()
 			var b1 := skel.get_bone_global_pose(bi).basis
 			var turned := rad_to_deg((b0.get_rotation_quaternion().inverse() * b1.get_rotation_quaternion()).get_angle())
+			turned = minf(turned, 360.0 - turned)     # a tilted rest (the sunk wreck) can give the long way round
 			var want := rad_to_deg(0.5 / float(w0["radius"]))
 			var ax := (b1 * (skel.get_bone_global_rest(bi).basis.inverse() * Vector3.RIGHT)).normalized()
 			check(nm + " wheel rolls", absf(turned - want) < 2.0 and ax.dot(Vector3.RIGHT) > 0.99, "turned %.1f deg (want %.1f), axle stays on x %.3f" % [turned, want, ax.dot(Vector3.RIGHT)])
@@ -212,6 +221,43 @@ func _initialize() -> void:
 			var n := StoryAssets.instance(sn)
 			check("story " + sn, n.has_meta("vehicle") and n.get_node_or_null("rig") != null and absf((n.get_node("rig") as Node3D).rotation.y) > 3.0, "front turned to +z")
 			n.free()
+	# lane/wreckvan: the endgame names route to the Blender files with the brief's named nodes, posed variants included
+	var wv := {"anne_car_wreck_a": ["wheel_fl", "wheel_rr", "door", "boot_lid", "collision"],
+		"police_dive_van_a": ["wheel_fl", "wheel_rr", "door", "rear_door_l", "rear_door_r", "side_door", "dive_flag", "collision"],
+		"police_dive_van_a_open": ["rear_door_l", "side_door", "dive_flag"]}
+	for sn: String in wv:
+		if not VehicleAssets.has(sn):
+			check("story " + sn, false, "no file"); continue
+		var n2 := StoryAssets.instance(sn)
+		var miss: Array = []
+		for nn in wv[sn]:
+			if n2.find_child(String(nn), true, false) == null: miss.append(nn)
+		var rig2 := n2.get_node_or_null("rig") as Node3D
+		check("story " + sn + " routes with named nodes", n2.name == sn and rig2 != null and absf(rig2.rotation.y) > 3.0 and miss.is_empty(), "missing %s" % str(miss))
+		n2.free()
+	# the dive van's rear doors really open in the posed variant, and the wreck's paint carries its silt line
+	if VehicleAssets.has("police_dive_van_a"):
+		var vo := VehicleAssets.instance("police_dive_van_a_open")
+		get_root().add_child(vo)
+		await process_frame
+		var sk2 := vo.get_meta("skeleton") as Skeleton3D
+		var bi2 := sk2.find_bone("door_rear_r")
+		var ang2 := rad_to_deg(sk2.get_bone_pose_rotation(bi2).get_angle())
+		var bs2 := sk2.find_bone("door_slide_r")
+		var slid := (sk2.get_bone_pose_position(bs2) - sk2.get_bone_rest(bs2).origin).length()
+		check("police_dive_van_a_open rear and side doors open", ang2 > 60.0 and slid > 0.5, "door_rear_r at %.0f deg, sliding door moved %.2f m" % [ang2, slid])
+		vo.queue_free()
+	if VehicleAssets.has("anne_car_wreck_a"):
+		var wr := VehicleAssets.instance("anne_car_wreck_a")
+		get_root().add_child(wr)
+		await process_frame
+		var line := -100.0
+		for mi in wr.find_children("*_LOD0", "MeshInstance3D", true, false):
+			for s2 in (mi as MeshInstance3D).mesh.get_surface_count():
+				var om2 := (mi as MeshInstance3D).get_surface_override_material(s2) as ShaderMaterial
+				if om2 != null and om2.resource_name == "paint": line = float(om2.get_shader_parameter("silt_line"))
+		check("anne_car_wreck_a silt line on the paint", line > 0.2 and line < 0.6, "silt_line %.2f" % line)
+		wr.queue_free()
 	print("vehicles_blender_test: %d failures" % fails)
 	quit(1 if fails > 0 else 0)
 

@@ -18,7 +18,7 @@ def car_parts(rc, lod):
     parts, surf_bm, B = vk_assemble.body_parts(s, lod, gaps=lod <= 1)
     surf = Surface(surf_bm)
     L = s.L
-    info = {"spec": s, "body": B}
+    info = {"spec": s, "body": B, "surf": surf}
     d = rc.get("detail", {})
     # lamps, grille, plates
     if "head" in d:
@@ -434,6 +434,7 @@ def build(rc, out_dir, lods=(0, 1, 2), bake=True):
         "pose": rc.get("pose", ""),
         "colliders": rc.get("colliders_fn", default_colliders)(lo, hi),
     }
+    man.update(rc.get("manifest_extra", {}))      # per-vehicle extras the game reads (lane/wreckvan: "sunk", "wreck")
     return man
 
 

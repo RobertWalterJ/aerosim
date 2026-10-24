@@ -71,6 +71,12 @@ const SLOTS := {
 	"flag_a": ["ds", 4, {}],
 	"flag_b": ["ds", 4, {}],
 	"flag_c": ["ds", 4, {}],
+	# lane/wreckvan: the lake silt bed (photo), lake weed (both sides), cracks in glass, the dive team's yellow kit
+	"silt": ["pbr", 8, {}],
+	"weed": ["ds", 4, {}],
+	"weed_dry": ["ds", 4, {}],
+	"crack": ["pbr", 4, {}],
+	"kit_yellow": ["pbr", 6, {}],
 }
 ## Lamp groups for set_lights (material slots each one lights) and how bright "1" is.
 const LAMPS := {
@@ -92,6 +98,10 @@ const ALIASES := {
 	"festival_bus_restored_open": ["festival_bus_restored", "bus_door_open"],
 	"lake_car_estate_a_closed": ["lake_car_estate_a", "tailgate_close"],
 	"festival_ice_cream_van_a_open": ["festival_ice_cream_van_a", "serving_hatch_open"],
+	# lane/wreckvan: the dive van with its barn doors, its sliding door, or both open
+	"police_dive_van_a_rear_open": ["police_dive_van_a", "rear_doors_open"],
+	"police_dive_van_a_side_open": ["police_dive_van_a", "slide_door_open"],
+	"police_dive_van_a_open": ["police_dive_van_a", "rear_doors_open+slide_door_open"],
 }
 
 static var _mats := {}
@@ -128,8 +138,28 @@ static func instance(name: String, paint := Color(0, 0, 0, 0), front_plus_z := f
 		vv.name = name
 		var ap := vv.get_meta("anim", null) as AnimationPlayer
 		if ap != null: ap.stop()
-		for p in String(a[1]).split("+"):
+		var steps := String(a[1]).split("+")
+		if ap != null and steps.size() > 1:
+			# several poses at once (lane/wreckvan: barn doors and sliding door): one animation holding the end of each
+			var key := "+".join(steps)
+			var lib := ap.get_animation_library("")
+			if lib != null and not lib.has_animation(key):
+				var comb := Animation.new()
+				comb.length = 0.05
+				for st in steps:
+					if not ap.has_animation(st): continue
+					var src := ap.get_animation(st)
+					for t in src.get_track_count():
+						var kc := src.track_get_key_count(t)
+						if kc == 0: continue
+						var nt := comb.add_track(src.track_get_type(t))
+						comb.track_set_path(nt, src.track_get_path(t))
+						comb.track_insert_key(nt, 0.0, src.track_get_key_value(t, kc - 1))
+				lib.add_animation(key, comb)
+			steps = PackedStringArray([key])
+		for p in steps:
 			pose(vv, p)
+		_repose_when_ready(vv, steps)
 		return vv
 	var root := Node3D.new()
 	root.name = name
@@ -147,7 +177,17 @@ static func instance(name: String, paint := Color(0, 0, 0, 0), front_plus_z := f
 	if pose_name != "":
 		for p in pose_name.split("+"):
 			pose(root, p)
+		_repose_when_ready(root, pose_name.split("+"))
 	return root
+
+## A pose set before the vehicle is in the tree does not reach the drawn skin (the bones read posed, the mesh shows rest):
+## apply it again once the vehicle is ready in the tree (lane/wreckvan; also fixes the existing posed variants).
+static func _repose_when_ready(v: Node3D, steps: PackedStringArray) -> void:
+	v.ready.connect(_pose_all.bind(v, steps), CONNECT_ONE_SHOT)
+
+static func _pose_all(v: Node3D, steps: PackedStringArray) -> void:
+	for p in steps:
+		pose(v, p)
 
 # ------------------------------------------------------------------ setup
 static func _setup(root: Node3D, rig: Node3D, name: String, paint: Color) -> void:
@@ -158,6 +198,7 @@ static func _setup(root: Node3D, rig: Node3D, name: String, paint: Color) -> voi
 	var p2 := _srgb(p2v) if p2v != null else Color(0.85, 0.85, 0.82)
 	var lamps := {}
 	var dirt := float(d.get("dirt", 0.35))
+	var wreck: Dictionary = d.get("wreck", {})     # lane/wreckvan: silt line and paint photo of a lake wreck
 	var skel: Skeleton3D = null
 	for n in rig.find_children("*", "", true, false):
 		if n is Skeleton3D and skel == null: skel = n
@@ -178,9 +219,9 @@ static func _setup(root: Node3D, rig: Node3D, name: String, paint: Color) -> voi
 				var base := Color(0.5, 0.5, 0.5)
 				if m is BaseMaterial3D: base = (m as BaseMaterial3D).albedo_color
 				var mat: Material
-				if key == "paint": mat = _mat(key, p1, dirt)
-				elif key == "paint2": mat = _mat(key, p2, dirt)
-				else: mat = _mat(key, base, dirt)
+				if key == "paint": mat = _mat(key, p1, dirt, wreck)
+				elif key == "paint2": mat = _mat(key, p2, dirt, wreck)
+				else: mat = _mat(key, base, dirt, wreck)
 				if key.begins_with("lamp_") or key.begins_with("lightbar_"):
 					mat = mat.duplicate()
 					if not lamps.has(key): lamps[key] = []
@@ -231,8 +272,9 @@ static func _texture(key: String) -> Texture2D:
 	return _tex[key]
 
 ## The shared material for a slot and colour (kept, so a handful of paints share them).
-static func _mat(key: String, col: Color, dirt := 0.35) -> Material:
+static func _mat(key: String, col: Color, dirt := 0.35, wreck := {}) -> Material:
 	var k := "%s/%s/%.2f" % [key, col.to_html(), dirt]
+	if not wreck.is_empty(): k += "/w%d" % wreck.hash()
 	if _mats.has(k): return _mats[k]
 	var spec: Array = SLOTS.get(key, ["pbr", 4, {}])
 	var ex: Dictionary = spec[2]
@@ -268,9 +310,47 @@ static func _mat(key: String, col: Color, dirt := 0.35) -> Material:
 				m.set_shader_parameter("detail_nor", rb)
 				m.set_shader_parameter("detail_scale", 6.0)
 				m.set_shader_parameter("detail_depth", 0.35)
+	_wreck_params(m, key, spec, wreck)
 	m.resource_name = key
 	_mats[k] = m
 	return m
+
+## lane/wreckvan: the silt bed always takes the photographed lake mud; a vehicle whose manifest has a "wreck" entry
+## (silt_line, paint_tex, paint_scale, paint_nor, silt_tex, silt_scale) gets its silt line on every slot and the
+## photographed paint on its paint.
+static func _wreck_params(m: ShaderMaterial, key: String, spec: Array, wreck: Dictionary) -> void:
+	var silt_name := String(wreck.get("silt_tex", "wreck_silt_diff"))
+	var silt_s := float(wreck.get("silt_scale", 0.77))
+	if key == "silt":
+		var st := _texture(silt_name)
+		if st != null:
+			m.set_shader_parameter("silt_tex", st)
+			m.set_shader_parameter("silt_scale", silt_s)
+		var sn := _texture(silt_name.replace("_diff", "_nor"))
+		if sn != null:
+			m.set_shader_parameter("detail_nor", sn)
+			m.set_shader_parameter("detail_scale", silt_s)
+			m.set_shader_parameter("detail_depth", 0.8)
+		m.set_shader_parameter("dirt", 0.0)
+	if wreck.is_empty(): return
+	var line := float(wreck.get("silt_line", -100.0))
+	m.set_shader_parameter("silt_line", line)
+	if spec[0] == "glass": return
+	var st2 := _texture(silt_name)
+	if st2 != null:
+		m.set_shader_parameter("silt_tex", st2)
+		m.set_shader_parameter("silt_scale", silt_s)
+	if (key == "paint" or key == "paint2") and wreck.has("paint_tex"):
+		var pt := _texture(String(wreck["paint_tex"]))
+		if pt != null:
+			m.set_shader_parameter("paint_tex", pt)
+			m.set_shader_parameter("paint_scale", float(wreck.get("paint_scale", 1.0)))
+			m.set_shader_parameter("paint_amount", float(wreck.get("paint_amount", 1.0)))
+		var pn := _texture(String(wreck.get("paint_nor", "")))
+		if pn != null:
+			m.set_shader_parameter("detail_nor", pn)
+			m.set_shader_parameter("detail_scale", float(wreck.get("paint_scale", 1.0)))
+			m.set_shader_parameter("detail_depth", 0.6)
 
 # ------------------------------------------------------------------ driving the rig
 ## Roll the wheels on by `distance` metres (forward positive): each wheel turns -distance / radius about its axle.

@@ -15,6 +15,7 @@ uniform float opacity = 0.16;        // seen straight on
 uniform float grime = 0.35;          // road film near the lower edge
 uniform float glow = 0.0;            // lamp lens light
 uniform vec4 glow_col : source_color = vec4(1.0, 0.95, 0.85, 1.0);
+uniform float silt_line = -100.0;    // lane/wreckvan: a lake wreck's old water line; below it the glass is silted over
 
 varying vec3 vP;
 varying vec3 vWorld;
@@ -61,6 +62,12 @@ void fragment() {
 	a = mix(a, vec3(0.42, 0.38, 0.32), film * 0.4);
 	a *= world_shade(vWorld);
 	float alpha = mix(opacity, 0.94, fres) + film * 0.18 + drops * 0.25;
+	if (silt_line > -50.0) {
+		float sub = 1.0 - smoothstep(silt_line - 0.02, silt_line + 0.01, vGround + 0.03 * (vn2(vP.xz * 4.0 + vP.y) - 0.5));
+		float blot = smoothstep(0.3, 0.7, vn2(vP.xy * 6.0 + vP.z * 3.0));
+		a = mix(a, vec3(0.16, 0.14, 0.09) * (0.8 + 0.4 * blot), clamp(sub + film * 0.6, 0.0, 1.0));
+		alpha += sub * (0.55 + 0.3 * blot) + film * 0.25;
+	}
 	// snow on glass that faces up
 	float upw = (INV_VIEW_MATRIX * vec4(n, 0.0)).y;
 	float snow = g_snow * smoothstep(0.45, 0.8, upw);
