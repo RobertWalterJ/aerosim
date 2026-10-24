@@ -26,6 +26,7 @@ var _casebook_app: CasebookApp
 var _marketplace_app: MarketplaceApp
 var inventory: Inventory
 var clips: ClipLibrary
+var director: StoryDirector
 var _root: Control
 var _home: Control
 var _apps: Control
@@ -47,7 +48,7 @@ var _battery_pct := 0.74
 var _open := false
 var _current_app := "home"
 
-func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc, inv: Inventory, cl: ClipLibrary) -> void:
+func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc, inv: Inventory, cl: ClipLibrary, dr: StoryDirector = null) -> void:
 	hud = h
 	jobs = j
 	photos = p
@@ -56,6 +57,7 @@ func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc
 	story = st
 	inventory = inv
 	clips = cl
+	director = dr
 	layer = 28
 	_build()
 	_show_home()
@@ -323,7 +325,7 @@ func _build() -> void:
 	_casebook_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_casebook_app.visible = false
 	_apps.add_child(_casebook_app)
-	_casebook_app.setup(story, photos)
+	_casebook_app.setup(story, photos, director)
 	_casebook_app.chat_requested.connect(func():
 		_open_app("chat")
 		_chat_app.open("town"))

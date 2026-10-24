@@ -10,17 +10,27 @@ signal chat_requested
 
 var story: StoryArc
 var photos: PhotoLibrary
+var director: StoryDirector
 var _status: Label
+var _act_overview: Label
+var _next_overview: Label
+var _gate_overview: Label
 var _request: Label
 var _progress: Label
 var _evidence_list: VBoxContainer
 var _choice_box: VBoxContainer
 var _chapters: VBoxContainer
 
-func setup(s: StoryArc, p: PhotoLibrary) -> void:
+func setup(s: StoryArc, p: PhotoLibrary, d: StoryDirector = null) -> void:
 	story = s
 	photos = p
+	director = d
 	_build()
+	if director != null:
+		director.act_changed.connect(_on_director_act)
+
+func _on_director_act(_act: int) -> void:
+	refresh()
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -70,6 +80,30 @@ func _build() -> void:
 	main.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main.add_theme_constant_override("separation", 12)
 	body.add_child(main)
+	# the story director's act card: one player-facing route through the whole narrative
+	var act_card := PanelContainer.new()
+	var asb := StyleBoxFlat.new()
+	asb.bg_color = UniverseUI.CARD
+	asb.set_corner_radius_all(14)
+	asb.border_width_left = 3
+	asb.border_color = UniverseUI.MOSS
+	act_card.add_theme_stylebox_override("panel", asb)
+	main.add_child(act_card)
+	var am := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		am.add_theme_constant_override("margin_" + side, 16)
+	act_card.add_child(am)
+	var acol := VBoxContainer.new()
+	acol.add_theme_constant_override("separation", 3)
+	am.add_child(acol)
+	acol.add_child(UniverseUI.label("STORY DIRECTOR", 10, UniverseUI.AMBER))
+	_act_overview = UniverseUI.label("", 20, UniverseUI.CREAM)
+	acol.add_child(_act_overview)
+	_next_overview = UniverseUI.label("", 13, UniverseUI.CREAM_DIM)
+	_next_overview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	acol.add_child(_next_overview)
+	_gate_overview = UniverseUI.label("", 10, UniverseUI.MUTED)
+	acol.add_child(_gate_overview)
 	var req_card := PanelContainer.new()
 	var rsb := StyleBoxFlat.new()
 	rsb.bg_color = UniverseUI.CARD
@@ -117,6 +151,14 @@ func _build() -> void:
 	scroll.add_child(_chapters)
 
 func refresh() -> void:
+	if director != null:
+		_act_overview.text = "ACT %d  ·  %s" % [director.act_number(), director.act_name()]
+		_next_overview.text = director.next_step()
+		_gate_overview.text = "THERMAL %s   ·   NIGHT PASTURE %s   ·   %s" % [
+			"READY" if director.thermal_ready() else "NOT FITTED",
+			"DONE" if director.wildlife_done() else "OPEN",
+			director.chapter_line(),
+		]
 	if story.story_off_hint():
 		_status.text = "Story and jobs are switched off in the menu. The case will wait."
 	elif not story.started:

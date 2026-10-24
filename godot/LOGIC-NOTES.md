@@ -801,3 +801,19 @@ The old valley highway ran home to chapel to farm straight through the graves an
   - ROAD3. Is the festival field at (300, 300) in the right place, or should it be somewhere else outside the cemetery?
   - ROAD4. Should the chapel keep only the park path access, or get a service track around the outside and a short walking spur?
   - ROAD5. Do you want road signs naming the gates, the farm, the lake and the ridge?
+
+## Story director and app screens audit (lane/notify, session B, 2026-11-14)
+Every app screen now exists, and the story director is a real system rather than a missing piece.
+- **Story director (`game/story_director.gd`):** reads StoryArc, UnknownThread, WildlifeCase, Finale and Ending, and exposes the current act, next step, thermal state, night pasture state and chapter line. It does not replace the arcs; it is the one player-facing route through them. The act is initialised on setup and updates in `_process`; the Casebook refreshes when the act changes.
+- **Player-facing screen:** the Casebook now opens with a STORY DIRECTOR card showing ACT, the next step, and THERMAL / NIGHT PASTURE / chapter status. Evidence `docs/realism/apps/00_story_director_casebook.jpg`.
+- **Video detail screen:** published videos and cuts now have a Details button that opens a detail card with the large thumbnail, title, duration, clip count, edited tag, views, followers, money and quality. Since there is no video file, the card states that it is a representative clip. Evidence `docs/realism/apps/01_video_detail.jpg`.
+- **Screens audit:** all six apps (DroneBudz, VidTube Studio, Photos, Jobs, Casebook, Facade), phone home and Recents, notifications, pause/settings, landing/mode select, thermal, night vision, last flight, night pasture and ending/credits are present. The full table and asset status are in `docs/APP-SCREENS-AUDIT.md`.
+- **Assets present:** public-domain tablet wallpaper, code-drawn app icons and dials, real photo and clip thumbnails, evidence photos, code-drawn HUD and notification icons, coloured initial avatars, and all the placeholder world props.
+- **Assets still needed:** final app icon set (existing tablet brief), illustrated portraits for Maya, Jo, Riley, Tom, Alex, Sam, Rennick, Unknown, You and Wren, Facade product tiles, Casebook act/evidence stamps, notification/channel badges, and optional video thumbnail overlays. New brief `docs/CLAUDE-APP-ASSETS.md` and board request.
+- **Honest limits:** placeholders remain until Claude's art lands. The director reads the arcs rather than owning them, so an arc bug can still surface in the act card. There is no act history log, no separate Settings app, no chat profile screen, and the Casebook request box can still show the last closed request after the case closes. The video detail is a still card, not playback. The director card lives in Casebook, not on the home screen.
+- **Questions for Robert:**
+  - APP1. Should the story director get its own app icon, or stay as the Casebook act card?
+  - APP2. Do you want a short act history in the director card, or only the current act and next step?
+  - APP3. Should the avatars be illustrated portraits, or stylised role badges with no faces?
+  - APP4. Should Facade product art be photography, illustration, or diagram-style?
+  - APP5. Do you want a video detail screen with a "play" animation even though there is no video file?

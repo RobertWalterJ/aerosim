@@ -26,6 +26,10 @@ var _rushes_box: HFlowContainer
 var _rushes_hint: Label
 var _rush_head: HBoxContainer
 var _all_btn: Button
+var _detail: Control
+var _detail_thumb: TextureRect
+var _detail_title: Label
+var _detail_meta: Label
 
 func setup(h: Hud, j: Jobs, c: ChatData, p: PhotoLibrary, cl: ClipLibrary) -> void:
 	hud = h
@@ -182,6 +186,51 @@ func _build() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 8)
 	scroll.add_child(_list)
+	# ---------------- video detail screen
+	_detail = Control.new()
+	_detail.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_detail.mouse_filter = Control.MOUSE_FILTER_STOP
+	_detail.visible = false
+	add_child(_detail)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.02, 0.03, 0.025, 0.86)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_detail.add_child(dim)
+	var panel := PanelContainer.new()
+	panel.anchor_left = 0.16; panel.anchor_right = 0.84
+	panel.anchor_top = 0.12; panel.anchor_bottom = 0.88
+	panel.add_theme_stylebox_override("panel", UniverseUI.card(18))
+	_detail.add_child(panel)
+	var pm := MarginContainer.new()
+	for s in ["left", "right", "top", "bottom"]:
+		pm.add_theme_constant_override("margin_" + s, 20)
+	panel.add_child(pm)
+	var pcol := VBoxContainer.new()
+	pcol.add_theme_constant_override("separation", 8)
+	pm.add_child(pcol)
+	var top := HBoxContainer.new()
+	pcol.add_child(top)
+	_detail_title = UniverseUI.label("", 22, UniverseUI.CREAM)
+	_detail_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	top.add_child(_detail_title)
+	var close := Button.new(); close.text = "Close"; close.theme_type_variation = "Ghost"
+	close.custom_minimum_size = Vector2(80, 32)
+	close.pressed.connect(func(): _detail.visible = false)
+	top.add_child(close)
+	_detail_thumb = TextureRect.new()
+	_detail_thumb.custom_minimum_size = Vector2(480, 270)
+	_detail_thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_detail_thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_detail_thumb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	pcol.add_child(_detail_thumb)
+	_detail_meta = UniverseUI.label("", 12, UniverseUI.CREAM_DIM)
+	_detail_meta.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pcol.add_child(_detail_meta)
+	var note := UniverseUI.label("This is a representative clip: a thumbnail, a duration and the channel numbers. No video file is stored.", 10, UniverseUI.MUTED)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	pcol.add_child(note)
 
 func _metric(name: String, value: String, sub: String, accent: Color) -> Dictionary:
 	var card := PanelContainer.new()
@@ -264,10 +313,7 @@ func _rush_card(rec: Dictionary) -> Control:
 func _mmss(sec: float) -> String:
 	return "%02d:%02d" % [int(sec) / 60, int(sec) % 60]
 
-func _video_thumbnail(up: Dictionary) -> Control:
-	var frame := PanelContainer.new()
-	frame.custom_minimum_size = Vector2(122, 69)
-	frame.add_theme_stylebox_override("panel", UniverseUI.box(UniverseUI.NIGHT, 8, UniverseUI.LINE, 1, 0.0, 0.0))
+func _video_texture(up: Dictionary) -> Texture2D:
 	var tex: Texture2D = null
 	var tpath := str(up.get("thumb", ""))
 	if tpath != "" and clips != null:
@@ -276,6 +322,13 @@ func _video_thumbnail(up: Dictionary) -> Control:
 		var pid := int(up.get("photo", -1))
 		if pid >= 0 and photos != null:
 			tex = photos.texture_for(pid)
+	return tex
+
+func _video_thumbnail(up: Dictionary) -> Control:
+	var frame := PanelContainer.new()
+	frame.custom_minimum_size = Vector2(122, 69)
+	frame.add_theme_stylebox_override("panel", UniverseUI.box(UniverseUI.NIGHT, 8, UniverseUI.LINE, 1, 0.0, 0.0))
+	var tex := _video_texture(up)
 	if tex != null:
 		var pic := TextureRect.new()
 		pic.texture = tex
@@ -289,6 +342,24 @@ func _video_thumbnail(up: Dictionary) -> Control:
 		play.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		frame.add_child(play)
 	return frame
+
+func _open_video(up: Dictionary) -> void:
+	if _detail == null:
+		return
+	_detail_title.text = str(up.get("title", "A valley clip"))
+	_detail_thumb.texture = _video_texture(up)
+	var bits: Array = []
+	var dur := float(up.get("duration", 0.0))
+	if dur > 0.0:
+		bits.append(_mmss(dur))
+	var clips_n := int(up.get("clips", 0))
+	if clips_n > 0:
+		bits.append("%d %s" % [clips_n, "clip" if clips_n == 1 else "clips"])
+	bits.append("EDITED BY MAYA" if bool(up.get("edited", false)) else "DIRECT UPLOAD")
+	_detail_meta.text = "%s\n%d views  ·  +%d followers  ·  +$%d\nQuality %.2f" % [
+		"  ·  ".join(bits), int(up.get("views", 0)), int(up.get("followers", 0)), int(up.get("money", 0)),
+		float(up.get("quality", 1.0))]
+	_detail.visible = true
 
 func refresh() -> void:
 	if jobs != null:
@@ -361,3 +432,10 @@ func refresh() -> void:
 		var num := UniverseUI.label(str(int(up.get("views", 0))), 20, UniverseUI.CREAM)
 		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		r.add_child(num)
+		var detail_btn := Button.new()
+		detail_btn.text = "Details"
+		detail_btn.theme_type_variation = "Ghost"
+		detail_btn.custom_minimum_size = Vector2(74, 30)
+		detail_btn.add_theme_font_size_override("font_size", 11)
+		detail_btn.pressed.connect(func(): _open_video(up))
+		r.add_child(detail_btn)

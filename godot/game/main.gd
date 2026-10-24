@@ -67,6 +67,7 @@ var night_vision: NightVision      # session B: the Facade night vision add-on (
 var inventory: Inventory           # session B: the pilot's bought kit (game/inventory.gd)
 var wildlife_objects: WildlifeObjects  # session B: the sheep and the wolf in the west pasture
 var wildlife: WildlifeCase         # session B: Riley's night tracking favour and the thermal tutorial
+var director: StoryDirector        # session B: the one player-facing route through all the story arcs
 var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
 var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
@@ -396,9 +397,12 @@ func _ready() -> void:
 	finale = Finale.new()
 	add_child(finale)
 	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife)
+	director = StoryDirector.new()
+	add_child(director)
+	director.setup(hud, story, unknown_thread, wildlife, inventory, finale, ending)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
-	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips)
+	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips, director)
 	phone_os.fly_drone.connect(switch_drone)
 	# a notification's "Open DroneBudz" button goes straight into the chat app
 	phone_notes.app_requested.connect(func(app: String):
@@ -856,6 +860,8 @@ func _process(delta: float) -> void:
 		wildlife.update(delta, quad.position())   # session B: the night pasture thermal favour
 	if finale != null and not paused:
 		finale.update(delta, quad.position())   # session B: the last flight, the storm search and the ending
+	if director != null:
+		director.update(delta)   # session B: the act and next step for the Casebook
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
 		_celestial_t = 0.25
@@ -1161,6 +1167,14 @@ func _screenshot_mode(arg: String) -> void:
 			jobs.publish_rushes(true)
 			phone_os.open()
 			phone_os._open_app("studio")
+		elif c == "videodetail": # session B dev hook: the latest published video's detail screen
+			phone_os.open()
+			phone_os._open_app("studio")
+			phone_os._studio_app.refresh()
+			phone_os._studio_app._open_video(jobs.last_video())
+		elif c == "director":    # session B dev hook: the Casebook with the story director act card
+			phone_os.open()
+			phone_os._open_app("casebook")
 		elif c == "market":      # session B dev hook: the Facade marketplace
 			phone_os.open()
 			phone_os._open_app("market")
@@ -1425,6 +1439,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("kit: ", inventory.stats())
 	print("clips: ", clips.stats())
 	print("wildlife: ", wildlife.stats())
+	print("director: ", director.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
