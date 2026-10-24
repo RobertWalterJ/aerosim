@@ -57,6 +57,17 @@ The traffic route pool only uses the through roads, so vehicles do not loop arou
 
 The final gateway and place-sign art is requested in `docs/CLAUDE-LOCATION-SIGNS-ASSETS.md`.
 
+## The road as a landing surface
+
+The drone does not use a rigid-body road collider. It samples a ground height at the four corners of its body, so the road collider is the `Roads.surface_height(x, z)` function in `game/roads.gd`.
+
+`Roads` bakes a second 2048 px field beside the grass mask. It stores the road top offset: 0.06 m on the asphalt, 0.20 m on the junction aprons and 0.24 m on the old cabin dirt track. `surface_height()` samples that field and adds it to the terrain height. `main.gd` now feeds that function into both the quad and the plane as `ground_h`.
+
+Verified values on the valley highway at (286, 180): terrain 131.143, road surface 131.203, delta 0.060. Off the road at (250, 240): terrain 133.499, surface 133.499, delta 0.000. A drone placed on the asphalt sits 0.010 m above the sampled surface, not inside it.
+
+This fixes the old case where the drone landed on the bare terrain while the raised asphalt ribbon was still 5 to 20 cm above it, so the body appeared to sink into or pass through the road.
+
+Honest limits: this is height sampling, not a generated collision mesh, so there is no side-surface collision, no skid material response and no landing gear contact shape. The 2048 field is about 2 m per pixel at the road edge. Only the asphalt, junction apron and cabin track are raised; shoulders still follow the terrain.
 ## Grounding the road and assembling the paint
 
 The ribbon was lowered from 140 mm to 55 mm above the sampled ground, and the asphalt now has three vertices across instead of two. The left edge, crown and right edge all follow the terrain, so the road cannot bridge over a rise in the middle and hover. A short vertical edge skirt drops from each asphalt edge to the ground and the shoulder outer lip sinks below the grass.

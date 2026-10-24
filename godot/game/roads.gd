@@ -75,7 +75,9 @@ var _asphalt_arm: Texture2D
 var _gravel_diff: Texture2D
 var _gravel_nor: Texture2D
 var _gravel_arm: Texture2D
-var road_mask: ImageTexture       # 1024 px mask of the asphalt and shoulder corridors, for the grass shader
+var road_mask: ImageTexture       # 2048 px mask of the asphalt and shoulder corridors, for the grass shader
+var road_top: ImageTexture        # 2048 px surface-offset field: where the asphalt sits above the terrain
+var _road_top_img: Image
 var junction_mask: ImageTexture   # white at junctions, so lane markings stop through the crossing
 
 # ------------------------------------------------------------------ clearance for the world planting
@@ -118,6 +120,17 @@ static func near_road(x: float, z: float, margin := TREE_CLEARANCE) -> bool:
 					return true
 	return false
 
+## The ground under the drone: terrain plus the road surface offset where the asphalt, junction apron or old dirt
+## track actually sits. This is the road collider in this game; the drone has no rigid-body collision, it samples this
+## height at the four corners of its body. Without it the drone lands on the bare terrain inside the raised road.
+func surface_height(x: float, z: float) -> float:
+	var base := terrain.height(x, z)
+	if _road_top_img == null:
+		return base
+	var px := clampi(int((x / Terrain.SIZE + 0.5) * MASK_N), 0, MASK_N - 1)
+	var pz := clampi(int((z / Terrain.SIZE + 0.5) * MASK_N), 0, MASK_N - 1)
+	var off := _road_top_img.get_pixel(px, pz).r * 0.30
+	return base + maxf(off, 0.0)
 # ------------------------------------------------------------------ meshes
 func setup(t: Terrain) -> void:
 	terrain = t
@@ -141,9 +154,12 @@ func setup(t: Terrain) -> void:
 func _build_road_mask() -> void:
 	var img := Image.create(MASK_N, MASK_N, false, Image.FORMAT_L8)
 	img.fill(Color(0, 0, 0, 1))
+	var top := Image.create(MASK_N, MASK_N, false, Image.FORMAT_L8)
+	top.fill(Color(0, 0, 0, 1))
 	for r in ROUTES:
 		var pts: Array = paths.get(str(r["id"]), [])
 		var rad := float(r["width"]) * 0.5 + float(r["shoulder"]) + 5.5
+		var halfw := float(r["width"]) * 0.5 + 0.2
 		for i in pts.size() - 1:
 			var a: Vector2 = pts[i]
 			var b: Vector2 = pts[i + 1]
@@ -163,6 +179,8 @@ func _build_road_mask() -> void:
 							(float(zz) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
 						if wp.distance_to(p) <= rad:
 							img.set_pixel(xx, zz, Color.WHITE)
+						if wp.distance_to(p) <= halfw:
+							top.set_pixel(xx, zz, Color(0.20, 0.20, 0.20))   # 0.06 m / 0.30 m
 	# the junction aprons are paved, so no meadow grows through the crossing
 	for j in JUNCTIONS:
 		var jx := int((j.x / Terrain.SIZE + 0.5) * MASK_N)
@@ -178,6 +196,7 @@ func _build_road_mask() -> void:
 					(float(zzj) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
 				if wj.distance_to(j) <= 13.0:
 					img.set_pixel(xxj, zzj, Color.WHITE)	# the boat launch parking apron and ramp head are paved too, so no meadow grows through the gravel
+					top.set_pixel(xxj, zzj, Color(0.667, 0.667, 0.667))   # 0.20 m / 0.30 m
 	var launch := CaseObjects.BOAT_LAUNCH_SPOT
 	var lx := int((launch.x / Terrain.SIZE + 0.5) * MASK_N)
 	var lz := int((launch.y / Terrain.SIZE + 0.5) * MASK_N)
@@ -212,7 +231,11 @@ func _build_road_mask() -> void:
 						(float(tzz) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
 					if twp.distance_to(tp) <= 4.5:
 						img.set_pixel(txx, tzz, Color.WHITE)
+					if twp.distance_to(tp) <= 2.0:
+						top.set_pixel(txx, tzz, Color(0.80, 0.80, 0.80))   # 0.24 m / 0.30 m
 	road_mask = ImageTexture.create_from_image(img)
+	_road_top_img = top
+	road_top = ImageTexture.create_from_image(top)
 ## Rasterise the junction aprons. The asphalt shader fades the painted lines through these circles, so a centre line does
 ## not run straight across a T junction.
 func _build_junction_mask() -> void:

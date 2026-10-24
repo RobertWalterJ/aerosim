@@ -1172,6 +1172,23 @@ func _screenshot_mode(arg: String) -> void:
 			jobs.close_page()
 			phone_os.open()
 			phone_os._open_app("studio")
+		elif c == "roadtest":     # session B dev hook: compare the road collider with the bare terrain
+			var rx := 286.0
+			var rz := 180.0
+			var ox := 250.0
+			var oz := 240.0
+			if roads != null:
+				print("ROADTEST on-road: terrain %.3f surface %.3f delta %.3f" % [terrain.height(rx, rz), roads.surface_height(rx, rz), roads.surface_height(rx, rz) - terrain.height(rx, rz)])
+				print("ROADTEST off-road: terrain %.3f surface %.3f delta %.3f" % [terrain.height(ox, oz), roads.surface_height(ox, oz), roads.surface_height(ox, oz) - terrain.height(ox, oz)])
+		elif c == "roadland":     # session B dev hook: leave the drone on the highway surface
+			var rx := 286.0
+			var rz := 180.0
+			var ry := roads.surface_height(rx, rz) + 0.01 if roads != null else terrain.height(rx, rz) + 0.01
+			quad.reset(rx, ry, rz, deg_to_rad(180.0))
+			quad.motor_cut = true
+			_cam_yaw = deg_to_rad(180.0)
+			_apply_pose()
+			print("ROADLAND position %.3f %.3f %.3f, terrain %.3f, surface %.3f, and %.3f m above the surface" % [quad.position().x, quad.position().y, quad.position().z, terrain.height(rx, rz), roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz), quad.position().y - (roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz))])
 		elif c == "phone":        # session B dev hook: the phone home screen
 			phone_os.open()
 		elif c == "phonemap":     # session B dev hook: the valley map app
