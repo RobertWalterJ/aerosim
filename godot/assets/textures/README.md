@@ -93,3 +93,4 @@ Same recipe as above (Poly Haven 1k JPEGs from https://api.polyhaven.com/files/<
 | `mudtrack_*` | Poly Haven `aerial_mud_1`, https://polyhaven.com/a/aerial_mud_1 | Rob Tuytel | CC0 | 2.5 m (wheel lines along z) | the muddy two-rut track |
 
 The `.import` files are committed with them.
+| `wool_*` (diff, nor) | Poly Haven `curly_teddy_natural`, https://polyhaven.com/a/curly_teddy_natural | colormass (photography), Rico Cilliers (processing) | CC0 | 0.45 m | the fibre clumps and curl relief of sheep wool (game/shaders/fur.gdshader) |

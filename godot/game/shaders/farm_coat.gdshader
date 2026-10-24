@@ -79,7 +79,7 @@ void fragment() {
 		float sc = smoothstep(0.0, 0.6, rz - arc * 0.9);
 		a *= (0.68 + 0.42 * sc);
 		float lum = dot(a, vec3(0.299, 0.587, 0.114));
-		irid = smoothstep(0.12, 0.02, lum) * scallop;
+		irid = smoothstep(0.012, 0.002, lum) * scallop;
 	}
 	vec3 nm = n;
 	if (wool > 0.0) {

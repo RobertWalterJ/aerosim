@@ -5,7 +5,7 @@ extends SceneTree
 ## Godot --path <godot dir> --resolution 480x270 -s res://test/new_models3_sheet.gd -- [light=golden|overcast] [set=animals|boats|machinery|all] [out=<jpg>] [only=<title word>]
 
 var CELL := Vector2i(400, 300)
-const COLS := 4
+var COLS := 4
 var _out := ""
 var _only := ""
 var _light := "golden"
@@ -18,6 +18,7 @@ func _initialize() -> void:
 		if a.begins_with("cell="): CELL = Vector2i(int(a.substr(5)), int(a.substr(5)) * 3 / 4)
 		if a.begins_with("light="): _light = a.substr(6)
 		if a.begins_with("set="): _set = a.substr(4)
+	if _set == "final": COLS = 6
 	if _out == "": _out = "res://docs/realism/models/new_models5_%s_%s.jpg" % [_set, _light]
 	Grass.add_globals()
 	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))
@@ -30,6 +31,13 @@ func _initialize() -> void:
 ## One entry: a title and three cells; each cell: the meshes (with where they go), the direction the camera looks from, and optionally a focus point and radius.
 func _entries() -> Array:
 	var out: Array = []
+	if _set == "final":
+		for nm: String in NewModels5.NAMES:
+			var bb := NewModels5.mesh(nm, 0).get_aabb()
+			var dir := Vector3(0.75, 0.3, -1.0)
+			if nm == "telegraph_wire_10m": dir = Vector3(0.2, 0.25, -1.0)
+			out.append([nm, [[[[NewModels5.mesh(nm, 0), _at(0, 0, 0)]], dir]]])
+		return out
 	var q34 := Vector3(0.75, 0.3, -1.0)
 	var side := Vector3(1.0, 0.12, 0.0)
 	var front := Vector3(0.25, 0.2, -1.0)
@@ -66,7 +74,8 @@ func _run() -> void:
 		for e in entries:
 			if (e[0] as String).contains(_only): keep.append(e)
 		entries = keep
-	var rows := int(ceil(entries.size() * 4.0 / COLS))
+	var per := 1 if _set == "final" else 4
+	var rows := int(ceil(entries.size() * float(per) / COLS))
 	var sheet := Image.create(CELL.x * COLS, CELL.y * rows, false, Image.FORMAT_RGBA8)
 	sheet.fill(Color(0.5, 0.55, 0.6))
 	var vp := SubViewport.new()
@@ -81,6 +90,11 @@ func _run() -> void:
 		sky.ground_horizon_color = Color(0.55, 0.42, 0.33); sky.ground_bottom_color = Color(0.2, 0.17, 0.15)
 		key.light_energy = 2.6; key.light_color = Color(1.0, 0.72, 0.46); key.rotation_degrees = Vector3(-13, -38, 0)
 		env.ambient_light_energy = 0.8
+	elif _light == "back":
+		sky.sky_top_color = Color(0.32, 0.45, 0.66); sky.sky_horizon_color = Color(1.0, 0.8, 0.55)
+		sky.ground_horizon_color = Color(0.6, 0.45, 0.33); sky.ground_bottom_color = Color(0.2, 0.17, 0.15)
+		key.light_energy = 3.0; key.light_color = Color(1.0, 0.82, 0.58); key.rotation_degrees = Vector3(-14, 0, 0)
+		env.ambient_light_energy = 0.9
 	else:
 		sky.sky_top_color = Color(0.58, 0.62, 0.68); sky.sky_horizon_color = Color(0.72, 0.75, 0.78)
 		sky.ground_horizon_color = Color(0.5, 0.5, 0.48); sky.ground_bottom_color = Color(0.3, 0.3, 0.28)
@@ -122,6 +136,9 @@ func _run() -> void:
 			if c.size() > 2:
 				centre = c[2]; radius = c[3]
 			var dir: Vector3 = (c[1] as Vector3).normalized()
+			if _light == "back":
+				var tr := key.global_transform.basis * Vector3(0, 0, -1)
+				dir = Vector3(tr.x + dir.x * 0.5, 0.12, tr.z + dir.z * 0.5).normalized()
 			var dist := radius / sin(deg_to_rad(cam.fov * 0.5)) * 0.95
 			cam.position = centre + dir * dist
 			cam.near = dist * 0.01; cam.far = dist * 6.0

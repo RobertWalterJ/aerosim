@@ -50,6 +50,12 @@ uniform vec3 scatter_col = vec3(1.0, 0.72, 0.45);
 uniform float dirt = 0.0;                // wool: how much dirty brown and yellow lanolin shows
 uniform vec3 hoof_col = vec3(0.07, 0.06, 0.05);
 uniform float snow_from = 0.55;
+uniform sampler2D coat_tex : source_color, repeat_enable, filter_linear_mipmap_anisotropic;   // a photographed pile (Poly Haven curly_teddy_natural, CC0): its fibre clumps break up the flat colour
+uniform sampler2D coat_nor : hint_normal, repeat_enable, filter_linear_mipmap_anisotropic;
+uniform float tex_k = 0.3;               // how much of the photograph's light and dark shows in the coat
+uniform float tex_norm = 0.3;            // and how much of its relief shows in the normal
+uniform float tex_scale = 3.0;           // repeats per metre
+uniform float tex_mean = 0.683;            // the photograph's mean luminance, so the coat keeps its own brightness
 
 varying vec3 vPo;                        // the point in the model's frame, before the shell pushes it out
 varying vec3 vNo;                        // the surface normal, model frame
@@ -104,6 +110,12 @@ void fragment() {
 		m *= smoothstep(leg_h * 0.35, leg_h * 0.95, pos.y);
 		base = mix(base, patch_col, m);
 	}
+	// the photographed fibre clumps (triplanar on the model's own axes)
+	vec3 tw = pow(abs(normalize(vNo)), vec3(4.0)); tw /= (tw.x + tw.y + tw.z);
+	vec3 tp = pos * tex_scale;
+	vec3 ctex = texture(coat_tex, tp.zy).rgb * tw.x + texture(coat_tex, tp.xz).rgb * tw.y + texture(coat_tex, tp.xy).rgb * tw.z;
+	float tl = dot(ctex, vec3(0.299, 0.587, 0.114));
+	base *= clamp(1.0 + (tl / tex_mean - 1.0) * tex_k * 3.0, 0.4, 1.8);
 	// slow mottling, and for wool the dirt
 	float mott = vn(pos * 6.0 + 3.0);
 	base *= 0.9 + 0.2 * mott;
@@ -133,10 +145,12 @@ void fragment() {
 		vec3 f = fract(q) - 0.5 - jit;
 		vec3 n0 = normalize(vNo);
 		float d = length(f - n0 * dot(f, n0));
-		float r = (1.0 - t) * taper + 0.04;
+		// seen from afar a strand is far smaller than a pixel: fatten the strands and soften the contrast so it reads as a coat, not noise
+		float far = smoothstep(4.0, 16.0, -VERTEX.z);
+		float r = ((1.0 - t) * taper + 0.04) * (1.0 + far * 1.8);
 		if (t > lenvar || d > r) discard;
-		tint = 0.85 + 0.3 * h31(cell + 11.0);
-		float rootk = mix(root_dark, tip_light, pow(t, 0.8));
+		tint = mix(0.85 + 0.3 * h31(cell + 11.0), 1.0, far);
+		float rootk = mix(mix(root_dark, tip_light, pow(t, 0.8)), mix(0.8, 1.0, t), far);
 		base *= rootk * tint;
 		if (wool > 0.0) base = mix(base * vec3(1.06, 0.98, 0.84), base, t);           // lanolin yellow at the root
 	} else {
@@ -155,7 +169,9 @@ void fragment() {
 	vec3 qq = pos * 4.0;
 	float c0 = vn(qq);
 	vec3 g = vec3(vn(qq + vec3(0.4, 0, 0)) - c0, vn(qq + vec3(0, 0.4, 0)) - c0, vn(qq + vec3(0, 0, 0.4)) - c0);
-	nm = normalize(nm + 0.35 * (g - nm * dot(g, nm)));
+	vec2 tnx = (texture(coat_nor, tp.zy).xy * 2.0 - 1.0) * tw.x + (texture(coat_nor, tp.xz).xy * 2.0 - 1.0) * tw.y + (texture(coat_nor, tp.xy).xy * 2.0 - 1.0) * tw.z;
+	vec3 tn = vec3(tnx.x, 0.0, tnx.y);
+	nm = normalize(nm + 0.35 * (g - nm * dot(g, nm)) + tex_norm * (tn - nm * dot(tn, nm)));
 	vec3 nview = normalize((VIEW_MATRIX * vec4(mat3(vR0, vR1, vR2) * nm, 0.0)).xyz);
 	NORMAL = nview;
 	// weather

@@ -74,3 +74,66 @@ One entry point, because there are 26 models and each has three levels of detail
 
 How the finish works: the vertex colour carries the tint, and its alpha carries the grain direction (wood and hay: 1 up, 0.75 along x, 0.5 along z, 0.25 none) or, on a leaf, the way across the blade for veins and the pale midrib. Plants sway with `g_wind` (taller more), flutter at the leaf edge, lean away from the rotor downwash and take a per-field colour from where they stand. Fences, hay and soil darken and shine in rain (`g_wet`) and take snow and the cloud and drone shadows. Instancing: use a `MultiMesh` per model per level of detail; the plants' per-field colour reads the instance's world origin.
 Test: `test/new_models3_test.gd` (headless; finite, winding, budgets that must fall from near to far, real sizes, colliders inside their model, tiles whose edges meet, rebuilds identical, shaders and textures present). Sheets: `test/new_models3_sheet.gd` (needs a window; `set=fences|crops|ground`, `light=golden|overcast`) writes `docs/realism/models/new_models3_<set>_<light>.jpg`.
+
+## Batch 7: farm animals, boats and the lake shore, farm machinery and yard, wire and gate (`game/new_models5.gd`, class `NewModels5`; models7)
+Written for session B's request of 2026-10-23 21:08 (items 3 to 6). 31 models, each in three levels of detail. Real metres, forward is -z, up is +y. The test (`test/new_models5_test.gd`) prints every size and triangle count; the tables below are its numbers.
+
+Entry points:
+- `NewModels5.mesh(name, lod := 0) -> ArrayMesh` the whole model (lod 0 near, under about 25 m; 1 middle, to about 80 m; 2 far).
+- `NewModels5.parts(name, lod := 0) -> Dictionary` the movable parts: `{part: {"mesh": ArrayMesh, "pivot": Vector3}}`. Each part's mesh is drawn about its own pivot, so put a `MeshInstance3D` for it at `pivot` (in the model's frame) and turn that node. `"body"` is always there (pivot at the origin). The parts always add up to exactly `mesh()` (do not draw both).
+- `NewModels5.colliders(name) -> Array` box strips (`AABB` in the model's frame), for the animals only.
+- `NewModels5.NAMES`.
+Test hook for looking at them in the real scene: the screenshot token `props5animals`, `props5cows`, `props5farm` or `props5lake` (see `game/gallery5.gd`); fly to them with `at<x>_<up>_<z>_<yaw>_<gimbal>`.
+
+### Animals: shell fur (`game/shaders/fur.gdshader`; the hen uses `farm_coat.gdshader` with scalloped feathers)
+The body, head and jaw wear the **fur shader**: the mesh is drawn once as skin and then again in a stack of shells (16 near, 6 middle, none far on a desktop; 6 / 3 / none on a phone: `NewModels5.fur_shells(lod)`), so the coat has a soft hairy outline. Strands thin toward the tip, roots are darker and in shadow, two Kajiya-Kay highlights run along the hair, sunlight shines through thin strands when you look into it, markings (the Holstein patches) come from a noise on the model's axes, sheep wool is clumped curls with a photographed curly-pile texture (Poly Haven, CC0) for its fibre relief, dirt and lanolin, and rain, snow, wind (`g_wind`) and the cloud and drone shadows all act on it. Vertex alpha is how much fur there is (full on the body, short on a sheep's face and legs, 0 on a hoof, about 0.07 for bare wet skin such as a muzzle). **Use level of detail by distance: lod 0 inside 8 m, lod 1 to 25 m, lod 2 beyond** (at a drone's usual distance one strand is far smaller than a pixel, so the shells fade to a plain coat there). Anatomy note: lane/animals (Opus, Blender) is rebuilding the animal bodies; carry this shader over to those meshes by giving them the vertex colour and alpha described above (`NewModels5._fur_chain(key, lod, part_offset, leg_height)` builds the chained materials).
+Each animal here is a smooth body: ellipsoids and round cones blended in a distance field, then meshed, so the neck grows out of the shoulders and the thigh melts into the flank. Eyes are glossy, noses are wet skin, hooves are dark horn. Parts: `head` (pivot at the poll; nod and turn it about this point), `jaw` (pivot at its hinge; chewing is a few degrees about x), `tail` (pivot at the tail head; swish about y or x), `body`. The chicken has `body` and `head` (neck and head, pivot at the neck base: peck by turning about x).
+
+| Name | What it is | Size (x wide, y high, z long; metres) |
+|---|---|---|
+| `cow_a` | Holstein, white with black patches, udder, standing, head lowered a little | 0.9 x 1.6 x 3.1 |
+| `cow_b` | Hereford, chestnut with a white face, belly and socks, grazing (head down) | 0.9 x 1.5 x 3.0 |
+| `cow_c` | Jersey, fawn, lying down chewing the cud, head up and turned | 0.8 x 1.2 x 3.0 |
+| `calf_a` | Holstein calf, standing, big head, long legs | 0.5 x 0.9 x 1.9 |
+| `sheep_a` / `sheep_b` | ewe in thick wool; a white face standing alert / a black face grazing | 0.6 x 0.8 x 1.3 |
+| `lamb_a` | lamb, a little over half the ewe | 0.3 x 0.5 x 0.8 |
+| `horse_a` / `horse_b` | a bay standing, black mane and tail / a chestnut grazing, flaxen mane, white socks | 0.6 x 1.9 (1.6 grazing) x 2.8 |
+| `dog_a` | a farm dog, black and white, standing, tail down with a curl | 0.3 x 0.7 x 1.0 |
+| `chicken_a` | a Rhode Island Red hen standing, comb and wattle, scaled yellow legs | 0.23 x 0.47 x 0.6 |
+
+Origin is the ground under the animal (lowest point within 0.05 m); an animal faces -z. Colliders: one box for the body and one for the head on the cattle and horses.
+
+### Boats, jetty and lake shore (`farm_paint.gdshader` for paint, glass-fibre and metal; the NewModels3 photographed wood for planks and piles)
+Origin is the waterline for everything that floats: the hull hangs below y = 0, so place it at the lake level (76.0 m). The jetty is the same: its deck is 0.6 m above y = 0 and its piles go down to -1.6 m.
+
+| Name | What it is | Size |
+|---|---|---|
+| `rowboat_a` | clinker dinghy, white strakes, varnished inside, thwarts, floorboards, ribs, two oars, a rope; bow at -z | 1.6 x 0.8 x 4.2 |
+| `sailboat_a` | 4.2 m single-handed dinghy: glass-fibre hull and deck, cockpit, mast, boom, a bellied mainsail with a red number, rudder and tiller | 1.2 x 6.3 x 4.4 |
+| `sailboat_b` | 7.6 m cruising sloop: white hull with a blue stripe and red antifouling, cabin with windows, teak cockpit, wheel, mast, boom, main and jib, stays, fin keel | 2.6 x 11.7 x 7.6 |
+| `fishing_boat_a` | 6.8 m workboat: blue hull with white top, planked deck, wheelhouse with windows, mast and derrick boom, floats, crates, net, tyre fenders | 2.5 x 5.0 x 6.8 |
+| `jetty_a` | timber pier 8.4 m by 2.2 m: boards with gaps, stringers, round piles (some taller), diagonal braces, two iron cleats, a rope coil, a ladder at the end. Starts at the origin and runs out along -z | 2.6 x 2.6 x 8.4 |
+| `mooring_post_a` | timber bollard 0.97 m high with four turns of rope, a loose end, an iron ring (origin at the foot) | 0.6 x 1.0 x 0.9 |
+| `buoy_a` | red and white channel buoy, half below the waterline, steel cage and a lamp, a chain going down | 0.9 x 3.2 x 0.9 |
+
+### Farm machinery and yard (`farm_paint.gdshader`: clear coat on new paint, chalking, rust, rubbed-bare scratches and dried mud on the lower parts; `farm_props.gdshader` for wood and steel)
+| Name | What it is | Size |
+|---|---|---|
+| `combine_a` | grain combine: green body, glazed cab, grain tank, folded unloading auger, big front and small rear wheels with lugs, a 6 m header with cutter bar and a turning reel. Parts: `body`, `reel` (pivot on the reel axis, spin about x) | 6.2 x 4.6 x 9.4 |
+| `baler_a` | towed round baler: red chamber, pickup reel with tines, tailgate, twine box, two wheels, drawbar and jack | 3.2 x 2.5 x 4.9 |
+| `plough_a` | four-furrow mounted plough: angled red beam, headstock, four bodies with twisted polished mouldboards, shares, a depth wheel | 1.2 x 1.6 x 4.9 |
+| `seed_drill_a` | 3 m coulter drill: hopper with lid, 14 coulter discs, seed tubes, press wheels, drawbar, two wheels | 3.5 x 1.8 x 4.3 |
+| `water_trough_a` | galvanised trough 2.0 m, water in it (reflective), rolled rim, float valve, a hose | 2.4 x 1.0 x 1.2 |
+| `feed_rack_a` | timber hay rack on legs with a V of slats and hay in it | 2.4 x 1.5 x 1.3 |
+| `wood_pile_a` | stacked firewood, about 120 split logs with bark sides and pale cut ends, two stakes | 2.6 x 1.3 x 0.7 |
+| `oil_tank_a` | farm fuel tank on cradles: domed ends, filler cap, gauge, tap and hose | 1.2 x 1.6 x 2.7 |
+| `grain_silo_a` | small galvanised corrugated bin, cone roof and vent, ladder, door, concrete ring | 3.5 x 5.3 x 3.5 |
+| `chicken_coop_a` | timber henhouse on stilts, pitched steel roof, ramp, pop door, nest box with a lid | 2.3 x 2.4 x 2.2 |
+| `dog_kennel_a` | painted timber kennel, gable roof, arched door with trim | 1.2 x 1.5 x 1.5 |
+| `telegraph_wire_10m` | one span of wire, 10 m along +x from the origin, sagging 0.35 m; hang many from the pole insulators (4 sides, 5 mm) | 10 x 0.36 x 0.01 |
+| `fence_gate_hanging_a` | a five-bar timber field gate hung on a round post and swung open 50 degrees, galvanised hinges and latch | 2.4 x 1.7 x 2.8 |
+
+Origin: the ground (the lowest point is within 0.1 m of y = 0 for everything on land).
+
+What is honest about the look: the fur shading is real (see the sheets), but the animal anatomy is a code-drawn stand-in: heads are the weakest part (a cow's head is a rounded wedge), legs are plain tubes with joint bumps, the dog and horse bodies are too heavy; the boats and the jetty, wood pile, feed rack, silo, oil tank and mooring post are the closest to photographic. The sails are plain cloth with a belly. Thin things (wire, rigging, fence rails far away) will shimmer; use lod 2 beyond 80 m.
+Test: `test/new_models5_test.gd` (headless; finite, winding, budgets that fall from near to far, real sizes, parts that add up to the whole and have sensible pivots, colliders inside their model, rebuilds identical, materials and shaders present). Contact sheets: `docs/realism/models/new_models5_*_{golden,overcast}.jpg` from `test/new_models5_sheet.gd`.

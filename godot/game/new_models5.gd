@@ -75,14 +75,14 @@ static func fur_shells(lod: int) -> int:
 
 ## The uniforms of each coat (see game/shaders/fur.gdshader).
 const FUR := {
-	"holstein": {"fur_len": 0.007, "density": 330.0, "taper": 0.5, "root_dark": 0.5, "tip_light": 1.08, "spec1": 0.4, "spec1_pow": 130.0, "spec2": 0.16,
+	"holstein": {"fur_len": 0.0045, "density": 480.0, "tex_k": 0.0, "tex_norm": 0.0, "tex_scale": 4.0, "taper": 0.5, "root_dark": 0.68, "tip_light": 1.05, "spec1": 0.4, "spec1_pow": 130.0, "spec2": 0.16,
 		"patch_thr": 0.5, "patch_soft": 0.014, "patch_col": Vector3(0.03, 0.028, 0.028), "patch_axis": Vector3(2.6, 3.6, 1.5), "patch_seed": 3.7, "scatter": 0.45},
-	"hereford": {"fur_len": 0.011, "density": 280.0, "taper": 0.55, "root_dark": 0.42, "tip_light": 1.12, "spec1": 0.28, "spec1_pow": 90.0, "spec2": 0.14, "scatter": 0.6},
-	"jersey": {"fur_len": 0.006, "density": 350.0, "taper": 0.5, "root_dark": 0.5, "tip_light": 1.06, "spec1": 0.5, "spec1_pow": 150.0, "spec2": 0.2, "scatter": 0.5},
-	"horse": {"fur_len": 0.0045, "density": 420.0, "taper": 0.5, "root_dark": 0.72, "tip_light": 1.05, "spec1": 0.6, "spec1_pow": 190.0, "spec2": 0.3, "scatter": 0.3},
-	"hair": {"fur_len": 0.013, "density": 240.0, "taper": 0.5, "root_dark": 0.4, "tip_light": 1.12, "spec1": 0.4, "spec1_pow": 100.0, "spec2": 0.2, "scatter": 0.6,
+	"hereford": {"fur_len": 0.008, "density": 380.0, "tex_k": 0.0, "tex_norm": 0.0, "tex_scale": 4.0, "taper": 0.55, "root_dark": 0.6, "tip_light": 1.08, "spec1": 0.28, "spec1_pow": 90.0, "spec2": 0.14, "scatter": 0.6},
+	"jersey": {"fur_len": 0.0045, "density": 500.0, "tex_k": 0.0, "tex_norm": 0.0, "tex_scale": 4.0, "taper": 0.5, "root_dark": 0.5, "tip_light": 1.06, "spec1": 0.5, "spec1_pow": 150.0, "spec2": 0.2, "scatter": 0.5},
+	"horse": {"fur_len": 0.003, "density": 560.0, "tex_k": 0.0, "tex_norm": 0.0, "tex_scale": 5.0, "taper": 0.5, "root_dark": 0.72, "tip_light": 1.05, "spec1": 0.6, "spec1_pow": 190.0, "spec2": 0.3, "scatter": 0.3},
+	"hair": {"fur_len": 0.011, "density": 300.0, "tex_k": 0.0, "tex_norm": 0.0, "tex_scale": 4.0, "taper": 0.5, "root_dark": 0.55, "tip_light": 1.15, "spec1": 0.55, "spec1_pow": 100.0, "spec2": 0.2, "scatter": 0.6,
 		"flow": Vector3(0.0, -0.4, 1.0)},
-	"wool": {"fur_len": 0.05, "density": 75.0, "taper": 0.6, "root_dark": 0.6, "tip_light": 1.05, "wool": 1.0, "curl": 0.8, "spec1": 0.12, "spec1_pow": 40.0, "spec2": 0.1,
+	"wool": {"fur_len": 0.05, "density": 75.0, "tex_k": 0.55, "tex_norm": 0.5, "tex_scale": 2.2, "taper": 0.6, "root_dark": 0.6, "tip_light": 1.05, "wool": 1.0, "curl": 0.8, "spec1": 0.12, "spec1_pow": 40.0, "spec2": 0.1,
 		"spec2_pow": 14.0, "scatter": 0.9, "dirt": 0.55, "sway": 1.5, "flow": Vector3(0.0, -0.1, 1.0)},
 }
 
@@ -98,6 +98,8 @@ static func _fur_chain(key: String, lod: int, off: Vector3, leg_h: float) -> Mat
 		var m := ShaderMaterial.new()
 		m.shader = shader
 		for k in prm: m.set_shader_parameter(k, prm[k])
+		m.set_shader_parameter("coat_tex", load("res://assets/textures/wool_diff.jpg"))
+		m.set_shader_parameter("coat_nor", load("res://assets/textures/wool_nor.jpg"))
 		m.set_shader_parameter("part_off", off)
 		m.set_shader_parameter("leg_h", leg_h)
 		m.set_shader_parameter("shell_t", float(i) / maxf(n, 1.0))
@@ -662,6 +664,8 @@ static func _head(p: Parts, S: Dictionary, lod: int, poll: Vector3, xf: Transfor
 		var c := hc.lerp(hl, smoothstep(-0.08, -0.3, q.y) * 0.6)
 		c = _vc(c, q.x * 31.0 + q.z * 11.0, 0.03)
 		c.a = head_fur
+		if S["head"] == "dog" and absf(q.x) < 0.012 + 0.012 * smoothstep(-0.05, -0.2, q.z) and q.z < -0.05:
+			c = c.lerp(Color(0.85, 0.83, 0.8), 0.9)
 		var mz := smoothstep(muzzle_z + 0.01, muzzle_z - 0.03, q.z)       # the front of the muzzle is bare, wet skin
 		if mz > 0.5:
 			c = pad.lerp(pad * 0.8, vn_(q))
@@ -710,7 +714,7 @@ static func _ears(p: Parts, S: Dictionary, hx: Transform3D, lod: int) -> void:
 			var leaf := sin(PI * pow(t, 0.7)) * 0.85 + 0.15 * (1.0 - t)
 			match kind:
 				"horse":
-					pts.append(Vector3(sx * (0.055 + 0.01 * t), 0.09 + 0.2 * t, -0.2 - 0.04 * t)); wid.append(0.045 * leaf); th.append(0.014 * (1.0 - 0.3 * t))
+					pts.append(Vector3(sx * (0.075 + 0.025 * t), 0.08 + 0.17 * t, -0.18 - 0.04 * t)); wid.append(0.05 * leaf); th.append(0.018 * (1.0 - 0.3 * t))
 				"sheep":
 					pts.append(Vector3(sx * (0.05 + 0.15 * t), 0.0 - 0.02 * t, -0.03 + 0.0 * t)); wid.append(0.035 * leaf); th.append(0.01)
 				"dog":
@@ -799,14 +803,14 @@ static func _cattle(p: Parts, name: String, lod: int) -> void:
 			S["mat"] = "holstein"
 			S["cu"] = Color(0.88, 0.87, 0.84); S["cl"] = Color(0.92, 0.89, 0.85)
 			S["head_col"] = Color(0.88, 0.87, 0.84); S["leg_top"] = Color(0.88, 0.87, 0.84); S["leg_foot"] = Color(0.74, 0.7, 0.64)
-			S["xk"] = 0.88; S["yk"] = 0.84; S["back"] = 1.5; S["hgt"] = 0.78; S["ytop"] = 1.08; S["lr"] = 0.088; S["hs"] = 1.12
+			S["xk"] = 0.88; S["yk"] = 0.84; S["back"] = 1.5; S["hgt"] = 0.78; S["ytop"] = 1.08; S["lr"] = 0.12; S["hs"] = 1.12
 			S["fx"] = 0.17; S["hx"] = 0.19
 			S["neck"] = [[Vector3(0, 1.28, -0.75), 0.22, 0.28], [Vector3(0, 1.34, -1.1), 0.17, 0.22], [Vector3(0, 1.38, -1.3), 0.13, 0.165]]
 			S["pitch"] = 26.0; S["yaw"] = -10.0; S["nose_col"] = Color(0.7, 0.52, 0.5); S["eye_r"] = 0.024
 			S["tail"] = [[Vector3(0, 1.4, 1.13), 0.028], [Vector3(0, 1.26, 1.2), 0.024], [Vector3(0, 0.95, 1.24), 0.018], [Vector3(0, 0.62, 1.25), 0.014]]
 			S["tail_col"] = Color(0.5, 0.48, 0.44)
 			S["tuft"] = [Vector3(0, 0.5, 1.25), Vector3(0.04, 0.12, 0.04), Color(0.1, 0.095, 0.09)]
-			S["xf"] = Transform3D(Basis.from_scale(Vector3.ONE * 0.62), Vector3.ZERO); S["cell"] = 0.1
+			S["xf"] = Transform3D(Basis.from_scale(Vector3.ONE * 0.62), Vector3.ZERO); S["cell"] = 0.08
 	_quad(p, S, lod)
 
 static func _sheep(p: Parts, name: String, lod: int) -> void:
@@ -834,11 +838,11 @@ static func _sheep(p: Parts, name: String, lod: int) -> void:
 			# a lamb, a little over half the size, leggier
 			S["head_col"] = Color(0.8, 0.74, 0.66); S["leg_top"] = Color(0.74, 0.68, 0.6); S["leg_foot"] = Color(0.66, 0.6, 0.52)
 			S["pitch"] = 20.0; S["yaw"] = 18.0; S["nose_col"] = Color(0.66, 0.5, 0.46); S["hs"] = 1.1; S["hgt"] = 0.44; S["ytop"] = 0.6
-			S["xf"] = Transform3D(Basis.from_scale(Vector3.ONE * 0.56), Vector3.ZERO); S["cell"] = 0.07
+			S["xf"] = Transform3D(Basis.from_scale(Vector3.ONE * 0.56), Vector3.ZERO); S["cell"] = 0.05; S["lr"] = 0.055
 	_quad(p, S, lod)
 
 static func _horse(p: Parts, name: String, lod: int) -> void:
-	var S := {"mat": "horse", "xk": 0.86, "yk": 0.86, "zr": 0.88, "zc": -0.78, "back": 1.5, "head": "horse", "hs": 1.0, "hgt": 0.76, "lr": 0.062,
+	var S := {"mat": "horse", "xk": 0.86, "yk": 0.86, "zr": 0.88, "zc": -0.78, "back": 1.5, "head": "horse", "hs": 1.0, "hgt": 0.76, "lr": 0.075,
 		"bend": 1.05, "fx": 0.15, "hx": 0.165, "zf": -0.58, "zh": 0.66, "ytop": 1.1, "cell": 0.075, "eye_r": 0.022, "eye_row": 2, "tuck": 0.1, "tail_flat": 1.0}
 	var coat: Color; var mane: Color
 	if name == "horse_a":
@@ -864,16 +868,16 @@ static func _horse(p: Parts, name: String, lod: int) -> void:
 
 static func _dog(p: Parts, lod: int) -> void:
 	# a farm dog, black and white (a collie cross): standing, head alert, tail down with a curl
-	var S := {"mat": "hair", "xk": 0.34, "yk": 0.3, "zr": 0.24, "zc": -0.22, "back": 0.55, "head": "dog", "hs": 1.0, "hgt": 0.3, "lr": 0.026,
-		"bend": 0.4, "fx": 0.055, "hx": 0.06, "zf": -0.16, "zh": 0.2, "ytop": 0.44, "cell": 0.04, "eye_r": 0.011, "eye_row": 2, "tuck": 0.3}
-	S["cu"] = Color(0.1, 0.09, 0.085); S["cl"] = Color(0.8, 0.78, 0.74); S["leg_fur"] = 0.45
+	var S := {"mat": "hair", "xk": 0.3, "yk": 0.26, "zr": 0.25, "zc": -0.23, "back": 0.56, "head": "dog", "hs": 1.0, "hgt": 0.34, "lr": 0.028,
+		"bend": 0.4, "fx": 0.055, "hx": 0.06, "zf": -0.16, "zh": 0.2, "ytop": 0.47, "cell": 0.034, "eye_r": 0.011, "eye_row": 2, "tuck": 0.3}
+	S["cu"] = Color(0.2, 0.17, 0.15); S["cl"] = Color(0.8, 0.78, 0.74); S["leg_fur"] = 0.3
 	S["head_col"] = Color(0.1, 0.09, 0.085); S["head_col_l"] = Color(0.6, 0.58, 0.54); S["head_fur"] = 0.5; S["leg_top"] = Color(0.7, 0.68, 0.64); S["leg_foot"] = Color(0.88, 0.86, 0.82)
 	S["neck_col"] = Color(0.05, 0.045, 0.04); S["neck_col_l"] = Color(0.85, 0.83, 0.78)
-	S["neck"] = [[Vector3(0, 0.5, -0.16), 0.055, 0.08], [Vector3(0, 0.56, -0.25), 0.05, 0.068], [Vector3(0, 0.63, -0.33), 0.044, 0.058]]
+	S["neck"] = [[Vector3(0, 0.52, -0.17), 0.05, 0.075], [Vector3(0, 0.58, -0.26), 0.046, 0.064], [Vector3(0, 0.65, -0.34), 0.04, 0.054]]
 	S["pitch"] = 18.0; S["yaw"] = 0.0; S["nose_col"] = Color(0.05, 0.04, 0.04); S["ear_col"] = Color(0.1, 0.09, 0.085, 0.5)
-	S["tail"] = [[Vector3(0, 0.52, 0.23), 0.02], [Vector3(0, 0.45, 0.34), 0.03], [Vector3(0, 0.3, 0.42), 0.034], [Vector3(0, 0.2, 0.43), 0.026], [Vector3(0, 0.14, 0.39), 0.012]]
+	S["tail"] = [[Vector3(0, 0.54, 0.24), 0.02], [Vector3(0, 0.47, 0.35), 0.03], [Vector3(0, 0.32, 0.43), 0.034], [Vector3(0, 0.22, 0.44), 0.026], [Vector3(0, 0.16, 0.4), 0.012]]
 	S["tail_col"] = Color(0.1, 0.09, 0.085); S["tail_flat"] = 0.8
-	S["tuft"] = [Vector3(0, 0.16, 0.4), Vector3(0.022, 0.05, 0.035), Color(0.9, 0.88, 0.84)]
+	S["tuft"] = [Vector3(0, 0.18, 0.4), Vector3(0.022, 0.05, 0.035), Color(0.9, 0.88, 0.84)]
 	_quad(p, S, lod)
 
 ## A Rhode Island Red hen standing with her head up, smooth and feathered (a distance field like the mammals): full breast, a back that slopes into the

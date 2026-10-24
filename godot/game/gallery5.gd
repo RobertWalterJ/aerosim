@@ -31,6 +31,7 @@ static func _row(parent: Node, terrain: Terrain, start: Vector2, gap: float, nam
 		var w := maxf(bb.size.x, bb.size.z) * 0.5 + gap * 0.5
 		x += w
 		_put(parent, terrain, nm, x, start.y, yaw + deg_to_rad(25.0))
+		print("gallery5: ", nm, " at x=", x, " z=", start.y)
 		x += w
 	print("gallery5: ", names.size(), " models in a row on z=", start.y, " from x=", start.x, " to ", x)
 
