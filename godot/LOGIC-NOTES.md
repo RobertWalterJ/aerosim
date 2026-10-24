@@ -925,3 +925,17 @@ Every app screen now exists, and the story director is a real system rather than
   - CAB3. Should the cave be a simple exterior entrance, or eventually a walkable interior?
   - CAB4. Should there be a small parking pull-off at the ridge end of the track?
   - CAB5. Should the cave connect to the Lake Car story, or stay an optional place to photograph?
+
+## Road grounding and modular pavement markings (lane/notify, session B, 2026-11-15)
+- **Grounding:** the asphalt ribbon was lowered from 140 mm to 55 mm above the sampled ground and rebuilt with three vertices across (left edge, crown, right edge) instead of two. Each vertex follows the real terrain, so the road cannot bridge a rise in the middle and hover. A vertical edge skirt drops from each asphalt edge to the ground, and the shoulder outer lip still sinks into the grass.
+- **Separate markings:** the asphalt shader no longer paints edge or centre lines. `roads.gd` builds them as separate meshes at real-world sizes: a 120 mm edge line, inset 0.55 m, and 120 mm centre dashes in a 3 m paint / 9 m gap rhythm. The paint sits 100 mm above the datum, follows the terrain at each vertex and stops 11 m short of the junction aprons. The road shader line flags are now zero.
+- **Articulation:** the marking builder uses the actual route samples, so each piece follows the curve and the measured terrain. The paint material is a plain white placeholder, ready to be swapped for Claude's `mark_*` meshes or decals.
+- **Evidence:** `docs/realism/roads/18_modular_markings.jpg`, `19_road_edge_grounding.jpg`.
+- **Asset brief:** `docs/CLAUDE-ROAD-SURFACE-ASSETS.md` asks for seamless asphalt PBR sets (worn/faded/patched/wet), a modular marking kit with exact widths, 3/9 dashes, stop bars, arrows and curves, shoulder and junction transitions, and full channel/pivot/tiling documentation. The current photographic 2048 asphalt and 1024 gravel sheets are placeholders.
+- **Honest limits:** the asphalt and gravel textures still tile visibly at extreme close range and are not authored seamless PBR sets yet. The marking mesh is a simple white material; no worn paint decals, arrows or faded edge variants are in the engine yet. The road crown is a simple three-vertex profile, not a surveyed camber. Edge skirts are flat dark faces, not textured kerbs. The road still does not have puddles, wet tyre marks or deformation.
+- **Questions for Robert:**
+  - SURF1. Do you want a single seamless asphalt set or separate worn, patched and wet variants?
+  - SURF2. Should the final markings be separate meshes, alpha decals or both?
+  - SURF3. Should the default centre line be white or yellow?
+  - SURF4. Should the wider roads get a 3 m paint / 9 m gap dash, or a shorter village-style rhythm?
+  - SURF5. Should the road get a visible crown/camber and textured edge skirt in the next pass?

@@ -16,7 +16,7 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 - **Grass mask:** `Roads` bakes a 1024 px corridor mask, including the boat launch apron, and the grass shader keeps blades off it. The shoulders now read as shoulders instead of a strip of grass with a road underneath.
 - **Textures and normals:** the road shader samples `asphalt_diff`, `asphalt_nor` and `asphalt_arm`; the shoulder samples `gravel_diff`, `gravel_nor` and `gravel_arm`. The mesh now carries tangents and terrain-following normals so the normal maps work.
 - **Surface detail:** aggregate at two scales, wheel tracks, tar cracks, repaired patches, frayed edges, gravel in the edge, and slightly polished wheel paths.
-- **Markings:** edge lines and a worn dashed centre line only on roads 6.5 m and wider. The narrow lanes are unmarked, which is what a rural lane looks like. The lines are wider, brighter and still worn.
+- **Markings:** edge lines and a dashed centre line only on roads 6.5 m and wider. The narrow lanes are unmarked. The paint is now separate geometry at real-world sizes: 120 mm edge lines and 120 mm centre dashes in a 3 m paint / 9 m gap rhythm, lifted clear of the asphalt and stopped short of the junction aprons.
 - **Shoulders:** the outer lip sinks below the terrain, so the shoulder blends into the ground instead of hovering. The gravel shader adds tyre ruts, stones and grass creeping in at the outer edge.
 - **Delineator posts:** white posts with red reflectors along the wider roads every 60 m on both sides, built as two multi-meshes.
 - **Rain:** the weather's wetness value is passed to both shaders. Wet asphalt darkens and the wheel tracks pick up a little reflection; wet gravel darkens and smooths.
@@ -57,6 +57,20 @@ The traffic route pool only uses the through roads, so vehicles do not loop arou
 
 The final gateway and place-sign art is requested in `docs/CLAUDE-LOCATION-SIGNS-ASSETS.md`.
 
+## Grounding the road and assembling the paint
+
+The ribbon was lowered from 140 mm to 55 mm above the sampled ground, and the asphalt now has three vertices across instead of two. The left edge, crown and right edge all follow the terrain, so the road cannot bridge over a rise in the middle and hover. A short vertical edge skirt drops from each asphalt edge to the ground and the shoulder outer lip sinks below the grass.
+
+The paint is not baked into the asphalt shader any more. `roads.gd` builds it as separate meshes at real-world dimensions:
+
+- 120 mm edge lines, inset 0.55 m from the asphalt edge;
+- 120 mm centre dashes, 3 m of paint and 9 m of gap;
+- both lifted 100 mm above the datum and stopped 11 m short of a junction;
+- a plain white line material today, ready to be replaced by the final marking decals.
+
+**Asset brief:** `docs/CLAUDE-ROAD-SURFACE-ASSETS.md` asks for seamless asphalt PBR sets, a modular pavement marking kit with real dimensions and clean pivots, shoulder and junction blends, and channel/tiling documentation.
+
+Evidence: `docs/realism/roads/18_modular_markings.jpg`, `19_road_edge_grounding.jpg`.
 ## The old cabin track
 
 The abandoned cabin is deliberately not served by a country highway. `game/cabin_track.gd` builds a narrow dirt and gravel track from the ridge road at (45, -760) through the trees to the cabin at (-250, -820). It has two worn wheel ruts, no markings, no shoulders and no asphalt connection.
@@ -70,7 +84,7 @@ Honest limits: the track is a simple unshaded ribbon with ruts, not a full grave
 
 - **Five rural flashing-red beacons** hang from cables between two 6.5 m timber poles at the east gate, south junction, Toby Farm junction, north gate and west junction. Each has a yellow diamond backplate, black housing, red lenses on both faces and a pulsing red OmniLight. Lens and light flash together, about 0.68 seconds on and 0.67 off.
 - **Pause switch:** Display > World > Intersection beacons turns the flashing and red light off; the poles and housings remain.
-- **Markings:** every stop sign has a white stop bar, and the asphalt shader fades painted edge and centre lines through a junction mask built in `roads.gd`. No lane line runs straight across an intersection.
+- **Markings:** every stop sign has a white stop bar. The separate edge and centre marking meshes stop short of the junction aprons, so no lane line runs across an intersection.
 - **Signs:** stop approach signs, STOP AHEAD warning diamonds on the busier approaches and the existing junction warnings.
 - The beacons are scenery. Traffic does not stop for them, and there is no signal controller or give-way logic.
 - Evidence: `docs/realism/intersections/00_beacon_at_night.jpg`, `01_east_gate_beacon.jpg`, `02_south_junction.jpg`, `03_stop_ahead.jpg`.
@@ -97,6 +111,8 @@ The result in the junction overviews is a clean T or corner with one surface, on
 - `docs/realism/roads/12_road_surface_and_posts.jpg`, the dry road with texture, markings and delineator posts.
 - `docs/realism/roads/13_wet_road.jpg`, the same kind of road in rain.
 - `docs/realism/roads/14_clean_shoulder.jpg`, the shoulder and grass margin in daylight.
+- `docs/realism/roads/18_modular_markings.jpg`, separate edge and centre markings on the road.
+- `docs/realism/roads/19_road_edge_grounding.jpg`, the lowered ribbon and edge skirt.
 - `docs/realism/boat_launch/00_boat_launch_aerial.jpg`, the launch from the air.
 - `docs/realism/boat_launch/01_boat_launch_ramp.jpg`, the ramp and dock at the water.
 

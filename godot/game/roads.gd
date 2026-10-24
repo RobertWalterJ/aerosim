@@ -328,42 +328,46 @@ func _build_route(route: Dictionary) -> void:
 		else:
 			t = (pts[i + 1] - pts[i - 1]).normalized()
 		var side := Vector2(-t.y, t.x)
-		var h := terrain.height(p.x, p.y) + 0.14
-		var hl := terrain.height(p.x - side.x * half, p.y - side.y * half) + 0.11
-		var hr := terrain.height(p.x + side.x * half, p.y + side.y * half) + 0.11
-		# the outer lip sinks below the ground so the shoulder blends instead of hovering
+		# three vertices across, each on the real ground: the crown cannot bridge over a rise
+		var hc := terrain.height(p.x, p.y) + 0.055
+		var hl := terrain.height(p.x - side.x * half, p.y - side.y * half) + 0.055
+		var hr := terrain.height(p.x + side.x * half, p.y + side.y * half) + 0.055
 		var ho_l := terrain.height(p.x - side.x * outer, p.y - side.y * outer) - 0.12
 		var ho_r := terrain.height(p.x + side.x * outer, p.y + side.y * outer) - 0.12
-		var nl := (terrain.normal_at(p.x, p.y) + Vector3.UP * 1.6).normalized()
+		var nc := (terrain.normal_at(p.x, p.y) + Vector3.UP * 1.6).normalized()
 		var nl2 := (terrain.normal_at(p.x - side.x * half, p.y - side.y * half) + Vector3.UP * 1.6).normalized()
 		var nr2 := (terrain.normal_at(p.x + side.x * half, p.y + side.y * half) + Vector3.UP * 1.6).normalized()
+		var nlo := (terrain.normal_at(p.x - side.x * outer, p.y - side.y * outer) + Vector3.UP * 1.6).normalized()
+		var nro := (terrain.normal_at(p.x + side.x * outer, p.y + side.y * outer) + Vector3.UP * 1.6).normalized()
 		var tangent := Vector3(t.x, 0.0, t.y).normalized()
+		var tc := (tangent - nc * nc.dot(tangent)).normalized()
 		var tl := (tangent - nl2 * nl2.dot(tangent)).normalized()
 		var tr := (tangent - nr2 * nr2.dot(tangent)).normalized()
 		verts.append(Vector3(p.x - side.x * half, hl, p.y - side.y * half))
+		verts.append(Vector3(p.x, hc, p.y))
 		verts.append(Vector3(p.x + side.x * half, hr, p.y + side.y * half))
-		norms.append(nl2); norms.append(nr2)
-		# the road vertices carry the forward tangents, orthogonalised against their own side normal
-		tangents.append_array([tl.x, tl.y, tl.z, 1.0, tr.x, tr.y, tr.z, 1.0])
-		uvs.append(Vector2(0.0, dist / 8.0)); uvs.append(Vector2(1.0, dist / 8.0))
+		norms.append(nl2); norms.append(nc); norms.append(nr2)
+		for tv in [tl, tc, tr]:
+			tangents.append_array([tv.x, tv.y, tv.z, 1.0])
+		uvs.append(Vector2(0.0, dist / 8.0)); uvs.append(Vector2(0.5, dist / 8.0)); uvs.append(Vector2(1.0, dist / 8.0))
 		sverts.append(Vector3(p.x - side.x * outer, ho_l, p.y - side.y * outer))
 		sverts.append(Vector3(p.x - side.x * half, hl, p.y - side.y * half))
 		sverts.append(Vector3(p.x + side.x * half, hr, p.y + side.y * half))
 		sverts.append(Vector3(p.x + side.x * outer, ho_r, p.y + side.y * outer))
-		snorms.append(nl); snorms.append(nl2); snorms.append(nr2); snorms.append(nl)
+		snorms.append(nlo); snorms.append(nl2); snorms.append(nr2); snorms.append(nro)
 		stangents.append_array([tl.x, tl.y, tl.z, 1.0, tl.x, tl.y, tl.z, 1.0,
 			tr.x, tr.y, tr.z, 1.0, tr.x, tr.y, tr.z, 1.0])
 		suvs.append(Vector2(0.0, dist / 4.0)); suvs.append(Vector2(1.0, dist / 4.0))
 		suvs.append(Vector2(0.0, dist / 4.0)); suvs.append(Vector2(1.0, dist / 4.0))
 	for i in pts.size() - 1:
-		var a := i * 2
-		var c := (i + 1) * 2
+		var a := i * 3
+		var c := (i + 1) * 3
 		idx.append_array([a, a + 1, c, a + 1, c + 1, c])
+		idx.append_array([a + 1, a + 2, c + 1, a + 2, c + 2, c + 1])
 		var sa := i * 4
 		var sc := (i + 1) * 4
 		sidx.append_array([sa, sa + 1, sc, sa + 1, sc + 1, sc])             # left shoulder
-		sidx.append_array([sa + 2, sa + 3, sc + 2, sa + 3, sc + 3, sc + 2]) # right shoulder
-	_lengths[str(route["id"])] = dist
+		sidx.append_array([sa + 2, sa + 3, sc + 2, sa + 3, sc + 3, sc + 2]) # right shoulder	_lengths[str(route["id"])] = dist
 	var road_mesh := ArrayMesh.new()
 	var arr := []
 	arr.resize(Mesh.ARRAY_MAX)
@@ -380,8 +384,9 @@ func _build_route(route: Dictionary) -> void:
 	mat.set_shader_parameter("uArm", _asphalt_arm)
 	mat.set_shader_parameter("uJunctionMask", junction_mask)
 	var has_lines := width >= 6.5
-	mat.set_shader_parameter("edge_marks", 1.0 if has_lines else 0.0)
-	mat.set_shader_parameter("center_line", 1.0 if has_lines else 0.0)
+	# markings are separate meshes at real-world dimensions, not baked into the asphalt UVs
+	mat.set_shader_parameter("edge_marks", 0.0)
+	mat.set_shader_parameter("center_line", 0.0)
 	mat.set_shader_parameter("wetness", maxf(_wetness, 0.0))
 	_materials.append(mat)
 	var mi := MeshInstance3D.new()
@@ -413,7 +418,138 @@ func _build_route(route: Dictionary) -> void:
 	add_child(smi)
 	if has_lines:
 		_build_reflector_posts(pts, outer, route)
+		_build_markings(route, pts, width)
+	_build_skirts(pts, half)
 
+## A short vertical face down from each asphalt edge. The shoulder already sinks into the ground, but this face hides
+## any remaining sliver of daylight under the ribbon on a crest or a side slope.
+func _build_skirts(pts: Array, half: float) -> void:
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var idx := PackedInt32Array()
+	for sd in [-1.0, 1.0]:
+		var base := verts.size()
+		for i in pts.size():
+			var p: Vector2 = pts[i]
+			var t := _segment_tangent(pts, i)
+			var side := Vector2(-t.y, t.x) * float(sd)
+			var edge := p + side * half
+			var top := terrain.height(edge.x, edge.y) + 0.055
+			var bottom := terrain.height(edge.x, edge.y) - 0.16
+			verts.append(Vector3(edge.x, top, edge.y))
+			verts.append(Vector3(edge.x, bottom, edge.y))
+			norms.append(Vector3(side.x, 0.0, side.y)); norms.append(Vector3(side.x, 0.0, side.y))
+		for i in pts.size() - 1:
+			var a := base + i * 2
+			var c := base + (i + 1) * 2
+			idx.append_array([a, a + 1, c, a + 1, c + 1, c])
+	var mesh := ArrayMesh.new()
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_INDEX] = idx
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.16, 0.16, 0.15)
+	mat.roughness = 0.95
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+func _near_junction(p: Vector2, radius := 10.0) -> bool:
+	for j in JUNCTIONS:
+		if p.distance_to(j) < radius:
+			return true
+	return false
+
+## Painted lines as separate meshes at real-world sizes: a 120 mm edge line and a dashed 120 mm centre line,
+## lifted clear of the asphalt. They stop short of the junction aprons.
+func _build_markings(_route: Dictionary, pts: Array, width: float) -> void:
+	var half := width * 0.5
+	var line_half := 0.06
+	var edge_inset := 0.55
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var idx := PackedInt32Array()
+	# continuous edge lines
+	for sd in [-1.0, 1.0]:
+		for i in pts.size() - 1:
+			var p0: Vector2 = pts[i]
+			var p1: Vector2 = pts[i + 1]
+			if _near_junction(p0, 11.0) or _near_junction(p1, 11.0):
+				continue
+			var t0 := _segment_tangent(pts, i)
+			var t1 := _segment_tangent(pts, i + 1)
+			var s0 := Vector2(-t0.y, t0.x)
+			var s1 := Vector2(-t1.y, t1.x)
+			var c0 := p0 + s0 * float(sd) * (half - edge_inset)
+			var c1 := p1 + s1 * float(sd) * (half - edge_inset)
+			var a0 := c0 + s0 * line_half
+			var b0 := c0 - s0 * line_half
+			var a1 := c1 + s1 * line_half
+			var b1 := c1 - s1 * line_half
+			var q := _mark_quad(a0, b0, a1, b1)
+			var base := verts.size()
+			for qp in q:
+				verts.append(qp)
+				norms.append(Vector3.UP)
+			idx.append_array([base, base + 1, base + 2, base + 1, base + 3, base + 2])
+	# dashed centre line, 3 m paint and 9 m gap
+	var dist := 0.0
+	for i in pts.size() - 1:
+		var p0: Vector2 = pts[i]
+		var p1: Vector2 = pts[i + 1]
+		var seg := p0.distance_to(p1)
+		var mid := dist + seg * 0.5
+		if fmod(mid, 12.0) < 3.0 and not _near_junction(p0, 11.0) and not _near_junction(p1, 11.0):
+			var t0 := _segment_tangent(pts, i)
+			var t1 := _segment_tangent(pts, i + 1)
+			var s0 := Vector2(-t0.y, t0.x)
+			var s1 := Vector2(-t1.y, t1.x)
+			var a0 := p0 + s0 * line_half
+			var b0 := p0 - s0 * line_half
+			var a1 := p1 + s1 * line_half
+			var b1 := p1 - s1 * line_half
+			var q := _mark_quad(a0, b0, a1, b1)
+			var base := verts.size()
+			for qp in q:
+				verts.append(qp)
+				norms.append(Vector3.UP)
+			idx.append_array([base, base + 1, base + 2, base + 1, base + 3, base + 2])
+		dist += seg
+	var mesh := ArrayMesh.new()
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_INDEX] = idx
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.88, 0.86, 0.78)
+	mat.roughness = 0.62
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+
+func _segment_tangent(pts: Array, i: int) -> Vector2:
+	var n := pts.size()
+	if i <= 0:
+		return (pts[1] - pts[0]).normalized()
+	if i >= n - 1:
+		return (pts[n - 1] - pts[n - 2]).normalized()
+	return (pts[i + 1] - pts[i - 1]).normalized()
+
+func _mark_quad(a0: Vector2, b0: Vector2, a1: Vector2, b1: Vector2) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for p in [a0, b0, a1, b1]:
+		out.append(Vector3(p.x, terrain.height(p.x, p.y) + 0.10, p.y))
+	return out
 ## A paved junction apron shaped from the approach roads themselves. Each route that reaches the junction contributes
 ## the two shoulder corners of its carriageway, and the hull of those corners is filled with asphalt. The route ribbons
 ## discard their own asphalt and shoulders inside the junction mask, so the apron is the only surface across the
