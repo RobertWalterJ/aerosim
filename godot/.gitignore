@@ -9,3 +9,10 @@ build/
 !assets/world/lake_mask.png
 # tablet UI kit art is generated source-of-truth for the game; keep it tracked
 !assets/ui/tablet/**/*.png
+# phone app art (lane appui2) is generated source-of-truth too
+!assets/ui/*.png
+!assets/ui/icons/**/*.png
+!assets/ui/sizes/**/*.png
+!assets/ui/avatars/**/*.png
+!assets/ui/items/**/*.png
+!assets/ui/thumbs/**/*.png

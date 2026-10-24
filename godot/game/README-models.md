@@ -665,6 +665,21 @@ colliders). `test/vehicles_blender_test.gd` covers the new recipes. Sheets: `tes
 `mode=grid` overview, `a+b@x_z_yaw` groups), `test/sites_textures_sheet.gd`, `test/fleet_sheet.gd`, written to
 `docs/realism/models/sites_*.jpg`.
 
+## Phone app art (lane appui2)
+
+2D art for `docs/CLAUDE-PHONE-APP-UI-PASS.md` and `docs/CLAUDE-APP-ASSETS.md`, on top of the tablet kit (`assets/ui/tablet`).
+Everything is in `assets/ui/` at the exact paths the code loads: `icon_<key>.png` (chat, studio, photos, jobs, casebook, market,
+map, settings, recents, home, search; plus weather, camera, phone), `avatar_<key>.png` (maya, jo, riley, tom, alex, sam,
+rennick, unknown, you, wren, kit), `item_<id>.png` (Facade tiles), the Casebook kit (`casebook_*`, and the `case_art` keys
+`stamp_evidence.png`, `stamp_case_closed.png`), status/nav glyphs, badges, channel marks, act stamps, app glyphs, Map art,
+banners and thumbnail overlays. Fonts in `assets/fonts/` (Work Sans, IBM Plex Serif, IBM Plex Mono; OFL).
+- Generators: `tools/ui_art/build_appui.py` (Pillow) and `tools/blender/appui_portraits.py` / `appui_products.py` (Cycles).
+- Contract: no baked text; root PNGs are 2x the nominal size, natives in `assets/ui/sizes/<px>/`; 9-patch margins and
+  pivots in `assets/ui/APPUI-MANIFEST.md`; licences in `assets/ui/APPUI-README.md`.
+- Check: `Godot --headless --path godot -s res://test/appui_paths_test.gd -- group=all` prints `APPUI PATHS PASS`.
+- Sheets: `docs/realism/appui2/*.jpg` (one per group, with file names), `docs/realism/models/appui2_final_views.jpg`,
+  `appui2_final_textures.jpg`.
+
 ## Wreck and dive van (lane/wreckvan)
 
 The two endgame vehicles that were still missing from `docs/story/CLAUDE-ENDGAME-ASSETS.md`, modelled in Blender with the
