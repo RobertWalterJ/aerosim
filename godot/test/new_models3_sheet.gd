@@ -10,6 +10,8 @@ var _out := ""
 var _only := ""
 var _light := "golden"
 var _set := "all"
+var _time := 3.0
+var _wind := 2.0
 
 func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -17,13 +19,15 @@ func _initialize() -> void:
 		if a.begins_with("only="): _only = a.substr(5)
 		if a.begins_with("light="): _light = a.substr(6)
 		if a.begins_with("set="): _set = a.substr(4)
+		if a.begins_with("time="): _time = float(a.substr(5))
+		if a.begins_with("wind="): _wind = float(a.substr(5))
 	if _out == "": _out = "res://docs/realism/models/new_models3_%s_%s.jpg" % [_set, _light]
 	Grass.add_globals()
 	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))
 	RenderingServer.global_shader_parameter_set("g_cloud", Vector4(0.0, 0.0, 0.0, 0.0))
 	RenderingServer.global_shader_parameter_set("g_dsB", Vector4(0.0, 0.0, 1.0, 1.0))
-	RenderingServer.global_shader_parameter_set("g_wind", Vector3(2.0, 0.0, 0.6))
-	RenderingServer.global_shader_parameter_set("g_time", 3.0)
+	RenderingServer.global_shader_parameter_set("g_wind", Vector3(_wind, 0.0, _wind * 0.3))
+	RenderingServer.global_shader_parameter_set("g_time", _time)
 	_run.call_deferred()
 
 ## One entry: a title and three cells; each cell: the meshes (with where they go) and the direction the camera looks from.

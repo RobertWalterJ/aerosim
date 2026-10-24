@@ -37,7 +37,9 @@ static var _mats := {}
 static func _mat(key: String) -> ShaderMaterial:
 	if _mats.has(key): return _mats[key]
 	var m := ShaderMaterial.new()
-	if key == "leaf" or key == "plant":
+	if key.begins_with("card"):
+		_card_mat(m, key)
+	elif key == "leaf" or key == "plant":
 		m.shader = load("res://game/shaders/farm_plant.gdshader") as Shader
 		m.set_shader_parameter("kind", 0 if key == "leaf" else 1)
 	else:
@@ -64,6 +66,43 @@ static func _mat(key: String) -> ShaderMaterial:
 	_mats[key] = m
 	return m
 
+## The leaf-card materials: a drawn plant texture (assets/textures/cards, made by test/gen_card_textures.gd) cut out on standing
+## quads (kind 2) or on a flat canopy quad (kind 3), coloured by the leaf and stem colours so the same drawing serves green and ripe.
+## key: card_<texture>[:<colour set>]
+static func _card_mat(m: ShaderMaterial, key: String) -> void:
+	m.shader = load("res://game/shaders/farm_plant.gdshader") as Shader
+	var parts := key.substr(5).split(":")
+	var tex := parts[0]
+	var look := parts[1] if parts.size() > 1 else "green"
+	m.set_shader_parameter("kind", 3 if tex == "corn_top" else 2)
+	m.set_shader_parameter("card_tex", load("res://assets/textures/cards/%s.png" % tex))
+	match tex:
+		"corn_card": m.set_shader_parameter("card_tile", Vector2(1.0, 2.35))
+		"corn_top": m.set_shader_parameter("card_tile", Vector2(0.8, 0.8))
+		"barley_card_a", "barley_card_b": m.set_shader_parameter("card_tile", Vector2(0.55, 0.8))
+		"alfalfa_card_a", "alfalfa_card_b": m.set_shader_parameter("card_tile", Vector2(0.5, 0.5))
+		"weeds_card": m.set_shader_parameter("card_tile", Vector2(0.9, 0.8))
+	var leaf := Color(0.24, 0.38, 0.11); var stem := Color(0.42, 0.49, 0.21)
+	var a1 := Color(0.85, 0.82, 0.62); var a2 := Color(0.55, 0.30, 0.62)
+	match look:
+		"ripe":      # corn gone to straw, barley ripe gold
+			leaf = Color(0.55, 0.50, 0.22); stem = Color(0.70, 0.60, 0.28)
+		"ripe_corn":
+			leaf = Color(0.50, 0.48, 0.19); stem = Color(0.66, 0.58, 0.30)
+		"gold":
+			leaf = Color(0.44, 0.45, 0.17); stem = Color(0.80, 0.66, 0.30)
+		"green_barley":
+			leaf = Color(0.36, 0.45, 0.15); stem = Color(0.66, 0.62, 0.30)
+		"alfalfa":
+			leaf = Color(0.30, 0.50, 0.16); stem = Color(0.40, 0.54, 0.22)
+		"weeds":
+			leaf = Color(0.38, 0.45, 0.17); stem = Color(0.52, 0.55, 0.26); a1 = Color(0.93, 0.92, 0.84); a2 = Color(0.92, 0.70, 0.10)
+	if tex.begins_with("corn"): a1 = Color(0.72, 0.62, 0.34); a2 = Color(0.55, 0.38, 0.22)
+	if tex == "corn_top":      # from far a field is a deep, even green: the top is lit all over, so it must start darker than a side card
+		leaf = Color(0.17, 0.30, 0.09); stem = Color(0.30, 0.38, 0.15)
+	m.set_shader_parameter("col_leaf", leaf); m.set_shader_parameter("col_stem", stem)
+	m.set_shader_parameter("col_acc1", a1); m.set_shader_parameter("col_acc2", a2)
+
 ## The parts of one model by material.
 class Parts:
 	var m := {}
@@ -87,8 +126,8 @@ static func mesh(name: String, lod := 0) -> ArrayMesh:
 		"hay_round_a": _bale_round(p, 0.6, 1.2, 0, lod)
 		"hay_round_b": _bale_round(p, 0.6, 1.2, 1, lod)
 		"hay_roll_a": _bale_round(p, 0.75, 1.2, 2, lod)
-		"hay_square_a": _bale_sq(p, Vector3(0, 0, 0), 0.0, 0, [4, 2, 2][lod] if lod < 2 else 1, lod < 2, true)
-		"hay_square_b": _bale_sq(p, Vector3(0, 0, 0), 0.0, 1, [4, 2, 2][lod] if lod < 2 else 1, lod < 2, true)
+		"hay_square_a": _bale_sq(p, Vector3(0, 0, 0), 0.0, 0, [4, 2, 2][lod] if lod < 2 else 1, lod < 2, true, lod == 0)
+		"hay_square_b": _bale_sq(p, Vector3(0, 0, 0), 0.0, 1, [4, 2, 2][lod] if lod < 2 else 1, lod < 2, true, lod == 0)
 		"hay_stack_a": _hay_stack(p, lod)
 		"corn_stand_a": _corn_stand(p, 0, lod)
 		"corn_stand_b": _corn_stand(p, 1, lod)
@@ -231,12 +270,19 @@ static func _curve2(base: Vector3, d0: Vector3, acc: Vector3, ln: float, segs: i
 	return out
 
 ## A grass-like blade: starts in direction d0 and bends by acc (both unit-ish), ln long, w wide, tapering to a point.
-static func _blade(b: NewModels2.Buf, base: Vector3, d0: Vector3, acc: Vector3, ln: float, w: float, segs: int, c0: Color, c1: Color, tp := 2.0, fold := 0.0) -> Array:
+static func _blade(b: NewModels2.Buf, base: Vector3, d0: Vector3, acc: Vector3, ln: float, w: float, segs: int, c0: Color, c1: Color, tp := 2.0, fold := 0.0, wave := 0.0) -> Array:
 	var pts := _curve2(base, d0, acc, ln, segs)
 	var ws: Array = []
 	for k in segs + 1: ws.append(w * (1.0 - pow(float(k) / segs, tp)))
 	var ac := d0.cross(acc)
 	if ac.length_squared() < 1e-6: ac = Vector3.RIGHT.cross(d0)
+	if wave > 0.0:      # a leaf's wavy margin and slow ripple: the blade wanders about its line and its width breathes
+		var wn := ac.normalized().cross(d0).normalized()
+		var ph := base.x * 17.0 + base.z * 11.0 + base.y * 5.0
+		for k in range(1, segs + 1):
+			var tk := float(k) / segs
+			pts[k] = (pts[k] as Vector3) + wn * (wave * ln * sin(tk * 9.0 + ph) * tk) + ac.normalized() * (wave * 0.3 * ln * sin(tk * 7.0 + ph * 1.7) * tk)
+			ws[k] = float(ws[k]) * (1.0 + 0.18 * sin(tk * 23.0 + ph))
 	_strip(b, pts, ws, ac.normalized(), c0, c1, fold)
 	return pts
 
@@ -262,13 +308,26 @@ static func _card(b: NewModels2.Buf, base: Vector3, tangent: Vector3, pts: Packe
 		DroneParts._tri(b.pos, b.nrm, b.cols, w.call(cen), w.call(q0), w.call(q1), nrm, nrm, nrm, cc,
 			_g(col_lo.lerp(col_hi, clampf(q0.y / ymax, 0.0, 1.0)), 0.3), _g(col_lo.lerp(col_hi, clampf(q1.y / ymax, 0.0, 1.0)), 0.3))
 
-## n cards through the clump's middle, turned evenly: the far version of a crop clump.
-static func _cards_x(b: NewModels2.Buf, base: Vector3, width: float, ht: float, n: int, col_lo: Color, col_hi: Color, belly := 0.55) -> void:
-	var pts := PackedVector2Array([Vector2(-width * 0.25, 0.0), Vector2(width * 0.25, 0.0), Vector2(width * 0.5, ht * belly),
-		Vector2(width * 0.2, ht), Vector2(-width * 0.2, ht), Vector2(-width * 0.5, ht * belly)])
+## A standing card: base centre c, tangent t (unit, horizontal), w wide and h high (the plant texture's own size), shifted along the
+## texture by uo (0..1) and brightened by br. The vertex colour carries uo and br (see farm_plant.gdshader).
+static func _cardq(b: NewModels2.Buf, c: Vector3, t: Vector3, w: float, h: float, uo: float, br: float) -> void:
+	var n := t.cross(Vector3.UP).normalized()
+	var col := Color(uo, br, 0.0, 0.5)
+	var a := c - t * (w * 0.5); var bb := c + t * (w * 0.5)
+	b.quad(a, bb, bb + Vector3(0, h, 0), a + Vector3(0, h, 0), col, n)
+	b.quad(bb, a, a + Vector3(0, h, 0), bb + Vector3(0, h, 0), col, -n)
+
+## A flat canopy quad at height y: x from -w/2 to w/2, z from z0 to z1.
+static func _cardtop(b: NewModels2.Buf, y: float, w: float, z0: float, z1: float, uo: float, br: float) -> void:
+	var col := Color(uo, br, 0.0, 1.0)
+	b.quad(Vector3(-w * 0.5, y, z0), Vector3(-w * 0.5, y, z1), Vector3(w * 0.5, y, z1), Vector3(w * 0.5, y, z0), col, Vector3.UP)
+	b.quad(Vector3(-w * 0.5, y, z0), Vector3(w * 0.5, y, z0), Vector3(w * 0.5, y, z1), Vector3(-w * 0.5, y, z1), col, -Vector3.UP)
+
+## n cards crossing at the clump's middle, turned evenly (the middle and far versions of a crop clump).
+static func _cards_x(b: NewModels2.Buf, w: float, h: float, n: int, br := 1.0) -> void:
 	for k in n:
-		var a := PI * k / n
-		_card(b, base, Vector3(cos(a), 0.0, sin(a)), pts, ht, col_lo, col_hi)
+		var a := PI * k / n + 0.35
+		_cardq(b, Vector3.ZERO, Vector3(cos(a), 0.0, sin(a)), w, h, fposmod(0.31 * k + 0.07, 1.0), br * (1.0 - 0.06 * k))
 
 ## A solid with the cross-section poly (x, y) run along z from z0 to z1, the colour running with height (a hedge-like far row).
 static func _loaf(b: NewModels2.Buf, poly: PackedVector2Array, z0: float, z1: float, col_lo: Color, col_hi: Color, ymax: float) -> void:
@@ -296,6 +355,7 @@ static func _fence_pr(p: Parts, v: String, lod: int) -> void:
 	match v:
 		"a":
 			_prism(w, Vector3(0, -0.05, 0), Vector3(0, 1.25, 0), 0.07, 0.06, seg, GREY, 2, 0.1)
+			if lod == 0: _post_wear(w, 0.0, 0.0, 1.25, 0.065, 1.0)
 			if lod == 0:      # a weathered, chamfered top and the split that runs down from it
 				_prism(w, Vector3(0, 1.25, 0), Vector3(0.004, 1.31, 0.003), 0.06, 0.02, seg, GREY.lightened(0.12), 2, 0.1, 3.0)
 				_boxy(w, Vector3(0.03, 1.1, 0.062), Vector3(0.012, 0.3, 0.014), 0.3, Color(0.12, 0.10, 0.08))
@@ -334,9 +394,27 @@ static func _fence_pr(p: Parts, v: String, lod: int) -> void:
 			else:
 				_boxy(w, Vector3(1.5, 0.68, 0.0), Vector3(3.0, 0.08, 0.06), 0.0, Color(0.56, 0.5, 0.42))
 
-static func _wire(s: Parts, a: Vector3, c: Vector3, sag: float, lod: int, wd := 0.016) -> void:
+## Age on a round or square post at (x, z): a soil collar where it meets the ground, three cracks running down the grain and a few
+## patches of grey-green lichen. Near level only.
+static func _post_wear(w: NewModels2.Buf, x: float, z: float, ht: float, rad: float, seed: float) -> void:
+	_prism(w, Vector3(x, -0.05, z), Vector3(x, 0.07, z), rad * 1.7, rad * 1.18, 8, Color(0.20, 0.17, 0.10), 2, 0.2, seed)
+	for k in 3:
+		var a := TAU * _rnd(k, seed + 1.0)
+		var y0 := ht * (0.35 + 0.5 * _rnd(k, seed + 2.0))
+		var ln := 0.12 + 0.3 * _rnd(k, seed + 3.0)
+		_boxb(w, Vector3(x + cos(a) * rad * 0.96, y0, z + sin(a) * rad * 0.96), Basis(Vector3.UP, -a), Vector3(0.012, ln, 0.006), Color(0.07, 0.055, 0.04))
+	for k in 3:
+		var a := TAU * _rnd(k, seed + 5.0)
+		var y0 := ht * (0.2 + 0.7 * _rnd(k, seed + 6.0))
+		_boxb(w, Vector3(x + cos(a) * rad * 0.99, y0, z + sin(a) * rad * 0.99), Basis(Vector3.UP, -a), Vector3(0.06 + 0.05 * _rnd(k, seed + 7.0), 0.07 + 0.06 * _rnd(k, seed + 8.0), 0.006), Color(0.43, 0.46, 0.36))
+
+## A wire staple holding strand y to the post at (x, z).
+static func _staple(st: NewModels2.Buf, x: float, y: float, z: float, rad: float) -> void:
+	_boxy(st, Vector3(x, y, z + rad * 0.98), Vector3(0.022, 0.034, 0.008), 0.0, Color(0.34, 0.33, 0.31))
+
+static func _wire(s: Parts, a: Vector3, c: Vector3, sag: float, lod: int, wd := 0.016, nseg := -1) -> void:
 	var st := s.b("steel")
-	var n: int = [3, 2, 1][lod]
+	var n: int = nseg if nseg > 0 else [10, 3, 1][lod]
 	var prev := a
 	for k in n:
 		var t: float = float(k + 1) / n
@@ -355,6 +433,9 @@ static func _fence_wire_a(p: Parts, lod: int) -> void:
 	_prism(p.b("wood"), Vector3(0, -0.05, 0), Vector3(0, 1.25, 0), 0.055, 0.05, [7, 5, 4][lod], Color(0.46, 0.38, 0.28), 2, 0.1)
 	if lod < 2: _tpost(p, 1.5, 0.0, 1.2)
 	var ys := [0.32, 0.58, 0.84, 1.10] if lod < 2 else [0.45, 1.05]
+	if lod == 0:
+		_post_wear(p.b("wood"), 0.0, 0.0, 1.25, 0.052, 2.0)
+		for yy in ys: _staple(p.b("steel"), 0.0, yy, 0.0, 0.055)
 	for i in ys.size():
 		_wire(p, Vector3(0.0, ys[i], 0.06), Vector3(3.0, ys[i], 0.06), 0.02 + 0.006 * i, lod, 0.017 if lod < 2 else 0.04)
 		if lod == 0 and i == ys.size() - 1:      # barbs on the top strand
@@ -368,8 +449,10 @@ static func _fence_wire_b(p: Parts, lod: int) -> void:
 	var wd := p.b("wood")
 	for x in [0.0, 1.5]:
 		_prism(wd, Vector3(x, -0.05, 0), Vector3(x, 1.3, 0), 0.06, 0.05, [7, 5, 4][lod], Color(0.48, 0.40, 0.30), 2, 0.1, x)
+	if lod == 0:
+		for x in [0.0, 1.5]: _post_wear(wd, x, 0.0, 1.3, 0.055, 3.0 + x)
 	var hs := [0.1, 0.2, 0.32, 0.46, 0.62, 0.80] if lod == 0 else ([0.1, 0.32, 0.62, 0.8] if lod == 1 else [0.2, 0.62])
-	for y in hs: _wire(p, Vector3(0.0, y, 0.06), Vector3(3.0, y, 0.06), 0.012, mini(lod, 1), 0.012 if lod < 2 else 0.04)
+	for y in hs: _wire(p, Vector3(0.0, y, 0.06), Vector3(3.0, y, 0.06), 0.012, mini(lod, 1), 0.012 if lod < 2 else 0.04, 3)
 	if lod < 2:
 		var step := 0.15 if lod == 0 else 0.3
 		var n := int(round(3.0 / step))
@@ -386,6 +469,7 @@ static func _fence_gate(p: Parts, lod: int) -> void:
 	var seg: int = [8, 5, 4][lod]
 	for x in [0.0, 3.0]:
 		_prism(wd, Vector3(x, -0.05, 0), Vector3(x, 1.5, 0), 0.1, 0.09, seg, Color(0.45, 0.36, 0.26), 2, 0.1, x)
+		if lod == 0: _post_wear(wd, x, 0.0, 1.5, 0.095, 4.0 + x)
 	var gal := Color(0.66, 0.69, 0.70)
 	var x0 := 0.14; var x1 := 2.86
 	var ys := [0.25, 0.46, 0.67, 0.92, 1.17] if lod < 2 else [0.25, 0.71, 1.17]
@@ -404,6 +488,7 @@ static func _fence_corner(p: Parts, lod: int) -> void:
 	var w := p.b("wood")
 	var seg: int = [8, 5, 4][lod]
 	_prism(w, Vector3(0, -0.05, 0), Vector3(0, 1.35, 0), 0.1, 0.09, seg, Color(0.44, 0.38, 0.31), 2, 0.1)
+	if lod == 0: _post_wear(w, 0.0, 0.0, 1.35, 0.095, 5.0)
 	for leg in 2:
 		var dir := Vector3(1, 0, 0) if leg == 0 else Vector3(0, 0, -1)
 		var bp := dir * 1.4
@@ -435,6 +520,73 @@ static func _fence_broken(p: Parts, lod: int) -> void:
 
 # ================================================================== hay
 const STRAW := Color(0.68, 0.58, 0.33)
+
+## Loose straw: n thin stalks standing out of a surface, each a 3-sided prism, base point from `at` (called with the index),
+## pointing outward along the normal that `nrm_at` gives, bent over by a random tangential lean and drooping at the tip.
+static func _stalks(b: NewModels2.Buf, n: int, at: Callable, nrm_at: Callable, ln0: float, ln1: float, col: Color, salt: float) -> void:
+	for i in n:
+		var p0: Vector3 = at.call(i)
+		var nn: Vector3 = nrm_at.call(i)
+		var tl := Vector3(_rnd(i, salt + 1.0) - 0.5, _rnd(i, salt + 2.0) - 0.5, _rnd(i, salt + 3.0) - 0.5)
+		var d := (nn * 0.5 + tl * 1.4).normalized()
+		var L := lerpf(ln0, ln1, _rnd(i, salt + 4.0))
+		var tip := p0 + (d * 0.85 + Vector3(0, -0.3, 0)).normalized() * L
+		_prism(b, p0, tip, 0.0026, 0.0007, 3, _vc(col, i + salt, 0.18), 0, 0.0)
+
+## The wrap detail of a round bale at lod 0: net lines on a net-wrapped bale (diagonals both ways, rings at the ends), the tight
+## rope rings of a roll, and for a film-wrapped one the raised lips of the overlapping film and the gathered tie at each end.
+static func _bale_detail(p: Parts, r: float, w: float, kind: int, cy: float, sq: float, ts: Array, rfs: Array) -> void:
+	var h := p.b("hay")
+	var rad := func(x: float) -> float:
+		var t := clampf((x + w * 0.5) / w, 0.0, 1.0)
+		for i in ts.size() - 1:
+			if t <= ts[i + 1]: return r * lerpf(rfs[i], rfs[i + 1], inverse_lerp(ts[i], ts[i + 1], t))
+		return r * rfs[rfs.size() - 1]
+	var pt := func(x: float, a: float, off: float) -> Vector3:
+		var R: float = rad.call(x) + off
+		return Vector3(x, cy + R * sq * sin(a), R * cos(a))
+	var nrm := func(a: float) -> Vector3: return Vector3(0.0, sin(a), cos(a))
+	var ribbon := func(x0: float, a0: float, x1: float, a1: float, wd: float, off: float, col: Color, steps: int) -> void:
+		for q in steps:
+			var ta := float(q) / steps; var tb := float(q + 1) / steps
+			var xa := lerpf(x0, x1, ta); var xb := lerpf(x0, x1, tb)
+			var aa := lerpf(a0, a1, ta); var ab := lerpf(a0, a1, tb)
+			var A: Vector3 = pt.call(xa, aa, off); var B: Vector3 = pt.call(xb, ab, off)
+			var nrm_ := ((nrm.call(aa) as Vector3) + (nrm.call(ab) as Vector3)).normalized()
+			var side := Vector3(wd, 0.0, 0.0)
+			h.quad(A - side, A + side, B + side, B - side, _g(col, G_NONE), nrm_)
+	var dark := Color(0.20, 0.15, 0.09) if kind == 1 else Color(0.55, 0.45, 0.28)
+	match kind:
+		1:      # net: diagonals both ways, plus a ring at each end
+			for i in 9:
+				var a0 := TAU * i / 9.0
+				ribbon.call(-w * 0.5 + 0.03, a0, w * 0.5 - 0.03, a0 + 3.0, 0.004, 0.004, dark, 14)
+				ribbon.call(-w * 0.5 + 0.03, a0, w * 0.5 - 0.03, a0 - 3.0, 0.004, 0.0045, dark, 14)
+			for x in [-w * 0.5 + 0.03, w * 0.5 - 0.03]:
+				ribbon.call(x, 0.0, x, TAU, 0.008, 0.006, dark.darkened(0.2), 20)
+		2:      # a roll: the rope rings, a few
+			for k in 9:
+				var x := -w * 0.5 + w * (k + 0.5) / 9.0
+				ribbon.call(x, 0.0, x, TAU, 0.0035, 0.003, dark, 18)
+		_:      # film: the lips of the overlaps, running round and a little along, and a gathered tie at each end
+			for i in 6:
+				var a0 := TAU * i / 6.0 + 0.4
+				ribbon.call(-w * 0.5 + 0.06, a0, w * 0.5 - 0.06, a0 + 2.2, 0.011, 0.006, Color(0.92, 0.95, 0.90), 14)
+			for x in [-w * 0.5 + 0.015, w * 0.5 - 0.015]:
+				ribbon.call(x, 0.0, x, TAU, 0.012, 0.004, Color(0.62, 0.68, 0.60), 24)
+	# loose stalks standing out of the round face of a bare bale, and out of the film where it is torn
+	if kind != 0:
+		var s_at := func(i: int) -> Vector3: return pt.call(-w * 0.5 + w * _rnd(i, 4.1), TAU * _rnd(i, 4.2), -0.004)
+		var s_n := func(i: int) -> Vector3: return nrm.call(TAU * _rnd(i, 4.2))
+		_stalks(h, 70, s_at, s_n, 0.06, 0.15, Color(0.74, 0.64, 0.38), 40.0 + kind)
+		# the cut ends fray: stalks poking out along the axis
+		for end in 2:
+			var sx := -1.0 if end == 0 else 1.0
+			var e_at := func(i: int) -> Vector3:
+				var rr := r * 0.85 * sqrt(_rnd(i, 5.1 + end)); var aa := TAU * _rnd(i, 5.5 + end)
+				return Vector3(sx * w * 0.5, cy + rr * sq * sin(aa), rr * cos(aa))
+			var e_n := func(_i: int) -> Vector3: return Vector3(sx, 0.0, 0.0)
+			_stalks(h, 18, e_at, e_n, 0.05, 0.12, Color(0.70, 0.60, 0.34), 60.0 + end)
 
 ## A round bale lying on its side (axis along x), r its radius, w its width. kind 0 wrapped in pale plastic with a hay end,
 ## 1 bare net-wrapped hay, 2 a big tight-wound roll. The ends show the spiral of the wound hay.
@@ -501,10 +653,11 @@ static func _bale_round(p: Parts, r: float, w: float, kind: int, lod: int) -> vo
 				else:
 					ed.tri(p0, p1, Vector3(x, cy, 0.0), c, nx)
 				prev = rr
+	if lod == 0: _bale_detail(p, r, w, kind, cy, sq, ts, rfs)
 
 ## One square bale at c (centre of its base) turned by yaw: 0.9 long (x), 0.45 wide (z), 0.35 high. kind 0 fresh gold hay with
 ## orange twine, 1 older grey-brown with green twine. cells splits each face into that many pieces of varied colour.
-static func _bale_sq(p: Parts, c: Vector3, yaw: float, kind: int, cells: int, twine: bool, bottom: bool) -> void:
+static func _bale_sq(p: Parts, c: Vector3, yaw: float, kind: int, cells: int, twine: bool, bottom: bool, fuzz := false) -> void:
 	var h := p.b("hay")
 	var bas := Basis(Vector3.UP, yaw)
 	var L := 0.9; var Wd := 0.45; var H := 0.35
@@ -537,6 +690,15 @@ static func _bale_sq(p: Parts, c: Vector3, yaw: float, kind: int, cells: int, tw
 			var z0 := -Wd * 0.5 + Wd * j / cz; var z1 := -Wd * 0.5 + Wd * (j + 1) / cz
 			var col := _vc(base.darkened(0.18), salt + j * 3.7 + s * 2.0, 0.12)
 			h.quad(P.call(s * L * 0.5, 0, z0), P.call(s * L * 0.5, H, z0), P.call(s * L * 0.5, H, z1), P.call(s * L * 0.5, 0, z1), col, nx)
+	if fuzz:      # stalks standing out of the top and the cut ends, the loose straw of a bale
+		var sc := base
+		var t_at := func(i: int) -> Vector3: return c + bas * Vector3((_rnd(i, 7.1 + salt) - 0.5) * L, H + 0.002, (_rnd(i, 7.2 + salt) - 0.5) * Wd)
+		var t_n := func(_i: int) -> Vector3: return n_up
+		_stalks(h, 40, t_at, t_n, 0.05, 0.12, Color(sc.r, sc.g, sc.b), 70.0 + salt)
+		for s2 in [-1.0, 1.0]:
+			var f_at := func(i: int) -> Vector3: return c + bas * Vector3(s2 * L * 0.5, H * _rnd(i, 7.3 + salt), (_rnd(i, 7.4 + salt) - 0.5) * Wd)
+			var f_n := func(_i: int) -> Vector3: return bas * Vector3(s2, 0, 0)
+			_stalks(h, 14, f_at, f_n, 0.04, 0.1, Color(sc.r, sc.g, sc.b).darkened(0.1), 90.0 + salt)
 	if twine:
 		for tx in [-0.22, 0.22]:
 			var e := 0.004
@@ -598,7 +760,7 @@ static func _corn(p: Parts, pos: Vector3, H: float, seed: float, pal: int, lod: 
 		var c0 := Color(0.20, 0.38, 0.10); var c1 := Color(0.30, 0.48, 0.14)
 		if pal == 1:
 			c0 = Color(0.36, 0.45, 0.13).lerp(Color(0.62, 0.52, 0.22), 1.0 - f); c1 = Color(0.58, 0.50, 0.20)
-		_blade(lf, sp.call(f), d0, acc, ln, 0.13, [4, 2][lod], _vc(c0, seed + i, 0.1), _vc(c1, seed + i * 2.0, 0.1), 3.0, 0.12 if lod == 0 else 0.0)
+		_blade(lf, sp.call(f), d0, acc, ln, 0.15, [7, 3][lod], _vc(c0, seed + i, 0.1), _vc(c1, seed + i * 2.0, 0.1), 3.0, 0.14 if lod == 0 else 0.0, 0.03 if lod == 0 else 0.0)
 	if lod == 0:
 		var cb: Vector3 = sp.call(0.58)
 		var ang := seed * 5.0 + 1.0
@@ -626,18 +788,28 @@ static func _corn_stand(p: Parts, v: int, lod: int) -> void:
 		offs = [Vector3(-0.2, 0, 0.0), Vector3(0.18, 0, -0.18), Vector3(0.05, 0, 0.18), Vector3(-0.28, 0, 0.26), Vector3(0.28, 0, 0.14)]
 		hs = [2.4, 2.2, 2.55, 1.9, 2.3]
 	if lod == 2:
-		var lo := Color(0.20, 0.34, 0.11) if v == 0 else Color(0.40, 0.42, 0.16)
-		var hi := Color(0.34, 0.48, 0.16) if v == 0 else Color(0.66, 0.58, 0.28)
-		_cards_x(p.b("leaf"), Vector3.ZERO, 1.0, 2.35, 3, lo, hi)
+		_cards_x(p.b("card_corn_card" + ("" if v == 0 else ":ripe_corn")), 1.0, 2.35, 2)
+		return
+	if lod == 1:
+		_cards_x(p.b("card_corn_card" + ("" if v == 0 else ":ripe_corn")), 1.0, 2.35, 3)
+		_corn(p, Vector3(0.0, 0, 0.0), 2.4, 1.0 + v * 11.0, v, 1)
 		return
 	for i in offs.size():
 		_corn(p, offs[i], hs[i], 1.0 + i * 3.7 + v * 11.0, v, lod)
 
 ## A 4 m run of one row of corn along z (z from -2 to 2): stalks about every 0.4 m, tiling end to end.
 static func _corn_row(p: Parts, lod: int) -> void:
-	if lod == 2:
-		_loaf(p.b("leaf"), PackedVector2Array([Vector2(-0.3, 0.0), Vector2(0.3, 0.0), Vector2(0.42, 0.9), Vector2(0.3, 1.8), Vector2(0.0, 2.35), Vector2(-0.3, 1.8), Vector2(-0.42, 0.9)]),
-			-2.0, 2.0, Color(0.20, 0.34, 0.11), Color(0.36, 0.50, 0.17), 2.35)
+	if lod >= 1:
+		# the row seen from the side: two long cards along it, offset in the texture so the plants do not repeat in step, and from
+		# above: a canopy quad of leaf tops; the middle version adds cards across the row so it holds up when you fly along it
+		var cd := p.b("card_corn_card")
+		_cardq(cd, Vector3(-0.1, 0.0, 0.0), Vector3(0, 0, 1), 4.0, 2.35, 0.0, 1.0)
+		if lod == 1:
+			_cardq(cd, Vector3(0.12, 0.0, 0.0), Vector3(0, 0, 1), 4.0, 2.3, 0.4, 0.94)
+			for i in 4:
+				_cardq(cd, Vector3(0.0, 0.0, -1.5 + i), Vector3(1, 0, 0), 1.0, 2.3, fposmod(0.23 * i, 1.0), 0.92 + 0.04 * i)
+		_cardtop(p.b("card_corn_top"), 2.0, 0.6, -2.0, 2.0, 0.0, 0.8)
+		if lod == 1: _cardtop(p.b("card_corn_top"), 1.4, 0.6, -2.0, 2.0, 0.37, 0.6)
 		return
 	for i in 10:
 		var z := -2.0 + 0.4 * (i + 0.5) + (_rnd(i, 4.0) - 0.5) * 0.12
@@ -653,10 +825,8 @@ static func _stem(b: NewModels2.Buf, pts: Array, r0: float, r1: float, col0: Col
 ## A tuft of barley about 0.5 m wide, 0.8 m high: folded blades, round stems and seed heads with long awns. a ripening
 ## green-gold, b ripe gold with heads drooping.
 static func _barley(p: Parts, v: int, lod: int) -> void:
-	if lod == 2:
-		var lo := Color(0.42, 0.44, 0.17) if v == 0 else Color(0.58, 0.48, 0.2)
-		var hi := Color(0.58, 0.56, 0.26) if v == 0 else Color(0.78, 0.64, 0.3)
-		_cards_x(p.b("leaf"), Vector3.ZERO, 0.55, 0.8, 3, lo, hi, 0.7)
+	if lod >= 1:
+		_cards_x(p.b("card_barley_card_" + ("a:green_barley" if v == 0 else "b:gold")), 0.55, 0.8, 4 - lod)
 		return
 	var lf := p.b("leaf"); var pl := p.b("plant")
 	var stem0 := Color(0.46, 0.50, 0.19) if v == 0 else Color(0.68, 0.58, 0.26)
@@ -687,9 +857,8 @@ static func _barley(p: Parts, v: int, lod: int) -> void:
 ## A patch of alfalfa 0.5 m across and about 0.5 m high: many stems each carrying trifoliate leaves, a with leaves only, b in
 ## purple flower.
 static func _alfalfa(p: Parts, v: int, lod: int) -> void:
-	if lod == 2:
-		var hi := Color(0.26, 0.42, 0.14) if v == 0 else Color(0.36, 0.38, 0.28)
-		_cards_x(p.b("leaf"), Vector3.ZERO, 0.5, 0.5, 3, Color(0.17, 0.32, 0.09), hi, 0.6)
+	if lod >= 1:
+		_cards_x(p.b("card_alfalfa_card_" + ("a:alfalfa" if v == 0 else "b:alfalfa")), 0.5, 0.5, 4 - lod)
 		return
 	var lf := p.b("leaf"); var pl := p.b("plant")
 	var stems: int = [16, 8][lod]; var nodes: int = [6, 3][lod]
@@ -724,8 +893,8 @@ static func _alfalfa(p: Parts, v: int, lod: int) -> void:
 ## A margin strip 1.2 x 0.5 m of field-edge weeds and grass: folded tall grass blades, cream umbels (wild carrot) made of
 ## little flower heads, yellow goldenrod and a few rusty dock spikes.
 static func _weeds(p: Parts, lod: int) -> void:
-	if lod == 2:
-		_cards_x(p.b("leaf"), Vector3.ZERO, 0.9, 0.8, 3, Color(0.30, 0.34, 0.15), Color(0.58, 0.54, 0.30), 0.55)
+	if lod >= 1:
+		_cards_x(p.b("card_weeds_card:weeds"), 0.9, 0.8, 4 - lod)
 		return
 	var lf := p.b("leaf"); var pl := p.b("plant")
 	var nb: int = [30, 12][lod]
