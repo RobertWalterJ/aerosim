@@ -93,6 +93,8 @@ Same recipe as above (Poly Haven 1k JPEGs from https://api.polyhaven.com/files/<
 | `mudtrack_*` | Poly Haven `aerial_mud_1`, https://polyhaven.com/a/aerial_mud_1 | Rob Tuytel | CC0 | 2.5 m (wheel lines along z) | the muddy two-rut track |
 
 The `.import` files are committed with them.
+| `wool_*` (diff, nor) | Poly Haven `curly_teddy_natural`, https://polyhaven.com/a/curly_teddy_natural | colormass (photography), Rico Cilliers (processing) | CC0 | 0.45 m | the fibre clumps and curl relief of sheep wool (game/shaders/fur.gdshader) |
+
 
 ## Leaf cards (`cards/*.png`, models5b)
 Original drawings made by `test/gen_card_textures.gd` (curves painted with a width profile, midrib and veins; no source photographs, no licence issue). They are data textures, not colour: r is the shade, g marks stem, husk or head, b marks the accents (tassel, umbel, silk, flower) and a is the cut-out. `corn_card`, `corn_top` (seen from above), `barley_card_a/b`, `alfalfa_card_a/b`, `weeds_card`. Re-run the script after changing a drawing, then import.

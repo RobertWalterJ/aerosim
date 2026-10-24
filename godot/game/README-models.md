@@ -75,6 +75,69 @@ One entry point, because there are 26 models and each has three levels of detail
 How the finish works: the vertex colour carries the tint, and its alpha carries the grain direction (wood and hay: 1 up, 0.75 along x, 0.5 along z, 0.25 none) or, on a leaf, the way across the blade for veins and the pale midrib. Plants sway with `g_wind` (taller more), flutter at the leaf edge, lean away from the rotor downwash and take a per-field colour from where they stand. Fences, hay and soil darken and shine in rain (`g_wet`) and take snow and the cloud and drone shadows. Instancing: use a `MultiMesh` per model per level of detail; the plants' per-field colour reads the instance's world origin.
 Test: `test/new_models3_test.gd` (headless; finite, winding, budgets that must fall from near to far, real sizes, colliders inside their model, tiles whose edges meet, rebuilds identical, shaders and textures present). Sheets: `test/new_models3_sheet.gd` (needs a window; `set=fences|crops|ground`, `light=golden|overcast`) writes `docs/realism/models/new_models3_<set>_<light>.jpg`.
 
+## Batch 7: farm animals, boats and the lake shore, farm machinery and yard, wire and gate (`game/new_models5.gd`, class `NewModels5`; models7)
+Written for session B's request of 2026-10-23 21:08 (items 3 to 6). 31 models, each in three levels of detail. Real metres, forward is -z, up is +y. The test (`test/new_models5_test.gd`) prints every size and triangle count; the tables below are its numbers.
+
+Entry points:
+- `NewModels5.mesh(name, lod := 0) -> ArrayMesh` the whole model (lod 0 near, under about 25 m; 1 middle, to about 80 m; 2 far).
+- `NewModels5.parts(name, lod := 0) -> Dictionary` the movable parts: `{part: {"mesh": ArrayMesh, "pivot": Vector3}}`. Each part's mesh is drawn about its own pivot, so put a `MeshInstance3D` for it at `pivot` (in the model's frame) and turn that node. `"body"` is always there (pivot at the origin). The parts always add up to exactly `mesh()` (do not draw both).
+- `NewModels5.colliders(name) -> Array` box strips (`AABB` in the model's frame), for the animals only.
+- `NewModels5.NAMES`.
+Test hook for looking at them in the real scene: the screenshot token `props5animals`, `props5cows`, `props5farm` or `props5lake` (see `game/gallery5.gd`); fly to them with `at<x>_<up>_<z>_<yaw>_<gimbal>`.
+
+### Animals: shell fur (`game/shaders/fur.gdshader`; the hen uses `farm_coat.gdshader` with scalloped feathers)
+The body, head and jaw wear the **fur shader**: the mesh is drawn once as skin and then again in a stack of shells (16 near, 6 middle, none far on a desktop; 6 / 3 / none on a phone: `NewModels5.fur_shells(lod)`), so the coat has a soft hairy outline. Strands thin toward the tip, roots are darker and in shadow, two Kajiya-Kay highlights run along the hair, sunlight shines through thin strands when you look into it, markings (the Holstein patches) come from a noise on the model's axes, sheep wool is clumped curls with a photographed curly-pile texture (Poly Haven, CC0) for its fibre relief, dirt and lanolin, and rain, snow, wind (`g_wind`) and the cloud and drone shadows all act on it. Vertex alpha is how much fur there is (full on the body, short on a sheep's face and legs, 0 on a hoof, about 0.07 for bare wet skin such as a muzzle). **Use level of detail by distance: lod 0 inside 8 m, lod 1 to 25 m, lod 2 beyond** (at a drone's usual distance one strand is far smaller than a pixel, so the shells fade to a plain coat there). Anatomy note: lane/animals (Opus, Blender) is rebuilding the animal bodies; carry this shader over to those meshes by giving them the vertex colour and alpha described above (`NewModels5._fur_chain(key, lod, part_offset, leg_height)` builds the chained materials).
+Each animal here is a smooth body: ellipsoids and round cones blended in a distance field, then meshed, so the neck grows out of the shoulders and the thigh melts into the flank. Eyes are glossy, noses are wet skin, hooves are dark horn. Parts: `head` (pivot at the poll; nod and turn it about this point), `jaw` (pivot at its hinge; chewing is a few degrees about x), `tail` (pivot at the tail head; swish about y or x), `body`. The chicken has `body` and `head` (neck and head, pivot at the neck base: peck by turning about x).
+
+| Name | What it is | Size (x wide, y high, z long; metres) |
+|---|---|---|
+| `cow_a` | Holstein, white with black patches, udder, standing, head lowered a little | 0.9 x 1.6 x 3.1 |
+| `cow_b` | Hereford, chestnut with a white face, belly and socks, grazing (head down) | 0.9 x 1.5 x 3.0 |
+| `cow_c` | Jersey, fawn, lying down chewing the cud, head up and turned | 0.8 x 1.2 x 3.0 |
+| `calf_a` | Holstein calf, standing, big head, long legs | 0.5 x 0.9 x 1.9 |
+| `sheep_a` / `sheep_b` | ewe in thick wool; a white face standing alert / a black face grazing | 0.6 x 0.8 x 1.3 |
+| `lamb_a` | lamb, a little over half the ewe | 0.3 x 0.5 x 0.8 |
+| `horse_a` / `horse_b` | a bay standing, black mane and tail / a chestnut grazing, flaxen mane, white socks | 0.6 x 1.9 (1.6 grazing) x 2.8 |
+| `dog_a` | a farm dog, black and white, standing, tail down with a curl | 0.3 x 0.7 x 1.0 |
+| `chicken_a` | a Rhode Island Red hen standing, comb and wattle, scaled yellow legs | 0.23 x 0.47 x 0.6 |
+
+Origin is the ground under the animal (lowest point within 0.05 m); an animal faces -z. Colliders: one box for the body and one for the head on the cattle and horses.
+
+### Boats, jetty and lake shore (`farm_paint.gdshader` for paint, glass-fibre and metal; the NewModels3 photographed wood for planks and piles)
+Origin is the waterline for everything that floats: the hull hangs below y = 0, so place it at the lake level (76.0 m). The jetty is the same: its deck is 0.6 m above y = 0 and its piles go down to -1.6 m.
+
+| Name | What it is | Size |
+|---|---|---|
+| `rowboat_a` | clinker dinghy, white strakes, varnished inside, thwarts, floorboards, ribs, two oars, a rope; bow at -z | 1.6 x 0.8 x 4.2 |
+| `sailboat_a` | 4.2 m single-handed dinghy: glass-fibre hull and deck, cockpit, mast, boom, a bellied mainsail with a red number, rudder and tiller | 1.2 x 6.3 x 4.4 |
+| `sailboat_b` | 7.6 m cruising sloop: white hull with a blue stripe and red antifouling, cabin with windows, teak cockpit, wheel, mast, boom, main and jib, stays, fin keel | 2.6 x 11.7 x 7.6 |
+| `fishing_boat_a` | 6.8 m workboat: blue hull with white top, planked deck, wheelhouse with windows, mast and derrick boom, floats, crates, net, tyre fenders | 2.5 x 5.0 x 6.8 |
+| `jetty_a` | timber pier 8.4 m by 2.2 m: boards with gaps, stringers, round piles (some taller), diagonal braces, two iron cleats, a rope coil, a ladder at the end. Starts at the origin and runs out along -z | 2.6 x 2.6 x 8.4 |
+| `mooring_post_a` | timber bollard 0.97 m high with four turns of rope, a loose end, an iron ring (origin at the foot) | 0.6 x 1.0 x 0.9 |
+| `buoy_a` | red and white channel buoy, half below the waterline, steel cage and a lamp, a chain going down | 0.9 x 3.2 x 0.9 |
+
+### Farm machinery and yard (`farm_paint.gdshader`: clear coat on new paint, chalking, rust, rubbed-bare scratches and dried mud on the lower parts; `farm_props.gdshader` for wood and steel)
+| Name | What it is | Size |
+|---|---|---|
+| `combine_a` | grain combine: green body, glazed cab, grain tank, folded unloading auger, big front and small rear wheels with lugs, a 6 m header with cutter bar and a turning reel. Parts: `body`, `reel` (pivot on the reel axis, spin about x) | 6.2 x 4.6 x 9.4 |
+| `baler_a` | towed round baler: red chamber, pickup reel with tines, tailgate, twine box, two wheels, drawbar and jack | 3.2 x 2.5 x 4.9 |
+| `plough_a` | four-furrow mounted plough: angled red beam, headstock, four bodies with twisted polished mouldboards, shares, a depth wheel | 1.2 x 1.6 x 4.9 |
+| `seed_drill_a` | 3 m coulter drill: hopper with lid, 14 coulter discs, seed tubes, press wheels, drawbar, two wheels | 3.5 x 1.8 x 4.3 |
+| `water_trough_a` | galvanised trough 2.0 m, water in it (reflective), rolled rim, float valve, a hose | 2.4 x 1.0 x 1.2 |
+| `feed_rack_a` | timber hay rack on legs with a V of slats and hay in it | 2.4 x 1.5 x 1.3 |
+| `wood_pile_a` | stacked firewood, about 120 split logs with bark sides and pale cut ends, two stakes | 2.6 x 1.3 x 0.7 |
+| `oil_tank_a` | farm fuel tank on cradles: domed ends, filler cap, gauge, tap and hose | 1.2 x 1.6 x 2.7 |
+| `grain_silo_a` | small galvanised corrugated bin, cone roof and vent, ladder, door, concrete ring | 3.5 x 5.3 x 3.5 |
+| `chicken_coop_a` | timber henhouse on stilts, pitched steel roof, ramp, pop door, nest box with a lid | 2.3 x 2.4 x 2.2 |
+| `dog_kennel_a` | painted timber kennel, gable roof, arched door with trim | 1.2 x 1.5 x 1.5 |
+| `telegraph_wire_10m` | one span of wire, 10 m along +x from the origin, sagging 0.35 m; hang many from the pole insulators (4 sides, 5 mm) | 10 x 0.36 x 0.01 |
+| `fence_gate_hanging_a` | a five-bar timber field gate hung on a round post and swung open 50 degrees, galvanised hinges and latch | 2.4 x 1.7 x 2.8 |
+
+Origin: the ground (the lowest point is within 0.1 m of y = 0 for everything on land).
+
+What is honest about the look: the fur shading is real (see the sheets), but the animal anatomy is a code-drawn stand-in: heads are the weakest part (a cow's head is a rounded wedge), legs are plain tubes with joint bumps, the dog and horse bodies are too heavy; the boats and the jetty, wood pile, feed rack, silo, oil tank and mooring post are the closest to photographic. The sails are plain cloth with a belly. Thin things (wire, rigging, fence rails far away) will shimmer; use lod 2 beyond 80 m.
+Test: `test/new_models5_test.gd` (headless; finite, winding, budgets that fall from near to far, real sizes, parts that add up to the whole and have sensible pivots, colliders inside their model, rebuilds identical, materials and shaders present). Contact sheets: `docs/realism/models/new_models5_*_{golden,overcast}.jpg` from `test/new_models5_sheet.gd`.
+
 ## Batch 6: road vehicles and roadside furniture (`game/new_models4.gd` with `new_models4_big.gd` and `new_models4_props.gd`; class `NewModels4`; models6)
 
 Real metres, forward -z (a vehicle's front, a sign's face), up +y, origin on the ground in the middle of the vehicle's length. Three levels of detail everywhere (lod 0 near, under about 25 m; 1 middle, to about 80 m; 2 far). Everything is built once and kept. Finish: every surface is a `ShaderMaterial` of `game/shaders/vehicle.gdshader` (clear-coated car paint with metallic flake, wear, rust and road dirt on the lower panels; rubber; chrome and aluminium; reflective glass; trim plastic; glowing lamp lenses; painted sheet; concrete), or the farm wood and galvanised-steel materials of batch 5 for poles, gates and signs' backs. The vertex colour is the finish and its alpha is how worn it is (1 clean, lower dirtier and rustier). Do not swap in plain materials: the paint, glass and dirt live in the shader. Rain (`g_wet`), snow (`g_snow`) and the cloud and drone shadows act on all of it.
@@ -137,3 +200,23 @@ Same names, same sizes and colliders; what changed is how they look and what the
 - **Fences (lod 0):** soil collar at each post, three cracks and lichen patches, staples on wire posts, strands of wire with ten segments so the sag is a curve.
 - `game/farm_demo.gd` places a patch of all of it in the real scene: screenshot token `farmdemo<x>_<z>` in `game/main.gd` (put it after the `at...` token).
 
+
+## Batch 9: storm and tornado assets, then the endgame props and cabin (models9; `game/new_models7*.gd`)
+
+Same loader and frame as Batch 8: `StoryAssets.place(parent, name, Transform3D, lod := 0)` loads `assets/models/story/<group>/<name>.glb` (groups `storm`, `cabin`, `gear`), gives the nodes the farm kit's photographed materials back by name, and falls back to building from code. Metres, +Z front, origin at the base. **Debris pieces are centred on their own origin** (for the tornado MultiMesh). Three material keys are new in the exported files: `soil`, `mud`, `hay` (the farm_props photographed sets), plus the plain `water` and `steam` (translucent). Regenerate: `Godot --headless --path godot -s res://tools/export_story.gd -- only=<prefix>`; check: `test/story_probe.gd` (triangles and sizes), `test/story_load_test.gd` (every exported file loads with its named nodes), `test/story_sheet.gd` (contact sheets, `cols=` and `views=1` for a one-view grid).
+
+### Storm (group `storm`; `new_models7_storm.gd`, `new_models7_archive.gd`)
+- **Debris, centred (0.3 to 3 m):** `storm_debris_plank_a` `_plank_b` `_roof_sheet_a` (real corrugation, 76 mm pitch) `_shingles_a` `_branch_a` `_fence_a` `_tin_a` `_barrel_a` `_sack_a` `_leaves_a`.
+- **Damage props:** `storm_barn_panel_a` (collider) `storm_tree_fallen_a` (colliders) `storm_fence_broken_a` (colliders) `storm_scoured_patch_a` `storm_post_uprooted_a` `storm_sign_twisted_a`.
+- **Buried shelter:** `storm_shelter_hatch_closed_a`, `storm_shelter_hatch_open_a` (node `hatch`, pivot on the hinge edge; collider on the surround) `storm_shelter_steps_a` (origin at the top step, +Z leads down) `storm_shelter_wall_a` (collider) `storm_shelter_debris_a` (5 x 5 m spread).
+- **Archive:** `storm_weather_station_a` (nodes `cups`, `vane`: spin them) `storm_rain_gauge_a` `storm_glass_a` `storm_barometer_a` `storm_diary_a` `_open` `storm_archive_box_a` `storm_drawing_a`. The festival programme is `camp_programme_a`.
+- **Priority 1:** `storm_bell_a` and `storm_bell_a_knotted` (nodes `bell` swings about the axle at y 2.0, `rope` hangs from the wheel rim) `storm_lantern_a` (node `flame`) `_off` `storm_coat_post_a` `storm_logbook_a` `_open` `storm_map_a` `storm_sandbags_a` `storm_tarp_a`. The railway signal lamp is `railway_signal_lamp_a`.
+- **Priority 2:** `storm_shelter_interior_a` `storm_chapel_interior_a` (node `window_light`) `storm_rail_hut_a` (collider) `storm_ditch_flooded_a` `storm_power_line_a` (dead, with a cone) `storm_sign_damaged_a` (node `board`) `storm_crowd_watching_a` `storm_crowd_sheltering_a` (placeholder figures, being replaced).
+
+### Endgame props and cabin (groups `cabin` and `gear`; `new_models7_cabin.gd`, `new_models7_interior.gd`, `new_models7_gear.gd`)
+The people (Wren, Constable Rennick in 1984, the ghost variant) and the vehicles (`cruiser_1984_a` and its open variants, `anne_car_wreck_a`, `anne_car_door_a`, `police_dive_van_a`, `police_boat_a`) are made by the people and vehicles lanes; their names from `docs/story/CLAUDE-ENDGAME-ASSETS.md` are kept so their files drop into `assets/models/story/`. Everything else from that brief is here.
+- **The cabin:** `cabin_abandoned_a` and `cabin_abandoned_a_broken_roof` (8 x 6 m weatherboard hut, 4.2 m to the ridge, hollow so the interior fits inside; lod 0, 1, 2; nodes `door` (hinge at the left jamb), `windows` (glass), `window_light` (warm panes, hide by day); colliders on the body and the porch deck) `cabin_door_a` `_ajar` `_open` (node `door`) `cabin_window_a` `_lit` `_cracked` `cabin_chimney_a` `cabin_porch_light_a` `_off` (node `bulb`) `cabin_woodpile_a` `cabin_lean_to_a`.
+- **Cabin yard:** `cabin_fallen_tree_a` (colliders) `cabin_tyre_ruts_a` `cabin_fence_broken_a` `cabin_old_sign_a` (THE OLD PLOT) `cabin_yard_tools_a` `cabin_radio_aerial_a` `cabin_search_flag_a` `search_tape_a` `cabin_chimney_smoke_a` (a smoke plume and a node `glow`).
+- **Interior set** (no colliders): `cabin_bed_a` `_stripped` `cabin_table_a` `cabin_chair_a` `_b` `cabin_stove_a` `_lit` (nodes `door`, `flame`) `cabin_shelf_a` `cabin_radio_a` `cabin_radio_handheld_a` `cabin_case_file_a` `cabin_calendar_a` `cabin_uniform_a` `cabin_boots_a` `cabin_lantern_a` `_off` `cabin_kettle_a` (node `steam`) `cabin_drawing_a` `cabin_map_a` `cabin_hiker_gear_a`, and two arrangements: `cabin_interior_set_a` (everything laid out in the cabin, floor at y 0.35) and `cabin_interior_variant_a` (a smaller 4 x 3 m room with its own walls). Things that hang on a wall have their origin at the bottom edge and face +Z.
+- **Gear:** `thermal_pod_a` (52 x 42 x 62 mm, origin at the mounting face, top flat; node `led`) `thermal_pod_led_a` `_off` `thermal_pod_mount_a`; `lake_buoy_a` `dive_marker_a` (waterline at y 0, line and weight hang below) `anne_photo_a`; `cruiser_plate_a` `cruiser_lightbar_a` (nodes `lightbar_red`, `lightbar_blue`: swap in the `lamp_red` and `lamp_blue` materials to light them) `cruiser_aerial_a` `cruiser_door_lettering_a` `cruiser_boot_kit_a` `cruiser_old_kit_a`; `wren_backpack_a` `wren_phone_a` `wren_torch_a` (node `beam`) `_off` `wren_space_blanket_a` `_b` `wren_water_bottle_a` `wren_hiking_gear_a` `wren_tent_a`; `rennick_hat_a` `rennick_case_file_a` `rennick_portrait_a`; `cabin_thermos_a` `cabin_newspaper_a`.
+- **Textures used:** `docs/realism/models/storm_endgame_final_textures.jpg` (labelled swatches: name, Poly Haven source, author, licence, where used), built by `test/story_textures_sheet.gd`; views of every asset: `storm_endgame_final_views.jpg` (golden hour) and `storm_endgame_final_views_overcast.jpg`.

@@ -3,8 +3,9 @@ extends SceneTree
 ## sun or an overcast sky. Needs a window (not headless):
 ## Godot --path <godot dir> --resolution 480x270 -s res://test/story_sheet.gd -- names=a,b,c [group=<characters|camp|...>] [light=golden|overcast] [out=<jpg>] [lod=0] [tag=<word>]
 
-const CELL := Vector2i(520, 390)
-const COLS := 3
+var CELL := Vector2i(520, 390)
+var COLS := 3
+var _views := 3
 var _out := ""
 var _light := "golden"
 var _names: Array[String] = []
@@ -18,12 +19,18 @@ func _initialize() -> void:
 		if a.begins_with("light="): _light = a.substr(6)
 		if a.begins_with("lod="): _lod = int(a.substr(4))
 		if a.begins_with("tag="): _tag = a.substr(4)
+		if a.begins_with("cols="): COLS = int(a.substr(5))
+		if a.begins_with("views="): _views = int(a.substr(6))
+		if a.begins_with("cell="):
+			var p := a.substr(5).split("x")
+			CELL = Vector2i(int(p[0]), int(p[1]))
 		if a.begins_with("group="): group = a.substr(6)
 		if a.begins_with("names="):
 			for n in a.substr(6).split(","): _names.append(n)
 	if group != "":
-		for n in NewModels6.names():
-			if NewModels6.group_of(n) == group: _names.append(n)
+		for g in group.split(","):
+			for n in NewModels6.names():
+				if NewModels6.group_of(n) == g: _names.append(n)
 	if _out == "": _out = "res://docs/realism/models/story_%s_%s.jpg" % [_tag, _light]
 	Grass.add_globals()
 	RenderingServer.global_shader_parameter_add("g_csun", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))
@@ -36,13 +43,13 @@ func _initialize() -> void:
 func _entries() -> Array:
 	var out: Array = []
 	for nm in _names:
-		var views := [[Vector3(-0.75, 0.35, 1.0), ""], [Vector3(-1.0, 0.1, 0.0), ""], [Vector3(0.7, 0.4, -1.0), ""]]
+		var views := [[Vector3(-0.75, 0.35, 1.0), ""], [Vector3(-1.0, 0.1, 0.0), ""], [Vector3(0.7, 0.4, -1.0), ""]].slice(0, _views)
 		out.append([nm, views])
 	return out
 
 func _run() -> void:
 	var entries := _entries()
-	var rows := int(ceil(entries.size() * 3.0 / COLS))
+	var rows := int(ceil(entries.size() * float(_views) / COLS))
 	var sheet := Image.create(CELL.x * COLS, CELL.y * rows, false, Image.FORMAT_RGBA8)
 	sheet.fill(Color(0.5, 0.55, 0.6))
 	var vp := SubViewport.new()

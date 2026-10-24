@@ -824,6 +824,7 @@ func _screenshot_mode(arg: String) -> void:
 			_apply_pose(); drone_node.reset_physics_interpolation()
 		if c == "gallery":
 			_build_gallery()
+		if c.begins_with("props5"): Gallery5.build(self, terrain, home, c.substr(6))   # models7 test hook: NewModels5 props in the real scene
 		if c.begins_with("farmdemo"):     # models5b test hook: a patch of the batch 5 farm models at x_z (game/farm_demo.gd)
 			var fv := c.substr(8).split("_")
 			FarmDemo.build(self, terrain, Vector2(float(fv[0]), float(fv[1])), quad.position())
