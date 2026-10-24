@@ -10,6 +10,7 @@ extends Node3D
 ## changing the field layout.
 
 const FARM := Vector2(165.4, 522.6)
+const CEMETERY_SOUTH := 238.0
 const FIELDS := [
 	{"id": "corn", "crop": "corn", "centre": Vector2(300.0, 590.0), "size": Vector2(90.0, 60.0), "yaw": 0.15},
 	{"id": "barley", "crop": "barley", "centre": Vector2(120.0, 640.0), "size": Vector2(80.0, 52.0), "yaw": -0.20},
@@ -19,6 +20,16 @@ const FIELDS := [
 
 var terrain: Terrain
 var _stats := {}
+
+## The nearest field edge to the cemetery wall, in metres. The fields are deliberately far south of the park.
+static func min_cemetery_gap() -> float:
+	var gap := 1e9
+	for f in FIELDS:
+		var c: Vector2 = f["centre"]
+		var s: Vector2 = f["size"]
+		var half_extent := absf(sin(float(f["yaw"]))) * s.x * 0.5 + absf(cos(float(f["yaw"]))) * s.y * 0.5
+		gap = minf(gap, c.y - half_extent - CEMETERY_SOUTH)
+	return gap
 
 static func inside_any(x: float, z: float, margin := 2.0) -> bool:
 	for f in FIELDS:
@@ -38,7 +49,7 @@ func setup(t: Terrain) -> void:
 	for f in FIELDS:
 		_build_field(f)
 	_build_yard()
-	print("farmland: ", stats())
+	print("farmland: ", stats(), "  cemetery gap ", snappedf(min_cemetery_gap(), 0.1), " m")
 
 func _build_field(f: Dictionary) -> void:
 	var centre: Vector2 = f["centre"]

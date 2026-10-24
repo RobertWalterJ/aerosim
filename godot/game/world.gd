@@ -159,6 +159,8 @@ func _plant_cabin_forest(cells: Dictionary, counts: Array) -> void:
 			continue
 		if CaseObjects.near_evidence(x, z, 11.0):
 			continue
+		if Vector2(x, z).distance_to(Vector2(-260.0, -807.0)) < 24.0:
+			continue   # Pike keeps a small clearing around the jammer trailer
 		var vi: int = [0, 1, 2, 3, 4, 5, 6, 8][int(_hash2(float(i), 3.0, 0.5) * 8.0) % 8]
 		var info: Array = TREE_INFO[vi]
 		var y := terrain.height(x, z)

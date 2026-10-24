@@ -60,6 +60,7 @@ var clips: ClipLibrary             # session B: representative thumbnails from v
 var chat_data: ChatData            # session B: the DroneBudz Discord-style server (game/chat_data.gd)
 var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
 var guide: GuideCoach              # session B: Kit, the DroneBudz support contact and story-mode tips
+var anti_drone: AntiDrone          # session B: Harlan Pike, the north ridge jammer and hunter drones
 var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks (game/case_objects.gd)
 var story: StoryArc                # session B: the Lake Car story arc (game/story_arc.gd)
 var unknown_thread: UnknownThread  # session B: the unknown direct message thread (game/unknown_thread.gd)
@@ -429,6 +430,11 @@ func _ready() -> void:
 	guide = GuideCoach.new()
 	add_child(guide)
 	guide.setup(hud, chat_data, phone_notes, phone_os, story, director, wildlife, inventory, photo_library, jobs, finale)
+	anti_drone = AntiDrone.new()
+	add_child(anti_drone)
+	anti_drone.setup(hud, chat_data, phone_notes, story, director, finale, quad, terrain)
+	anti_drone.forced_return.connect(_on_anti_return)
+	finale.anti_drone = anti_drone
 	# a notification's "Open DroneBudz" button goes straight into the chat app
 	phone_notes.app_requested.connect(func(app: String):
 		phone_os.open()
@@ -1445,6 +1451,10 @@ func _screenshot_mode(arg: String) -> void:
 			finale.debug_thermal_view()
 		elif c == "endingdemo":   # session B dev hook: the fade and the credits
 			finale.debug_found()
+		elif c == "pikezone":      # session B dev hook: drop into the jammer field
+			var jp := Vector2(-260.0, -807.0)
+			quad.reset(jp.x, terrain.height(jp.x, jp.y) + 8.0, jp.y, deg_to_rad(0.0))
+			_apply_pose()
 		elif c == "endingcabin":   # session B dev hook: put the ending at the cabin for review
 			var cp: Vector3 = case_objects.cabin_world_pos()
 			quad.reset(cp.x, terrain.height(cp.x, cp.z) + 18.0, cp.z, deg_to_rad(200.0))
@@ -1801,6 +1811,18 @@ func _make_end_marker() -> void:
 	_end_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_end_marker.visible = false
 	add_child(_end_marker)
+## The Pike ridge put the drone back at the launch site. Nothing is permanently lost; the flight can be tried again.
+func _on_anti_return(reason: String) -> void:
+	if end_sequence or end_walk:
+		return
+	match reason:
+		"jammer":
+			hud.toast("Harlan Pike's jammer dropped the link. The drone returned to " + launch_sites.name() + ".", true)
+		"shotgun":
+			hud.toast("Pike fired on the drone. It returned to " + launch_sites.name() + ". Stay high and keep moving.", true)
+		_:
+			hud.toast("A Pike hunter drone struck the airframe. The drone returned to " + launch_sites.name() + ". Fly faster.", true)
+	spawn()
 # ------------------------------------------------------------------ the end card and the free walk
 func _on_ending_began() -> void:
 	end_sequence = true

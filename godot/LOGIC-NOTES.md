@@ -1052,3 +1052,21 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - END3. Should the walk have a visible body and footstep collision?
   - END4. Should the world keep living during the walk, or stay frozen and quiet?
   - END5. Should the cabin forest also close the clearing completely behind the last flight, so the cabin is only visible between the trunks?
+
+## Harlan Pike, the anti-drone ridge, the farm audit and the early cemetery beat (lane/notify, session B, 2026-11-15)
+- **The character:** Harlan Pike, a freeman-on-the-land who never appears in the chat himself. Rennick, Riley and Alex know of him: a manifesto called The Unbound Valley, a jammer mast, a shotgun and three hunter drones. Rennick has had him warned off three investigations.
+- **Introduction:** at act 2, before the last flight, Rennick, Riley and Alex post the warning. The intro is saved in `user://anti_drone.cfg`.
+- **The jammer:** `game/anti_drone.gd` builds a trailer, mast, dish, red beacon, manifesto board and three hunters at `JAMMER_SPOT` (-260, -807), in a 24 m clearing in the new cabin forest. Before the last flight the jammer forces the drone back to the launch site after about 2.6 seconds in its 235 m field. The HUD flashes a red LINK FAILING warning.
+- **The break:** `Finale.start()` calls `AntiDrone.jammer_down_now()`. The beacon goes dark, the mast stays standing for now, and Rennick, Riley and Alex post that the mast came down and the hunters are still up.
+- **The final flight:** the three hunters chase at about 13.2 m/s and turn slowly; a racing quad can outrun them, a slow drone cannot. A hunter within 2.9 m forces the drone back to the launch site, with a warning and no lost save. Below 15 m AGL inside a 92 m shotgun ring, the player is warned and forced back after about 2.2 seconds. The final objective now says to keep high and fast.
+- **Farm and cemetery:** `Farmland.min_cemetery_gap()` reports the nearest field edge to the cemetery wall. The alfalfa field is closest at about 195 m; the other fields are farther. No crop, fence, bale or tree instance enters the cemetery. Evidence: `docs/realism/farm/00_farm_layout.jpg`; docs/FARM-CEMETERY-LAYOUT.md; `farmland:` startup line now includes the gap.
+- **Early cemetery beat:** the general seed now has Alex asking why the pilot circles the cemetery, Sam telling him to lay off because the pilot's uncle just passed and it gives him some peace with the chapel and the old stones, and Maya telling them to leave him be.
+- **Docs and briefs:** `docs/ANTI-DRONE-RIDGE.md`, `docs/CLAUDE-ANTI-DRONE-ASSETS.md`, `docs/FARM-CEMETERY-LAYOUT.md`. Evidence: `docs/realism/anti_drone/00_pike_ridge.jpg`, `docs/realism/farm/00_farm_layout.jpg`.
+- **Honest limits:** the hunters are distance-chasing props, not a flight AI; they do not avoid trees or each other. The jammer is a radius timer, not a radio simulation. The shotgun is a low-altitude timer, not a shooter with a projectile. A forced return is a respawn at the current launch site, not a damaged drone. Pike has no direct messages, portrait or dialogue. The site is code geometry until Claude's assets land. The farm fields are simple rotated rectangles, not surveyed land.
+- **Questions for Robert:**
+  - PIKE1. Should the jammer field be tighter around the cabin or cover more of the ridge?
+  - PIKE2. Should a hunter hit damage the airframe or just force a return?
+  - PIKE3. Should the shotgun warning have a visible shooter and muzzle flash?
+  - PIKE4. Should Pike ever appear in a direct message, or stay off the chat entirely?
+  - PIKE5. Should the early cemetery beat mention the uncle by name, or stay vague?
+  - FARM1. Are the current field positions and sizes right, or should the farm move farther from the cemetery?`

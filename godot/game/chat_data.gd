@@ -107,6 +107,9 @@ func _seed_for(channel: String) -> Array:
 				_msg("Jo", "The new road out to the farm is open. Makes the festival run a lot easier, and there is a good hard shoulder for the chase car."),
 				_msg("Riley", "Ridge road is open again too. If you follow it low there are some new angles of the valley from the old hedge line."),
 				_msg("Maya", "That is you by the way. Check #jobs when you land, there is paid work on the board."),
+				_msg("Alex", "Why is the pilot always circling the cemetery? Every afternoon, same loop over the chapel."),
+				_msg("Sam", "Lay off him, okay guys. His uncle just passed. It is a nice place, the chapel and all the old stones. It gives him some peace."),
+				_msg("Maya", "Leave him be. He flies better when he is quiet."),
 			]
 		"weather":
 			return [

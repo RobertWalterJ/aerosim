@@ -19,6 +19,7 @@ var ending: Ending
 var inventory: Inventory
 var wildlife: WildlifeCase
 var sites: LaunchSites
+var anti_drone: AntiDrone
 
 var started := false
 var ended := false
@@ -194,6 +195,7 @@ func start() -> void:
 		hud.toast("Alex: thermal camera patched into the gimbal. Press T to toggle it.")
 	if thermal != null:
 		thermal.install()
+	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
 	# The reveal. The officer the player has been talking to died forty years ago.
 	_ghost("I have to tell you something I should have told you at the start.", "Rennick")
 	_ghost("I am not the new constable. I died out here forty years ago, on the old plot past the north shore.", "Rennick")
@@ -241,6 +243,7 @@ func debug_cabin() -> void:
 		thermal.install()
 		thermal.set_on(true)
 		objects.set_thermal_marker(true)
+	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
 	_set_objective("Search east of the cabin for Wren", "Thermal camera on. Warm bodies show white and orange.")
 
 func debug_found() -> void:
@@ -260,4 +263,5 @@ func debug_thermal_view() -> void:
 		thermal.install()
 		thermal.set_on(true)
 		objects.set_thermal_marker(true)
+	_ghost("The Pike jammer is off us now. The hunter drones are not. Do not slow down over the trees.", "Rennick")
 	_set_objective("Search east of the cabin for Wren", "Thermal camera on. Warm bodies show white and orange.")
