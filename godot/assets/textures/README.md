@@ -252,6 +252,22 @@ Re-used from the sets above: `bld_wood_*` (dock deck), `postwood_*` (posts, pile
 `bark_oak_*` (oak), `rust_diff.jpg` (lantern), `rubber_nor.jpg` (tyres), `assets/trees/leaves_beech.webp` (dry leaves on the
 fallen crowns). All CC0. The CAVE / KEEP OUT lettering is PT Sans Narrow Bold glyph geometry (SIL OFL 1.1).
 
+## lane/antidrone (Harlan Pike's ridge)
+
+Made by `tools/blender/make_antidrone_textures.py` (own work, CC0) from photographed CC0 sets already in the project:
+
+| File | Source | Author | Licence | Scale | Used on |
+|---|---|---|---|---|---|
+| `pike_ridge_clearing.jpg`, `_nor`, `_arm` | Poly Haven dry grass and park dirt (the rwj_procgen shared set) with drawn masks: bare patch, ruts, oil stains, trodden paths, drag mark | Poly Haven authors; masks own | CC0 | 12 m across, not tiling | `pike_clearing_patch` |
+| `pike_no_drone_stencil.png` | drawn: spray-painted drone in a slashed circle | own | CC0 | 0.38 m | trailer side |
+| `pike_manifesto_paper.png`, `pike_paper_blank.png` | drawn: yellowed taped page, unreadable bars, and the blank one | own | CC0 | page | manifesto board |
+| `pike_notice_stack.png` | drawn: damp notices and envelopes, unreadable | own | CC0 | | story prop |
+| `pike_strobe_card.png`, `pike_smoke_card.png`, `pike_tyre_marks.png` | drawn | own | CC0 | | strobe card, smoke, tyre tracks |
+
+Re-used: `bld_paint_*` (tinted paints), `rust_diff.jpg`, `bld_timber_*` (planks), `postwood_*` (ply), `bld_corrugated_rust_*`,
+`fabric_nor.jpg` (tarp, canvas), `drones/drone_carbon_*`, `drone_plastic_*`, `drone_spun_*`, `drone_strap_*` (hunters), and the
+`site_*` sets through SiteAssets.
+
 ## Avatar photographs (lane/avatars, 2026-10-24)
 
 The phone avatars use these CC0 photographs (no file in this folder is added; the crops live in
