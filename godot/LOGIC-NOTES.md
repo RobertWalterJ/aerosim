@@ -766,3 +766,20 @@ The thermal camera is now a real progression item. Riley's night pasture favour 
   - W3. Should the thermal pass be night-only, or stay flexible so players are never stuck waiting for the clock?
   - W4. Should the wolf be relocated, collared or simply left alone in the resolution?
   - W5. Should this become a proper Casebook side case with photographs, or stay a chat favour and objective? 
+
+## Representative clips, no video files (lane/notify, session B, 2026-11-12)
+The channel no longer pretends to store footage. Video mode now makes a small representative clip: a thumbnail, a duration, the flight metadata and a title. There is no video file, frame sequence or audio track.
+- **Clip library (`game/clip_library.gd`):** each recording is a 480x270 JPEG thumbnail plus a JSON record under `user://clips`. The cap is 80 clips and the oldest thumbnail is removed over the cap. The thumbnail is typically 20 to 50 KB; a clip costs that, not a minute of video.
+- **Recording:** in video mode the shutter starts the REC timer and stopping it captures one frame, writes the thumbnail, and shows a toast and phone notice. The full frame is not kept. The home screen shows an "N RUSHES" badge under the VidTube Studio icon.
+- **VidTube Studio:** a new RUSHES section shows the waiting clips as YouTube-like cards with thumbnail, title, duration and quality. Each card offers Maya cut or Raw, and Send all to Maya strings every waiting rush into one video with the best thumbnail, a clip count and a quality bonus. Published videos are listed newest first with real thumbnails, duration, clip count, edited/direct tags and views, followers and money.
+- **Jobs (`game/jobs.gd`):** `upload_clip` and `publish_rushes` publish the representative records; the editor bonus still lifts the numbers. Existing photo uploads and job videos still work and share the same card language.
+- **Player representation:** the clip is not playable. It is a card in the channel app: a still, a duration, a title and the story of Maya cutting it. The fiction is carried by the thumbnail and the rushes bag rather than a media file.
+- **Docs:** `docs/CLIP-REPRESENTATION.md` explains the rule, storage, player flow, limits and questions.
+- **Evidence (docs/realism/clips/):** 00 the rushes section with three clips, 01 after a Maya cut.
+- **Honest limits:** there is no playback, scrub, trim, custom thumbnail picker, multi-select or ordering. One thumbnail represents each clip. "Send all" uses one best thumbnail rather than a collage. Quality is a small formula, not a real edit score. The old photo upload path remains. The RUSHES section is hidden when empty.
+- **Questions for Robert:**
+  - CLIP1. Should a cut use a collage of the best three thumbnails instead of one?
+  - CLIP2. Should the player choose the thumbnail from a few captured frames?
+  - CLIP3. Should rushes be multi-select and ordered by the player before Maya cuts them?
+  - CLIP4. Should old jobs publish a thumbnail automatically from their qualifying photo?
+  - CLIP5. Should there be a short animated preview (a few frames) instead of a still, still without a video file?

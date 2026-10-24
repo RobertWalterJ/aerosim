@@ -69,6 +69,7 @@ var _done: Array = []            # completed job ids
 var _followers := 0
 var _money := 0
 var _chat: ChatData              # the DroneBudz server; job events are posted there when it exists
+var clips: ClipLibrary            # the representative rushes from video mode (no video files)
 var _views := 0
 var _videos: Array = []          # every published video: uploads from the camera roll and edited cuts
 var _editor := false             # has Maya become the pilot's editor friend yet
@@ -215,6 +216,95 @@ func tick(delta: float) -> void:
 ## The DroneBudz server: job events are also posted as chat messages there, so the story lives in one place.
 func set_chat(c: ChatData) -> void:
 	_chat = c
+
+func set_clips(c: ClipLibrary) -> void:
+	clips = c
+
+## Publish one representative clip. There is no video file to render; the thumbnail and duration are the representation.
+func upload_clip(clip: Dictionary, via_editor := false) -> Dictionary:
+	if clip.is_empty():
+		return {}
+	var quality := float(clip.get("quality", 1.0))
+	var mult := 2.3 if via_editor else 1.0
+	var views_gain := int((30.0 + float(_followers) * 0.45) * quality * mult)
+	var gain := maxi(1, int((1.0 + quality * 2.0) * mult))
+	var money_gain := int((3.0 + float(views_gain) * 0.03) * mult)
+	_views += views_gain
+	_followers += gain
+	_money += money_gain
+	var title := str(clip.get("title", "A valley clip"))
+	if via_editor:
+		title += "  ·  Maya cut"
+	var rec := {
+		"title": title, "views": views_gain, "followers": gain, "money": money_gain,
+		"edited": via_editor, "photo": -1, "thumb": str(clip.get("thumb", "")),
+		"duration": float(clip.get("duration", 0.0)), "clip_ids": [int(clip.get("id", -1))],
+		"clips": 1, "clip_thumbs": [str(clip.get("thumb", ""))], "quality": quality,
+	}
+	_videos.append(rec)
+	_save_state()
+	if clips != null:
+		clips.mark_published(rec["clip_ids"], title)
+	_editor = true
+	_save_state()
+	if _chat != null:
+		if via_editor:
+			_chat.post("clips", "Maya", "Cut and published. %d views already. One clean clip, one good thumbnail, that is all it takes." % views_gain, false)
+		else:
+			_chat.post("clips", "You", "Uploaded a clip to VidTube.", false, true)
+	if notes != null:
+		notes.post_text("VidTube", "Your video is live", "%s earned %d views, %d followers and %d money." % [title, views_gain, gain, money_gain], 0)
+	return rec
+
+## String every waiting rush into one polished video. The result is a single representative video with a clip count and
+## the best thumbnail; no footage is rendered or written.
+func publish_rushes(via_editor := true) -> Dictionary:
+	if clips == null:
+		return {}
+	var rushes := clips.rushes()
+	if rushes.is_empty():
+		return {}
+	var ids: Array = []
+	var thumbs: Array = []
+	var duration := 0.0
+	var quality := 0.0
+	for r in rushes:
+		ids.append(int(r.get("id", -1)))
+		if thumbs.size() < 4:
+			thumbs.append(str(r.get("thumb", "")))
+		duration += float(r.get("duration", 0.0))
+		quality += float(r.get("quality", 1.0))
+	quality = quality / float(rushes.size())
+	var best := clips.best_thumbnail(rushes)
+	var title := "The valley in %d clips" % rushes.size() if rushes.size() > 1 else str(best.get("title", "A valley clip"))
+	if via_editor:
+		title = ("The valley, cut by Maya" if rushes.size() > 1 else str(best.get("title", "A valley clip")) + "  ·  Maya cut")
+		quality += 0.30
+	if rushes.size() > 1:
+		quality += 0.18
+	var mult := 2.3 if via_editor else 1.0
+	var views_gain := int((30.0 + float(_followers) * 0.45) * quality * mult)
+	var gain := maxi(1, int((1.0 + quality * 2.0) * mult))
+	var money_gain := int((3.0 + float(views_gain) * 0.03) * mult)
+	_views += views_gain
+	_followers += gain
+	_money += money_gain
+	var rec := {
+		"title": title, "views": views_gain, "followers": gain, "money": money_gain,
+		"edited": via_editor, "photo": -1, "thumb": str(best.get("thumb", "")),
+		"duration": duration, "clip_ids": ids, "clips": rushes.size(), "clip_thumbs": thumbs,
+		"quality": snappedf(quality, 0.01),
+	}
+	_videos.append(rec)
+	_save_state()
+	clips.mark_published(ids, title)
+	_editor = true
+	_save_state()
+	if _chat != null:
+		_chat.post("clips", "Maya", "Cut and published. %d views already. %d rushes, one thumbnail, one story. That is what an edit does." % [views_gain, rushes.size()], false)
+	if notes != null:
+		notes.post_text("VidTube", "Your cut is live", "%s earned %d views, %d followers and %d money." % [title, views_gain, gain, money_gain], 0)
+	return rec
 
 # ------------------------------------------------------------------ job flow
 func _job(id: String) -> Dictionary:

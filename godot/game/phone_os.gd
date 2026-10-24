@@ -25,6 +25,7 @@ var story: StoryArc
 var _casebook_app: CasebookApp
 var _marketplace_app: MarketplaceApp
 var inventory: Inventory
+var clips: ClipLibrary
 var _root: Control
 var _home: Control
 var _apps: Control
@@ -37,6 +38,7 @@ var _field_weather: Label
 var _field_crew: Label
 var _field_case: Label
 var _drone_budz_badge: Label
+var _studio_badge: Label
 var _wind_dial: TabletDial
 var _battery_dial: TabletDial
 var _credit: Label
@@ -45,7 +47,7 @@ var _battery_pct := 0.74
 var _open := false
 var _current_app := "home"
 
-func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc, inv: Inventory) -> void:
+func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc, inv: Inventory, cl: ClipLibrary) -> void:
 	hud = h
 	jobs = j
 	photos = p
@@ -53,6 +55,7 @@ func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc
 	crew = cr
 	story = st
 	inventory = inv
+	clips = cl
 	layer = 28
 	_build()
 	_show_home()
@@ -225,6 +228,10 @@ func _build() -> void:
 			_drone_budz_badge = UniverseUI.label("", 10, UniverseUI.AMBER)
 			_drone_budz_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cell.add_child(_drone_budz_badge)
+		elif key == "studio":
+			_studio_badge = UniverseUI.label("", 9, UniverseUI.AMBER)
+			_studio_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			cell.add_child(_studio_badge)
 		var lab := UniverseUI.label(str(a["name"]), 11, UniverseUI.CREAM_DIM)
 		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cell.add_child(lab)
@@ -307,7 +314,7 @@ func _build() -> void:
 	_studio_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_studio_app.visible = false
 	_apps.add_child(_studio_app)
-	_studio_app.setup(hud, jobs, chat, photos)
+	_studio_app.setup(hud, jobs, chat, photos, clips)
 	_studio_app.chat_requested.connect(func(): _open_app("chat"))
 	_studio_app.jobs_requested.connect(func(): jobs.open_page())
 	_studio_app.upload_requested.connect(func(): photos.open_gallery())
@@ -538,6 +545,9 @@ func _refresh() -> void:
 		_field_crew.text = "CREW  ·  6 on the server" + (("   %d unread" % unread2) if unread2 > 0 else "")
 	if _field_case != null:
 		_field_case.text = "CASEBOOK  ·  " + (story.current_status() if story != null else "No case yet.")
+	if _studio_badge != null:
+		var rushes := clips.rushes().size() if clips != null else 0
+		_studio_badge.text = ("%d RUSHES" % rushes) if rushes > 0 else ""
 	if _mode_label != null:
 		_mode_label.text = "STORY MODE  ·  the valley owns the weather" if (hud == null or hud.story_mode) else "SANDBOX  ·  weather controls unlocked"
 	if _wind_dial != null and hud != null:

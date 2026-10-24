@@ -56,6 +56,7 @@ var phone_notes: PhoneNotes        # session B: the DroneBudz phone notification
 var world_life: WorldLife          # session B: the farm, turning mill and discoverable places (game/world_life.gd)
 var photo_library: PhotoLibrary    # session B: the in-game photo gallery (game/photo_library.gd)
 var jobs: Jobs                     # session B: the opt-in DroneBudz jobs and story layer (game/jobs.gd)
+var clips: ClipLibrary             # session B: representative thumbnails from video mode (game/clip_library.gd)
 var chat_data: ChatData            # session B: the DroneBudz Discord-style server (game/chat_data.gd)
 var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
 var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks (game/case_objects.gd)
@@ -354,6 +355,10 @@ func _ready() -> void:
 	jobs = Jobs.new()
 	add_child(jobs)
 	jobs.setup(hud, photo_library, phone_notes)
+	clips = ClipLibrary.new()
+	add_child(clips)
+	clips.setup()
+	jobs.set_clips(clips)
 	photo_library.photo_saved.connect(jobs.on_photo)
 	hud.jobs_requested.connect(func(): jobs.open_page())
 	# session B: the phone. The chat server is the story spine; the phone hosts the apps (chat, studio, photos, jobs).
@@ -393,7 +398,7 @@ func _ready() -> void:
 	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
-	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory)
+	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips)
 	phone_os.fly_drone.connect(switch_drone)
 	# a notification's "Open DroneBudz" button goes straight into the chat app
 	phone_notes.app_requested.connect(func(app: String):
@@ -1138,6 +1143,17 @@ func _screenshot_mode(arg: String) -> void:
 			hud.set_story_mode(false)
 			hud.set_paused(true)
 			hud.open_tab(2)
+		elif c == "clipdemo":     # session B dev hook: create three representative rushes and open Studio
+			for i in 3:
+				clips.add_clip(sensor.capture(), _photo_meta(), 8.0 + float(i) * 4.0)
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "clipeditdemo": # session B dev hook: cut the rushes into a single video
+			for i in 2:
+				clips.add_clip(sensor.capture(), _photo_meta(), 10.0 + float(i) * 3.0)
+			jobs.publish_rushes(true)
+			phone_os.open()
+			phone_os._open_app("studio")
 		elif c == "market":      # session B dev hook: the Facade marketplace
 			phone_os.open()
 			phone_os._open_app("market")
@@ -1400,6 +1416,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("story: ", story.stats())
 	print("unknown: ", unknown_thread.stats())
 	print("kit: ", inventory.stats())
+	print("clips: ", clips.stats())
 	print("wildlife: ", wildlife.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
@@ -1641,12 +1658,36 @@ func _update_home_recharge(delta: float) -> void:
 		if hud != null:
 			hud.toast("Battery full. Ready for the next flight.")
 
+## A short duration for the HUD and the clip toast.
+func _clip_time(sec: float) -> String:
+	return "%02d:%02d" % [int(sec) / 60, int(sec) % 60]
+
 ## The shutter: a photo saves the finished video frame; in video mode it starts and stops a recording indicator.
 func _shutter_pressed() -> void:
 	if hud.video_mode:
-		recording = not recording; _rec_time = 0.0
-		hud._shutter.recording = recording; hud._shutter.queue_redraw()
-		hud.toast("Recording" if recording else "Recording saved")
+		if not recording:
+			recording = true
+			_rec_time = 0.0
+			hud._shutter.recording = true
+			hud._shutter.queue_redraw()
+			hud.toast("Recording clip. Stop to save a representative thumbnail, not a video file.")
+		else:
+			recording = false
+			_rec_time = maxf(_rec_time, 0.4)
+			var dur := _rec_time
+			hud._shutter.recording = false
+			hud._shutter.queue_redraw()
+			var img := sensor.capture()
+			var rec: Dictionary = {}
+			if clips != null:
+				rec = clips.add_clip(img, _photo_meta(), dur)
+			if rec.is_empty():
+				hud.toast("Clip could not be saved", true)
+			else:
+				hud.toast("Clip saved: %s  ·  VidTube Studio > Rushes" % _clip_time(dur))
+				if phone_notes != null:
+					phone_notes.post_text("VidTube", "Clip saved", "A %s clip is waiting in VidTube Studio. Maya can cut the rushes into a video." % _clip_time(dur), 0)
+			_rec_time = 0.0
 		return
 	var img := sensor.capture()
 	hud.flash_photo()
