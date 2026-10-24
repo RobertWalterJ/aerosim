@@ -8,8 +8,17 @@ var _wolf_heat: Node3D
 var _sheep_heat: Array[Node3D] = []
 var _sheep_roots: Array[Node3D] = []
 var _wolf_pos := Vector3.ZERO
+var _terrain: Terrain
+var _wolf_shown := false
+const SHEEP_SPOOK := 58.0
+const SHEEP_HIDE := 25.0
+const SHEEP_FLEE := 4.6
+const WOLF_SPOOK := 85.0
+const WOLF_HIDE := 30.0
+const WOLF_FLEE := 7.2
 
 func setup(t: Terrain) -> void:
+	_terrain = t
 	var s := CaseObjects.SHEEP_SPOT
 	var base := Vector3(s.x, t.height(s.x, s.y), s.y)
 	for i in 7:
@@ -25,13 +34,51 @@ func setup(t: Terrain) -> void:
 		m.visible = false
 	print("wildlife objects: sheep=7 wolf=", _wolf_pos)
 
+func update(delta: float, drone_pos: Vector3) -> void:
+	var p := Vector2(drone_pos.x, drone_pos.z)
+	for root in _sheep_roots:
+		if root == null:
+			continue
+		var flat := Vector2(root.position.x, root.position.z)
+		var d := flat.distance_to(p)
+		if d < SHEEP_SPOOK:
+			var away := flat - p
+			if away.length_squared() < 0.001:
+				away = Vector2.RIGHT
+			away = away.normalized()
+			root.position.x += away.x * SHEEP_FLEE * delta
+			root.position.z += away.y * SHEEP_FLEE * delta
+			if _terrain != null:
+				root.position.y = _terrain.height(root.position.x, root.position.z)
+			root.rotation.y = atan2(-away.x, -away.y)
+			root.visible = d > SHEEP_HIDE
+		else:
+			root.visible = true
+	if _wolf != null and _wolf_shown:
+		var flat := Vector2(_wolf.position.x, _wolf.position.z)
+		var d := flat.distance_to(p)
+		if d < WOLF_SPOOK:
+			var away := flat - p
+			if away.length_squared() < 0.001:
+				away = Vector2.LEFT
+			away = away.normalized()
+			_wolf.position.x += away.x * WOLF_FLEE * delta
+			_wolf.position.z += away.y * WOLF_FLEE * delta
+			if _terrain != null:
+				_wolf.position.y = _terrain.height(_wolf.position.x, _wolf.position.z)
+			_wolf.rotation.y = atan2(-away.x, -away.y)
+			_wolf.visible = d > WOLF_HIDE
+		else:
+			_wolf.visible = true
+
 func first_sheep_position() -> Vector3:
 	return _sheep_roots[0].global_position if not _sheep_roots.is_empty() else Vector3.ZERO
 
 func wolf_position() -> Vector3:
-	return _wolf_pos
+	return _wolf.global_position if _wolf != null else _wolf_pos
 
 func show_wolf() -> void:
+	_wolf_shown = true
 	if _wolf != null:
 		_wolf.visible = true
 

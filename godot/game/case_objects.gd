@@ -31,6 +31,8 @@ var _cabin_root: Node3D
 var _hiker: Node3D
 var _hiker_anim: AnimationPlayer
 var _hiker_heat: Node3D
+var _hiker_revealed := false
+const HIKER_KEEP_OUT := 48.0
 var _dog_heat: Node3D
 var _cabin_on := false
 var _porch_light: OmniLight3D
@@ -503,6 +505,7 @@ func set_cabin_lights(on: bool) -> void:
 func show_hiker() -> void:
 	if _hiker == null:
 		return
+	_hiker_revealed = true
 	_hiker.visible = true
 	_hiker.position = search_world_pos()
 	_hiker.rotation.y = PI + 2.2
@@ -511,6 +514,17 @@ func show_hiker() -> void:
 		_hiker_anim.play("idle")
 	elif _hiker is CharacterActor:
 		(_hiker as CharacterActor).set_animation("stand")
+
+func update_hiker(drone_pos: Vector3) -> void:
+	if _hiker == null or not _hiker_revealed:
+		return
+	var d := Vector2(_hiker.position.x - drone_pos.x, _hiker.position.z - drone_pos.z).length()
+	_hiker.visible = d > HIKER_KEEP_OUT
+
+func hiker_distance(drone_pos: Vector3) -> float:
+	if _hiker == null:
+		return 9999.0
+	return Vector2(_hiker.position.x - drone_pos.x, _hiker.position.z - drone_pos.z).length()
 
 func wave_hiker() -> void:
 	if _hiker_anim != null:

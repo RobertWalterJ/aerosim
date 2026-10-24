@@ -421,6 +421,10 @@ func _person(data: Dictionary) -> void:
 		opts["route"] = route
 		opts["position"] = route[0]
 	actor.setup(opts)
+		# People are deliberately not rendered in the valley: the story is carried by messages, radio and the places
+	# they leave behind. Keeping the actors out of view avoids close-up model inspection and makes the valley feel
+	# emptier and more haunting. The cast still exists for stats and future distant silhouettes.
+	actor.visible = false
 	_people.append(actor)
 
 func _try_building_model(node: Node3D, name: String, _yaw: float) -> bool:

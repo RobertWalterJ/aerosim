@@ -4,9 +4,9 @@ extends Node3D
 ## valley highway, lakeside lane and ridge road, in both directions, with their wheels turning and headlights coming on
 ## in the dark. Harmless scenery: no collisions, no gameplay, just life on the roads.
 ##
-## The vehicles load Claude's GLB fleet from assets/traffic when those files exist, and fall back to the code-built placeholders until then. Counts:
-## eight on a computer, four on a phone; speeds 7 to 16 m/s and the tractor about 6, so the roads never look empty but
-## the drone can easily outpace them.
+## The vehicles load the shared GLB fleet from assets/traffic when those files exist, and fall back to the code-built
+## placeholders until then. Counts are deliberately low: three on a computer, two on a phone. The valley is meant to
+## feel emptier than a traffic sim; a vehicle should be an event, not wallpaper.
 
 const TYPES := [
 	{"name": "hatchback", "id": "hatchback_a", "model": "res://assets/traffic/hatchback_a.glb", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 13.5, "colour": Color(0.62, 0.20, 0.16)},
@@ -28,7 +28,7 @@ func setup(t: Terrain, r: Roads, h: Hud) -> void:
 	roads = r
 	hud = h
 	_mobile = OS.has_feature("mobile")
-	var n := 4 if _mobile else 8
+	var n := 2 if _mobile else 3
 	var all_routes: Array = roads.route_ids()
 	var routes: Array = []
 	for id in all_routes:
