@@ -292,6 +292,17 @@ func stats() -> Dictionary:
 	return {"farm": [snappedf(farm_pos.x, 0.1), snappedf(farm_pos.y, 0.1), snappedf(farm_pos.z, 0.1)],
 		"discovered": discovered_count(), "places": place_count()}
 
+## Places the pilot has not found yet, for Riley's hints in the crew chat.
+func undiscovered_places() -> Array:
+	var out: Array = []
+	for poi in _pois:
+		if not bool(poi.get("discovered", false)):
+			out.append(poi)
+	return out
+
+func home_position() -> Vector2:
+	return HOME
+
 ## Dev hook: mark every place found, for the field notes shot and tests.
 func debug_discover_all() -> void:
 	for poi in _pois:

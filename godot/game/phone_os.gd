@@ -13,6 +13,7 @@ var hud: Hud
 var jobs: Jobs
 var photos: PhotoLibrary
 var chat: ChatData
+var crew: Crew
 var _chat_app: ChatApp
 var _studio_app: StudioApp
 var _root: Control
@@ -25,11 +26,12 @@ var _drone_budz_badge: Label
 var _open := false
 var _current_app := "home"
 
-func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData) -> void:
+func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew) -> void:
 	hud = h
 	jobs = j
 	photos = p
 	chat = c
+	crew = cr
 	layer = 28
 	_build()
 	_show_home()
@@ -201,7 +203,7 @@ func _build() -> void:
 	_chat_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_chat_app.visible = false
 	_apps.add_child(_chat_app)
-	_chat_app.setup(chat, hud, jobs, photos)
+	_chat_app.setup(chat, hud, jobs, photos, crew)
 	_studio_app = StudioApp.new()
 	_studio_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_studio_app.visible = false

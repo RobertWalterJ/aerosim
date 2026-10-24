@@ -531,6 +531,26 @@ func stats() -> Dictionary:
 	return {"offers": _offers.size(), "active": _active.size(), "done": _done.size(),
 		"followers": _followers, "money": _money, "open": _open}
 
+## What Jo can talk about in the crew chat: the open offers and the accepted work.
+func offers_list() -> Array:
+	var out: Array = []
+	for id in _offers:
+		var job := _job(str(id))
+		if not job.is_empty():
+			out.append(job)
+	return out
+
+func active_list() -> Array:
+	var out: Array = []
+	for id in _active:
+		var job := _job(str(id))
+		if not job.is_empty():
+			out.append(job)
+	return out
+
+func last_video() -> Dictionary:
+	return _videos[-1] if not _videos.is_empty() else {}
+
 ## Dev hook: take the first offer, mark its objectives done with the newest photo if there is one, and open the page.
 func debug_demo() -> void:
 	if _offers.is_empty() and _active.is_empty():

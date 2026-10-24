@@ -11,6 +11,7 @@ var chat: ChatData
 var hud: Hud
 var jobs: Jobs
 var photos: PhotoLibrary
+var crew: Crew
 var _current := "general"
 var _sidebar_channels: VBoxContainer
 var _messages: VBoxContainer
@@ -22,11 +23,12 @@ var _crew_label: Label
 var _root: HBoxContainer
 var _build_t := 0.0
 
-func setup(c: ChatData, h: Hud, j: Jobs, p: PhotoLibrary) -> void:
+func setup(c: ChatData, h: Hud, j: Jobs, p: PhotoLibrary, cr: Crew) -> void:
 	chat = c
 	hud = h
 	jobs = j
 	photos = p
+	crew = cr
 	_build()
 
 func _build() -> void:
@@ -133,9 +135,26 @@ func _build() -> void:
 	for m in ["left", "right", "top", "bottom"]:
 		im.add_theme_constant_override("margin_" + m, 10)
 	input_row.add_child(im)
+	var in_col := VBoxContainer.new()
+	in_col.add_theme_constant_override("separation", 6)
+	im.add_child(in_col)
+	# quick asks: each friend gives a different kind of answer (Sam weather, Tom storms, Alex gear, Riley places, Jo jobs, Maya edits)
+	var chips := HBoxContainer.new()
+	chips.add_theme_constant_override("separation", 6)
+	in_col.add_child(chips)
+	for pair in [["Weather?", "weather", "Sam"], ["Storm?", "storm", "Tom"], ["Gear?", "gear", "Alex"],
+			["Where to fly?", "spot", "Riley"], ["Jobs?", "jobs", "Jo"], ["Edit?", "edit", "Maya"]]:
+		var b := Button.new()
+		b.text = str(pair[0])
+		b.tooltip_text = "Ask " + str(pair[2])
+		b.add_theme_font_size_override("font_size", 12)
+		b.custom_minimum_size = Vector2(0, 26)
+		var key := str(pair[1])
+		b.pressed.connect(func(): _ask(key))
+		chips.add_child(b)
 	var in_row := HBoxContainer.new()
 	in_row.add_theme_constant_override("separation", 8)
-	im.add_child(in_row)
+	in_col.add_child(in_row)
 	_input = LineEdit.new()
 	_input.placeholder_text = "Message #general"
 	_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -185,7 +204,12 @@ func _refresh_channel() -> void:
 	for m in _messages.get_children():
 		m.queue_free()
 	var msgs := chat.messages(_current)
+	var last_key := ""
 	for msg in msgs:
+		var key := str(msg.get("from", "")) + "|" + _plain_text(str(msg.get("text", "")))
+		if key == last_key:
+			continue
+		last_key = key
 		_messages.add_child(_message_row(msg))
 	_refresh_sidebar()
 	await get_tree().process_frame
@@ -268,6 +292,43 @@ func _send() -> void:
 		return
 	chat.post(_current, "You", text, false, true)
 	_input.text = ""
+	# typed questions go to the friend whose job it is
+	var low := text.to_lower()
+	if crew != null:
+		if low.contains("weather") or low.contains("forecast") or low.contains("wind"):
+			crew.ask("weather", _current)
+		elif low.contains("storm") or low.contains("tornado") or low.contains("funnel"):
+			crew.ask("storm", _current)
+		elif low.contains("gear") or low.contains("drone") or low.contains("lens") or low.contains("battery"):
+			crew.ask("gear", _current)
+		elif low.contains("where") or low.contains("place") or low.contains("fly"):
+			crew.ask("spot", _current)
+		elif low.contains("job") or low.contains("work") or low.contains("money"):
+			crew.ask("jobs", _current)
+		elif low.contains("edit") or low.contains("video") or low.contains("upload") or low.contains("clip"):
+			crew.ask("edit", _current)
+	_refresh_channel()
+
+func _plain_text(t: String) -> String:
+	for p in ["FORECAST: ", "GEAR: ", "WORK: ", "PLACES: ", "EDIT: ", "Storm watch: ", "Forecast: ", "Gear note: ", "Jobs: ", "Places: ", "Edit note: "]:
+		if t.begins_with(p):
+			return t.substr(p.length())
+	return t
+
+func _ask(kind: String) -> void:
+	if crew == null:
+		return
+	var questions := {
+		"weather": "What is the weather doing?",
+		"storm": "Anything on the storm front?",
+		"gear": "What should I fly today?",
+		"spot": "Where should I go?",
+		"jobs": "What is on the board?",
+		"edit": "How is the channel doing?",
+	}
+	var question: String = str(questions.get(kind, "What do you think?"))
+	chat.post(_current, "You", question, false, true)
+	crew.ask(kind, _current)
 	_refresh_channel()
 
 func stats() -> Dictionary:

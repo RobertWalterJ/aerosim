@@ -61,6 +61,7 @@ var phone_os: PhoneOS              # session B: the in-game phone with its apps 
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
 var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
 var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
+var crew: Crew                     # session B: the six friends, each giving the pilot different information (game/crew.gd)
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
@@ -340,9 +341,12 @@ func _ready() -> void:
 	jobs.set_chat(chat_data)
 	photo_library.jobs = jobs
 	photo_library.chat = chat_data
+	# session B: the crew each have their own job and their own information for the pilot
+	crew = Crew.new()
+	crew.setup(chat_data, hud, jobs, world_life, weather_events, photo_library)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
-	phone_os.setup(hud, jobs, photo_library, chat_data)
+	phone_os.setup(hud, jobs, photo_library, chat_data, crew)
 	# a notification's "Open DroneBudz" button goes straight into the chat app
 	phone_notes.app_requested.connect(func(app: String):
 		phone_os.open()
@@ -768,6 +772,8 @@ func _process(delta: float) -> void:
 		jobs.tick(delta)   # session B: the channel keeps earning views and money between flights
 	if traffic != null and hud != null:
 		traffic.update(delta, float(hud.weather.get("hour", 12.0)), paused)   # session B: life on the roads
+	if crew != null and not paused:
+		crew.update(delta)   # session B: the crew react to weather, storms, uploads and discoveries
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
 		_celestial_t = 0.25
@@ -1024,6 +1030,26 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os._open_app("studio")
 		elif c == "trafficdemo":  # session B dev hook: line the traffic up on the valley highway
 			traffic.debug_line_up()
+		elif c == "crewdemo":     # session B dev hook: ask every friend once and open the weather channel
+			crew.ask("weather", "weather")
+			crew.ask("storm", "weather")
+			crew.ask("gear", "tech")
+			crew.ask("spot", "general")
+			crew.ask("jobs", "jobs")
+			crew.ask("edit", "clips")
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("weather")
+		elif c == "crewtech":     # session B dev hook: ask Alex about gear
+			crew.ask("gear", "tech")
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("tech")
+		elif c == "crewjobs":     # session B dev hook: ask Jo about the board
+			crew.ask("jobs", "jobs")
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("jobs")
 		elif c == "uploaddemo":   # session B dev hook: upload the newest photo straight to VidTube
 			var pid := -1
 			var meta: Dictionary = {}
@@ -1126,6 +1152,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("roads: ", roads.stats())
 	print("farmland: ", farmland.stats())
 	print("traffic: ", traffic.stats())
+	print("crew: ", crew.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
