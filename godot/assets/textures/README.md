@@ -127,3 +127,89 @@ painted sign board; `postwood_*` (Poly Haven `rough_wood`, Rob Tuytel, CC0) for 
 `riet_01`, Rob Tuytel, CC0) for hay and straw; `wool_*` (Poly Haven `curly_teddy_natural`, CC0) for wool on the wire;
 `roofsteel_*` (Poly Haven `corrugated_iron`, Dimitrios Savva and Jenelle van Heerden, CC0) for wire and steel straps. Brass,
 zinc, steel, leather, salt, water, paint, glass and the lantern flame are plain PBR values, no texture.
+
+## Blender vehicles (lane/vehicles, 2026-10-24)
+Three small detail maps for `game/shaders/vehicle_pbr.gdshader` (the Blender vehicles, `game/vehicle_assets.gd`). Downloaded
+2026-10-24 as the 1k JPEGs from the Poly Haven API (https://api.polyhaven.com/files/<id>) and re-saved at 512 px with Python
+PIL (albedo quality 85, normals 90). All CC0. The cars also reuse `mudtrack_diff.jpg` (above) as the colour of road dirt on
+their lower panels. Every other vehicle finish (paint flake, clear coat, glass, chrome, rubber, lamp lenses) is procedural.
+
+| Files | Source | Author | Licence | Repeats | Used for |
+|---|---|---|---|---|---|
+| `rust_diff.jpg` | Poly Haven `rust_coarse_01`, https://polyhaven.com/a/rust_coarse_01 | Dimitrios Savva (photography), Rico Cilliers (processing) | CC0 | 1.6 per metre | rust where the paint has rusted through (the Lake Car, the 1984 cruiser, the older pickup, the unrestored bus) |
+| `fabric_nor.jpg` | Poly Haven `fabric_pattern_07` (normal map), https://polyhaven.com/a/fabric_pattern_07 | Rob Tuytel | CC0 | 9 per metre | seat cloth weave |
+| `rubber_nor.jpg` | Poly Haven `rubberized_track` (normal map), https://polyhaven.com/a/rubberized_track | Charlotte Baglioni | CC0 | 6 per metre | fine grain on tyre sidewalls and treads |
+## Fabrics for the people (October 2026, Blender 2, lane people)
+
+Photographed fabrics blended into the clothing of the Blender people (`tools/blender/people_lib.py`,
+`make_garment_textures`). They are not separate files in the game: each garment's MakeHuman texture keeps its folds and
+seams, is recoloured, and gets the fabric's weave (albedo detail), normal map (whiteout blend) and roughness tiled over it;
+the result is packed into one clothes atlas per person and embedded in `assets/models/people/<person>.glb`. Downloaded
+2026-10-24 as Poly Haven 1k JPEGs (`diff`, `nor_gl`, `rough`, from https://api.polyhaven.com/files/<id>) and kept in
+`_tools/people/fabric` (outside the repository). All CC0. Skin, eye, brow, lash and hair textures are MakeHuman's (CC0, see
+`assets/models/people/README.md`).
+
+| Fabric | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `knitted_fleece` | https://polyhaven.com/a/knitted_fleece | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Ellis's jumper, crowd sweaters and scarves |
+| `ribbed_corduroy` | https://polyhaven.com/a/ribbed_corduroy | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Ellis's trousers |
+| `poly_wool_herringbone` | https://polyhaven.com/a/poly_wool_herringbone | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | flat cap, uniform tunic, tweed jacket, peaked cap, trousers |
+| `brown_leather` | https://polyhaven.com/a/brown_leather | Rob Tuytel | CC0 | 0.40 m | boots, duty belt |
+| `caban` | https://polyhaven.com/a/caban | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Rennick's jacket and 1984 tunic, coats |
+| `stretch_poplin` | https://polyhaven.com/a/stretch_poplin | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | Wren's rain jacket (nylon look), shirts |
+| `rough_linen` | https://polyhaven.com/a/rough_linen | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | cargo trousers |
+| `scuba_suede` | https://polyhaven.com/a/scuba_suede | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | Wren's boots |
+| `terlenka` | https://polyhaven.com/a/terlenka | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Wren's backpack (nylon) |
+| `denim_fabric_03` | https://polyhaven.com/a/denim_fabric_03 | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | jeans |
+| `cotton_jersey` | https://polyhaven.com/a/cotton_jersey | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.26 m | T-shirt, polo shirt |
+| `jersey_melange` | https://polyhaven.com/a/jersey_melange | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | the girl's sports top |
+| `wool_boucle` | https://polyhaven.com/a/wool_boucle | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.31 m | crowd_f2's sweater |
+| `polar_fleece` | https://polyhaven.com/a/polar_fleece | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | the pilot's fleece |
+
+## Drones (lane/drones, Blender 4)
+
+`drones/drone_*.jpg`, 1024 px, made by `tools/blender/drones_prep_textures.py` from the ambientCG 1K-JPG sets (re-saved with PIL;
+roughness remapped into each material's range and packed as ORM: r occlusion 1, g roughness, b metal; normals OpenGL). Blender
+embeds them in the drone .glb files; the game imports these copies (VRAM compressed, mipmapped) and `game/drone_assets.gd`
+puts them back on the drones by material name. Sheet: `docs/realism/models/drones_final_textures.jpg`.
+
+| Files | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `drone_carbon_*` | ambientCG `Fabric004`, https://ambientcg.com/a/Fabric004 (2x2 twill carbon weave), recoloured near black | ambientCG (Lennart Demes), procedural | CC0 | 14 mm | carbon plates, arms, legs |
+| `drone_brushed_*` | ambientCG `Metal009`, https://ambientcg.com/a/Metal009 | ambientCG, procedural | CC0 | 20 mm | anodised parts, bell sides, rails, pod case |
+| `drone_spun_*` | ambientCG `Metal051A`, https://ambientcg.com/a/Metal051A (circular brushing) | ambientCG, procedural | CC0 | one per part, centred | motor bell tops, gimbal rotors |
+| `drone_plastic_*` | ambientCG `Plastic012B`, https://ambientcg.com/a/Plastic012B | ambientCG, procedural | CC0 | 50 mm | camera bodies, canopy, connectors |
+| `drone_rubber_*` | ambientCG `Rubber004`, https://ambientcg.com/a/Rubber004 | ambientCG, procedural | CC0 | 10 to 12 mm | TPU mounts, dampers, feet |
+| `drone_strap_*` | ambientCG `Fabric036`, https://ambientcg.com/a/Fabric036, darkened | ambientCG, procedural | CC0 | 20 mm | battery straps |
+| `drone_wrap_raptor.jpg`, `drone_wrap_nightowl.jpg` | drawn by the prep script (no words, no brands) | own work | CC0 | wraps the pack | battery shrink wraps |
+| `drone_pcb_diff.jpg` | drawn by the prep script | own work | CC0 | one board | flight controller, ESC, VTX boards |
+
+Downloaded 2026-10-24. No photographed CC0 carbon weave was found (Poly Haven has none; the ambientCG sets above are all made procedurally).
+
+## Buildings (October 2026, lane/buildings)
+
+`bld_*` sets for the Blender-made Halloway buildings, garage and cabin, read by `game/building_mats.gd` (an ORM material;
+uv1_scale is 1 / one repeat, and the .glb UVs are in metres). Downloaded 2026-10-24 as Poly Haven 1k JPEGs (`diff`,
+`nor_gl`, `arm`, and `disp` for the two bricks) by `tools/blender/fetch_textures.py`, and re-saved by
+`tools/blender/make_building_textures.py` (1024 px, albedo and ARM quality 85, normals 90; `bld_paint` and `bld_floor` at
+512 px). All CC0. Their `.import` files are committed (VRAM compressed, mipmaps, normal maps flagged).
+
+| Files | Source | Author | One repeat | Used for |
+|---|---|---|---|---|
+| `bld_brick_*` | Poly Haven `red_brick`, https://polyhaven.com/a/red_brick | Rob Tuytel | 1.4 m (19 courses of 74 mm) | police house, shop A, school, chimneys |
+| `bld_brick2_*` | Poly Haven `medieval_red_brick`, https://polyhaven.com/a/medieval_red_brick | Rob Tuytel | 2.0 m | shop B, bakery, garage |
+| `bld_render_*` | Poly Haven `painted_plaster_wall`, https://polyhaven.com/a/painted_plaster_wall | Amal Kumar | 2.0 m (1.2 m as stone dressings, 0.8 m on clay) | pub, chip shop, sills, lintels, quoins, pots |
+| `bld_slate_*` | Poly Haven `roof_slates_03`, https://polyhaven.com/a/roof_slates_03 | Rob Tuytel | 3.0 m | slate roofs |
+| `bld_slate2_*` | Poly Haven `roof_slates_02`, https://polyhaven.com/a/roof_slates_02 | Rob Tuytel | 3.0 m | church roof and spire |
+| `bld_corrugated_*` | Poly Haven `corrugated_iron_02`, https://polyhaven.com/a/corrugated_iron_02 | Jenelle van Heerden, Sergej Majboroda | 2.7 m | garage roof, roller door |
+| `bld_corrugated_rust_*` | Poly Haven `worn_corrugated_iron`, https://polyhaven.com/a/worn_corrugated_iron | Jenelle van Heerden, Dimitrios Savva | 1.8 m | cabin roofs |
+| `bld_weatherboard_*` | Poly Haven `distressed_painted_planks`, https://polyhaven.com/a/distressed_painted_planks; turned 90 degrees (its normal vectors turned with it) and desaturated so the paint colour comes from the vertex colour | Rob Tuytel | 1.6 m | village hall |
+| `bld_timber_*` | Poly Haven `weathered_plank_siding`, https://polyhaven.com/a/weathered_plank_siding | Dimitrios Savva | 1.57 m | cabin walls |
+| `bld_paint_*` | Poly Haven `plastered_wall_02`, https://polyhaven.com/a/plastered_wall_02 | Charlotte Baglioni | 2.23 m | painted joinery, fascias, signs |
+| `bld_wood_*` | Poly Haven `old_planks_02`, https://polyhaven.com/a/old_planks_02 | Rob Tuytel | 2.0 m | cabin deck, door, shutters |
+| `bld_floor_*` | Poly Haven `wood_floor_worn`, https://polyhaven.com/a/wood_floor_worn | Dimitrios Savva | 2.0 m | floors seen through windows |
+| `bld_concrete_*` | Poly Haven `concrete_floor_painted`, https://polyhaven.com/a/concrete_floor_painted | Rob Tuytel | 2.0 m | garage floor, steps |
+| `bld_grime.png` | own work, drawn by `make_building_textures.py` | AeroSim | one per decal | run-off streaks |
+
+The church walls reuse `ashlar_*` (at a 2.6 m repeat). The lettering fonts (used as glyph geometry only) are Playfair
+Display SC Bold, Alfa Slab One and PT Sans Narrow Bold, all under the SIL Open Font License 1.1 (`tools/blender/fonts/OFL-*.txt`).

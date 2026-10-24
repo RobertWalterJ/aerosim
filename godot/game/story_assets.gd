@@ -22,6 +22,16 @@ static func instance(name: String, lod := 0) -> Node3D:
 		var a := AnimalAssets.instance(ANIMAL_POSES[name][0], {"clip": ANIMAL_POSES[name][1]})
 		a.name = name
 		return a
+	# the story vehicles (bus, ice cream van, parade tractor and trailer, the abandoned estate, the police cars, the 1984
+	# cruiser) come from the Blender batch (game/vehicle_assets.gd), turned to this frame (+Z forward), with colliders
+	if VehicleAssets.has(name):
+		var veh := VehicleAssets.instance(name, Color(0, 0, 0, 0), true)
+		VehicleAssets.add_colliders(veh)
+		_story_markers(veh, name)
+		return veh
+	if PeopleAssets.handles(name):     # Blender 2: the rigged Blender people replace the code-built figures when their file is present
+		var pn := PeopleAssets.instance(name)
+		if pn != null: return pn
 	var p := path_of(name, lod)
 	if lod > 0 and not ResourceLoader.exists(p): p = path_of(name, 0)
 	var ps := load(p) as PackedScene if ResourceLoader.exists(p) else null
@@ -31,6 +41,37 @@ static func instance(name: String, lod := 0) -> Node3D:
 	root.name = name
 	_remap(root)
 	return root
+
+## The Blender vehicles move their parts with bones, but the story code (and story_load_test) looks for the named nodes the
+## code-built models had (wheel_fl.., door, destination_board, headlamp_glass, interior_light...). Give it those names:
+## a BoneAttachment3D that follows the matching bone where there is one (wheels, the bus door, the destination board),
+## otherwise a plain Node3D marker at the old model's pivot. They carry no mesh.
+const _BONE_ALIAS := {"door": ["bus_door_a", "door_fl", "serving_window", "door_rear"], "roller_door": ["shutter"]}
+
+static func _story_markers(veh: Node3D, name: String) -> void:
+	if not NewModels6.names().has(name): return
+	var md = NewModels6.build(name, 0)
+	var skel := veh.get_meta("skeleton", null) as Skeleton3D
+	for sn in md.subs:
+		var s := String(sn)
+		if veh.find_child(s, true, false) != null: continue
+		var bone := -1
+		if skel != null:
+			bone = skel.find_bone(s)
+			if bone < 0 and _BONE_ALIAS.has(s):
+				for alt in _BONE_ALIAS[s]:
+					bone = skel.find_bone(String(alt))
+					if bone >= 0: break
+		if bone >= 0:
+			var ba := BoneAttachment3D.new()
+			ba.name = s
+			ba.bone_name = skel.get_bone_name(bone)
+			skel.add_child(ba)
+		else:
+			var m := Node3D.new()
+			m.name = s
+			if md.pivots.has(sn): m.position = md.pivots[sn]
+			veh.add_child(m)
 
 static func _remap(n: Node) -> void:
 	if n is MeshInstance3D:
@@ -58,8 +99,13 @@ static func dev_row(parent: Node, terrain: Object, cam: Camera3D, dist: float, n
 	var widths: Array[float] = []
 	var total := 0.0
 	for nm in names:
-		var probe := instance(nm, 0)
 		var w := 1.0
+		if VehicleAssets.has(nm):
+			var vs: Vector3 = VehicleAssets._v3(VehicleAssets.info(nm)["size"])
+			widths.append(maxf(vs.x, vs.z) + 0.8)
+			total += maxf(vs.x, vs.z) + 0.8
+			continue
+		var probe := instance(nm, 0)
 		for ch in probe.get_children():
 			if ch is MeshInstance3D and (ch as MeshInstance3D).mesh != null:
 				var bb := (ch as MeshInstance3D).mesh.get_aabb()
