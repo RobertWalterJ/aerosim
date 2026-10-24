@@ -61,6 +61,9 @@ var phone_os: PhoneOS              # session B: the in-game phone with its apps 
 var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks (game/case_objects.gd)
 var story: StoryArc                # session B: the Lake Car story arc (game/story_arc.gd)
 var unknown_thread: UnknownThread  # session B: the unknown direct message thread (game/unknown_thread.gd)
+var thermal: ThermalCamera         # session B: the heat camera for the last flight (game/thermal.gd)
+var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
+var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
 var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
 var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
@@ -356,6 +359,15 @@ func _ready() -> void:
 	unknown_thread = UnknownThread.new()
 	add_child(unknown_thread)
 	unknown_thread.setup(chat_data, phone_notes, hud, story)
+	# session B: the final flight. Thermal camera, the storm search, the ghost and the credits.
+	thermal = ThermalCamera.new()
+	add_child(thermal)
+	ending = Ending.new()
+	add_child(ending)
+	ending.setup(jobs)
+	finale = Finale.new()
+	add_child(finale)
+	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
 	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story)
@@ -795,6 +807,8 @@ func _process(delta: float) -> void:
 		story.update(delta)  # session B: the Lake Car story, in game hours
 	if unknown_thread != null and not paused:
 		unknown_thread.update(delta)   # session B: the unknown account's direct messages
+	if finale != null and not paused:
+		finale.update(delta, quad.position())   # session B: the last flight, the storm search and the ending
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
 		_celestial_t = 0.25
@@ -876,6 +890,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_TAB: if phone_os != null: phone_os.toggle()   # session B: the in-game phone home screen
 		KEY_G: if hud.paused: photo_library.toggle()   # session B: photo gallery from the menu
 		KEY_J: if hud.paused: jobs.toggle()   # session B: DroneBudz jobs page from the menu
+		KEY_T: if thermal != null: thermal.toggle()   # session B: thermal camera in the last flight
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
@@ -1139,6 +1154,19 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os.open()
 			phone_os._open_app("chat")
 			phone_os._chat_app.open("unknown")
+		elif c == "finalestart":  # session B dev hook: start the ghost reveal and the storm
+			finale.debug_start()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("town")
+		elif c == "finalecabin":  # session B dev hook: the cabin, Wren on foot and thermal on
+			finale.debug_cabin()
+		elif c == "cabinworld":   # session B dev hook: the cabin and the cruiser in the storm, normal camera
+			finale.debug_start()
+		elif c == "thermalview":  # session B dev hook: thermal camera on, search still live
+			finale.debug_thermal_view()
+		elif c == "endingdemo":   # session B dev hook: the fade and the credits
+			finale.debug_found()
 		elif c == "storyprivate": # session B dev hook: finish and keep the story private
 			story.debug_run_all()
 			story.make_choice("private")

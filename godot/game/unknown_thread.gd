@@ -41,12 +41,12 @@ const MESSAGES := [
 	],
 	[
 		"i'm not the one you should be worried about.",
-		"ask her about the shelter. if she lies, you'll know.",
+		"the cabin past the north shore. i can see the lights in the storm. please come.",
 	],
 ]
 const PUBLISHED_LAST := [
 	"you put it on the channel. i hope ellis was ready for that.",
-	"ask her about the shelter. if she lies, you'll know.",
+	"the cabin past the north shore. i can see the lights in the storm. please come.",
 ]
 const MIN_CHAPTER := [0, 1, 2, 3, 5, 5]
 const DELAY_HOURS := [2.0, 3.0, 3.0, 4.0, 5.0, 0.0]

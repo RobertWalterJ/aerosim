@@ -44,7 +44,7 @@ const CHAPTERS := [
 		"id": "garage", "title": "The garage", "from": "Rennick",
 		"request": "One more favour. Voss and Son Motor Works is on the spur off the ridge road. Photograph the roller door, the workshop window and the yard. Do not go inside.",
 		"evidence": [{"subject": "case_garage", "max_dist": 90.0, "count": 2, "text": "Photograph the old garage and its yard"}],
-		"reveal": "Twenty years closed and there is fresh oil on that yard. Someone is working in there. I am going to knock on the door myself. Thank you for the eyes.",
+		"reveal": "Twenty years closed and there is fresh oil on that yard. Someone is working in there. Riley is going to knock on the door for me. Thank you for the eyes.",
 		"beats": [
 			{"from": "Jo", "channel": "general", "text": "Voss. The old garage. He built the first festival bus."},
 			{"from": "Alex", "channel": "tech", "text": "That is a bus under that tarp. I would bet the barn on it."},
@@ -56,7 +56,7 @@ const CHAPTERS := [
 		"id": "camp", "title": "Lights on the ridge", "from": "Rennick",
 		"request": "Tom saw a light near the railway last night. There is a camp in the trees on the ridge. I need photographs of it from a respectful distance, at least twenty five metres away, no close pass and no people. If someone is living rough, I want to know he is safe, not move him on.",
 		"evidence": [{"subject": "case_camp", "max_dist": 160.0, "min_dist": 25.0, "count": 2, "text": "Photograph the camp from a respectful distance"}],
-		"reveal": "A tent, a tarp, a stove and a dog. There is a festival programme on the camp table. I am going up there myself tomorrow morning. Do not publish these, please. This is a welfare check, not a story yet.",
+		"reveal": "A tent, a tarp, a stove and a dog. There is a festival programme on the camp table. Riley is going up there tomorrow morning. Do not publish these, please. This is a welfare check, not a story yet.",
 		"beats": [
 			{"from": "Sam", "channel": "weather", "text": "It is going to be a cold night up on the ridge. If he is out there, I hope he has a proper sleeping bag."},
 			{"from": "Tom", "channel": "general", "text": "I saw the light around midnight. I thought it was the railway signal."},
@@ -66,7 +66,7 @@ const CHAPTERS := [
 	},
 	{
 		"id": "bus", "title": "The man who fixed things", "from": "Rennick",
-		"request": "I have spoken to him. His name is Ellis Voss and he is fine, though he does not want a fuss. He has agreed to photographs of the bus only, not of him. The garage door is open, the old festival bus is in the yard. Two photographs, and one close enough to read the lettering on its side.",
+		"request": "Riley has spoken to him. His name is Ellis Voss and he is fine, though he does not want a fuss. He has agreed to photographs of the bus only, not of him. The garage door is open, the old festival bus is in the yard. Two photographs, and one close enough to read the lettering on its side.",
 		"evidence": [
 			{"subject": "case_bus", "max_dist": 80.0, "count": 2, "text": "Photograph the old festival bus and the yard"},
 			{"subject": "case_bus", "max_dist": 22.0, "count": 1, "text": "Close detail of the festival lettering"},

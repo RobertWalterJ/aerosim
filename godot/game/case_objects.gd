@@ -12,6 +12,8 @@ extends Node3D
 const GARAGE_SPOT := Vector2(55.0, -600.0)
 const CAMP_SPOT := Vector2(36.0, -1120.0)
 const FESTIVAL_SPOT := Vector2(24.0, -96.0)
+const CABIN_SPOT := Vector2(-250.0, -820.0)
+const SEARCH_SPOT := Vector2(-70.0, -790.0)
 
 var terrain: Terrain
 var _items: Array[Dictionary] = []
@@ -19,6 +21,13 @@ var _bus_root: Node3D
 var _campfire: OmniLight3D
 var _time := 0.0
 var _bus_at_festival := false
+var _cabin_lights: Array[OmniLight3D] = []
+var _cabin_windows: Array[MeshInstance3D] = []
+var _cabin_root: Node3D
+var _hiker: Node3D
+var _hiker_heat: MeshInstance3D
+var _cabin_on := false
+var _porch_light: OmniLight3D
 
 static var _car_spot := Vector2.INF
 
@@ -29,7 +38,7 @@ static func prepare(t: Terrain) -> void:
 static func near_evidence(x: float, z: float, margin := 30.0) -> bool:
 	if _car_spot != Vector2.INF and Vector2(x, z).distance_to(_car_spot) < margin:
 		return true
-	for p in [GARAGE_SPOT, CAMP_SPOT, FESTIVAL_SPOT]:
+	for p in [GARAGE_SPOT, CAMP_SPOT, FESTIVAL_SPOT, CABIN_SPOT, SEARCH_SPOT]:
 		if Vector2(x, z).distance_to(p) < margin:
 			return true
 	return false
@@ -43,10 +52,15 @@ func setup(t: Terrain) -> void:
 	var bus_pos := Vector3(GARAGE_SPOT.x + 10.0, 0.0, GARAGE_SPOT.y - 8.0)
 	bus_pos.y = t.height(bus_pos.x, bus_pos.z)
 	_items.append({"id": "case_bus", "name": "the old festival bus", "pos": bus_pos, "radius": 7.0})
+	_items.append({"id": "case_cabin", "name": "the abandoned cabin", "pos": Vector3(CABIN_SPOT.x, t.height(CABIN_SPOT.x, CABIN_SPOT.y), CABIN_SPOT.y), "radius": 7.0})
+	_items.append({"id": "case_cruiser", "name": "the old police cruiser", "pos": Vector3(CABIN_SPOT.x + 9.0, t.height(CABIN_SPOT.x + 9.0, CABIN_SPOT.y - 5.0), CABIN_SPOT.y - 5.0), "radius": 4.0})
 	_build_car(_items[0]["pos"])
 	_build_garage(_items[1]["pos"])
 	_build_camp(_items[2]["pos"])
 	_build_bus(bus_pos)
+	_build_cabin(_items[4]["pos"])
+	_build_cruiser(_items[5]["pos"])
+	_build_hiker()
 	print("case objects: ", positions())
 
 ## Move the old festival bus from the garage yard to the festival field, for the last chapter.
@@ -420,10 +434,293 @@ func _build_bus(pos: Vector3) -> void:
 	_bus_root.add_child(lamp)
 	_bus_root.rotation.y = 0.4
 
+# ------------------------------------------------------------------ the abandoned cabin, the 1980s cruiser and Wren
+func cabin_world_pos() -> Vector3:
+	return Vector3(CABIN_SPOT.x, terrain.height(CABIN_SPOT.x, CABIN_SPOT.y), CABIN_SPOT.y)
+
+func search_world_pos() -> Vector3:
+	return Vector3(SEARCH_SPOT.x, terrain.height(SEARCH_SPOT.x, SEARCH_SPOT.y), SEARCH_SPOT.y)
+
+func set_cabin_lights(on: bool) -> void:
+	for l in _cabin_lights:
+		l.light_energy = 2.0 if on else 0.0
+	if _porch_light != null:
+		_porch_light.light_energy = 3.0 if on else 0.0
+	for w in _cabin_windows:
+		var m := w.material_override as StandardMaterial3D
+		if m != null:
+			m.emission_energy_multiplier = 4.0 if on else 0.0
+	_cabin_on = on
+
+func show_hiker() -> void:
+	if _hiker == null:
+		return
+	_hiker.visible = true
+	_hiker.position = search_world_pos()
+	_hiker.rotation.y = 2.2
+
+func hiker_world_pos() -> Vector3:
+	return _hiker.position if _hiker != null else search_world_pos()
+
+func set_thermal_marker(on: bool) -> void:
+	if _hiker_heat != null:
+		_hiker_heat.visible = on and _hiker != null and _hiker.visible
+
+func _build_cabin(pos: Vector3) -> void:
+	_cabin_root = Node3D.new()
+	_cabin_root.position = pos
+	add_child(_cabin_root)
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.30, 0.24, 0.17)
+	wood.roughness = 0.95
+	var dark := StandardMaterial3D.new()
+	dark.albedo_color = Color(0.06, 0.05, 0.04)
+	dark.roughness = 1.0
+	var win_mat := StandardMaterial3D.new()
+	win_mat.albedo_color = Color(0.32, 0.28, 0.18)
+	win_mat.emission_enabled = true
+	win_mat.emission = Color(1.0, 0.72, 0.35)
+	win_mat.emission_energy_multiplier = 0.0
+	win_mat.roughness = 0.3
+	var floor := BoxMesh.new()
+	floor.size = Vector3(8.0, 0.22, 6.0)
+	var fmi := MeshInstance3D.new()
+	fmi.mesh = floor
+	fmi.material_override = wood
+	fmi.position.y = 0.11
+	_cabin_root.add_child(fmi)
+	# four walls with a door and two windows
+	var walls := [
+		[Vector3(8.0, 2.6, 0.2), Vector3(0.0, 1.3, -3.0)],
+		[Vector3(8.0, 2.6, 0.2), Vector3(0.0, 1.3, 3.0)],
+		[Vector3(0.2, 2.6, 6.0), Vector3(-4.0, 1.3, 0.0)],
+		[Vector3(0.2, 2.6, 6.0), Vector3(4.0, 1.3, 0.0)],
+	]
+	for w in walls:
+		var b := BoxMesh.new()
+		b.size = w[0]
+		var mi := MeshInstance3D.new()
+		mi.mesh = b
+		mi.material_override = wood
+		mi.position = w[1]
+		_cabin_root.add_child(mi)
+	var door := BoxMesh.new()
+	door.size = Vector3(1.0, 2.1, 0.1)
+	var dmi := MeshInstance3D.new()
+	dmi.mesh = door
+	dmi.material_override = dark
+	dmi.position = Vector3(0.0, 1.05, 3.02)
+	_cabin_root.add_child(dmi)
+	for sx in [-2.2, 2.2]:
+		var win := BoxMesh.new()
+		win.size = Vector3(1.6, 1.1, 0.08)
+		var wmi := MeshInstance3D.new()
+		wmi.mesh = win
+		wmi.material_override = win_mat
+		wmi.position = Vector3(sx, 1.5, 3.04)
+		_cabin_root.add_child(wmi)
+		_cabin_windows.append(wmi)
+	# pitched roof from two slabs and a broken patch
+	for sx in [-1.0, 1.0]:
+		var slab := BoxMesh.new()
+		slab.size = Vector3(4.6, 0.18, 6.6)
+		var smi := MeshInstance3D.new()
+		smi.mesh = slab
+		smi.material_override = wood
+		smi.position = Vector3(sx * 2.1, 3.05, 0.0)
+		smi.rotation.z = sx * -0.42
+		_cabin_root.add_child(smi)
+	var hole := BoxMesh.new()
+	hole.size = Vector3(1.2, 0.1, 1.4)
+	var hmi := MeshInstance3D.new()
+	hmi.mesh = hole
+	hmi.material_override = dark
+	hmi.position = Vector3(-1.5, 3.45, 1.2)
+	hmi.rotation.z = 0.42
+	_cabin_root.add_child(hmi)
+	# porch, old chair, case file and a kettle inside
+	var porch := BoxMesh.new()
+	porch.size = Vector3(4.0, 0.16, 1.6)
+	var pmi := MeshInstance3D.new()
+	pmi.mesh = porch
+	pmi.material_override = wood
+	pmi.position = Vector3(0.0, 0.08, 3.8)
+	_cabin_root.add_child(pmi)
+	var chair := BoxMesh.new()
+	chair.size = Vector3(0.6, 0.9, 0.6)
+	var cmi := MeshInstance3D.new()
+	cmi.mesh = chair
+	cmi.material_override = wood
+	cmi.position = Vector3(-2.6, 0.45, 3.7)
+	_cabin_root.add_child(cmi)
+	var file := BoxMesh.new()
+	file.size = Vector3(0.5, 0.08, 0.7)
+	var fmi2 := MeshInstance3D.new()
+	fmi2.mesh = file
+	var paper := StandardMaterial3D.new()
+	paper.albedo_color = Color(0.76, 0.70, 0.54)
+	fmi2.material_override = paper
+	fmi2.position = Vector3(1.2, 0.75, -0.8)
+	_cabin_root.add_child(fmi2)
+	_porch_light = OmniLight3D.new()
+	_porch_light.light_color = Color(1.0, 0.72, 0.38)
+	_porch_light.light_energy = 0.0
+	_porch_light.omni_range = 22.0
+	_porch_light.position = Vector3(0.0, 2.5, 4.0)
+	_cabin_root.add_child(_porch_light)
+	for p in [Vector3(-2.0, 3.0, -1.0), Vector3(2.0, 3.0, 1.0)]:
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.72, 0.38)
+		l.light_energy = 0.0
+		l.omni_range = 10.0
+		l.position = p
+		_cabin_root.add_child(l)
+		_cabin_lights.append(l)
+	_cabin_root.rotation.y = -0.3
+
+func _build_cruiser(pos: Vector3) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	add_child(root)
+	var white := StandardMaterial3D.new()
+	white.albedo_color = Color(0.78, 0.78, 0.74)
+	white.roughness = 0.8
+	white.metallic = 0.1
+	var black := StandardMaterial3D.new()
+	black.albedo_color = Color(0.08, 0.08, 0.09)
+	black.roughness = 0.9
+	var body := BoxMesh.new()
+	body.size = Vector3(1.95, 0.72, 4.6)
+	var bmi := MeshInstance3D.new()
+	bmi.mesh = body
+	bmi.material_override = white
+	bmi.position.y = 0.62
+	root.add_child(bmi)
+	var roof := BoxMesh.new()
+	roof.size = Vector3(1.75, 0.6, 2.2)
+	var rmi := MeshInstance3D.new()
+	rmi.mesh = roof
+	rmi.material_override = black
+	rmi.position = Vector3(0.0, 1.28, -0.1)
+	root.add_child(rmi)
+	var hood := BoxMesh.new()
+	hood.size = Vector3(1.8, 0.12, 1.3)
+	var hmi := MeshInstance3D.new()
+	hmi.mesh = hood
+	hmi.material_override = black
+	hmi.position = Vector3(0.0, 0.99, -1.7)
+	root.add_child(hmi)
+	var wheel_mesh := CylinderMesh.new()
+	wheel_mesh.top_radius = 0.37
+	wheel_mesh.bottom_radius = 0.37
+	wheel_mesh.height = 0.24
+	wheel_mesh.radial_segments = 10
+	var rubber := StandardMaterial3D.new()
+	rubber.albedo_color = Color(0.06, 0.06, 0.06)
+	for p in [Vector3(-0.98, 0.37, -1.5), Vector3(0.98, 0.37, -1.5), Vector3(-0.98, 0.37, 1.5), Vector3(0.98, 0.37, 1.5)]:
+		var w := MeshInstance3D.new()
+		w.mesh = wheel_mesh
+		w.material_override = rubber
+		w.position = p
+		w.rotation = Vector3(0.0, 0.0, PI * 0.5)
+		root.add_child(w)
+	var bar := BoxMesh.new()
+	bar.size = Vector3(1.2, 0.12, 0.32)
+	var bmi2 := MeshInstance3D.new()
+	bmi2.mesh = bar
+	var bar_mat := StandardMaterial3D.new()
+	bar_mat.albedo_color = Color(0.55, 0.10, 0.10)
+	bar_mat.emission_enabled = true
+	bar_mat.emission = Color(0.9, 0.1, 0.1)
+	bar_mat.emission_energy_multiplier = 0.0
+	bmi2.material_override = bar_mat
+	bmi2.position = Vector3(0.0, 1.62, -0.1)
+	root.add_child(bmi2)
+	var label := Label3D.new()
+	label.text = "PROVINCIAL\nPOLICE"
+	label.font_size = 42
+	label.pixel_size = 0.009
+	label.modulate = Color(0.12, 0.15, 0.22)
+	label.position = Vector3(1.0, 0.78, 0.2)
+	label.rotation = Vector3(0.0, PI * 0.5, 0.0)
+	root.add_child(label)
+	root.rotation.y = 0.9
+
+func _build_hiker() -> void:
+	_hiker = Node3D.new()
+	_hiker.visible = false
+	add_child(_hiker)
+	var coat := StandardMaterial3D.new()
+	coat.albedo_color = Color(0.75, 0.45, 0.12)
+	coat.roughness = 0.8
+	var body := CapsuleMesh.new()
+	body.radius = 0.32
+	body.height = 1.1
+	var bmi := MeshInstance3D.new()
+	bmi.mesh = body
+	bmi.material_override = coat
+	bmi.position.y = 0.95
+	_hiker.add_child(bmi)
+	var head := SphereMesh.new()
+	head.radius = 0.19
+	head.height = 0.38
+	var hmi := MeshInstance3D.new()
+	hmi.mesh = head
+	var skin := StandardMaterial3D.new()
+	skin.albedo_color = Color(0.72, 0.58, 0.46)
+	hmi.material_override = skin
+	hmi.position.y = 1.65
+	_hiker.add_child(hmi)
+	var pack := BoxMesh.new()
+	pack.size = Vector3(0.55, 0.6, 0.35)
+	var pmi := MeshInstance3D.new()
+	pmi.mesh = pack
+	var pack_mat := StandardMaterial3D.new()
+	pack_mat.albedo_color = Color(0.18, 0.25, 0.28)
+	pmi.material_override = pack_mat
+	pmi.position = Vector3(0.0, 1.15, 0.33)
+	_hiker.add_child(pmi)
+	for sx in [-1.0, 1.0]:
+		var leg := BoxMesh.new()
+		leg.size = Vector3(0.16, 0.7, 0.18)
+		var lmi := MeshInstance3D.new()
+		lmi.mesh = leg
+		lmi.material_override = black_material()
+		lmi.position = Vector3(sx * 0.16, 0.35, 0.0)
+		_hiker.add_child(lmi)
+	# a bright thermal signature, shown only through the thermal camera
+	_hiker_heat = MeshInstance3D.new()
+	var heat := SphereMesh.new()
+	heat.radius = 2.0
+	heat.height = 4.0
+	_hiker_heat.mesh = heat
+	var heat_mat := StandardMaterial3D.new()
+	heat_mat.albedo_color = Color(1.0, 0.55, 0.12)
+	heat_mat.emission_enabled = true
+	heat_mat.emission = Color(1.0, 0.55, 0.12)
+	heat_mat.emission_energy_multiplier = 9.0
+	heat_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	heat_mat.albedo_color = Color(1.0, 0.78, 0.35, 0.90)
+	heat_mat.no_depth_test = true
+	heat_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_hiker_heat.material_override = heat_mat
+	_hiker_heat.position.y = 1.0
+	_hiker_heat.visible = false
+	_hiker.add_child(_hiker_heat)
+
+func black_material() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.08, 0.08, 0.09)
+	m.roughness = 1.0
+	return m
+
 func _process(delta: float) -> void:
 	_time += delta
 	if _campfire != null:
 		_campfire.light_energy = 1.0 + 0.35 * sin(_time * 9.0) + 0.15 * sin(_time * 23.0)
+	for l in _cabin_lights:
+		if l.light_energy > 0.0:
+			l.light_energy = 0.8 + 0.15 * sin(_time * 5.0 + 2.0)
 
 # ------------------------------------------------------------------ evidence subjects for photos
 func subjects_in_frame(cam: Camera3D) -> Array:
