@@ -41,6 +41,13 @@ const EXPECT := {
 	"festival_ice_cream_van_a": [5.6, 6.2, 2.5, 3.0, 3.4, 3.9, 38000],
 	"parade_tractor_a": [3.0, 3.4, 1.55, 1.9, 1.8, 2.3, 50000],
 	"parade_trailer_a": [5.0, 5.8, 2.1, 2.5, 2.0, 2.6, 30000],
+	# lane/sites additions (tools/blender/vk_farm.py)
+	"farm_trailer_a": [3.9, 4.4, 1.8, 2.1, 1.5, 1.75, 30000],
+	"hay_trailer_a": [8.2, 8.8, 2.3, 2.6, 2.3, 2.7, 30000],
+	"farm_truck_a": [4.8, 5.2, 2.0, 2.35, 1.75, 1.95, 35000],
+	"car_estate_roofbox_a": [4.6, 4.95, 2.0, 2.3, 1.8, 2.0, 37000],
+	"car_estate_dogguard_a": [4.6, 4.95, 2.0, 2.3, 1.42, 1.62, 37000],
+	"cruiser_1984_flat": [5.2, 5.65, 2.1, 2.45, 1.4, 2.2, 36000],
 }
 func lod_meshes(rig: Node) -> Array:
 	var out := [null, null, null]

@@ -213,3 +213,31 @@ uv1_scale is 1 / one repeat, and the .glb UVs are in metres). Downloaded 2026-10
 
 The church walls reuse `ashlar_*` (at a 2.6 m repeat). The lettering fonts (used as glyph geometry only) are Playfair
 Display SC Bold, Alfa Slab One and PT Sans Narrow Bold, all under the SIL Open Font License 1.1 (`tools/blender/fonts/OFL-*.txt`).
+
+## Sites (October 2026, lane/sites)
+
+`site_*` sets for the boat launch and the cabin track and cave, read by `game/site_assets.gd` (SiteAssets swaps them in by
+material name; uv1_scale is 1 / one repeat; rocks use object-space triplanar mapping). Made by
+`tools/blender/make_site_textures.py` from photographed CC0 sets already on this PC (no new downloads): the shared library
+(`RWJ-Shared-Assets/godot/addons/rwj_procgen/textures`, Poly Haven 2k), `_tools/road_sources` (Poly Haven 2k) and the sets
+above. 1024 px, albedo and ARM quality 85, normals 90; `.import` files committed (VRAM compressed, mipmaps, normals flagged).
+Published sizes checked against https://api.polyhaven.com/info/<id> on 2026-10-24.
+
+| Files | Source | Author | One repeat | Used for |
+|---|---|---|---|---|
+| `site_concrete_*` | Poly Haven `concrete_floor_worn_001`, https://polyhaven.com/a/concrete_floor_worn_001 | Dimitrios Savva (photography), Rico Cilliers (processing) | 3.0 m | ramp sides, curbs, cut-off walls |
+| `site_ramp_*` | the same concrete with a waffle of 25 mm wide, 20 mm deep V grooves at 45 degrees, 200 mm apart (own work after the Western Australian boat-ramp guideline), dirt in the grooves | Savva, Cilliers; grooves AeroSim | 2.0 m | ramp slab |
+| `site_gravel_*` | Poly Haven `gravel_road`, https://polyhaven.com/a/gravel_road; its ARM on this PC had an empty roughness channel, rebuilt as 0.82 to 0.95 from the albedo | Amal Kumar | 2.0 m | parking apron, gravel patch |
+| `site_dirt_*` | Poly Haven `park_dirt`, https://polyhaven.com/a/park_dirt | Christopher Melani | 3.0 m (2.0 m as wet mud) | cave apron, root plates, ruts, puddle rim |
+| `site_bark_beech_*` | Poly Haven `japanese_hackberry_bark`, https://polyhaven.com/a/japanese_hackberry_bark (diff and normal) | Charlotte Baglioni | 1.89 m (shown 1.2 m) | fallen beech |
+| `site_leaflitter_*` | Poly Haven `brown_mud_leaves_01` (the `soil_leaves_*` set above) with its green leaves turned to autumn browns (own) | Rob Tuytel | 2.5 m | leaf drift, litter, root pit |
+| `site_track_*` | composited (own) from `gravel_road`, `park_dirt`, Poly Haven `sparse_grass` (https://polyhaven.com/a/sparse_grass, Amal Kumar) and `brown_mud_leaves_01`: two ruts at 0.78 m either side of the centre, a grass centre strip, leafy and grassy edges, rut walls in the normal map | Kumar, Melani, Tuytel | 4.4 m across (u 0..1) by 8 m along | the cabin track |
+| `site_alu_*` | own work: brushed grain, oxidation, lap seams and rivet rows | AeroSim | 1.0 m | aluminium hull, outboard bracket |
+| `site_wood_end_*` | own work: growth rings, drying checks, saw marks | AeroSim | one face | sawn trunks and logs |
+| `site_decal_*.png` | own work (rust run, algae, waterline, concrete crack, oil stain, tyre print, damp stain, unreadable chalk scrawl) | AeroSim | one per decal | damage decals, stains, marks |
+| `vehicle_dirt_atlas.png` | own work: four 512 px quadrants (body splash, wheel-arch spray, rim brake dust, windscreen grime with two wiper arcs clean); RGB dirt colour, A coverage | AeroSim | per quadrant | vehicle dirt overlays (`assets/traffic/manifest.md`) |
+
+Re-used from the sets above: `bld_wood_*` (dock deck), `postwood_*` (posts, piles, bollards, gates), `barnwood_*` (boards),
+`bld_paint_*` (painted sign, ring, hull topsides, bin; tinted), `limestone_*` (grey rock), `mossrock_*` (mossy rock, moss),
+`bark_oak_*` (oak), `rust_diff.jpg` (lantern), `rubber_nor.jpg` (tyres), `assets/trees/leaves_beech.webp` (dry leaves on the
+fallen crowns). All CC0. The CAVE / KEEP OUT lettering is PT Sans Narrow Bold glyph geometry (SIL OFL 1.1).

@@ -494,6 +494,346 @@
    }
   ]
  },
+ "car_estate_dogguard_a": {
+  "aabb_hi": [
+   1.113,
+   1.514,
+   2.422
+  ],
+  "aabb_lo": [
+   -1.113,
+   0.0,
+   -2.449
+  ],
+  "actions": [
+   "doors_open",
+   "doors_close",
+   "door_driver_open",
+   "door_driver_close",
+   "bonnet_open",
+   "bonnet_close",
+   "tailgate_open",
+   "tailgate_close",
+   "wipers",
+   "steer_left",
+   "steer_right"
+  ],
+  "bones": [
+   "root",
+   "body",
+   "steer_fl",
+   "wheel_fl",
+   "steer_fr",
+   "wheel_fr",
+   "wheel_rl",
+   "wheel_rr",
+   "door_fr",
+   "door_fl",
+   "door_rr",
+   "door_rl",
+   "bonnet",
+   "tailgate",
+   "wiper_r",
+   "wiper_l",
+   "steering_wheel"
+  ],
+  "checks": {
+   "floating": [],
+   "inside_out": [],
+   "paint_outward": 0.981
+  },
+  "colliders": [
+   [
+    [
+     -1.113,
+     0.18,
+     -2.449
+    ],
+    [
+     1.113,
+     0.939,
+     2.422
+    ]
+   ],
+   [
+    [
+     -0.946,
+     0.939,
+     -1.469
+    ],
+    [
+     0.946,
+     1.514,
+     1.453
+    ]
+   ]
+  ],
+  "dirt": 0.6,
+  "file": "car_estate_dogguard_a.glb",
+  "hinges": {
+   "bonnet": 55.0,
+   "door_fl": 66,
+   "door_fr": 66,
+   "door_rl": 70,
+   "door_rr": 70,
+   "tailgate": 80
+  },
+  "kind": "car",
+  "materials": [
+   "caliper",
+   "chrome",
+   "dash",
+   "glass",
+   "glass_tint",
+   "interior",
+   "lamp_brake",
+   "lamp_front",
+   "lamp_ind_l",
+   "lamp_ind_r",
+   "lamp_reflector",
+   "lamp_reverse",
+   "lamp_tail",
+   "metal",
+   "mirror",
+   "paint",
+   "plate",
+   "plate_text",
+   "rim",
+   "rubber",
+   "seat",
+   "trim",
+   "trim_grey"
+  ],
+  "paint": [
+   0.42,
+   0.5,
+   0.58
+  ],
+  "paint2": null,
+  "pose": "",
+  "size": [
+   2.226,
+   1.514,
+   4.87
+  ],
+  "tris": [
+   36024,
+   12607,
+   2880
+  ],
+  "wheels": [
+   {
+    "bone": "wheel_fl",
+    "pos": [
+     -0.7725,
+     0.3341,
+     -1.455
+    ],
+    "radius": 0.33414999999999995,
+    "steer": true
+   },
+   {
+    "bone": "wheel_fr",
+    "pos": [
+     0.7725,
+     0.3341,
+     -1.455
+    ],
+    "radius": 0.33414999999999995,
+    "steer": true
+   },
+   {
+    "bone": "wheel_rl",
+    "pos": [
+     -0.7725,
+     0.3341,
+     1.335
+    ],
+    "radius": 0.33414999999999995,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rr",
+    "pos": [
+     0.7725,
+     0.3341,
+     1.335
+    ],
+    "radius": 0.33414999999999995,
+    "steer": false
+   }
+  ]
+ },
+ "car_estate_roofbox_a": {
+  "aabb_hi": [
+   1.113,
+   1.933,
+   2.422
+  ],
+  "aabb_lo": [
+   -1.113,
+   0.0,
+   -2.449
+  ],
+  "actions": [
+   "doors_open",
+   "doors_close",
+   "door_driver_open",
+   "door_driver_close",
+   "bonnet_open",
+   "bonnet_close",
+   "tailgate_open",
+   "tailgate_close",
+   "wipers",
+   "steer_left",
+   "steer_right"
+  ],
+  "bones": [
+   "root",
+   "body",
+   "steer_fl",
+   "wheel_fl",
+   "steer_fr",
+   "wheel_fr",
+   "wheel_rl",
+   "wheel_rr",
+   "door_fr",
+   "door_fl",
+   "door_rr",
+   "door_rl",
+   "bonnet",
+   "tailgate",
+   "wiper_r",
+   "wiper_l",
+   "steering_wheel"
+  ],
+  "checks": {
+   "floating": [],
+   "inside_out": [],
+   "paint_outward": 0.961
+  },
+  "colliders": [
+   [
+    [
+     -1.113,
+     0.18,
+     -2.449
+    ],
+    [
+     1.113,
+     1.198,
+     2.422
+    ]
+   ],
+   [
+    [
+     -0.946,
+     1.198,
+     -1.469
+    ],
+    [
+     0.946,
+     1.933,
+     1.453
+    ]
+   ]
+  ],
+  "dirt": 0.6,
+  "file": "car_estate_roofbox_a.glb",
+  "hinges": {
+   "bonnet": 55.0,
+   "door_fl": 66,
+   "door_fr": 66,
+   "door_rl": 70,
+   "door_rr": 70,
+   "tailgate": 80
+  },
+  "kind": "car",
+  "materials": [
+   "caliper",
+   "chrome",
+   "dash",
+   "glass",
+   "glass_tint",
+   "interior",
+   "lamp_brake",
+   "lamp_front",
+   "lamp_ind_l",
+   "lamp_ind_r",
+   "lamp_reflector",
+   "lamp_reverse",
+   "lamp_tail",
+   "metal",
+   "mirror",
+   "paint",
+   "plate",
+   "plate_text",
+   "rim",
+   "rubber",
+   "seat",
+   "trim",
+   "trim_grey"
+  ],
+  "paint": [
+   0.42,
+   0.5,
+   0.58
+  ],
+  "paint2": null,
+  "pose": "",
+  "size": [
+   2.226,
+   1.933,
+   4.87
+  ],
+  "tris": [
+   36028,
+   12609,
+   2882
+  ],
+  "wheels": [
+   {
+    "bone": "wheel_fl",
+    "pos": [
+     -0.7725,
+     0.3341,
+     -1.455
+    ],
+    "radius": 0.33414999999999995,
+    "steer": true
+   },
+   {
+    "bone": "wheel_fr",
+    "pos": [
+     0.7725,
+     0.3341,
+     -1.455
+    ],
+    "radius": 0.33414999999999995,
+    "steer": true
+   },
+   {
+    "bone": "wheel_rl",
+    "pos": [
+     -0.7725,
+     0.3341,
+     1.335
+    ],
+    "radius": 0.33414999999999995,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rr",
+    "pos": [
+     0.7725,
+     0.3341,
+     1.335
+    ],
+    "radius": 0.33414999999999995,
+    "steer": false
+   }
+  ]
+ },
  "car_hatch_a": {
   "aabb_hi": [
    1.058,
@@ -1008,6 +1348,184 @@
    }
   ]
  },
+ "cruiser_1984_flat": {
+  "aabb_hi": [
+   1.18,
+   2.091,
+   2.774
+  ],
+  "aabb_lo": [
+   -1.18,
+   -0.004,
+   -2.774
+  ],
+  "actions": [
+   "doors_open",
+   "doors_close",
+   "door_driver_open",
+   "door_driver_close",
+   "bonnet_open",
+   "bonnet_close",
+   "boot_open",
+   "boot_close",
+   "wipers",
+   "steer_left",
+   "steer_right"
+  ],
+  "bones": [
+   "root",
+   "body",
+   "steer_fl",
+   "wheel_fl",
+   "steer_fr",
+   "wheel_fr",
+   "wheel_rl",
+   "wheel_rr",
+   "door_fr",
+   "door_fl",
+   "door_rr",
+   "door_rl",
+   "bonnet",
+   "boot",
+   "wiper_r",
+   "wiper_l",
+   "steering_wheel"
+  ],
+  "checks": {
+   "floating": [],
+   "inside_out": [],
+   "paint_outward": 0.934
+  },
+  "colliders": [
+   [
+    [
+     -1.18,
+     0.18,
+     -2.774
+    ],
+    [
+     1.18,
+     1.296,
+     2.774
+    ]
+   ],
+   [
+    [
+     -1.003,
+     1.296,
+     -1.664
+    ],
+    [
+     1.003,
+     2.091,
+     1.664
+    ]
+   ]
+  ],
+  "dirt": 0.35,
+  "file": "cruiser_1984_flat.glb",
+  "hinges": {
+   "bonnet": 55.0,
+   "boot": 72,
+   "door_fl": 66,
+   "door_fr": 66,
+   "door_rl": 70,
+   "door_rr": 70
+  },
+  "kind": "car",
+  "materials": [
+   "caliper",
+   "chrome",
+   "dash",
+   "glass",
+   "glass_tint",
+   "interior",
+   "lamp_brake",
+   "lamp_front",
+   "lamp_ind_l",
+   "lamp_ind_r",
+   "lamp_reflector",
+   "lamp_reverse",
+   "lamp_tail",
+   "lettering",
+   "lightbar_blue",
+   "lightbar_red",
+   "metal",
+   "mirror",
+   "paint",
+   "paint2",
+   "plate",
+   "plate_text",
+   "rim_steel",
+   "rubber",
+   "seat",
+   "trim",
+   "trim_grey"
+  ],
+  "paint": [
+   0.9,
+   0.9,
+   0.87
+  ],
+  "paint2": [
+   0.07,
+   0.09,
+   0.14
+  ],
+  "pose": "",
+  "size": [
+   2.36,
+   2.095,
+   5.548
+  ],
+  "tris": [
+   35666,
+   12483,
+   2852
+  ],
+  "wheels": [
+   {
+    "bone": "wheel_fl",
+    "pos": [
+     -0.8125,
+     0.348,
+     -1.59
+    ],
+    "radius": 0.348,
+    "steer": true
+   },
+   {
+    "bone": "wheel_fr",
+    "pos": [
+     0.8125,
+     0.348,
+     -1.59
+    ],
+    "radius": 0.348,
+    "steer": true
+   },
+   {
+    "bone": "wheel_rl",
+    "pos": [
+     -0.8125,
+     0.278,
+     1.36
+    ],
+    "radius": 0.348,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rr",
+    "pos": [
+     0.8125,
+     0.348,
+     1.36
+    ],
+    "radius": 0.348,
+    "steer": false
+   }
+  ]
+ },
  "farm_quad_a": {
   "aabb_hi": [
    0.597,
@@ -1146,6 +1664,285 @@
      0.64
     ],
     "radius": 0.3175,
+    "steer": false
+   }
+  ]
+ },
+ "farm_trailer_a": {
+  "aabb_hi": [
+   0.99,
+   1.54,
+   1.578
+  ],
+  "aabb_lo": [
+   -0.99,
+   0.0,
+   -2.613
+  ],
+  "actions": [
+   "tailgate_open",
+   "tailgate_close"
+  ],
+  "bones": [
+   "root",
+   "body",
+   "wheel_rl",
+   "wheel_rr",
+   "drawbar",
+   "hitch",
+   "tailgate"
+  ],
+  "checks": {
+   "floating": [],
+   "inside_out": [],
+   "paint_outward": 0.0
+  },
+  "colliders": [
+   [
+    [
+     -0.99,
+     0.18,
+     -2.613
+    ],
+    [
+     0.99,
+     0.955,
+     1.578
+    ]
+   ],
+   [
+    [
+     -0.842,
+     0.955,
+     -1.568
+    ],
+    [
+     0.842,
+     1.54,
+     0.947
+    ]
+   ]
+  ],
+  "dirt": 0.8,
+  "file": "farm_trailer_a.glb",
+  "hinges": {
+   "tailgate": 75.0
+  },
+  "kind": "trailer",
+  "materials": [
+   "lamp_ind_l",
+   "lamp_ind_r",
+   "lamp_tail",
+   "metal",
+   "paint2",
+   "plate",
+   "rim_steel",
+   "rubber",
+   "trim",
+   "trim_grey",
+   "wood"
+  ],
+  "paint": [
+   0.62,
+   0.63,
+   0.62
+  ],
+  "paint2": [
+   0.12,
+   0.12,
+   0.12
+  ],
+  "pose": "",
+  "size": [
+   1.98,
+   1.54,
+   4.191
+  ],
+  "tris": [
+   9008,
+   3152,
+   712
+  ],
+  "wheels": [
+   {
+    "bone": "wheel_rl",
+    "pos": [
+     -0.8525,
+     0.2891,
+     0.15
+    ],
+    "radius": 0.2891,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rr",
+    "pos": [
+     0.8525,
+     0.2891,
+     0.15
+    ],
+    "radius": 0.2891,
+    "steer": false
+   }
+  ]
+ },
+ "farm_truck_a": {
+  "aabb_hi": [
+   1.12,
+   1.852,
+   2.472
+  ],
+  "aabb_lo": [
+   -1.12,
+   0.0,
+   -2.574
+  ],
+  "actions": [
+   "doors_open",
+   "doors_close",
+   "door_driver_open",
+   "door_driver_close",
+   "bonnet_open",
+   "bonnet_close",
+   "wipers",
+   "steer_left",
+   "steer_right"
+  ],
+  "bones": [
+   "root",
+   "body",
+   "steer_fl",
+   "wheel_fl",
+   "steer_fr",
+   "wheel_fr",
+   "wheel_rl",
+   "wheel_rr",
+   "door_fr",
+   "door_fl",
+   "bonnet",
+   "wiper_r",
+   "wiper_l",
+   "steering_wheel"
+  ],
+  "checks": {
+   "floating": [],
+   "inside_out": [],
+   "paint_outward": 0.984
+  },
+  "colliders": [
+   [
+    [
+     -1.12,
+     0.18,
+     -2.574
+    ],
+    [
+     1.12,
+     1.148,
+     2.472
+    ]
+   ],
+   [
+    [
+     -0.952,
+     1.148,
+     -1.544
+    ],
+    [
+     0.952,
+     1.852,
+     1.483
+    ]
+   ]
+  ],
+  "dirt": 0.8,
+  "file": "farm_truck_a.glb",
+  "hinges": {
+   "bonnet": 55.0,
+   "door_fl": 66,
+   "door_fr": 66
+  },
+  "kind": "pickup",
+  "materials": [
+   "caliper",
+   "chrome",
+   "dash",
+   "glass",
+   "glass_tint",
+   "interior",
+   "lamp_front",
+   "lamp_ind_l",
+   "lamp_ind_r",
+   "lamp_reflector",
+   "lamp_tail",
+   "metal",
+   "mirror",
+   "paint",
+   "plate",
+   "plate_text",
+   "rim_steel",
+   "rubber",
+   "seat",
+   "trim",
+   "trim_grey",
+   "wood"
+  ],
+  "paint": [
+   0.52,
+   0.56,
+   0.48
+  ],
+  "paint2": null,
+  "pose": "",
+  "size": [
+   2.24,
+   1.852,
+   5.046
+  ],
+  "tris": [
+   26592,
+   9304,
+   2126
+  ],
+  "wheels": [
+   {
+    "bone": "wheel_fl",
+    "pos": [
+     -0.7675,
+     0.3443,
+     -1.61
+    ],
+    "radius": 0.34425000000000006,
+    "steer": true
+   },
+   {
+    "bone": "wheel_fr",
+    "pos": [
+     0.7675,
+     0.3443,
+     -1.61
+    ],
+    "radius": 0.34425000000000006,
+    "steer": true
+   },
+   {
+    "bone": "wheel_rl",
+    "pos": [
+     -0.7675,
+     0.3443,
+     1.39
+    ],
+    "radius": 0.34425000000000006,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rr",
+    "pos": [
+     0.7675,
+     0.3443,
+     1.39
+    ],
+    "radius": 0.34425000000000006,
     "steer": false
    }
   ]
@@ -1654,6 +2451,141 @@
      1.525
     ],
     "radius": 0.34295,
+    "steer": false
+   }
+  ]
+ },
+ "hay_trailer_a": {
+  "aabb_hi": [
+   1.23,
+   2.5,
+   4.078
+  ],
+  "aabb_lo": [
+   -1.23,
+   0.0,
+   -4.413
+  ],
+  "actions": [],
+  "bones": [
+   "root",
+   "body",
+   "wheel_fl",
+   "wheel_fr",
+   "wheel_rl",
+   "wheel_rr",
+   "drawbar",
+   "hitch"
+  ],
+  "checks": {
+   "floating": [],
+   "inside_out": [],
+   "paint_outward": 0.694
+  },
+  "colliders": [
+   [
+    [
+     -1.23,
+     0.18,
+     -4.413
+    ],
+    [
+     1.23,
+     1.55,
+     4.078
+    ]
+   ],
+   [
+    [
+     -1.046,
+     1.55,
+     -2.648
+    ],
+    [
+     1.046,
+     2.5,
+     2.447
+    ]
+   ]
+  ],
+  "dirt": 0.85,
+  "file": "hay_trailer_a.glb",
+  "hinges": {},
+  "kind": "trailer",
+  "materials": [
+   "flag_b",
+   "lamp_ind_l",
+   "lamp_ind_r",
+   "lamp_tail",
+   "metal",
+   "paint",
+   "paint2",
+   "plate",
+   "rubber",
+   "straw",
+   "trim",
+   "wood"
+  ],
+  "paint": [
+   0.2,
+   0.32,
+   0.18
+  ],
+  "paint2": [
+   0.1,
+   0.1,
+   0.1
+  ],
+  "pose": "",
+  "size": [
+   2.46,
+   2.5,
+   8.491
+  ],
+  "tris": [
+   20424,
+   7156,
+   1600
+  ],
+  "wheels": [
+   {
+    "bone": "wheel_fl",
+    "pos": [
+     -1.02,
+     0.4305,
+     1.6
+    ],
+    "radius": 0.4305,
+    "steer": false
+   },
+   {
+    "bone": "wheel_fr",
+    "pos": [
+     1.02,
+     0.4305,
+     1.6
+    ],
+    "radius": 0.4305,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rl",
+    "pos": [
+     -1.02,
+     0.4305,
+     2.6
+    ],
+    "radius": 0.4305,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rr",
+    "pos": [
+     1.02,
+     0.4305,
+     2.6
+    ],
+    "radius": 0.4305,
     "steer": false
    }
   ]

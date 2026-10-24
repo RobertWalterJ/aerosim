@@ -506,3 +506,161 @@ wildlife brief asked 1,200 to 2,500 triangles for the sheep and wolf: their LOD0
 and LOD2 about 950; the brief's static poses are clips of the rigged animals. Clips are made in place by procedural gaits,
 not motion capture: the walk and trot read right at drone distance, the canter and gallop are simpler, and the hind legs can
 fold a little stiffly. No ear-specific or mouth shape keys (eyelids and jaw are bones).
+
+## Sites (lane/sites)
+
+The boat launch and the old cabin track and cave (briefs `docs/CLAUDE-BOAT-LAUNCH-ASSETS.md` and `docs/CLAUDE-CABIN-TRACK-ASSETS.md`
+on lane/notify), modelled in Blender 4.2 by `tools/blender/build_sites.py` (`sites_lib.py`, `sites_launch.py`, `sites_track.py`;
+textures first with `python -I tools/blender/make_site_textures.py <godot dir>`), exported to `assets/models/sites/<name>.glb`
+and loaded by `game/site_assets.gd` (class `SiteAssets`). `game/site_manifest.gd` (generated) lists every file's named nodes,
+pivots, sizes, triangle counts, LOD distance, metadata (waterline, text rectangle, notes) and the Blender-side checks.
+
+**Frame:** metres, Y up, **+Z is the front** (the ramp runs downhill along +Z; the dock runs out along +Z; signs, gates and the
+cave face +Z; the hull's bow and the trailer's hitch are +Z; the track runs along Z and the fallen trees lie across it along X
+with the roots at -X), origin at the base. Exceptions, stated in each file's `meta.origin`: the dock and the channel marker
+have their origin at the water surface (piles and post run on below it), the hull at its keel (draft 0.12 m; the outboard's
+skeg reaches 0.17 m below), the outboard at its transom clamp. **Cave pieces share one origin** (the middle of the cave mouth
+on the ground at the face): place `cave_outcrop`, `cave_boulder_arch`, `cave_apron`, `cave_fallen_slab`, `cave_scree`,
+`cave_damp_stain` and `cave_chalk_mark` with the same transform.
+
+**Files:** each is a set of NAMED NODES at the top of the imported scene (`boat_ramp_slab`, `boat_ramp_curb_l/_r`,
+`boat_dock_deck/_posts/_floats/_cleats/_ladder`, `boat_trailer_frame/_bunks/_winch/_hitch/_lights/_wheel_l/_wheel_r`,
+`boat_outboard`, `tree_fall_a_trunk/_roots/_branches`, `rockfall_a_boulder_0.._6`, `cave_outcrop`, `cave_mouth`...), each
+holding `<node>_LOD0` and (above 150 triangles) `<node>_LOD1` (collapse-decimated to about half), switched by visibility
+range at the manifest's `lod_end` (9 x the asset's size, 18 to 70 m). Pivots are real: trailer wheels on the hub (axle along
+X), `boat_outboard` on the tilt tube (rotate about X to tilt; on the trailer it is exported tilted 62 degrees),
+`boat_launch_gate_leaf` and `track_old_gate_leaf` on their hanging posts (exported open; rotation.y = 0 closes them),
+`boat_launch_windsock` on its mast (turn about Y to the wind). Node names never end in `_wheel`, `_col` and the like (Godot's
+import hints would turn them into vehicle wheels or colliders).
+
+**Materials:** plain glTF materials named `site_*` with UVs in metres and a vertex colour (ray-cast ambient occlusion against
+the asset and the ground, times its weathering: waterline and algae on the ramp, dock and hull, tyre polish in the wheel
+paths, zinc bloom and rust on the trailer, moss, lichen and damp on rock and bark, chipped paint), linear and clamped 0..1
+(glTF wraps larger values). SiteAssets swaps in the photographed sets by name (`SiteAssets.SETS`; sources in
+`assets/textures/README.md`, sheet `docs/realism/models/sites_final_textures.jpg`) and the plain PBR ones (`PLAIN`), multiplied
+by the vertex colour. `site_cave_dark` is unshaded black (the mouth stays black in any light); decals (`site_decal_*`) are
+alpha-blended with no depth write; `site_lamp_red/_amber` are emissive at 0 (`SiteAssets.set_lamps(node, true)` lights the
+trailer lamps); `site_leaves` is the tree lane's beech atlas with alpha scissor.
+
+**Calls:**
+- `SiteAssets.place(parent, name, Transform3D, opts := {}) -> Node3D`, `instance(name, opts)`; `has`, `names`, `info`, `meta`.
+  A brief part name (`boat_ramp_slab`, `boat_ramp_curb`, `boat_ramp_grooves`, `boat_dock_deck/_posts/_floats/_cleats`,
+  `boat_trailer_winch`, `cave_mouth`) returns just that node of its file. A missing file gives a plain stand-in box of the
+  manifest size, so placement code never breaks.
+- `SiteAssets.fit_ramp(ramp, head_y, water_y)`: the ramp is built level (head at z 0, toe at z 30) with its waterline mark at
+  z 24 (`meta.waterline_z`); this shears it so the top falls from head_y at the head to water_y at the mark and runs 6 m on
+  under water, as real ramps do. Place it with its origin at the head first. (The placeholder's 84 m to 76 m over 30 m is a
+  1:3.75 slope; real launch ramps are 1:7 to 1:9, so a lower head or a longer run reads more truthfully.)
+- `SiteAssets.drape(node, height_fn)` moves every vertex of ground pieces (apron, gravel patch, track strip, cave apron,
+  puddle, leaf drift, litter) onto `height_fn.call(x, z)` in world space, keeping their own relief.
+- `SiteAssets.track_material()` is the cabin-track surface for a code-built ribbon: **u 0..1 across 4.4 m** (a 3.4 m running
+  surface and 0.5 m of overgrown edge each side; ruts at u 0.32 and 0.68, i.e. 0.78 m either side of the centre), **v = metres
+  along / 8**. Sink the outer 0.3 m of the ribbon about 6 cm so the terrain cuts a ragged edge (`track_y` in `sites_track.py`
+  is the section).
+- `boat_launch_sign` carries no lettering: `meta.text_rect` gives the face (centre (0, 2.25, 0.114), 2.86 x 0.76 m, facing +Z)
+  for a Label3D or a painted face; `meta.ring_hook` is where `boat_life_ring` hangs (the ring's origin is its bottom; its
+  hook bracket is on top).
+
+| Asset | Group | Size x, y, z (m) | Tris LOD0 / LOD1 | Named nodes |
+|---|---|---|---|---|
+| `boat_aluminium_hull` | launch | 1.4 x 1.1 x 4.1 | 3810 / 1904 | `boat_aluminium_hull`, `boat_outboard` |
+| `boat_aluminium_hull_b` | launch | 1.4 x 1.1 x 4.1 | 3810 / 1904 | `boat_aluminium_hull_b`, `boat_outboard` |
+| `boat_cover_tarp` | launch | 1.5 x 0.4 x 3.4 | 1460 / 656 | `boat_cover_tarp` |
+| `boat_dock` | launch | 3.1 x 3.9 x 14.4 | 2668 / 1196 | `boat_dock_cleats`, `boat_dock_deck`, `boat_dock_floats`, `boat_dock_ladder`, `boat_dock_posts` |
+| `boat_fishing_box` | launch | 0.6 x 0.3 x 2.1 | 260 / 174 | `boat_fishing_box`, `boat_fishing_rod` |
+| `boat_fuel_tank` | launch | 0.5 x 0.3 x 0.7 | 492 / 220 | `boat_fuel_tank` |
+| `boat_launch_bin` | launch | 0.9 x 1.4 x 0.6 | 412 / 184 | `boat_launch_bin` |
+| `boat_launch_bollard` | launch | 0.2 x 1.3 x 0.2 | 132 / 132 | `boat_launch_bollard` |
+| `boat_launch_bollards` | launch | 8.0 x 1.3 x 0.2 | 264 / 264 | `boat_launch_bollard_l`, `boat_launch_bollard_r` |
+| `boat_launch_damage_decals` | launch | 1.5 x 0.6 x 1.2 | 10 / 10 | `decal_algae`, `decal_crack_flat`, `decal_oil_flat`, `decal_rust_run`, `decal_waterline` |
+| `boat_launch_gate` | launch | 4.3 x 1.9 x 3.8 | 596 / 266 | `boat_launch_gate_leaf`, `boat_launch_gate_posts` |
+| `boat_launch_gravel_patch` | launch | 4.6 x 0.1 x 6.2 | 891 / 444 | `boat_launch_gravel_patch` |
+| `boat_launch_marker` | launch | 0.2 x 3.0 x 0.2 | 176 / 78 | `boat_launch_marker` |
+| `boat_launch_notice_board` | launch | 1.6 x 2.6 x 0.8 | 556 / 250 | `boat_launch_notice_board` |
+| `boat_launch_sign` | launch | 3.1 x 3.4 x 0.2 | 348 / 234 | `boat_launch_sign_board`, `boat_launch_sign_posts` |
+| `boat_launch_weather_post` | launch | 0.5 x 1.6 x 1.1 | 760 / 340 | `boat_launch_weather_post`, `boat_launch_windsock` |
+| `boat_launch_wheel_stop` | launch | 2.0 x 0.1 x 0.2 | 100 / 100 | `boat_launch_wheel_stop` |
+| `boat_life_ring` | launch | 0.8 x 0.9 x 0.2 | 902 / 472 | `boat_life_ring`, `boat_life_ring_bracket` |
+| `boat_mooring_rope` | launch | 0.9 x 0.0 x 0.5 | 776 / 348 | `boat_mooring_rope` |
+| `boat_outboard` | launch | 0.3 x 1.1 x 0.9 | 896 / 402 | `boat_outboard` |
+| `boat_paddle` | launch | 0.1 x 2.1 x 0.0 | 200 / 90 | `boat_paddle` |
+| `boat_parking_gravel` | launch | 21.0 x 0.1 x 14.4 | 1448 / 724 | `boat_parking_gravel` |
+| `boat_ramp` | launch | 7.6 x 0.8 x 30.0 | 2056 / 1027 | `boat_ramp_curb_l`, `boat_ramp_curb_r`, `boat_ramp_slab` |
+| `boat_trailer` | launch | 1.9 x 1.1 x 4.3 | 3888 / 2082 | `boat_trailer_bunks`, `boat_trailer_frame`, `boat_trailer_hitch`, `boat_trailer_jack_caster`, `boat_trailer_lights`, `boat_trailer_wheel_l`, `boat_trailer_wheel_r`, `boat_trailer_winch` |
+| `boat_trailer_hull` | launch | 1.9 x 1.6 x 5.1 | 7736 / 4006 | `boat_aluminium_hull_b`, `boat_outboard`, `boat_trailer_bunks`, `boat_trailer_frame`, `boat_trailer_hitch`, `boat_trailer_jack_caster`, `boat_trailer_lights`, `boat_trailer_wheel_l`, `boat_trailer_wheel_r`, `boat_trailer_winch` |
+| `boat_trailer_hull_covered` | launch | 1.9 x 1.6 x 5.1 | 9196 / 4736 | `boat_aluminium_hull_b`, `boat_cover_tarp`, `boat_outboard`, `boat_trailer_bunks`, `boat_trailer_frame`, `boat_trailer_hitch`, `boat_trailer_jack_caster`, `boat_trailer_lights`, `boat_trailer_wheel_l`, `boat_trailer_wheel_r`, `boat_trailer_winch` |
+| `cave_apron` | track | 8.8 x 0.1 x 7.2 | 1931 / 965 | `cave_apron` |
+| `cave_boulder_arch` | track | 4.2 x 3.1 x 1.6 | 1200 / 536 | `cave_boulder_0`, `cave_boulder_1`, `cave_boulder_2`, `cave_boulder_3` |
+| `cave_chalk_mark` | track | 0.2 x 0.5 x 0.6 | 72 / 72 | `cave_chalk_mark` |
+| `cave_damp_stain` | track | 3.8 x 4.3 x 3.3 | 356 / 159 | `cave_damp_stain` |
+| `cave_fallen_slab` | track | 1.5 x 0.7 x 1.5 | 192 / 86 | `cave_fallen_slab` |
+| `cave_old_lantern` | track | 0.2 x 0.3 x 0.1 | 476 / 214 | `cave_old_lantern` |
+| `cave_outcrop` | track | 7.8 x 4.6 x 5.8 | 2851 / 1281 | `cave_mouth`, `cave_outcrop` |
+| `cave_scree` | track | 3.7 x 0.2 x 1.7 | 1540 / 770 | `cave_scree` |
+| `cave_warning_board` | track | 0.9 x 1.6 x 0.2 | 525 / 236 | `cave_warning_board` |
+| `cave_warning_board_blank` | track | 0.9 x 1.6 x 0.2 | 212 / 94 | `cave_warning_board_blank` |
+| `dead_branch_scatter` | track | 3.4 x 0.2 x 2.6 | 382 / 190 | `dead_branch_scatter` |
+| `fallen_log_old` | track | 4.4 x 0.4 x 0.4 | 208 / 104 | `fallen_log_old` |
+| `rockfall_a` | track | 4.9 x 1.1 x 3.7 | 3018 / 1206 | `rockfall_a_boulder_0`, `rockfall_a_boulder_1`, `rockfall_a_boulder_2`, `rockfall_a_boulder_3`, `rockfall_a_boulder_4`, `rockfall_a_boulder_5`, `rockfall_a_boulder_6`, `rockfall_a_litter` |
+| `rockfall_b` | track | 3.3 x 0.8 x 2.7 | 1759 / 702 | `rockfall_b_boulder_0`, `rockfall_b_boulder_1`, `rockfall_b_boulder_2`, `rockfall_b_boulder_3`, `rockfall_b_litter` |
+| `track_dirt_strip` | track | 4.4 x 0.1 x 12.0 | 1056 / 528 | `track_dirt_strip` |
+| `track_grass_tuft` | track | 1.0 x 0.4 x 0.8 | 360 / 360 | `track_grass_tuft` |
+| `track_leaf_drift` | track | 1.0 x 0.2 x 3.3 | 611 / 305 | `track_leaf_drift` |
+| `track_oil_stain` | track | 0.9 x 0.0 x 0.9 | 2 / 2 | `track_oil_stain` |
+| `track_old_gate` | track | 3.7 x 2.0 x 2.0 | 409 / 259 | `track_old_gate_leaf`, `track_old_gate_posts` |
+| `track_puddle` | track | 0.7 x 0.0 x 2.0 | 522 / 522 | `track_puddle` |
+| `track_rut_pair` | track | 2.0 x 0.0 x 12.0 | 384 / 384 | `track_rut_l`, `track_rut_r` |
+| `track_tyre_print` | track | 0.2 x 0.0 x 1.6 | 2 / 2 | `track_tyre_print` |
+| `tree_fall_a` | track | 11.2 x 2.7 x 4.6 | 2822 / 1266 | `tree_fall_a_branches`, `tree_fall_a_roots`, `tree_fall_a_trunk` |
+| `tree_fall_b` | track | 7.3 x 1.9 x 4.3 | 1535 / 690 | `tree_fall_b_branches`, `tree_fall_b_roots`, `tree_fall_b_trunk` |
+| `tree_fall_cut` | track | 11.2 x 2.7 x 5.9 | 3302 / 1484 | `tree_fall_cut_branches`, `tree_fall_cut_roots`, `tree_fall_cut_trunk` |
+| `tree_stump_a` | track | 1.8 x 1.0 x 1.8 | 230 / 114 | `tree_stump_a` |
+
+Brief items folded into others: `boat_ramp_grooves` (the waffle grooves are in the slab's normal map; the part name returns the
+slab), `boat_trailer_winch` (a node of the trailer), `boat_launch_bin` and `boat_launch_notice_board` (two files),
+`boat_launch_damage_decals` (one file of five decal nodes), `cave_mouth` (a node of `cave_outcrop`). Extra: `boat_launch_bollard`
+(single), `boat_aluminium_hull_b` (green topsides), `boat_trailer_hull_covered` (with `boat_cover_tarp`), `cave_warning_board_blank`.
+
+**Vehicle brief paths** (`docs/CLAUDE-VEHICLE-ASSETS.md`): `tools/blender/build_vehicle_aliases.py` writes STATIC copies of the
+lane/vehicles models in that brief's contract, so `traffic.gd` and the story code can load them raw: origin on the ground under
+the middle, forward **-Z**, right +X; `wheel_fl/_fr/_rl/_rr` as their own nodes on the hub (spin about local X);
+`lamp_head_l/_r` and `lamp_tail_l/_r` as their own meshes with materials named exactly `headlight` and `taillight` (opaque
+lens, the lamp colour as emission at multiplier 1; the game sets `emission_energy_multiplier`, as traffic.gd does with 2.4 x darkness); occlusion, rust and road dirt in the vertex
+colour; paint as briefed; parked ones carry a `-colonly` box collider. One mesh level (the lane's LOD1 for traffic and parked
+vehicles, LOD0 for the story ones); Godot builds automatic mesh LODs on import. For the full rigged versions (doors, steering,
+lights switching, the vehicle shaders) use `VehicleAssets` with the source name. Manifest: `assets/traffic/manifest.json` and
+`assets/traffic/manifest.md`.
+
+| File | Source (assets/models/vehicles) | What | Tris |
+|---|---|---|---|
+| `assets/story/festival_bus.glb` | `festival_bus_garage` | the festival bus before restoration, HALLOWAY FESTIVAL, passenger door open | 45271 |
+| `assets/story/lake_car.glb` | `lake_car_estate_a` | the Lake Car: late-1980s blue estate (BRASK 245), rust, algae line, flat tyre, smashed rear window, plates missing (the story), tailgate closed | 33029 |
+| `assets/story/police_cruiser.glb` | `cruiser_1984_flat` | 1984 provincial police cruiser, rear left tyre flat, lightbar unlit | 35666 |
+| `assets/traffic/hatchback_a.glb` | `car_hatch_b` | small five-door hatchback, dark red, alloys (ARDEN) | 10728 |
+| `assets/traffic/hatchback_b.glb` | `car_estate_a` | small estate, dusty blue, roof rails (VELIA) | 12530 |
+| `assets/traffic/pickup_a.glb` | `pickup_a` | double-cab farm pickup, faded white, loaded tray (CORVAN) | 11056 |
+| `assets/traffic/tractor_a.glb` | `tractor_a` | farm tractor, green, four-post cab (HALDEN 6140) | 9847 |
+| `assets/traffic/van_a.glb` | `van_a` | white panel van with a ladder on the roof (CORVAN) | 11686 |
+| `assets/vehicles/car_dogguard_a.glb` | `car_estate_dogguard_a` | estate with a dog guard behind the rear seats | 12607 |
+| `assets/vehicles/car_roofbox_a.glb` | `car_estate_roofbox_a` | estate with a roof box | 12609 |
+| `assets/vehicles/farm_trailer_a.glb` | `farm_trailer_a` | small farm trailer, mesh sides and a ramp gate | 3152 |
+| `assets/vehicles/farm_truck_a.glb` | `farm_truck_a` | older farm pickup on a flatbed with a toolbox | 9304 |
+| `assets/vehicles/hay_trailer_a.glb` | `hay_trailer_a` | tandem bale trailer loaded with small square bales | 7156 |
+| `assets/vehicles/parked_car_a.glb` | `car_estate_a` | parked estate, grey, muddy | 12530 |
+| `assets/vehicles/parked_car_b.glb` | `car_hatch_a` | parked small hatchback, faded green | 10350 |
+| `assets/vehicles/parked_car_c.glb` | `pickup_b` | parked older farm pickup (BRASK) | 10369 |
+| `assets/vehicles/parked_van_a.glb` | `van_b` | parked delivery van, white, blank panels | 10636 |
+
+New lane/vehicles recipes (`tools/blender/vk_farm.py`, built by `build_vehicles.py`, listed in `game/vehicle_manifest.gd`):
+`farm_trailer_a` (a 3 m single-axle mesh-sided farm trailer with a ramp gate, `tailgate_open/_close`), `hay_trailer_a` (a 7.3 m
+tandem bale trailer, three layers of small square bales), `farm_truck_a` (the older pickup cab on a flatbed with a headache rack
+and toolbox), `car_estate_roofbox_a`, `car_estate_dogguard_a`, `cruiser_1984_flat` (rear left tyre flat). Dirt overlay atlas:
+`assets/textures/vehicle_dirt_atlas.png` (layout in `assets/traffic/manifest.md`).
+
+Checks: `test/sites_blender_test.gd` (headless: every site file loads through SiteAssets with its named nodes and LODs, finite,
+the manifest's size, on its base, no floating parts, no inside-out solids, front probes measured again on the imported scene,
+winding matches normals, every material a known `site_*` key, LOD ranges, the cave mouth unshaded, `fit_ramp`; and every
+vehicle-brief file: wheel nodes on the hub, head lamps at -Z and tail lamps at +Z, an emissive `headlight`, on the ground,
+colliders). `test/vehicles_blender_test.gd` covers the new recipes. Sheets: `test/sites_sheet.gd` (five views per asset,
+`mode=grid` overview, `a+b@x_z_yaw` groups), `test/sites_textures_sheet.gd`, `test/fleet_sheet.gd`, written to
+`docs/realism/models/sites_*.jpg`.
