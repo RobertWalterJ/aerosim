@@ -27,6 +27,15 @@ uniform sampler2D rust_tex : source_color, hint_default_white, filter_linear_mip
 uniform float rust_scale = 0.0;      // repeats per metre; 0 = procedural rust colour
 uniform sampler2D dirt_tex : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float dirt_scale = 0.0;      // repeats per metre; 0 = procedural mud colour
+// lane/wreckvan: a wreck that has lain in a lake. Below `silt_line` (metres above the model's origin) everything takes a
+// coat of lake silt and algae, thickest just under the line; above it, dried silt on what faces up. `paint_tex` is a
+// photographed painted-and-rusting sheet that multiplies the paint colour (rust spotting, blistering). kind 8 is the silt bed.
+uniform float silt_line = -100.0;    // -100 = no wreck
+uniform sampler2D silt_tex : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float silt_scale = 0.0;      // repeats per metre; 0 = procedural silt colour
+uniform sampler2D paint_tex : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float paint_scale = 0.0;     // repeats per metre; 0 = no paint photo
+uniform float paint_amount = 1.0;
 #endif
 
 varying vec3 vP;
@@ -76,9 +85,18 @@ void fragment() {
 		float flake = vn(vP * 420.0);
 		float scr = smoothstep(0.78, 0.83, vn(vec3(vP.x * 70.0, vP.y * 5.0, vP.z * 9.0)) * 0.5 + vn(vec3(vP.z * 80.0, vP.y * 6.0, vP.x * 7.0)) * 0.5);
 		float wear = 1.0 - cond;
+		vec3 ptint = vec3(1.0);
+#ifdef VEHICLE_MAPS
+		if (paint_scale > 0.0) {
+			// the photo is white paint with rust coming through: normalised to its white, it tints the paint where it rusts
+			vec3 pt = texture(paint_tex, UV * paint_scale).rgb;
+			ptint = mix(vec3(1.0), clamp(pt / 0.8, vec3(0.0), vec3(1.15)), paint_amount);
+			wear = clamp(wear + paint_amount * max(0.0, 0.75 - dot(pt, vec3(0.333))) * 0.6, 0.0, 1.0);
+		}
+#endif
 		float rust = smoothstep(0.66, 0.8, fbm(vP * 7.0 + 7.0) * 0.8 + vn(vP * 40.0) * 0.2 + wear * 0.3 - 0.12) * smoothstep(0.12, 0.5, wear);
 		float fade = wear * 0.5 * smoothstep(0.3, 0.7, n1);
-		vec3 faded = mix(a, vec3(dot(a, vec3(0.299, 0.587, 0.114))) * 1.25, fade);
+		vec3 faded = mix(a, vec3(dot(a, vec3(0.299, 0.587, 0.114))) * 1.25, fade) * ptint;
 		vec3 rustc = mix(vec3(0.20, 0.075, 0.03), vec3(0.34, 0.15, 0.06), n2);
 #ifdef VEHICLE_MAPS
 		if (rust_scale > 0.0) rustc = texture(rust_tex, UV * rust_scale).rgb;
@@ -133,6 +151,17 @@ void fragment() {
 		metal = 0.0;
 		spec = 0.45;
 		soil = dirty * 0.8 + wear * 0.25 * n1;
+	} else if (kind == 8) {
+		// the silt bed round a wreck: wet lake mud (photo), darker and glossier in the hollows
+		vec3 sc = mix(vec3(0.10, 0.085, 0.06), vec3(0.17, 0.145, 0.10), n1);
+#ifdef VEHICLE_MAPS
+		if (silt_scale > 0.0) sc = texture(silt_tex, UV * silt_scale).rgb;
+		sc *= vCol.rgb / max(tint.rgb, vec3(0.001));     // keep the baked occlusion against the body
+#endif
+		float wetm = smoothstep(0.55, 0.3, fbm(vP * 1.7 + 4.0));
+		a = sc * mix(1.0, 0.72, wetm);
+		rough = mix(0.86, 0.38, wetm);
+		spec = 0.4;
 	} else {
 		float pit = smoothstep(0.7, 0.85, vn(vP * 60.0));
 		float stain = smoothstep(0.4, 0.8, fbm(vP * 4.0 + 5.0));
@@ -152,6 +181,33 @@ void fragment() {
 	rough = mix(rough, 0.92, sm);
 	metal *= 1.0 - sm;
 	coat *= 1.0 - sm;
+#ifdef VEHICLE_MAPS
+	if (silt_line > -50.0 && kind != 8 && kind != 5) {
+		// the lake wreck: silt and algae up to the old water line, a hard tide mark, dried silt on top surfaces above it
+		vec3 sc = mix(vec3(0.12, 0.10, 0.07), vec3(0.2, 0.17, 0.12), n1);
+		if (silt_scale > 0.0) sc = texture(silt_tex, UV * silt_scale * 1.7).rgb * 1.1;
+		float edge = silt_line + 0.035 * (fbm(vP * 4.0 + 1.0) - 0.5) + 0.01 * sin(vP.x * 9.0 + vP.z * 7.0);
+		float below = 1.0 - smoothstep(edge - 0.012, edge + 0.006, vGround);
+		float depth = clamp((edge - vGround) / 0.5, 0.0, 1.0);
+		vec3 algae = mix(vec3(0.075, 0.095, 0.035), vec3(0.15, 0.16, 0.07), vn(vP * 23.0)) * (0.75 + 0.5 * fbm(vP * 7.0));
+		// algae thickest in a band under the line, silt below that, patchy so the paint shows through in places
+		float alg = smoothstep(0.35, 0.0, depth) * (0.45 + 0.55 * smoothstep(0.35, 0.65, fbm(vP * 6.0 + 9.0)));
+		vec3 coatc = mix(sc, algae, alg);
+		float cover = below * clamp(0.55 + 0.6 * fbm(vP * 3.2 + 2.0) + depth * 0.4, 0.0, 1.0);
+		float tide = (1.0 - smoothstep(0.0, 0.025, abs(vGround - edge - 0.01))) * 0.55;
+		a = mix(a, coatc, cover);
+		a = mix(a, vec3(0.08, 0.075, 0.05), tide);
+		rough = mix(rough, 0.9, max(cover, tide));
+		metal *= 1.0 - cover;
+		coat *= 1.0 - max(cover, tide * 0.5);
+		// dried silt and bleaching above the line, on what faces up
+		float upf = smoothstep(0.35, 0.85, n.y) * (1.0 - below);
+		float dry = upf * smoothstep(0.3, 0.7, fbm(vP * 2.3 + 6.0)) * 0.75;
+		a = mix(a, sc * 1.35, dry);
+		rough = mix(rough, 0.95, dry);
+		coat *= 1.0 - dry;
+	}
+#endif
 	// cloud and drone shadows
 	a *= world_shade(vWorld);
 	// rain: darker, glossier

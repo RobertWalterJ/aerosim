@@ -139,6 +139,16 @@ their lower panels. Every other vehicle finish (paint flake, clear coat, glass, 
 | `rust_diff.jpg` | Poly Haven `rust_coarse_01`, https://polyhaven.com/a/rust_coarse_01 | Dimitrios Savva (photography), Rico Cilliers (processing) | CC0 | 1.6 per metre | rust where the paint has rusted through (the Lake Car, the 1984 cruiser, the older pickup, the unrestored bus) |
 | `fabric_nor.jpg` | Poly Haven `fabric_pattern_07` (normal map), https://polyhaven.com/a/fabric_pattern_07 | Rob Tuytel | CC0 | 9 per metre | seat cloth weave |
 | `rubber_nor.jpg` | Poly Haven `rubberized_track` (normal map), https://polyhaven.com/a/rubberized_track | Charlotte Baglioni | CC0 | 6 per metre | fine grain on tyre sidewalls and treads |
+## Wreck and dive van (lane/wreckvan, 2026-10-24)
+Four maps for Anne Voss's wrecked estate (`anne_car_wreck_a`, `tools/blender/vk_wreckvan.py`), read by
+`game/shaders/vehicle_body.gdshaderinc` through `VehicleAssets` (the manifest's `wreck` entry). Downloaded 2026-10-24 as the 1k
+JPEGs from the Poly Haven API and re-saved with Python PIL (albedo quality 85, normals 90). All CC0.
+
+| Files | Source | Author | Licence | Repeats | Used for |
+|---|---|---|---|---|---|
+| `wreck_paint_diff.jpg`, `wreck_paint_nor.jpg` | Poly Haven `rusty_metal_02`, https://polyhaven.com/a/rusty_metal_02 (published 1.0 m) | Rob Tuytel | CC0 | 1.1 per metre | white paint with rust coming through: normalised to its white, it multiplies the wreck's pale blue paint (rust spotting, blistering), and its normal map gives the paint relief |
+| `wreck_silt_diff.jpg`, `wreck_silt_nor.jpg` | Poly Haven `brown_mud_02`, https://polyhaven.com/a/brown_mud_02 (published 1.3 m) | Rob Tuytel | CC0 | 0.77 per metre (as published) | the silt bed round the wreck (material `silt`), and the silt coat on the body below its old water line |
+
 ## Fabrics for the people (October 2026, Blender 2, lane people)
 
 Photographed fabrics blended into the clothing of the Blender people (`tools/blender/people_lib.py`,

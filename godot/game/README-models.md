@@ -664,3 +664,43 @@ vehicle-brief file: wheel nodes on the hub, head lamps at -Z and tail lamps at +
 colliders). `test/vehicles_blender_test.gd` covers the new recipes. Sheets: `test/sites_sheet.gd` (five views per asset,
 `mode=grid` overview, `a+b@x_z_yaw` groups), `test/sites_textures_sheet.gd`, `test/fleet_sheet.gd`, written to
 `docs/realism/models/sites_*.jpg`.
+
+## Wreck and dive van (lane/wreckvan)
+
+The two endgame vehicles that were still missing from `docs/story/CLAUDE-ENDGAME-ASSETS.md`, modelled in Blender with the
+lane/vehicles kit (`tools/blender/vk_wreckvan.py`, registered by `build_vehicles.py`; regenerate with
+`blender -b --factory-startup --python godot/tools/blender/build_vehicles.py -- only=anne_car_wreck_a,police_dive_van_a`).
+Same contract as Blender 3: one rigged glTF each in `assets/models/vehicles/`, LOD0/1/2 on one armature (25 m / 80 m),
+AO baked into the vertex colour, the condition in the vertex alpha, baked actions, an entry in `game/vehicle_manifest.gd`,
+defect checks (floating parts, inside-out solids, paint facing out). `StoryAssets.instance/place` routes both names (and the
+posed variants) to these files, turns them to the story frame (+Z front) and adds the colliders.
+
+| Name | What it is | Notes |
+|---|---|---|
+| `anne_car_wreck_a` | Anne Voss's car: a 1970s pale blue estate, ARDEN 1300 (fictional), 4.3 m, forty years in the lake | sunk 0.34 m into a silt bed (origin = the silt surface), nose down 2.5 deg, listing 3 deg to the driver's side; front left corner crumpled and that headlamp lens gone; roof sagged over the rear seats; windscreen holed on the passenger side and crazed round an impact on the driver's side, driver's window and right rear quarter light gone, a hole in the right rear door glass, tailgate glass mostly out; heavy rust (condition field) and a photographed rust-spotted paint; sedge tufts, limp pondweed and shoots through the silt in the cabin; dried weed draped over the roof and bonnet; plates blank; no bodies, nothing inside but rotted seats and silt |
+| `police_dive_van_a` | Halloway Provincial Police dive team van (fictional livery, no crests or badges), CORVAN high-roof panel van, 5.9 m | blue band with yellow lines, HALLOWAY PROVINCIAL POLICE, UNDERWATER SEARCH AND RECOVERY, DIVE UNIT, POLICE / DIVE UNIT on the barn doors; lightbar, red and blue rear beacons, amber rear traffic bar, grille flashers; roof rack with two aluminium cases, a yellow rescue board and poles; ladder on the right barn door; diver-down flag (red, white diagonal) on its own bone; barn doors and sliding door open onto a lined cargo bay with a ply floor, a rack of six cylinders, a shelf of cases, a bench with drysuits and fins, crates and a coil of rope |
+
+- **Silt bed and water line.** The wreck's silt bed is part of its model, on the `root` bone (it does not ride the body): a
+  heightfield that rises in a lip against the panels, fills the cabin to the seat bases, ripples, and tucks 5 cm under the
+  ground at its wavering edge, so place the wreck on the lake bed or shore at ground level. The manifest's `"sunk": 0.5` says
+  how far below the origin the buried parts may go (faces wholly under the silt are dropped); its `"wreck"` entry gives the
+  shaders the old water line (`silt_line` 0.38 m above the origin: silt and algae below, a tide mark, dried silt on top
+  faces above, silted glass below) and the paint photo. Change the line on a placed wreck with
+  `set_shader_parameter("silt_line", h)` on its materials (the materials are shared by every instance of the wreck).
+- **New material slots** (`VehicleAssets.SLOTS`): `silt` (kind 8 of `vehicle_body.gdshaderinc`: the mud photo and its
+  normal map, wet glossy hollows), `weed` and `weed_dry` (both sides), `crack` (glass cracks), `kit_yellow` (dive kit).
+  The include gains `silt_line`, `silt_tex/silt_scale` and `paint_tex/paint_scale/paint_amount`, the glass shader
+  `silt_line`; all default off, so no other vehicle changes.
+- **Named parts.** Bones as every Blender vehicle (`root body wheel_* steer_f* door_fl door_fr door_rl door_rr bonnet
+  wiper_* steering_wheel`), plus `tailgate` on the wreck and `door_rear_l door_rear_r door_slide_r dive_flag` on the van.
+  `StoryAssets` adds the brief's node names as BoneAttachment3D: `wheel_fl..wheel_rr`, `door`, `boot_lid`, `bonnet` (wreck);
+  `wheel_fl..wheel_rr`, `door`, `rear_door_l`, `rear_door_r`, `side_door`, `dive_flag` (van). Lamps are material slots,
+  lit with `VehicleAssets.set_lights(v, {"beacon_red": 1, "beacon_blue": 1, "beacon_amber": 1, "head": 1})`.
+- **Poses** (`VehicleAssets.ALIASES`): `police_dive_van_a_rear_open`, `police_dive_van_a_side_open`, `police_dive_van_a_open`
+  (both). The wreck has no open pose (its doors are buried in silt); its actions exist but are for the recovery scene only.
+- **Colliders:** the wreck's two boxes cover the body only (none on the silt bed or the weed); the van's are the usual two.
+- **Not made here:** `anne_car_door_a` (a loose door and boot lid) and `police_boat_a`.
+- Checks: `test/vehicles_blender_test.gd` (sizes, budgets, sunk depth, named nodes through StoryAssets, the open pose, the
+  silt line on the paint). Sheets: `test/vehicles_blender_sheet.gd -- names=...` and `test/wreckvan_textures_sheet.gd`,
+  written to `docs/realism/models/wreckvan_final_views.jpg` and `wreckvan_final_textures.jpg`. Texture sources:
+  `assets/textures/README.md` "Wreck and dive van".
