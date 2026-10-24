@@ -113,6 +113,10 @@ func _pub(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMate
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
 	add_child(node)
+	if _try_building_model(node, "town_pub_a", yaw):
+		_solid(node, Vector3(15.0, 6.2, 10.0), Vector3(0.0, 3.1, 0.0))
+		_inc("pub")
+		return
 	_box(node, Vector3(15.0, 6.2, 10.0), Vector3(0.0, 3.1, 0.0), wall)
 	_solid(node, Vector3(15.0, 6.2, 10.0), Vector3(0.0, 3.1, 0.0))
 	_roof(node, 15.0, 10.0, 6.2, roof)
@@ -138,6 +142,10 @@ func _shop(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMat
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
 	add_child(node)
+	if _try_building_model(node, "town_shop_a", yaw):
+		_solid(node, Vector3(11.0, 4.6, 8.0), Vector3(0.0, 2.3, 0.0))
+		_inc("shop")
+		return
 	_box(node, Vector3(11.0, 4.6, 8.0), Vector3(0.0, 2.3, 0.0), wall)
 	_solid(node, Vector3(11.0, 4.6, 8.0), Vector3(0.0, 2.3, 0.0))
 	_roof(node, 11.0, 8.0, 4.6, roof)
@@ -154,6 +162,10 @@ func _garage(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardM
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
 	add_child(node)
+	if _try_building_model(node, "garage_shell_a", yaw):
+		_solid(node, Vector3(14.0, 4.8, 9.0), Vector3(0.0, 2.4, 0.0))
+		_inc("garage")
+		return
 	_box(node, Vector3(14.0, 4.8, 9.0), Vector3(0.0, 2.4, 0.0), wall)
 	_solid(node, Vector3(14.0, 4.8, 9.0), Vector3(0.0, 2.4, 0.0))
 	_roof(node, 14.0, 9.0, 4.8, roof)
@@ -410,6 +422,20 @@ func _person(data: Dictionary) -> void:
 		opts["position"] = route[0]
 	actor.setup(opts)
 	_people.append(actor)
+
+func _try_building_model(node: Node3D, name: String, _yaw: float) -> bool:
+	var path := "res://assets/models/story/halloway/%s.glb" % name
+	if not ResourceLoader.exists(path):
+		return false
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return false
+	var inst := packed.instantiate() as Node3D
+	if inst == null:
+		return false
+	inst.rotation.y = PI
+	node.add_child(inst)
+	return true
 
 func _solid(parent: Node3D, sz: Vector3, pos: Vector3) -> void:
 	var body := StaticBody3D.new()
