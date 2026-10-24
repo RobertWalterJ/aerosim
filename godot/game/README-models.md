@@ -741,3 +741,92 @@ Generator: 	ools/ui_art/osui/build_osui.py. Spec and implementation checklist fo
 docs/OS-UX-SPEC-2026-10-24.md. Manifest: ssets/ui/osui/OSUI-MANIFEST.md. Sheets:
 docs/realism/models/osui_final_views.jpg, osui_final_textures.jpg; mocks in docs/realism/osui/.
 No game code was changed; nothing loads these files until B wires them.
+
+## Anti-drone (lane/antidrone)
+
+Harlan Pike's ridge and his hunter drones (brief `docs/CLAUDE-ANTI-DRONE-ASSETS.md` on lane/notify), modelled in Blender 4.2 by
+`tools/blender/build_antidrone.py` (`antidrone_lib.py` on the sites kit, `antidrone_pike.py`, `antidrone_hunters.py`; textures
+first with `python -I tools/blender/make_antidrone_textures.py <godot dir>`), exported to `assets/models/antidrone/<name>.glb`
+and loaded by `game/antidrone_assets.gd` (class `AntiDroneAssets`). `game/antidrone_manifest.gd` (generated) lists every
+file's nested named nodes (parent, pivot, rot), sizes, triangle counts, LOD distance, metadata and the Blender-side checks.
+Fictional and homemade: no real brands, insignia or readable text, no weapons (the brief's shotgun prop is deliberately not
+made; the toolbox has no gun-cleaning kit), no gore; the hex hunter's net pod is closed and empty.
+
+**Frame:** metres, Y up, **+Z is the front** (trailer hitch, shack door, board and sign faces, hunter noses; a hunter's right is
+-x), origin at the base (hunters: the ground under the skids; `meta.centre` is the middle of the airframe).
+
+**Moving parts** (own nodes, clean pivots): trailer and `pike_jammer_mast`: `mast` (hinge pin at the deck, y 0.62; rotate about
+local x by `meta.lower_deg` 88 to lay it forward over the drawbar) > `mast_stage_2` > `mast_stage_3` (slide down local y to
+telescope) > `dish` (1.1 m, turn about y) and `beacon` (caged, `ad_lamp_red`); top-level `guy_wires` (hide when the mast is
+down), `trailer_wheel_l/_r` (on the hub), `trailer_hitch`, `stencil` (the NO DRONE spray decal). Shack: `door` (hinged on its
+right edge seen from outside; rotation.y +80 opens it outward), `shack_generator_lamp`. Hunters: `body`, `eye` (red emissive lens
+at the nose), `rotor_1..4` (`rotor_1..6` on `hunter_drone_b`; rotor_1 front right then clockwise from above; spin about local y,
+`meta.spin` +1 = anticlockwise from above), `net_pod` > `pod_door` (b), `strobe` (c). Log pile: `axe`. Floodlight:
+`floodlight_head`. The mast is 14 m to the head (the brief's figure; lane/notify's code placeholder is 24 m), the beacon on top,
+whip aerials to 15.1 m.
+
+**Calls:** `AntiDroneAssets.place(parent, name, Transform3D, opts)` / `instance(name, opts)` (opts `lod_scale`, `lamps`);
+`set_beacon(node, on)`, `set_lamp(node, key, energy)`, `lower_mast(node, t)` (0 standing .. 1 down; hides the guys and puts the
+beacon out), `spin_rotors(node, delta, rev_per_s)`, `flash(node, time)` (double-blink strobe), `drape(node, height_fn)` (ground
+pieces), `text_rect(name)` (blank faces for Label3D: `pike_manifesto_board` 0.96 x 0.88 m sheet centred (0, 1.53, 0.05);
+`pike_warning_sign` 0.84 x 0.54 m centred (0, 1.3, 0.04)), `has`, `names`, `info`, `meta`. A missing file gives a stand-in box
+of the manifest size; a missing hunter gives a code-built quad or hex with the same `body`, `eye`, `rotor_N` names.
+
+**Materials:** `site_*` keys are swapped by `SiteAssets.mat` (shared photographed sets), `ad_*` by `AntiDroneAssets.mat`
+(photographed: paint, rust, planks, ply, corrugated iron, the drones lane's carbon, plastic, motor and strap sets; drawn: the
+clearing ground, papers, stencil, tyre marks, smoke, strobe), all multiplied by the vertex colour (occlusion times rust and dirt).
+Lamps are emissive materials, not lights: `ad_lamp_red` (beacon, antenna; on), `ad_lamp_eye` (on), `ad_lamp_strobe` (on;
+`flash`), `ad_lamp_amber` (generator; on), `ad_lamp_white` (floodlight; off), `ad_lamp_green` (radio LED). Textures and
+licences: `assets/textures/README.md` (lane/antidrone) and `docs/realism/models/antidrone_final_textures.jpg`.
+
+| Asset | Size x, y, z (m) | Tris LOD0 / LOD1 | Named nodes |
+|---|---|---|---|
+| `hunter_drone_a` | 0.9 x 0.3 x 0.8 | 2028 / 1293 | `body`, `eye`, `rotor_1`, `rotor_2`, `rotor_3`, `rotor_4` |
+| `hunter_drone_b` | 1.0 x 0.5 x 1.0 | 2884 / 1894 | `body`, `eye`, `net_pod`, `pod_door`, `rotor_1`, `rotor_2`, `rotor_3`, `rotor_4`, `rotor_5`, `rotor_6` |
+| `hunter_drone_c` | 0.5 x 0.1 x 0.6 | 2308 / 1199 | `body`, `eye`, `rotor_1`, `rotor_2`, `rotor_3`, `rotor_4`, `strobe` |
+| `hunter_net_pod` | 0.2 x 0.2 x 0.4 | 376 / 254 | `net_pod`, `pod_door` |
+| `hunter_rotor` | 0.5 x 0.1 x 0.5 | 960 / 550 | `guard`, `rotor_1` |
+| `pike_beacon` | 0.2 x 0.2 x 0.1 | 560 / 336 | `beacon` |
+| `pike_cable_run` | 0.6 x 0.2 x 8.2 | 712 / 356 | `cable` |
+| `pike_chair` | 0.8 x 0.9 x 0.6 | 536 / 322 | `chair`, `thermos` |
+| `pike_clearing_patch` | 11.9 x 0.1 x 12.0 | 1554 / 776 | `clearing_ground` |
+| `pike_fence` | 4.2 x 1.7 x 0.5 | 592 / 286 | `pike_fence_posts`, `pike_fence_wire` |
+| `pike_fence_8m` | 8.1 x 1.7 x 0.5 | 1120 / 536 | `pike_fence_8m_posts`, `pike_fence_8m_wire` |
+| `pike_fence_folk` | 4.1 x 1.8 x 0.7 | 1338 / 620 | `pike_fence_folk_folk`, `pike_fence_folk_posts`, `pike_fence_folk_wire` |
+| `pike_floodlight` | 0.6 x 0.8 x 0.6 | 248 / 248 | `floodlight_head`, `floodlight_stand` |
+| `pike_generator` | 1.5 x 0.6 x 0.6 | 996 / 562 | `generator`, `generator_fuel_can`, `generator_lamp`, `generator_reel` |
+| `pike_jammer_mast` | 11.3 x 15.2 x 9.8 | 3316 / 1588 | `beacon`, `dish`, `guy_wires`, `mast`, `mast_base`, `mast_stage_2`, `mast_stage_3` |
+| `pike_jammer_trailer` | 11.3 x 15.2 x 9.8 | 6178 / 2852 | `beacon`, `dish`, `guy_wires`, `mast`, `mast_stage_2`, `mast_stage_3`, `stencil`, `trailer_body`, `trailer_hitch`, `trailer_wheel_l`, `trailer_wheel_r` |
+| `pike_log_pile` | 2.0 x 0.9 x 1.1 | 1284 / 675 | `axe`, `chopping_stump`, `log_pile` |
+| `pike_manifesto_board` | 2.5 x 2.7 x 0.1 | 64 / 64 | `manifesto_board`, `manifesto_paper`, `manifesto_posts` |
+| `pike_mast_wreck` | 4.1 x 0.2 x 13.7 | 1056 / 558 | `mast_wreck`, `mast_wreck_cage`, `mast_wreck_dish`, `mast_wreck_guy` |
+| `pike_radio` | 0.8 x 4.4 x 0.4 | 624 / 300 | `radio`, `radio_aerial`, `radio_crate`, `radio_led` |
+| `pike_ridge_antenna` | 1.4 x 21.0 x 1.6 | 1244 / 602 | `antenna_lamp`, `antenna_tower` |
+| `pike_shack` | 4.8 x 3.0 x 3.5 | 3790 / 1788 | `door`, `shack_barrel`, `shack_generator`, `shack_generator_lamp`, `shack_lean_to`, `shack_roof`, `shack_tarp`, `shack_walls` |
+| `pike_smoke` | 1.2 x 4.5 x 1.0 | 6 / 6 | `smoke` |
+| `pike_strobe_card` | 0.8 x 0.8 x 0.0 | 2 / 2 | `strobe_card` |
+| `pike_tarp` | 1.6 x 0.5 x 1.3 | 922 / 414 | `tarp` |
+| `pike_toolbox` | 1.1 x 0.4 x 0.5 | 632 / 282 | `toolbox`, `toolbox_tools` |
+| `pike_tyre_tracks` | 2.2 x 0.0 x 6.0 | 48 / 48 | `tyre_tracks` |
+| `pike_warning_sign` | 0.9 x 2.0 x 0.1 | 106 / 106 | `warning_sign_board`, `warning_sign_post` |
+
+Brief items folded or added: the beacon on its own (`pike_beacon`) and on the mast; the generator on its own and under the
+shack's lean-to; the 4 m and 8 m fences plus `pike_fence_folk` (deer skull and rag ribbons); `pike_clearing_patch` (the clearing
+texture on a draped disc); `pike_strobe_card`; `pike_tyre_tracks` (wheel tracks and the jerked drag mark as decals);
+`pike_ridge_antenna` (the distant 18 m antenna). Textures only: `pike_ridge_clearing.jpg` (+ `_nor`, `_arm`),
+`pike_no_drone_stencil.png`, `pike_manifesto_paper.png`, `pike_paper_blank.png`, `pike_notice_stack.png`, `pike_strobe_card.png`,
+`pike_smoke_card.png`, `pike_tyre_marks.png` (in `assets/textures/`).
+
+**Checks:** `test/antidrone_blender_test.gd` (headless: every brief file present and loading, nested nodes under their parents
+at the manifest's pivots, LODs, size, on its base, no floating parts or inside-out solids, probes, winding, materials, the
+brief's budgets, lamps emissive, mast hinge at the deck and beacon at 14 m, `lower_mast`, rotors on their hubs spinning about y,
+the eye at the nose, the door's hinge, text faces, stand-ins). Sheets: `test/antidrone_sheet.gd` (views, `mode=grid`,
+`light=night`, `fit=<node>`, groups `a+b@x_z_yaw_y`) and `test/antidrone_textures_sheet.gd`, written to
+`docs/realism/models/antidrone_final_views.jpg` (every asset), `antidrone_views_golden.jpg` and `antidrone_views_props.jpg`
+(five views with the mast-head and hunter-eye close-ups), `antidrone_final_scene.jpg` (trailer, shack, board, sign and the three
+hunters at real scale in the clearing), `antidrone_night.jpg`, `antidrone_final_textures.jpg`.
+
+**Honest limits:** low-poly homemade forms; the dish is a smooth paraboloid with no mesh grid; wires and guys are 4 to 8 mm
+tubes that vanish beyond about 40 m; the corrugated roofs are sine heightfields; the tarp is a heightfield with nothing under
+it; the hunters are 2 to 3k triangles, so motors and props are simple; the smoke is three crossed cards, not particles; rotor
+blur, the net and the mast animation are left to the code (the nodes and helpers are ready).
