@@ -204,7 +204,8 @@ def strip_side(parts, surf, side, d0, d1, z, hgt, L, mat, bone="body", offset=0.
     def st(u, v):
         return (y0 + (y1 - y0) * u, z - hgt * 0.5 + hgt * v)
     n = max(2, int(abs(d1 - d0) / 0.08))
-    b = decal(surf, st, plane, n, 1, offset, offset, None, rim=True)
+    # rows every 3.5 cm so a deep band follows the side's bulge instead of cutting under it (lane/wreckvan)
+    b = decal(surf, st, plane, n, max(1, int(round(hgt / 0.035))), offset, offset, None, rim=True)
     _add(parts, name, bone, b, mat, mat)
 
 

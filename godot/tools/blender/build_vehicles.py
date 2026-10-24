@@ -6,7 +6,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import bpy
 import vk_core, vk_body, vk_wheels, vk_details, vk_interior, vk_assemble, vk_rig, vk_build, vk_recipes, vk_render
-import vk_recipes_cars, vk_recipes_heavy, vk_recipes_custom, vk_icecream, vk_small, vk_farm
+import vk_recipes_cars, vk_recipes_heavy, vk_recipes_custom, vk_icecream, vk_small, vk_farm, vk_wreckvan
 GODOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 
 args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

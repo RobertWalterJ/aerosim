@@ -48,7 +48,30 @@ static func instance(name: String, lod := 0) -> Node3D:
 ## otherwise a plain Node3D marker at the old model's pivot. They carry no mesh.
 const _BONE_ALIAS := {"door": ["bus_door_a", "door_fl", "serving_window", "door_rear"], "roller_door": ["shutter"]}
 
+## The endgame vehicles that never had a code-built model (lane/wreckvan): the brief's node names, each a BoneAttachment3D
+## on the Blender rig's bone. Lamps and the lightbar switch through VehicleAssets.set_lights (beacon_red, beacon_blue,
+## beacon_amber), not nodes.
+const _STORY_BONES := {
+	"anne_car_wreck_a": {"wheel_fl": "wheel_fl", "wheel_fr": "wheel_fr", "wheel_rl": "wheel_rl", "wheel_rr": "wheel_rr",
+		"door": "door_fl", "boot_lid": "tailgate", "bonnet": "bonnet"},
+	"police_dive_van_a": {"wheel_fl": "wheel_fl", "wheel_fr": "wheel_fr", "wheel_rl": "wheel_rl", "wheel_rr": "wheel_rr",
+		"door": "door_fl", "rear_door_l": "door_rear_l", "rear_door_r": "door_rear_r", "side_door": "door_slide_r",
+		"dive_flag": "dive_flag"},
+}
+
 static func _story_markers(veh: Node3D, name: String) -> void:
+	var base := String(veh.get_meta("vehicle", name))
+	if _STORY_BONES.has(base):
+		var sk := veh.get_meta("skeleton", null) as Skeleton3D
+		if sk == null: return
+		for nn: String in _STORY_BONES[base]:
+			var bi := sk.find_bone(String(_STORY_BONES[base][nn]))
+			if bi < 0 or veh.find_child(nn, true, false) != null: continue
+			var at := BoneAttachment3D.new()
+			at.name = nn
+			at.bone_name = sk.get_bone_name(bi)
+			sk.add_child(at)
+		return
 	if not NewModels6.names().has(name): return
 	var md = NewModels6.build(name, 0)
 	var skel := veh.get_meta("skeleton", null) as Skeleton3D

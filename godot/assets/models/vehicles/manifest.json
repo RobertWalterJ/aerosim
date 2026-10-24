@@ -1,4 +1,188 @@
 {
+ "anne_car_wreck_a": {
+  "aabb_hi": [
+   1.899,
+   1.118,
+   3.05
+  ],
+  "aabb_lo": [
+   -1.71,
+   -0.265,
+   -3.05
+  ],
+  "actions": [
+   "doors_open",
+   "doors_close",
+   "door_driver_open",
+   "door_driver_close",
+   "bonnet_open",
+   "bonnet_close",
+   "tailgate_open",
+   "tailgate_close",
+   "wipers",
+   "steer_left",
+   "steer_right"
+  ],
+  "bones": [
+   "root",
+   "body",
+   "steer_fl",
+   "wheel_fl",
+   "steer_fr",
+   "wheel_fr",
+   "wheel_rl",
+   "wheel_rr",
+   "door_fr",
+   "door_fl",
+   "door_rr",
+   "door_rl",
+   "bonnet",
+   "tailgate",
+   "wiper_r",
+   "wiper_l",
+   "steering_wheel"
+  ],
+  "checks": {
+   "floating": [],
+   "inside_out": [],
+   "paint_outward": 0.955
+  },
+  "colliders": [
+   [
+    [
+     -0.83,
+     0.0,
+     -2.15
+    ],
+    [
+     0.83,
+     0.52,
+     2.15
+    ]
+   ],
+   [
+    [
+     -0.71,
+     0.52,
+     -1.0499999999999998
+    ],
+    [
+     0.71,
+     1.06,
+     1.7999999999999998
+    ]
+   ]
+  ],
+  "dirt": 0.9,
+  "file": "anne_car_wreck_a.glb",
+  "hinges": {
+   "bonnet": 55.0,
+   "door_fl": 66,
+   "door_fr": 66,
+   "door_rl": 70,
+   "door_rr": 70,
+   "tailgate": 80
+  },
+  "kind": "car",
+  "materials": [
+   "caliper",
+   "chrome",
+   "crack",
+   "dash",
+   "glass",
+   "glass_tint",
+   "interior",
+   "lamp_brake",
+   "lamp_front",
+   "lamp_ind_l",
+   "lamp_ind_r",
+   "lamp_reflector",
+   "lamp_reverse",
+   "lamp_tail",
+   "metal",
+   "mirror",
+   "paint",
+   "plate",
+   "plate_text",
+   "rim_steel",
+   "rubber",
+   "seat",
+   "silt",
+   "trim",
+   "trim_grey",
+   "weed",
+   "weed_dry"
+  ],
+  "paint": [
+   0.6,
+   0.71,
+   0.78
+  ],
+  "paint2": null,
+  "pose": "",
+  "size": [
+   3.609,
+   1.383,
+   6.1
+  ],
+  "sunk": 0.5,
+  "tris": [
+   41509,
+   14343,
+   3320
+  ],
+  "wheels": [
+   {
+    "bone": "wheel_fl",
+    "pos": [
+     -0.7271,
+     -0.1397,
+     -1.36
+    ],
+    "radius": 0.29710000000000003,
+    "steer": true
+   },
+   {
+    "bone": "wheel_fr",
+    "pos": [
+     0.696,
+     -0.0652,
+     -1.3633
+    ],
+    "radius": 0.29710000000000003,
+    "steer": true
+   },
+   {
+    "bone": "wheel_rl",
+    "pos": [
+     -0.7271,
+     -0.0298,
+     1.1576
+    ],
+    "radius": 0.29710000000000003,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rr",
+    "pos": [
+     0.696,
+     0.0447,
+     1.1543
+    ],
+    "radius": 0.29710000000000003,
+    "steer": false
+   }
+  ],
+  "wreck": {
+   "paint_amount": 0.75,
+   "paint_nor": "wreck_paint_nor",
+   "paint_scale": 1.1,
+   "paint_tex": "wreck_paint_diff",
+   "silt_line": 0.38,
+   "silt_scale": 0.77,
+   "silt_tex": "wreck_silt_diff"
+  }
+ },
  "bus_a": {
   "aabb_hi": [
    1.48,
@@ -3993,6 +4177,195 @@
      1.39
     ],
     "radius": 0.34425000000000006,
+    "steer": false
+   }
+  ]
+ },
+ "police_dive_van_a": {
+  "aabb_hi": [
+   1.22,
+   3.41,
+   3.034
+  ],
+  "aabb_lo": [
+   -1.22,
+   0.0,
+   -3.021
+  ],
+  "actions": [
+   "doors_open",
+   "doors_close",
+   "door_driver_open",
+   "door_driver_close",
+   "rear_doors_open",
+   "rear_doors_close",
+   "slide_door_open",
+   "slide_door_close",
+   "bonnet_open",
+   "bonnet_close",
+   "wipers",
+   "steer_left",
+   "steer_right"
+  ],
+  "bones": [
+   "root",
+   "body",
+   "steer_fl",
+   "wheel_fl",
+   "steer_fr",
+   "wheel_fr",
+   "wheel_rl",
+   "wheel_rr",
+   "door_fr",
+   "door_fl",
+   "bonnet",
+   "door_rear_r",
+   "door_rear_l",
+   "door_slide_r",
+   "wiper_r",
+   "wiper_l",
+   "steering_wheel",
+   "dive_flag"
+  ],
+  "checks": {
+   "floating": [],
+   "inside_out": [],
+   "paint_outward": 0.936
+  },
+  "colliders": [
+   [
+    [
+     -1.22,
+     0.18,
+     -3.021
+    ],
+    [
+     1.22,
+     2.114,
+     3.034
+    ]
+   ],
+   [
+    [
+     -1.037,
+     2.114,
+     -1.813
+    ],
+    [
+     1.037,
+     3.41,
+     1.82
+    ]
+   ]
+  ],
+  "dirt": 0.3,
+  "file": "police_dive_van_a.glb",
+  "hinges": {
+   "bonnet": 50,
+   "door_fl": 70,
+   "door_fr": 70,
+   "door_rear_l": 100,
+   "door_rear_r": 100,
+   "door_slide_r": 0.9399999999999997
+  },
+  "kind": "van",
+  "materials": [
+   "caliper",
+   "canvas",
+   "chrome",
+   "dash",
+   "flag_a",
+   "flag_b",
+   "glass",
+   "glass_tint",
+   "interior",
+   "kit_yellow",
+   "lamp_beacon",
+   "lamp_brake",
+   "lamp_front",
+   "lamp_ind_l",
+   "lamp_ind_r",
+   "lamp_reflector",
+   "lamp_reverse",
+   "lamp_tail",
+   "lettering",
+   "lettering2",
+   "lightbar_blue",
+   "lightbar_red",
+   "metal",
+   "mirror",
+   "paint",
+   "plate",
+   "plate_text",
+   "rim",
+   "rim_steel",
+   "rubber",
+   "seat",
+   "sheet_white",
+   "trim",
+   "trim_grey",
+   "wood"
+  ],
+  "paint": [
+   0.93,
+   0.93,
+   0.91
+  ],
+  "paint2": [
+   0.05,
+   0.12,
+   0.38
+  ],
+  "pose": "",
+  "size": [
+   2.44,
+   3.41,
+   6.055
+  ],
+  "tris": [
+   43575,
+   15251,
+   3485
+  ],
+  "wheels": [
+   {
+    "bone": "wheel_fl",
+    "pos": [
+     -0.8475,
+     0.3559,
+     -1.985
+    ],
+    "radius": 0.35595,
+    "steer": true
+   },
+   {
+    "bone": "wheel_fr",
+    "pos": [
+     0.8475,
+     0.3559,
+     -1.985
+    ],
+    "radius": 0.35595,
+    "steer": true
+   },
+   {
+    "bone": "wheel_rl",
+    "pos": [
+     -0.8475,
+     0.3559,
+     1.675
+    ],
+    "radius": 0.35595,
+    "steer": false
+   },
+   {
+    "bone": "wheel_rr",
+    "pos": [
+     0.8475,
+     0.3559,
+     1.675
+    ],
+    "radius": 0.35595,
     "steer": false
    }
   ]
