@@ -11,28 +11,116 @@ display size; `sizes/<px>/` holds native renders for small slots. Pivot is the i
 | `act_3_last_flight.png` | 384 x 384 | - | act stamp, works at 64-180 px |
 | `act_4_cabin.png` | 384 x 384 | - | act stamp, works at 64-180 px |
 | `act_5_end.png` | 384 x 384 | - | act stamp, works at 64-180 px |
-| `avatar_alex.png` | 512 x 512 | - | Alex: gear and spanner, embroidered badge emblem |
-| `avatar_jo.png` | 512 x 512 | - | Jo: festival ticket, sticker emblem |
-| `avatar_kit.png` | 512 x 512 | - | Kit: lifebuoy, flat vector emblem |
-| `avatar_maya.png` | 512 x 512 | - | Maya: clapperboard, cut paper emblem |
-| `avatar_rennick.png` | 512 x 512 | - | Constable Rennick: peaked cap with a lamp, badge emblem |
-| `avatar_riley.png` | 512 x 512 | - | Riley: sheep, flat vector emblem |
-| `avatar_sam.png` | 512 x 512 | - | Sam: windsock, line drawing emblem |
-| `avatar_tom.png` | 512 x 512 | - | Tom: storm cloud and bolt, flat vector emblem |
-| `avatar_unknown.png` | 512 x 512 | - | Unknown account: pixel question mark, pixel emblem |
-| `avatar_wren.png` | 512 x 512 | - | Wren: wren bird in a scarf, hand-drawn doodle emblem |
-| `avatar_you.png` | 512 x 512 | - | You: smiling quadcopter, sticker emblem |
-| `avatars/cutout/alex.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/jo.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/kit.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/maya.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/rennick.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/riley.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/sam.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/tom.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/unknown.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/wren.png` | 512 x 512 | - | emblem only, transparent |
-| `avatars/cutout/you.png` | 512 x 512 | - | emblem only, transparent |
+| `avatar_alex.png` | 512 x 512 | - | Alex: his own race drone on the workbench (product shot; own work + CC0) ACTIVE |
+| `avatar_jo.png` | 512 x 512 | - | Jo: festival bunting and string lights at dusk (stock-style vector; original) ACTIVE |
+| `avatar_kit.png` | 512 x 512 | - | Kit: DroneBudz support mascot (logo / mascot; original) ACTIVE |
+| `avatar_maya.png` | 512 x 512 | - | Maya: a cartoon of her ginger cat (cartoon; original) ACTIVE |
+| `avatar_rennick.png` | 512 x 512 | - | Rennick: Halloway Provincial Constabulary emblem (logo / badge; original) ACTIVE |
+| `avatar_riley.png` | 512 x 512 | - | Riley: a cartoon of her sheepdog (cartoon; original) ACTIVE |
+| `avatar_sam.png` | 512 x 512 | - | Sam: fair-weather cumulus in a blue sky (photo; CC0) ACTIVE |
+| `avatar_tom.png` | 512 x 512 | - | Tom: a lightning storm over an open field (photo composite; CC0) ACTIVE |
+| `avatar_unknown.png` | 512 x 512 | - | Unknown: a glitched default silhouette (pixel / glitch; original) ACTIVE |
+| `avatar_wren.png` | 512 x 512 | - | Wren: a gravel trail through the woods (photo; CC0) ACTIVE |
+| `avatar_you.png` | 512 x 512 | - | You: a sunrise over a misty field (photo; CC0) ACTIVE |
+| `avatars/cutout/alex.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/jo.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/kit.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/maya.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/rennick.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/riley.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/sam.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/tom.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/unknown.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/wren.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars/cutout/you.png` | 512 x 512 | - | circle crop, transparent |
+| `avatars_alt/alex_eclectic.png` | 512 x 512 | - | Alex: his own race drone on the workbench (product shot; own work + CC0) |
+| `avatars_alt/alex_emblem.png` | 512 x 512 | - | Alex: gear and spanner, embroidered badge emblem (alternate set) |
+| `avatars_alt/cutout/alex_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/alex_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/jo_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/jo_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/kit_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/kit_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/maya_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/maya_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/rennick_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/rennick_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/riley_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/riley_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/sam_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/sam_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/tom_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/tom_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/unknown_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/unknown_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/wren_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/wren_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/cutout/you_eclectic.png` | 512 x 512 | - | circle crop, transparent [eclectic set] |
+| `avatars_alt/cutout/you_emblem.png` | 512 x 512 | - | emblem only, transparent [emblem set] |
+| `avatars_alt/jo_eclectic.png` | 512 x 512 | - | Jo: festival bunting and string lights at dusk (stock-style vector; original) |
+| `avatars_alt/jo_emblem.png` | 512 x 512 | - | Jo: festival ticket, sticker emblem (alternate set) |
+| `avatars_alt/kit_eclectic.png` | 512 x 512 | - | Kit: DroneBudz support mascot (logo / mascot; original) |
+| `avatars_alt/kit_emblem.png` | 512 x 512 | - | Kit: lifebuoy, flat vector emblem (alternate set) |
+| `avatars_alt/maya_eclectic.png` | 512 x 512 | - | Maya: a cartoon of her ginger cat (cartoon; original) |
+| `avatars_alt/maya_emblem.png` | 512 x 512 | - | Maya: clapperboard, cut paper emblem (alternate set) |
+| `avatars_alt/rennick_eclectic.png` | 512 x 512 | - | Rennick: Halloway Provincial Constabulary emblem (logo / badge; original) |
+| `avatars_alt/rennick_emblem.png` | 512 x 512 | - | Constable Rennick: peaked cap with a lamp, badge emblem (alternate set) |
+| `avatars_alt/riley_eclectic.png` | 512 x 512 | - | Riley: a cartoon of her sheepdog (cartoon; original) |
+| `avatars_alt/riley_emblem.png` | 512 x 512 | - | Riley: sheep, flat vector emblem (alternate set) |
+| `avatars_alt/sam_eclectic.png` | 512 x 512 | - | Sam: fair-weather cumulus in a blue sky (photo; CC0) |
+| `avatars_alt/sam_emblem.png` | 512 x 512 | - | Sam: windsock, line drawing emblem (alternate set) |
+| `avatars_alt/sizes/48/alex_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/alex_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/jo_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/jo_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/kit_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/kit_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/maya_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/maya_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/rennick_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/rennick_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/riley_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/riley_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/sam_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/sam_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/tom_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/tom_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/unknown_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/unknown_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/wren_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/wren_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/48/you_eclectic.png` | 48 x 48 | - | [eclectic set] |
+| `avatars_alt/sizes/48/you_emblem.png` | 48 x 48 | - | [emblem set] |
+| `avatars_alt/sizes/96/alex_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/alex_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/jo_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/jo_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/kit_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/kit_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/maya_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/maya_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/rennick_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/rennick_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/riley_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/riley_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/sam_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/sam_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/tom_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/tom_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/unknown_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/unknown_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/wren_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/wren_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/sizes/96/you_eclectic.png` | 96 x 96 | - | [eclectic set] |
+| `avatars_alt/sizes/96/you_emblem.png` | 96 x 96 | - | [emblem set] |
+| `avatars_alt/tom_eclectic.png` | 512 x 512 | - | Tom: a lightning storm over an open field (photo composite; CC0) |
+| `avatars_alt/tom_emblem.png` | 512 x 512 | - | Tom: storm cloud and bolt, flat vector emblem (alternate set) |
+| `avatars_alt/unknown_eclectic.png` | 512 x 512 | - | Unknown: a glitched default silhouette (pixel / glitch; original) |
+| `avatars_alt/unknown_emblem.png` | 512 x 512 | - | Unknown account: pixel question mark, pixel emblem (alternate set) |
+| `avatars_alt/wren_eclectic.png` | 512 x 512 | - | Wren: a gravel trail through the woods (photo; CC0) |
+| `avatars_alt/wren_emblem.png` | 512 x 512 | - | Wren: wren bird in a scarf, hand-drawn doodle emblem (alternate set) |
+| `avatars_alt/you_eclectic.png` | 512 x 512 | - | You: a sunrise over a misty field (photo; CC0) |
+| `avatars_alt/you_emblem.png` | 512 x 512 | - | You: smiling quadcopter, sticker emblem (alternate set) |
 | `badge_dm.png` | 64 x 64 | - | 32 px nominal |
 | `badge_dot.png` | 32 x 32 | - | 16 px nominal |
 | `badge_edited.png` | 64 x 64 | - | 32 px nominal |
