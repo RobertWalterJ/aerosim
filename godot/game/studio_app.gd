@@ -173,7 +173,7 @@ func refresh() -> void:
 	_videos.text = str(int(st.get("done", 0)) + uploads.size())
 	for ch in _list.get_children():
 		ch.queue_free()
-	var names := {"lake": "Lake at golden hour", "chapel": "The chapel for the heritage page", "fireworks": "Festival fireworks coverage"}
+	var names := {"lake": "Lake at golden hour", "chapel": "The chapel for the heritage page", "fireworks": "Festival fireworks coverage", "fields": "The harvest postcard"}
 	var done_ids: Array = []
 	if jobs != null:
 		done_ids = jobs._done.duplicate()

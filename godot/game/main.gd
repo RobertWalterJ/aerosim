@@ -59,6 +59,8 @@ var jobs: Jobs                     # session B: the opt-in DroneBudz jobs and st
 var chat_data: ChatData            # session B: the DroneBudz Discord-style server (game/chat_data.gd)
 var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
+var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
+var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
@@ -391,6 +393,13 @@ func _build_world() -> void:
 	roads = Roads.new()
 	add_child(roads)
 	roads.setup(terrain)
+	# session B: the farm fields (placeholder planting until Claude's models) and the traffic on the new roads.
+	farmland = Farmland.new()
+	add_child(farmland)
+	farmland.setup(terrain)
+	traffic = Traffic.new()
+	add_child(traffic)
+	traffic.setup(terrain, roads, hud)
 	var lake := Lake.new()
 	add_child(lake)
 	lake.build(terrain)
@@ -757,6 +766,8 @@ func _process(delta: float) -> void:
 	_tick_clock(delta)
 	if jobs != null and not paused:
 		jobs.tick(delta)   # session B: the channel keeps earning views and money between flights
+	if traffic != null and hud != null:
+		traffic.update(delta, float(hud.weather.get("hour", 12.0)), paused)   # session B: life on the roads
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
 		_celestial_t = 0.25
@@ -1011,6 +1022,8 @@ func _screenshot_mode(arg: String) -> void:
 		elif c == "vidtube":      # session B dev hook: the VidTube Studio app
 			phone_os.open()
 			phone_os._open_app("studio")
+		elif c == "trafficdemo":  # session B dev hook: line the traffic up on the valley highway
+			traffic.debug_line_up()
 		elif c == "uploaddemo":   # session B dev hook: upload the newest photo straight to VidTube
 			var pid := -1
 			var meta: Dictionary = {}
@@ -1111,6 +1124,8 @@ func _screenshot_mode(arg: String) -> void:
 	print("phone: ", phone_os.stats())
 	print("channel: ", {"views": jobs.views(), "videos": jobs.videos().size(), "editor": jobs.editor_friend()})
 	print("roads: ", roads.stats())
+	print("farmland: ", farmland.stats())
+	print("traffic: ", traffic.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:

@@ -103,6 +103,7 @@ func _seed_for(channel: String) -> Array:
 			return [
 				_msg("Maya", "This week's video needs three things: the lake at golden hour, the chapel for the heritage bit, and one good firework burst for the thumbnail."),
 				_msg("Maya", "If you get them, I can cut the whole thing in an evening and we might actually grow this channel."),
+				_msg("Riley", "The farm trust wants a harvest postcard too. The corn and hay are in the fields past the farm now, so there is something worth pointing a camera at."),
 				_msg("Alex", "I will do the gear section. New props, the cinema drone, and that cheap action cam nobody trusts."),
 				_msg("Tom", "And if the weather turns I want a storm segment. Real weather, not stock footage."),
 			]

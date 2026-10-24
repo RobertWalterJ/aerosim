@@ -522,3 +522,18 @@ Robert asked for country highway roads linking some of the places, and for Claud
   - R4. Should there be cattle grids, signs, telegraph poles and fences along them (the fence and field props are in the Claude request), or keep them bare until those models arrive?
   - R5. Do you want the roads visible in the minimap and as discovery places, or left off both?
   - R6. Should the sunken lane and the old graves paths connect into the new road network, or stay separate?
+
+## Farm fields, crops, hay, fences and traffic on the roads (lane/notify, session B, 2026-10-27)
+Robert asked to keep growing a dynamic, rich playable environment and to add more asset jobs for Claude. This pass adds the working farm and life on the new roads, all in code as placeholders where Claude's models will land.
+- **Farmland (`game/farmland.gd`):** four fields around the farm. A 90 by 60 m corn field, an 80 by 52 m barley field, a 70 by 46 m alfalfa field and a 70 by 50 m hay meadow. Tilled soil is a terrain-conforming mesh with a procedural furrow shader; the crops are instanced crossed-quad stands (1,500 corn chunks, 1,729 barley, 1,540 alfalfa in this build), and the hay meadow has 14 round bales (some wrapped), a six-bale square stack and five loose bales in the farmyard. Post-and-rail fences run around each field (368 posts in all). The field rectangles are fixed and known before planting, so World now keeps trees, far trees and props out of them.
+- **Traffic (`game/traffic.gd`):** eight road users on a computer (four on a phone): hatchbacks, a pickup, a van and a slow tractor, in both directions on the valley highway, lakeside lane and ridge road. They follow the road centreline in their lane, turn their wheels, and their headlights come on at dusk and night; harmless scenery, no collisions, easily outpaced by any drone. `trafficdemo` is a dev token that lines them up for a look.
+- **Two new places and a new job:** the crossroads at the pad junction and the farm fields are now discoverable places (11 places in total). The fireworks job now leads to Riley's "Harvest postcard" job: photograph the farm fields (subject `fields`, within 600 m), paying 70 money and 55 followers. The crew chat mentions the harvest postcard and the new roads.
+- **Evidence (docs/realism/farmland/):** 00 the fields from the air with the valley highway and the farm, 01 the corn field close up with the barn and silo, 02 the hay meadow with bales and fence, 03 traffic on the valley highway near the junction.
+- **Honest limits:** these are placeholder crops, bales and fences; Claude's models will replace the meshes but the layout stays. Grass is not masked inside the fields, so some blades show through the tilled soil. The hay field's soil mesh is flat-shaded and reads as a brown patch from high up. Traffic has no collisions, no engine sounds, and the night headlights were not verified in a shot. The fields may overlap decorative world props near the farmyard.
+- **Questions for Robert:**
+  - F1. Are the field sizes and the corn/barley/alfalfa/hay mix right for the valley, and should there be a second farm or a bigger field further out?
+  - F2. Should the crops and hay be interactive at all (photographable subjects, job objectives, a harvest event), or stay scenery?
+  - F3. Is the traffic density right, and should vehicles stop or swerve when the drone flies low over the road, or keep their steady loop?
+  - F4. Do you want farm animals (cows, sheep, horses) as Claude models next, or keep the farm arable?
+  - F5. Should the fields be visible on the minimap and as discovery places (they are places now), or left as plain scenery?
+  - F6. Do you want a seasonal look (stubble in autumn, green in spring), or one permanent late-summer harvest look?

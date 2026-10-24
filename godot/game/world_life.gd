@@ -27,6 +27,8 @@ const PLACES := [
 	{"id": "farm", "name": "the old farm", "note": "Someone still works the old farm. The barn and silo are older than the park.", "radius": 130.0, "alt_max": 0.0},
 	{"id": "windmill", "name": "the windmill", "note": "The mill still turns when the wind gets up. Worth a close look from below.", "radius": 55.0, "alt_max": 35.0},
 	{"id": "railway", "name": "the far railway", "note": "You found the railway on the far ridge. Trains cross it all day.", "radius": 320.0, "alt_max": 0.0},
+	{"id": "crossroads", "name": "the crossroads", "note": "Where the old lane meets the new road. Traffic comes through here all day.", "radius": 70.0, "alt_max": 0.0},
+	{"id": "fields", "name": "the farm fields", "note": "Corn, barley and hay, worked by the same farm. The best view is low along the rows.", "radius": 220.0, "alt_max": 0.0},
 ]
 
 var terrain: Terrain
@@ -101,6 +103,8 @@ func _build_places() -> void:
 			"farm": poi["pos"] = farm_ground
 			"windmill": poi["pos"] = farm_ground + Vector3(-24.0, 0.0, -15.0)
 			"railway": poi["pos"] = Vector3(0.0, terrain.height(0.0, -1560.0), -1560.0)
+			"crossroads": poi["pos"] = Vector3(60.0, terrain.height(60.0, -20.0), -20.0)
+			"fields": poi["pos"] = farm_ground + Vector3(90.0, 0.0, 40.0)
 		poi["discovered"] = false
 		_pois.append(poi)
 

@@ -31,8 +31,14 @@ const JOBS := [
 	{
 		"id": "fireworks", "from": "Jo", "title": "Fireworks coverage",
 		"brief": "The festival needs one good burst for the poster. Wait for a show, get up high and catch a shell while the show is running. Night only, obviously.",
-		"reward": 80, "money": 140, "next": "",
+		"reward": 80, "money": 140, "next": "fields",
 		"objectives": [{"kind": "photo", "fireworks": true, "night": true, "text": "Photograph a burst during a night show"}],
+	},
+	{
+		"id": "fields", "from": "Riley", "title": "The harvest postcard",
+		"brief": "The farm trust wants one good picture of the fields for their harvest postcard. Corn, barley, hay bales, whatever looks best. Get low over the rows if you can.",
+		"reward": 55, "money": 70, "next": "",
+		"objectives": [{"kind": "photo", "subject": "fields", "max_dist": 600.0, "text": "Photograph the farm fields"}],
 	},
 ]
 
