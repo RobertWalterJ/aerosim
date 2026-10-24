@@ -16,6 +16,8 @@ var chat: ChatData
 var crew: Crew
 var _chat_app: ChatApp
 var _studio_app: StudioApp
+var story: StoryArc
+var _casebook_app: CasebookApp
 var _root: Control
 var _home: Control
 var _apps: Control
@@ -26,12 +28,13 @@ var _drone_budz_badge: Label
 var _open := false
 var _current_app := "home"
 
-func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew) -> void:
+func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc) -> void:
 	hud = h
 	jobs = j
 	photos = p
 	chat = c
 	crew = cr
+	story = st
 	layer = 28
 	_build()
 	_show_home()
@@ -115,7 +118,7 @@ func _build() -> void:
 	gap.custom_minimum_size = Vector2(0, 26)
 	hbox.add_child(gap)
 	var grid := GridContainer.new()
-	grid.columns = 2
+	grid.columns = 3
 	grid.add_theme_constant_override("h_separation", 26)
 	grid.add_theme_constant_override("v_separation", 26)
 	hbox.add_child(grid)
@@ -124,6 +127,7 @@ func _build() -> void:
 		{"key": "studio", "letter": "VT", "name": "VidTube", "colour": Color(0.62, 0.34, 0.26)},
 		{"key": "photos", "letter": "PH", "name": "Photos", "colour": Color(0.24, 0.38, 0.58)},
 		{"key": "jobs", "letter": "JB", "name": "Jobs", "colour": Color(0.50, 0.40, 0.18)},
+		{"key": "casebook", "letter": "CB", "name": "Casebook", "colour": Color(0.34, 0.38, 0.55)},
 	]
 	for a in apps:
 		var cell := VBoxContainer.new()
@@ -212,6 +216,14 @@ func _build() -> void:
 	_studio_app.chat_requested.connect(func(): _open_app("chat"))
 	_studio_app.jobs_requested.connect(func(): jobs.open_page())
 	_studio_app.upload_requested.connect(func(): photos.open_gallery())
+	_casebook_app = CasebookApp.new()
+	_casebook_app.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_casebook_app.visible = false
+	_apps.add_child(_casebook_app)
+	_casebook_app.setup(story, photos)
+	_casebook_app.chat_requested.connect(func():
+		_open_app("chat")
+		_chat_app.open("town"))
 	# switcher
 	_switcher = Control.new()
 	_switcher.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -282,6 +294,7 @@ func _show_switcher() -> void:
 		{"key": "studio", "name": "VidTube", "desc": "The channel on VidTube: followers, views, earnings and videos"},
 		{"key": "photos", "name": "Photos", "desc": "The gallery of everything the drone has taken"},
 		{"key": "jobs", "name": "Jobs", "desc": "Paid work on the board, ready to accept"},
+		{"key": "casebook", "name": "Casebook", "desc": "Rennick's case: the requests, the evidence and the chapter trail"},
 	]
 	for a in apps:
 		var b := Button.new()
@@ -302,6 +315,7 @@ func _open_app(key: String) -> void:
 			_home.visible = false
 			_apps.visible = true
 			_studio_app.visible = false
+			_casebook_app.visible = false
 			_chat_app.visible = true
 			_chat_app.open("general")
 			chat.unread_total()
@@ -310,8 +324,17 @@ func _open_app(key: String) -> void:
 			_home.visible = false
 			_apps.visible = true
 			_chat_app.visible = false
+			_casebook_app.visible = false
 			_studio_app.visible = true
 			_studio_app.refresh()
+		"casebook":
+			_current_app = "casebook"
+			_home.visible = false
+			_apps.visible = true
+			_chat_app.visible = false
+			_studio_app.visible = false
+			_casebook_app.visible = true
+			_casebook_app.refresh()
 		"photos":
 			if photos != null:
 				photos.open_gallery()

@@ -11,6 +11,7 @@ extends RefCounted
 const SAVE := "user://chat.json"
 const CHANNELS := [
 	{"id": "general", "name": "general", "topic": "Say hi, plan the week, post the odd meme"},
+	{"id": "town", "name": "town", "topic": "Halloway notices, the festival, and the odd favour"},
 	{"id": "weather", "name": "weather", "topic": "Forecasts, storms and chase plans"},
 	{"id": "clips", "name": "clips", "topic": "The channel: what we still need for the edit"},
 	{"id": "tech", "name": "tech", "topic": "Gear, drones and honest reviews"},
@@ -23,6 +24,7 @@ const CAST := {
 	"Sam": {"role": "meteorologist", "colour": Color(0.24, 0.56, 0.52)},
 	"Riley": {"role": "park ranger", "colour": Color(0.72, 0.33, 0.26)},
 	"Jo": {"role": "events and bookings", "colour": Color(0.47, 0.35, 0.72)},
+	"Rennick": {"role": "Provincial Police, Halloway", "colour": Color(0.36, 0.46, 0.60)},
 	"You": {"role": "pilot", "colour": Color(0.30, 0.65, 0.45)},
 }
 

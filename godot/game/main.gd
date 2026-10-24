@@ -58,6 +58,8 @@ var photo_library: PhotoLibrary    # session B: the in-game photo gallery (game/
 var jobs: Jobs                     # session B: the opt-in DroneBudz jobs and story layer (game/jobs.gd)
 var chat_data: ChatData            # session B: the DroneBudz Discord-style server (game/chat_data.gd)
 var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
+var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks (game/case_objects.gd)
+var story: StoryArc                # session B: the Lake Car story arc (game/story_arc.gd)
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
 var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
 var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
@@ -344,9 +346,14 @@ func _ready() -> void:
 	# session B: the crew each have their own job and their own information for the pilot
 	crew = Crew.new()
 	crew.setup(chat_data, hud, jobs, world_life, weather_events, photo_library)
+	# session B: the Lake Car story. Rennick appears after the first published clip or finished job.
+	story = StoryArc.new()
+	add_child(story)
+	story.setup(hud, chat_data, jobs, phone_notes, photo_library, case_objects)
+	photo_library.photo_saved.connect(story.on_photo)
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
-	phone_os.setup(hud, jobs, photo_library, chat_data, crew)
+	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story)
 	# a notification's "Open DroneBudz" button goes straight into the chat app
 	phone_notes.app_requested.connect(func(app: String):
 		phone_os.open()
@@ -389,6 +396,7 @@ func _build_world() -> void:
 	await _stage("Shaping the ground", 0.18)
 	terrain.build()
 	await _stage("Planting the trees", 0.3)
+	CaseObjects.prepare(terrain)   # session B: clear the planting around the Lake Car evidence landmarks
 	world = World.new()
 	add_child(world)
 	world.build(terrain, touch_dev)
@@ -404,6 +412,10 @@ func _build_world() -> void:
 	traffic = Traffic.new()
 	add_child(traffic)
 	traffic.setup(terrain, roads, hud)
+	# session B: the physical evidence landmarks for the Lake Car story
+	case_objects = CaseObjects.new()
+	add_child(case_objects)
+	case_objects.setup(terrain)
 	var lake := Lake.new()
 	add_child(lake)
 	lake.build(terrain)
@@ -774,6 +786,8 @@ func _process(delta: float) -> void:
 		traffic.update(delta, float(hud.weather.get("hour", 12.0)), paused)   # session B: life on the roads
 	if crew != null and not paused:
 		crew.update(delta)   # session B: the crew react to weather, storms, uploads and discoveries
+	if story != null and not paused:
+		story.update(delta)  # session B: the Lake Car story, in game hours
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
 		_celestial_t = 0.25
@@ -1058,6 +1072,26 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os.open()
 			phone_os._open_app("chat")
 			phone_os._chat_app.open("jobs")
+		elif c == "casebook":     # session B dev hook: the Casebook app
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storystart":   # session B dev hook: start the Lake Car and open the casebook
+			story.debug_start()
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storytown":    # session B dev hook: start the Lake Car and open #town
+			story.debug_start()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("town")
+		elif c == "storydeliver": # session B dev hook: mark the current evidence delivered
+			story.debug_deliver()
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storynext":    # session B dev hook: force the waiting chapter to begin
+			story.debug_next()
+			phone_os.open()
+			phone_os._open_app("casebook")
 		elif c == "uploaddemo":   # session B dev hook: upload the newest photo straight to VidTube
 			var pid := -1
 			var meta: Dictionary = {}
@@ -1161,6 +1195,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("farmland: ", farmland.stats())
 	print("traffic: ", traffic.stats())
 	print("crew: ", crew.stats())
+	print("story: ", story.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
@@ -1383,6 +1418,9 @@ func _photo_meta() -> Dictionary:
 		for s in world_life.subjects_in_frame(cam):
 			if float(s.get("dist", 9999.0)) < 700.0 and float(s.get("size", 0.0)) > 14.0:
 				subjects.append(s)
+	if case_objects != null:
+		for s in case_objects.subjects_in_frame(cam):
+			subjects.append(s)
 	return {"clock": clock, "weather": weather_name, "weather_i": weather_i,
 		"pos": [p.x, p.y, p.z], "agl": agl, "drone": hud.airframe_id if hud != null else "drone",
 		"lens": hud.lens if hud != null else "standard", "exposure": sensor.exposure,

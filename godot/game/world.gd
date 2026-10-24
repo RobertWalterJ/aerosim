@@ -95,6 +95,7 @@ func _trees() -> void:
 		if Lake.is_wet(x, z): continue          # no tree stands in the lake or on its edge
 		if Roads.near_road(x, z): continue       # session B: keep the country roads clear
 		if Farmland.inside_any(x, z, 3.0): continue   # session B: the farm fields
+		if CaseObjects.near_evidence(x, z): continue  # session B: the Lake Car evidence landmarks
 		var p := Vector2(x, z)
 		var gk := Vector2i(floori(x / 14.0), floori(z / 14.0))
 		var crowd := 0
@@ -148,6 +149,7 @@ func _far_trees(touch_device: bool) -> void:
 			if Lake.is_wet(x, z): continue
 			if Roads.near_road(x, z): continue
 			if Farmland.inside_any(x, z, 3.0): continue
+			if CaseObjects.near_evidence(x, z): continue
 			var xf := Transform3D(Basis(Vector3.UP, float(arr[o + 3])).scaled(Vector3(arr[o + 4], arr[o + 5], arr[o + 4])), Vector3(x, arr[o + 1], z))
 			var key := Vector2i(floori(x / FAR_CELL), floori(z / FAR_CELL))
 			if not cells.has(key): cells[key] = [[] as Array[Transform3D], [] as Array[Color]]
@@ -172,6 +174,7 @@ func _props() -> void:
 			if Lake.is_wet(float(it[0]), float(it[2])): continue
 			if Roads.near_road(float(it[0]), float(it[2]), 7.0): continue
 			if Farmland.inside_any(float(it[0]), float(it[2]), 2.0): continue
+			if CaseObjects.near_evidence(float(it[0]), float(it[2])): continue
 			var xf := Transform3D(Basis.from_euler(Vector3(it[4], it[3], it[5]), EULER_ORDER_YXZ).scaled(Vector3(s, s, s)), Vector3(it[0], it[1], it[2]))
 			var key := Vector2i(floori(float(it[0]) / CELL), floori(float(it[2]) / CELL))
 			var v: int = int(it[7])
