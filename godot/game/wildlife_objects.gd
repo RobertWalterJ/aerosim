@@ -14,7 +14,8 @@ func setup(t: Terrain) -> void:
 	var base := Vector3(s.x, t.height(s.x, s.y), s.y)
 	for i in 7:
 		var off := Vector3(-2.4 + float(i % 3) * 2.4, 0.0, -2.0 + float(i / 3) * 3.0)
-		_build_sheep(base + off)
+		var sheep_kind := "ram_a" if i == 2 else ("lamb_a" if i == 5 else "sheep_b")
+		_build_sheep(base + off, sheep_kind)
 	var w := CaseObjects.WOLF_SPOT
 	_wolf_pos = Vector3(w.x, t.height(w.x, w.y), w.y)
 	_build_wolf(_wolf_pos)
@@ -40,11 +41,20 @@ func set_thermal_markers(on: bool) -> void:
 	for m in _sheep_heat:
 		m.visible = on
 
-func _build_sheep(pos: Vector3) -> void:
+func _build_sheep(pos: Vector3, kind := "sheep_b") -> void:
 	var root := Node3D.new()
 	root.position = pos
 	root.rotation.y = randf_range(0.0, TAU)
 	add_child(root)
+	var model := _load_animal_model(kind)
+	if model != null:
+		model.rotation.y = PI
+		root.add_child(model)
+		var heat_model := ThermalHeat.animal(root, Vector3.ZERO, 1.05, 0.56)
+		heat_model.visible = false
+		_sheep_heat.append(heat_model)
+		_sheep_roots.append(root)
+		return
 	var wool := StandardMaterial3D.new()
 	wool.albedo_color = Color(0.80, 0.78, 0.68)
 	wool.roughness = 0.95
@@ -86,6 +96,13 @@ func _build_wolf(pos: Vector3) -> void:
 	_wolf.position = pos
 	_wolf.rotation.y = -0.9
 	add_child(_wolf)
+	var model := _load_animal_model("wolf_a")
+	if model != null:
+		model.rotation.y = PI
+		_wolf.add_child(model)
+		_wolf_heat = ThermalHeat.animal(_wolf, Vector3.ZERO, 1.55, 0.70)
+		_wolf_heat.visible = false
+		return
 	var fur := StandardMaterial3D.new()
 	fur.albedo_color = Color(0.30, 0.28, 0.24)
 	fur.roughness = 0.92
@@ -141,6 +158,16 @@ func _build_wolf(pos: Vector3) -> void:
 	_wolf.add_child(tmi)
 	_wolf_heat = ThermalHeat.animal(_wolf, Vector3.ZERO, 1.55, 0.70)
 	_wolf_heat.visible = false
+
+func _load_animal_model(name: String) -> Node3D:
+	var path := "res://assets/models/animals/%s.glb" % name
+	if not ResourceLoader.exists(path):
+		return null
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return null
+	var inst := packed.instantiate() as Node3D
+	return inst
 
 func _heat_mesh(radius: float, height: float) -> MeshInstance3D:
 	var m := MeshInstance3D.new()

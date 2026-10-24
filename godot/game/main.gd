@@ -1519,6 +1519,11 @@ func _screenshot_mode(arg: String) -> void:
 			case_objects.set_thermal_marker(true)
 			wildlife_objects.set_thermal_markers(true)
 			traffic.set_thermal_heat(true)
+		elif c == "wildmodels":    # session B dev hook: the Blender sheep and wolf in daylight
+			var spw: Vector3 = wildlife_objects.first_sheep_position()
+			quad.reset(spw.x + 10.0, terrain.height(spw.x + 10.0, spw.z + 10.0) + 6.0, spw.z + 10.0, deg_to_rad(45.0))
+			gimbal_pitch = deg_to_rad(-18.0)
+			_apply_pose()
 		elif c == "thermalsheep":  # session B dev hook: thermal on, standing off the flock
 			if not inventory.has_addon("thermal_camera"):
 				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
