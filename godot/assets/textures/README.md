@@ -99,3 +99,22 @@ The `.import` files are committed with them.
 ## Leaf cards (`cards/*.png`, models5b)
 Original drawings made by `test/gen_card_textures.gd` (curves painted with a width profile, midrib and veins; no source photographs, no licence issue). They are data textures, not colour: r is the shade, g marks stem, husk or head, b marks the accents (tassel, umbel, silk, flower) and a is the cut-out. `corn_card`, `corn_top` (seen from above), `barley_card_a/b`, `alfalfa_card_a/b`, `weeds_card`. Re-run the script after changing a drawing, then import.
 
+## Drones (lane/drones, Blender 4)
+
+`drones/drone_*.jpg`, 1024 px, made by `tools/blender/drones_prep_textures.py` from the ambientCG 1K-JPG sets (re-saved with PIL;
+roughness remapped into each material's range and packed as ORM: r occlusion 1, g roughness, b metal; normals OpenGL). Blender
+embeds them in the drone .glb files; the game imports these copies (VRAM compressed, mipmapped) and `game/drone_assets.gd`
+puts them back on the drones by material name. Sheet: `docs/realism/models/drones_final_textures.jpg`.
+
+| Files | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `drone_carbon_*` | ambientCG `Fabric004`, https://ambientcg.com/a/Fabric004 (2x2 twill carbon weave), recoloured near black | ambientCG (Lennart Demes), procedural | CC0 | 14 mm | carbon plates, arms, legs |
+| `drone_brushed_*` | ambientCG `Metal009`, https://ambientcg.com/a/Metal009 | ambientCG, procedural | CC0 | 20 mm | anodised parts, bell sides, rails, pod case |
+| `drone_spun_*` | ambientCG `Metal051A`, https://ambientcg.com/a/Metal051A (circular brushing) | ambientCG, procedural | CC0 | one per part, centred | motor bell tops, gimbal rotors |
+| `drone_plastic_*` | ambientCG `Plastic012B`, https://ambientcg.com/a/Plastic012B | ambientCG, procedural | CC0 | 50 mm | camera bodies, canopy, connectors |
+| `drone_rubber_*` | ambientCG `Rubber004`, https://ambientcg.com/a/Rubber004 | ambientCG, procedural | CC0 | 10 to 12 mm | TPU mounts, dampers, feet |
+| `drone_strap_*` | ambientCG `Fabric036`, https://ambientcg.com/a/Fabric036, darkened | ambientCG, procedural | CC0 | 20 mm | battery straps |
+| `drone_wrap_raptor.jpg`, `drone_wrap_nightowl.jpg` | drawn by the prep script (no words, no brands) | own work | CC0 | wraps the pack | battery shrink wraps |
+| `drone_pcb_diff.jpg` | drawn by the prep script | own work | CC0 | one board | flight controller, ESC, VTX boards |
+
+Downloaded 2026-10-24. No photographed CC0 carbon weave was found (Poly Haven has none; the ambientCG sets above are all made procedurally).
