@@ -90,7 +90,7 @@ func _app_bar() -> Control:
 	row.add_theme_constant_override("separation", 12)
 	m.add_child(row)
 	var back := Button.new()
-	back.text = "Back"
+	back.text = "‹"
 	back.theme_type_variation = "Ghost"
 	back.custom_minimum_size = Vector2(76, 38)
 	back.pressed.connect(func(): close_requested.emit())

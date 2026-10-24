@@ -9,27 +9,27 @@ extends RefCounted
 ## One Theme is applied to the phone root, so every app inherits the same buttons, fields, scrollbars and type. Apps
 ## style their own cards and headers from the palette below.
 
-const NIGHT := Color(0.055, 0.065, 0.058, 1.0)
-const DEEP := Color(0.075, 0.088, 0.078, 1.0)
-const PANEL := Color(0.095, 0.112, 0.100, 1.0)
-const CARD := Color(0.120, 0.140, 0.122, 1.0)
-const FIELD := Color(0.165, 0.188, 0.162, 1.0)
-const FIELD_HOVER := Color(0.205, 0.232, 0.198, 1.0)
-const CREAM := Color(0.940, 0.912, 0.820, 1.0)
-const CREAM_DIM := Color(0.760, 0.760, 0.680, 1.0)
-const MUTED := Color(0.600, 0.630, 0.555, 1.0)
-const FAINT := Color(0.400, 0.430, 0.390, 1.0)
-const AMBER := Color(0.880, 0.672, 0.350, 1.0)
-const AMBER_HOVER := Color(0.940, 0.735, 0.400, 1.0)
-const AMBER_SOFT := Color(0.880, 0.672, 0.350, 0.16)
-const ON_AMBER := Color(0.085, 0.075, 0.045, 1.0)
-const MOSS := Color(0.455, 0.660, 0.480, 1.0)
-const MOSS_SOFT := Color(0.455, 0.660, 0.480, 0.16)
-const LAKE := Color(0.360, 0.585, 0.640, 1.0)
-const RUST := Color(0.700, 0.390, 0.280, 1.0)
-const DANGER := Color(0.860, 0.360, 0.320, 1.0)
-const LINE := Color(0.940, 0.880, 0.740, 0.10)
-const LINE_STRONG := Color(0.880, 0.740, 0.500, 0.30)
+const NIGHT := Color(0.043, 0.047, 0.055, 1.0)
+const DEEP := Color(0.063, 0.071, 0.086, 1.0)
+const PANEL := Color(0.086, 0.094, 0.110, 1.0)
+const CARD := Color(0.110, 0.118, 0.137, 1.0)
+const FIELD := Color(0.145, 0.153, 0.176, 1.0)
+const FIELD_HOVER := Color(0.190, 0.200, 0.227, 1.0)
+const CREAM := Color(0.902, 0.890, 0.913, 1.0)
+const CREAM_DIM := Color(0.780, 0.770, 0.800, 1.0)
+const MUTED := Color(0.590, 0.575, 0.615, 1.0)
+const FAINT := Color(0.390, 0.380, 0.415, 1.0)
+const AMBER := Color(0.658, 0.780, 0.980, 1.0)
+const AMBER_HOVER := Color(0.760, 0.850, 1.0, 1.0)
+const AMBER_SOFT := Color(0.658, 0.780, 0.980, 0.16)
+const ON_AMBER := Color(0.035, 0.080, 0.125, 1.0)
+const MOSS := Color(0.560, 0.835, 0.650, 1.0)
+const MOSS_SOFT := Color(0.560, 0.835, 0.650, 0.16)
+const LAKE := Color(0.520, 0.780, 0.850, 1.0)
+const RUST := Color(0.940, 0.720, 0.640, 1.0)
+const DANGER := Color(1.0, 0.705, 0.670, 1.0)
+const LINE := Color(0.902, 0.890, 0.913, 0.11)
+const LINE_STRONG := Color(0.780, 0.830, 0.950, 0.26)
 
 static func box(bg: Color, radius := 12, border := LINE, bw := 1, mx := 16.0, my := 10.0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
@@ -151,6 +151,9 @@ static func _button(t: Theme, type: String, normal: StyleBox, hover: StyleBox, p
 
 static func make_theme() -> Theme:
 	var t := Theme.new()
+	var inter := load("res://assets/ui/tablet/Inter.woff2") as Font
+	if inter != null:
+		t.default_font = inter
 	t.default_font_size = 16
 	t.set_color("font_color", "Label", CREAM)
 	t.set_constant("line_spacing", "Label", 3)

@@ -116,24 +116,26 @@ class Chevron extends Control:
 # ------------------------------------------------------------------ setup
 func setup(h: Hud) -> void:
 	hud = h
-	layer = 20
+	layer = 34
 	_rng.seed = 424242
 	_style = 1 if h == null else int(h.phone_style)
 	_f_regular = FontVariation.new()
-	_f_regular.base_font = ThemeDB.fallback_font
+	var inter_font := load("res://assets/ui/tablet/Inter.woff2") as Font
+	_f_regular.base_font = inter_font if inter_font != null else ThemeDB.fallback_font
 	_f_medium = FontVariation.new()
-	_f_medium.base_font = ThemeDB.fallback_font
+	_f_medium.base_font = inter_font if inter_font != null else ThemeDB.fallback_font
 	_f_medium.variation_embolden = 0.32
 	_f_bold = FontVariation.new()
-	_f_bold.base_font = ThemeDB.fallback_font
+	_f_bold.base_font = inter_font if inter_font != null else ThemeDB.fallback_font
 	_f_bold.variation_embolden = 0.62
 	_f_spaced = FontVariation.new()
-	_f_spaced.base_font = ThemeDB.fallback_font
+	_f_spaced.base_font = inter_font if inter_font != null else ThemeDB.fallback_font
 	_f_spaced.variation_embolden = 0.25
 	_f_spaced.spacing_glyph = 1
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.theme = UniverseUI.make_theme()
 	_root.visible = false
 	add_child(_root)
 	# a back buffer copy so the iPhone glass style can sample and blur the FPV feed behind a card
@@ -597,6 +599,7 @@ func _rebuild_shade() -> void:
 		ch.queue_free()
 	if _shade_total:
 		_shade_total.text = "  %d notifications" % _history.size() if not _history.is_empty() else ""
+	_add_quick_settings()
 	if _history.is_empty():
 		var empty := Label.new()
 		empty.text = "No notifications"
@@ -683,6 +686,39 @@ func _rebuild_shade() -> void:
 		# the centre grows with the content, and only scrolls when the group is long
 		var rows := _history.size() if _shade_expanded else 0
 		_shade_scroll.custom_minimum_size = Vector2(0, clampf(8.0 + 88.0 * float(mini(rows, 4)), 24.0, 330.0))
+
+func _add_quick_settings() -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var items := [["Wi-Fi", "status_wifi", true], ["Bluetooth", "status_signal", false], ["Do not disturb", "status_notification", false], ["Battery saver", "status_battery", true]]
+	for item in items:
+		var b := Button.new()
+		b.text = str(item[0])
+		b.icon = load("res://assets/ui/tablet/status/64/%s.png" % str(item[1])) as Texture2D
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 24)
+		b.toggle_mode = true
+		b.button_pressed = bool(item[2])
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size = Vector2(0, 66)
+		b.add_theme_font_override("font", _f_medium)
+		b.add_theme_font_size_override("font_size", 11)
+		var normal := StyleBoxFlat.new()
+		normal.bg_color = Color(0.10, 0.11, 0.12, 0.98)
+		normal.set_corner_radius_all(16)
+		normal.border_width_left = 1; normal.border_width_top = 1; normal.border_width_right = 1; normal.border_width_bottom = 1
+		normal.border_color = Color(1, 1, 1, 0.10)
+		var pressed := normal.duplicate() as StyleBoxFlat
+		pressed.bg_color = Color(0.18, 0.25, 0.34, 0.98)
+		pressed.border_color = Color(0.63, 0.78, 1.0, 0.55)
+		b.add_theme_stylebox_override("normal", normal)
+		b.add_theme_stylebox_override("hover", normal)
+		b.add_theme_stylebox_override("pressed", pressed)
+		b.add_theme_stylebox_override("hover_pressed", pressed)
+		b.add_theme_color_override("font_color", Color(0.85, 0.87, 0.90))
+		b.add_theme_color_override("font_pressed_color", Color(0.86, 0.92, 1.0))
+		row.add_child(b)
+	_shade_list.add_child(row)
 
 func _shade_child(rec: Dictionary) -> PanelContainer:
 	var card := PanelContainer.new()

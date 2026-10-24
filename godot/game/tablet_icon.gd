@@ -5,6 +5,13 @@ extends Control
 
 var kind := "chat"
 var accent := UniverseUI.MOSS
+var _texture: Texture2D
+
+const ANDROID_ICONS := {
+	"chat": "dronebudz", "studio": "vidtube", "photos": "photos", "jobs": "jobs", "casebook": "casebook",
+	"market": "facade", "settings": "settings", "recents": "recents", "home": "home", "phone": "phone",
+	"camera": "camera", "weather": "weather",
+}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -14,11 +21,20 @@ func _ready() -> void:
 func set_kind(k: String, tint: Color) -> void:
 	kind = k
 	accent = tint
+	_texture = null
+	var asset := str(ANDROID_ICONS.get(kind, ""))
+	if asset != "":
+		var path := "res://assets/ui/tablet/icons/128/icon_%s.png" % asset
+		if ResourceLoader.exists(path):
+			_texture = load(path) as Texture2D
 	queue_redraw()
 
 func _draw() -> void:
 	var s := minf(size.x, size.y)
 	if s <= 4.0:
+		return
+	if _texture != null:
+		draw_texture_rect(_texture, Rect2(Vector2(1, 1), size - Vector2(2, 2)), false)
 		return
 	var c := size * 0.5
 	var r := s * 0.24

@@ -97,7 +97,7 @@ func _build() -> void:
 		_root.add_child(bg)
 	var scrim := ColorRect.new()
 	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scrim.color = Color(0.025, 0.035, 0.028, 0.50)
+	scrim.color = Color(0.025, 0.035, 0.028, 0.18)
 	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(scrim)
 	var top_shade := TextureRect.new()
@@ -122,12 +122,23 @@ func _build() -> void:
 	_clock = UniverseUI.label("", 12, UniverseUI.CREAM_DIM)
 	_clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	st.add_child(_clock)
-	var carrier := UniverseUI.label("HALLOWAY VALLEY", 10, UniverseUI.MUTED)
+	var carrier := UniverseUI.label("", 10, UniverseUI.MUTED)
 	carrier.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	carrier.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	st.add_child(carrier)
-	_status_sig = UniverseUI.label("LINK   ·   100%", 10, UniverseUI.MUTED)
+	_status_sig = UniverseUI.label("100%", 10, UniverseUI.MUTED)
 	st.add_child(_status_sig)
+	var stat_icons := HBoxContainer.new()
+	stat_icons.add_theme_constant_override("separation", 7)
+	st.add_child(stat_icons)
+	for icon_name in ["status_signal", "status_wifi", "status_battery"]:
+		var icon := TextureRect.new()
+		icon.texture = load("res://assets/ui/tablet/status/64/%s.png" % icon_name) as Texture2D
+		icon.custom_minimum_size = Vector2(16, 16)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.modulate = Color(0.92, 0.90, 0.82)
+		stat_icons.add_child(icon)
 	# home screen
 	_home = Control.new()
 	_home.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -165,9 +176,9 @@ func _build() -> void:
 	gap.custom_minimum_size = Vector2(0, 18)
 	hbox.add_child(gap)
 	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 20)
-	grid.add_theme_constant_override("v_separation", 24)
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 14)
 	var content := HBoxContainer.new()
 	content.add_theme_constant_override("separation", 24)
 	hbox.add_child(content)
@@ -225,7 +236,7 @@ func _build() -> void:
 		var cell := VBoxContainer.new()
 		cell.add_theme_constant_override("separation", 4)
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(96, 96)
+		btn.custom_minimum_size = Vector2(64, 64)
 		btn.focus_mode = Control.FOCUS_NONE
 		var empty := StyleBoxEmpty.new()
 		btn.add_theme_stylebox_override("normal", empty)
@@ -233,7 +244,7 @@ func _build() -> void:
 		btn.add_theme_stylebox_override("pressed", empty)
 		var key := str(a["key"])
 		var tint := UniverseUI.app_colour(key)
-		var icon := UniverseUI.app_icon(key, 96, tint)
+		var icon := UniverseUI.app_icon(key, 64, tint)
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		btn.add_child(icon)
 		btn.pressed.connect(func(): _open_app(key))
@@ -246,12 +257,9 @@ func _build() -> void:
 			_studio_badge = UniverseUI.label("", 9, UniverseUI.AMBER)
 			_studio_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cell.add_child(_studio_badge)
-		var lab := UniverseUI.label(str(a["name"]), 11, UniverseUI.CREAM_DIM)
+		var lab := UniverseUI.label(str(a["name"]), 12, UniverseUI.CREAM_DIM)
 		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cell.add_child(lab)
-		var kind := UniverseUI.label(str(a["kind"]).to_upper(), 8, UniverseUI.FAINT)
-		kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cell.add_child(kind)
 		grid.add_child(cell)
 	var filler := Control.new()
 	filler.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -267,6 +275,19 @@ func _build() -> void:
 	var tip := UniverseUI.label("Tab closes the phone. Land to use it safely. The valley keeps flying behind it.", 10, UniverseUI.MUTED)
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tm.add_child(tip)
+	# launcher page dots
+	var dots := HBoxContainer.new()
+	dots.alignment = BoxContainer.ALIGNMENT_CENTER
+	dots.add_theme_constant_override("separation", 8)
+	dots.custom_minimum_size = Vector2(0, 16)
+	for i in 2:
+		var pdot := TextureRect.new()
+		pdot.texture = load("res://assets/ui/tablet/polish/page_dot_on.png" if i == 0 else "res://assets/ui/tablet/polish/page_dot_off.png") as Texture2D
+		pdot.custom_minimum_size = Vector2(8, 8)
+		pdot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pdot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		dots.add_child(pdot)
+	hcol.add_child(dots)
 	# dock
 	var dock := PanelContainer.new()
 	var dsb := UniverseUI.box(Color(0.07, 0.085, 0.075, 0.96), 0, UniverseUI.LINE, 1, 26.0, 10.0)
@@ -274,28 +295,28 @@ func _build() -> void:
 	dsb.border_width_right = 0
 	dsb.border_width_bottom = 0
 	dock.add_theme_stylebox_override("panel", dsb)
-	dock.custom_minimum_size = Vector2(0, 58)
+	dock.custom_minimum_size = Vector2(0, 84)
 	hcol.add_child(dock)
 	var dm := MarginContainer.new()
 	for m in ["left", "right"]:
-		dm.add_theme_constant_override("margin_" + m, 30)
+		dm.add_theme_constant_override("margin_" + m, 56)
 	dock.add_child(dm)
 	var drow := HBoxContainer.new()
-	drow.add_theme_constant_override("separation", 12)
+	drow.add_theme_constant_override("separation", 16)
 	dm.add_child(drow)
-	var home_btn := Button.new(); home_btn.text = "Home"; home_btn.theme_type_variation = "Ghost"
+	var home_btn := Button.new(); home_btn.text = "Home"; home_btn.theme_type_variation = "Ghost"; home_btn.visible = false
 	home_btn.custom_minimum_size = Vector2(86, 36)
 	home_btn.pressed.connect(_show_home)
 	drow.add_child(home_btn)
-	var recents := Button.new(); recents.text = "Recents"; recents.theme_type_variation = "Ghost"
+	var recents := Button.new(); recents.text = "Recents"; recents.theme_type_variation = "Ghost"; recents.visible = false
 	recents.custom_minimum_size = Vector2(96, 36)
 	recents.pressed.connect(_show_switcher)
 	drow.add_child(recents)
 	var dock_gap := Control.new(); dock_gap.custom_minimum_size = Vector2(18, 0)
 	drow.add_child(dock_gap)
-	for pair in [["chat", "DroneBudz"], ["studio", "VidTube Studio"], ["photos", "Photos"], ["market", "Facade"]]:
+	for pair in [["chat", "DroneBudz"], ["studio", "VidTube Studio"], ["photos", "Photos"], ["market", "Facade"], ["map", "Map"]]:
 		var dock_btn := Button.new()
-		dock_btn.custom_minimum_size = Vector2(44, 44)
+		dock_btn.custom_minimum_size = Vector2(56, 56)
 		dock_btn.tooltip_text = str(pair[1])
 		dock_btn.focus_mode = Control.FOCUS_NONE
 		var empty := StyleBoxEmpty.new()
@@ -303,14 +324,14 @@ func _build() -> void:
 		dock_btn.add_theme_stylebox_override("hover", UniverseUI.box(Color(1, 1, 1, 0.06), 10, Color(0, 0, 0, 0), 0, 0.0, 0.0))
 		dock_btn.add_theme_stylebox_override("pressed", UniverseUI.box(Color(1, 1, 1, 0.10), 10, Color(0, 0, 0, 0), 0, 0.0, 0.0))
 		var der := str(pair[0])
-		var dicon := UniverseUI.app_icon(der, 40, UniverseUI.app_colour(der))
+		var dicon := UniverseUI.app_icon(der, 52, UniverseUI.app_colour(der))
 		dicon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		dock_btn.add_child(dicon)
 		dock_btn.pressed.connect(func(): _open_app(der))
 		drow.add_child(dock_btn)
 	var st2 := Control.new(); st2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	drow.add_child(st2)
-	var put_away := Button.new(); put_away.text = "Put phone away  (Tab)"; put_away.theme_type_variation = "Ghost"
+	var put_away := Button.new(); put_away.text = "Put phone away  (Tab)"; put_away.theme_type_variation = "Ghost"; put_away.visible = false
 	put_away.custom_minimum_size = Vector2(176, 36)
 	put_away.pressed.connect(close)
 	drow.add_child(put_away)
@@ -375,6 +396,7 @@ func _build() -> void:
 	sdim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_switcher.add_child(sdim)
 	_build_system_nav()
+	_add_device_frame()
 	visible = false
 
 func open() -> void:
@@ -383,11 +405,31 @@ func open() -> void:
 	_show_home()
 	_refresh()
 
+## A real tablet bezel overlay from the UI kit. It makes the screen read as a physical Android tablet instead of a
+## bordered desktop rectangle; the frame is transparent over the display and only the bezel is opaque.
+func _add_device_frame() -> void:
+	var frame := TextureRect.new()
+	var win := DisplayServer.window_get_size()
+	var aspect := float(win.x) / maxf(1.0, float(win.y))
+	if absf(aspect - 16.0 / 9.0) > 0.02:
+		return
+	var wide := win.x > 1600
+	var path := "res://assets/ui/tablet/frame/tablet_frame_1920x1080.png" if wide else "res://assets/ui/tablet/frame/tablet_frame_1280x720.png"
+	if not ResourceLoader.exists(path):
+		return
+	frame.texture = load(path) as Texture2D
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	frame.stretch_mode = TextureRect.STRETCH_SCALE
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.z_index = 300
+	_root.add_child(frame)
+
 ## The persistent bottom tablet bar: every app gets the same Home, app title, Recents and Put away controls.
 func _build_system_nav() -> void:
 	_sys_nav = PanelContainer.new()
 	_sys_nav.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_sys_nav.offset_top = -54.0
+	_sys_nav.offset_top = -56.0
 	_sys_nav.z_index = 40
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.045, 0.055, 0.048, 0.97)
@@ -404,27 +446,48 @@ func _build_system_nav() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	m.add_child(row)
+	var back_btn := Button.new()
+	back_btn.text = "‹"
+	back_btn.theme_type_variation = "Ghost"
+	back_btn.custom_minimum_size = Vector2(48, 48)
+	back_btn.add_theme_font_size_override("font_size", 28)
+	back_btn.tooltip_text = "Back"
+	back_btn.pressed.connect(_show_home)
+	row.add_child(back_btn)
 	var home_btn := Button.new()
-	home_btn.text = "Home"
+	home_btn.text = ""
+	home_btn.icon = load("res://assets/ui/tablet/icons/mono/44/icon_home_mono.png") as Texture2D
+	home_btn.expand_icon = true
+	home_btn.add_theme_constant_override("icon_max_width", 22)
 	home_btn.theme_type_variation = "Ghost"
-	home_btn.custom_minimum_size = Vector2(92, 38)
+	home_btn.custom_minimum_size = Vector2(48, 48)
+	home_btn.tooltip_text = "Home"
 	home_btn.pressed.connect(_show_home)
 	row.add_child(home_btn)
 	_sys_nav_name = UniverseUI.label("", 12, UniverseUI.MUTED)
 	_sys_nav_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sys_nav_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_sys_nav_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sys_nav_name.visible = false
 	row.add_child(_sys_nav_name)
 	var recents_btn := Button.new()
-	recents_btn.text = "Recents"
+	recents_btn.text = ""
+	recents_btn.icon = load("res://assets/ui/tablet/icons/mono/44/icon_recents_mono.png") as Texture2D
+	recents_btn.expand_icon = true
+	recents_btn.add_theme_constant_override("icon_max_width", 22)
 	recents_btn.theme_type_variation = "Ghost"
-	recents_btn.custom_minimum_size = Vector2(100, 38)
+	recents_btn.custom_minimum_size = Vector2(48, 48)
+	recents_btn.tooltip_text = "Recents"
 	recents_btn.pressed.connect(_show_switcher)
 	row.add_child(recents_btn)
 	var hide_btn := Button.new()
-	hide_btn.text = "Put away"
+	hide_btn.text = ""
+	hide_btn.icon = load("res://assets/ui/tablet/icons/mono/44/icon_phone_mono.png") as Texture2D
+	hide_btn.expand_icon = true
+	hide_btn.add_theme_constant_override("icon_max_width", 22)
 	hide_btn.theme_type_variation = "Ghost"
-	hide_btn.custom_minimum_size = Vector2(110, 38)
+	hide_btn.custom_minimum_size = Vector2(48, 48)
+	hide_btn.tooltip_text = "Put phone away"
 	hide_btn.pressed.connect(close)
 	row.add_child(hide_btn)
 	_sys_nav.visible = false
@@ -666,7 +729,7 @@ func _refresh() -> void:
 	if _battery_dial != null:
 		_battery_dial.set_dial("battery", _battery_pct, "DRONE", UniverseUI.MOSS if _battery_pct > 0.25 else UniverseUI.RUST)
 	if _status_sig != null:
-		_status_sig.text = "LINK   ·   %d%%" % int(round(_battery_pct * 100.0))
+		_status_sig.text = "%d%%" % int(round(_battery_pct * 100.0))
 	if _current_app == "studio" and _studio_app.visible:
 		_studio_app.refresh()
 
@@ -674,7 +737,7 @@ func _refresh() -> void:
 func set_battery(pct: float) -> void:
 	_battery_pct = clampf(pct, 0.0, 1.0)
 	if _status_sig != null:
-		_status_sig.text = "LINK   ·   %d%%" % int(round(_battery_pct * 100.0))
+		_status_sig.text = "%d%%" % int(round(_battery_pct * 100.0))
 	if _battery_dial != null and _open:
 		_battery_dial.set_dial("battery", _battery_pct, "DRONE", UniverseUI.MOSS if _battery_pct > 0.25 else UniverseUI.RUST)
 

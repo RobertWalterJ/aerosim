@@ -7,3 +7,5 @@ build/
 !assets/world/valley_cover.png
 !assets/world/valley_path.png
 !assets/world/lake_mask.png
+!assets/ui/tablet/**/*.png
+!assets/ui/tablet/**/*.woff2
