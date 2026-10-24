@@ -24,6 +24,20 @@ func setup(t: Terrain) -> void:
 	_build_bollards()
 	print("boat launch: ramp ", TOP_SPOT, " to water ", WATER_SPOT)
 
+func _try_site_model(root: Node3D, name: String, yaw: float) -> bool:
+	var path := "res://assets/models/sites/%s.glb" % name
+	if not ResourceLoader.exists(path):
+		return false
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return false
+	var inst := packed.instantiate() as Node3D
+	if inst == null:
+		return false
+	inst.rotation.y = yaw
+	root.add_child(inst)
+	return true
+
 func _build_parking() -> void:
 	var c := CaseObjects.BOAT_LAUNCH_SPOT
 	var root := Node3D.new()
@@ -169,6 +183,8 @@ func _build_boat() -> void:
 	root.position = Vector3(-474.0, Lake.LEVEL + 0.45, 111.0)
 	root.rotation.y = 0.18
 	add_child(root)
+	if _try_site_model(root, "boat_aluminium_hull", 0.0):
+		return
 	var hull_mat := StandardMaterial3D.new()
 	hull_mat.albedo_color = Color(0.72, 0.75, 0.73)
 	hull_mat.metallic = 0.45
@@ -213,6 +229,8 @@ func _build_trailer() -> void:
 	root.position = Vector3(p.x, terrain.height(p.x, p.y) + 0.22, p.y)
 	root.rotation.y = -0.18
 	add_child(root)
+	if _try_site_model(root, "boat_trailer", 0.0):
+		return
 	var steel := StandardMaterial3D.new()
 	steel.albedo_color = Color(0.19, 0.19, 0.18)
 	steel.metallic = 0.5

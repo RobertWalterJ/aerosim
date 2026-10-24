@@ -158,12 +158,28 @@ func _build_ruts() -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
+func _try_site_model(root: Node3D, name: String, yaw: float) -> bool:
+	var path := "res://assets/models/sites/%s.glb" % name
+	if not ResourceLoader.exists(path):
+		return false
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return false
+	var inst := packed.instantiate() as Node3D
+	if inst == null:
+		return false
+	inst.rotation.y = yaw
+	root.add_child(inst)
+	return true
+
 func _build_fall(x: float, z: float, yaw: float, length: float) -> void:
 	var p := Vector2(x, z)
 	var root := Node3D.new()
 	root.position = Vector3(p.x, terrain.height(p.x, p.y) + 0.38, p.y)
 	root.rotation.y = yaw
 	add_child(root)
+	if _try_site_model(root, "tree_fall_a" if length < 7.5 else "tree_fall_b", 0.0):
+		return
 	var bark := StandardMaterial3D.new()
 	bark.albedo_color = Color(0.26, 0.19, 0.12)
 	bark.roughness = 0.95
@@ -215,6 +231,8 @@ func _build_rocks(center: Vector2, _yaw: float) -> void:
 	var root := Node3D.new()
 	root.position = Vector3(center.x, terrain.height(center.x, center.y), center.y)
 	add_child(root)
+	if _try_site_model(root, "rockfall_a", 0.0):
+		return
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.35, 0.34, 0.30)
 	mat.roughness = 0.96
