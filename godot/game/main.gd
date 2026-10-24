@@ -413,6 +413,13 @@ func _ready() -> void:
 		for q in p["pts"]: pts.append(Vector2(q[0], q[1]))
 		pl.append(pts)
 	hud.minimap.paths = pl
+	var rp: Array[PackedVector2Array] = []
+	for id in roads.paths:
+		var pts2 := PackedVector2Array()
+		for q in roads.paths[id]:
+			pts2.append(q)
+		rp.append(pts2)
+	hud.minimap.roads = rp
 	apply_weather(hud.weather, true)   # snap at start-up so the game begins at the saved weather
 	spawn()
 	drone_shadow.setup(af, terrain)

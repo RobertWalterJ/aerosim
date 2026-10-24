@@ -783,3 +783,21 @@ The channel no longer pretends to store footage. Video mode now makes a small re
   - CLIP3. Should rushes be multi-select and ordered by the player before Maya cuts them?
   - CLIP4. Should old jobs publish a thumbnail automatically from their qualifying photo?
   - CLIP5. Should there be a short animated preview (a few frames) instead of a still, still without a video file?
+
+## Roads around the cemetery (lane/notify, session B, 2026-11-13)
+The old valley highway ran home to chapel to farm straight through the graves and the chapel, and the ridge road started inside the cemetery. Both have been replaced by a ring outside the walls.
+- **New routes (`game/roads.gd`):** valley highway from the east gate car park around the east and south walls to the farm; south gate lane from the valley to the south gate; east boundary lane from the east car park to the north gate; ridge road from the north gate to the garage and camp; cabin track branch; lakeside lane from the farm to the lake; festival lane; west boundary lane from the lakeside lane to the west gate. Eight routes, 3.61 km.
+- **Cemetery protection:** every asphalt centreline stays outside a 248 m square around the walled cemetery. The gate points are outside the walls. Inside, only the park's own gravel paths remain. The roads no longer pass through the chapel or the grave rows.
+- **Map:** the minimap draws the country roads as a dark line with a warm centre under the pale park paths, so the ring and the cemetery paths read together.
+- **Festival field:** moved out of the cemetery from (24, -96) to (300, 300), beside the new festival lane. The bus is no longer parked among the graves.
+- **Places linked:** east gate car park, south gate, north gate, west gate, farm, lake overlook, garage, camp, cabin and festival field. Home and chapel remain inside and are reached by the park paths, not by cars.
+- **Audit:** `Roads.audit()` checks every route sample against the 248 m square and prints `inside_cemetery: 0` at startup. This is the guard against a future route edit cutting through the graves again.
+- **Evidence (docs/realism/roads/):** 10 the ring around the untouched cemetery, 11 the home pad, park paths and minimap.
+- **Docs:** `docs/ROADS-PLAN.md` has the route table, gates, rationale, audit and limits.
+- **Honest limits:** only the east gate has the existing modelled car park with cars; south, north and west have no parking bays or bollards yet. The audit is a rectangle check on the road centreline, not a full geometric collision test against every grave and hedge. Road grades follow terrain and have not been checked for every vehicle angle. The west lane runs close to the outside wall and needs a final art check. The festival field has moved, so older screenshots or saves showing the old field are out of date. No new Claude asset is needed for the layout.
+- **Questions for Robert:**
+  - ROAD1. Is ending the asphalt at the gates the right feel, or should there be a short driveway into each gate?
+  - ROAD2. Should the south, north and west gates get small gravel car parks and bollards?
+  - ROAD3. Is the festival field at (300, 300) in the right place, or should it be somewhere else outside the cemetery?
+  - ROAD4. Should the chapel keep only the park path access, or get a service track around the outside and a short walking spur?
+  - ROAD5. Do you want road signs naming the gates, the farm, the lake and the ridge?

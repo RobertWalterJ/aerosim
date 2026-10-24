@@ -11,7 +11,7 @@ extends Node3D
 
 const GARAGE_SPOT := Vector2(55.0, -600.0)
 const CAMP_SPOT := Vector2(36.0, -1120.0)
-const FESTIVAL_SPOT := Vector2(24.0, -96.0)
+const FESTIVAL_SPOT := Vector2(300.0, 300.0)
 const CABIN_SPOT := Vector2(-250.0, -820.0)
 const SEARCH_SPOT := Vector2(-70.0, -790.0)
 const SHEEP_SPOT := Vector2(55.0, 585.0)

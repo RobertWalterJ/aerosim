@@ -11,6 +11,7 @@ var heading := 0.0              # compass bearing in radians, 0 = north, clockwi
 var home := Vector2.ZERO
 var features: Array[Rect2] = [] # rectangles to outline, in world x,z
 var paths: Array[PackedVector2Array] = []   # park paths as lines, in world x,z
+var roads: Array[PackedVector2Array] = []   # the country roads as lines, under the park paths
 var _tex: ImageTexture
 var _size_m := 1600.0
 var _trail := PackedVector2Array()
@@ -65,6 +66,12 @@ func _draw() -> void:
 		draw_set_transform(c, -heading, Vector2(k, k))
 		draw_texture_rect(_tex, Rect2(Vector2(-drone.x, -drone.z) - Vector2(_size_m, _size_m) * 0.5, Vector2(_size_m, _size_m)), false)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	for pl in roads:
+		if pl.size() < 2: continue
+		var rpts := PackedVector2Array()
+		for p in pl: rpts.append(_w2m(p))
+		draw_polyline(rpts, Color(0.16, 0.15, 0.13, 0.85), 4.2, true)
+		draw_polyline(rpts, Color(0.72, 0.62, 0.43, 0.65), 1.2, true)
 	for pl in paths:
 		if pl.size() < 2: continue
 		var pts := PackedVector2Array()

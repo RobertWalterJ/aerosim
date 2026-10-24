@@ -1,13 +1,8 @@
 class_name Roads
 extends Node3D
-## Country highways and lanes linking the valley's places (session B).
-##
-## The road plan is fixed so the trees can be kept off it while the world is planted: World skips any tree, far tree or
-## prop within a few metres of a route centreline. The routes follow the terrain height, with an asphalt ribbon, dashed
-## centre line and edge lines, gravel shoulders, and a worn surface shader. Three roads: the valley highway from the
-## start pad past the chapel and down to the farm, the lakeside lane from the farm round to the lake overlook, and the
-## long ridge road from the pad and the graves north to the railway. None of them is a race track or a gate: they are
-## scenery and a way to read the valley from low down.
+## The roads stay outside the cemetery walls. The park owns its own paths and gates; the asphalt network connects the
+## four gates to the farm, the lake, the festival field, the garage, the camp and the cabin. The old plan cut straight
+## through the graves and the chapel, which was not acceptable.
 ##
 ## The mesh is built once at startup. Roughly four metres between samples and about ten metres of clearance for trees.
 
@@ -19,18 +14,48 @@ const TREE_CLEARANCE := 10.0
 const ROUTES := [
 	{
 		"id": "valley", "name": "valley highway", "width": 8.0, "shoulder": 2.4,
-		"points": [Vector2(-18.0, 36.0), Vector2(60.0, -20.0), Vector2(188.0, -74.0), Vector2(225.0, 80.0),
-			Vector2(240.0, 320.0), Vector2(215.0, 505.0)],
+		# east gate car park, then around the east and south walls to the farm
+		"points": [Vector2(270.0, 42.0), Vector2(280.0, 110.0), Vector2(286.0, 180.0), Vector2(286.0, 260.0),
+			Vector2(270.0, 360.0), Vector2(240.0, 440.0), Vector2(215.0, 505.0)],
 	},
 	{
-		"id": "lake", "name": "lakeside lane", "width": 5.0, "shoulder": 1.8,
-		"points": [Vector2(215.0, 505.0), Vector2(90.0, 470.0), Vector2(-80.0, 420.0), Vector2(-260.0, 300.0),
-			Vector2(-380.0, 190.0), Vector2(-410.0, 120.0)],
+		"id": "south_lane", "name": "south gate lane", "width": 5.5, "shoulder": 1.8,
+		# from the valley highway along the south wall to the south gate
+		"points": [Vector2(286.0, 260.0), Vector2(200.0, 255.0), Vector2(100.0, 252.0), Vector2(17.0, 250.0)],
+	},
+	{
+		"id": "east_link", "name": "east boundary lane", "width": 6.0, "shoulder": 2.0,
+		# east gate car park north along the east wall to the north gate
+		"points": [Vector2(270.0, 42.0), Vector2(276.0, -60.0), Vector2(276.0, -170.0), Vector2(260.0, -245.0),
+			Vector2(150.0, -255.0), Vector2(12.0, -255.0)],
 	},
 	{
 		"id": "ridge", "name": "ridge road", "width": 7.0, "shoulder": 2.2,
-		"points": [Vector2(-18.0, 36.0), Vector2(22.0, 81.0), Vector2(-10.0, -200.0), Vector2(-30.0, -500.0),
-			Vector2(0.0, -900.0), Vector2(0.0, -1530.0)],
+		# north gate north to the garage and the camp, outside the west side of the park
+		"points": [Vector2(12.0, -255.0), Vector2(30.0, -320.0), Vector2(48.0, -420.0), Vector2(58.0, -520.0),
+			Vector2(55.0, -600.0), Vector2(45.0, -760.0), Vector2(36.0, -900.0), Vector2(36.0, -1120.0)],
+	},
+	{
+		"id": "cabin", "name": "cabin track", "width": 4.5, "shoulder": 1.6,
+		# branch from the ridge road out to the old cabin
+		"points": [Vector2(45.0, -760.0), Vector2(-60.0, -790.0), Vector2(-160.0, -810.0), Vector2(-250.0, -820.0)],
+	},
+	{
+		"id": "lake", "name": "lakeside lane", "width": 5.0, "shoulder": 1.8,
+		# farm south and west, outside the park, down to the lake overlook
+		"points": [Vector2(215.0, 505.0), Vector2(90.0, 470.0), Vector2(-80.0, 420.0), Vector2(-200.0, 360.0),
+			Vector2(-300.0, 300.0), Vector2(-340.0, 240.0), Vector2(-380.0, 180.0), Vector2(-410.0, 120.0)],
+	},
+	{
+		"id": "festival", "name": "festival lane", "width": 4.5, "shoulder": 1.6,
+		# short branch from the valley highway to the festival field
+		"points": [Vector2(286.0, 260.0), Vector2(300.0, 300.0)],
+	},
+	{
+		"id": "west_link", "name": "west boundary lane", "width": 5.0, "shoulder": 1.8,
+		# from the lakeside lane up the outside of the west wall to the west gate
+		"points": [Vector2(-300.0, 300.0), Vector2(-292.0, 200.0), Vector2(-285.0, 100.0), Vector2(-280.0, 0.0),
+			Vector2(-245.0, -4.0)],
 	},
 ]
 
@@ -85,7 +110,7 @@ func setup(t: Terrain) -> void:
 		paths[str(r["id"])] = _route_points(r)
 	for r in ROUTES:
 		_build_route(r)
-	print("roads: ", stats())
+	print("roads: ", stats(), " audit: ", audit())
 
 func route_ids() -> Array:
 	return paths.keys()
@@ -227,3 +252,16 @@ func stats() -> Dictionary:
 	for k in _lengths:
 		total += float(_lengths[k])
 	return {"routes": _lengths.size(), "km": snappedf(total / 1000.0, 0.01), "lengths": _lengths}
+
+## The cemetery walls stand at about x/z +/-238. No road centreline may enter the 248 m square; the gates and their car
+## parks sit outside it. This is a cheap guard so a future route edit cannot quietly cut through the graves again.
+func audit() -> Dictionary:
+	var inside := 0
+	var first := Vector2.ZERO
+	for id in paths:
+		for p in paths[id]:
+			if absf(p.x) < 248.0 and absf(p.y) < 248.0:
+				inside += 1
+				if inside == 1:
+					first = p
+	return {"inside_cemetery": inside, "first": first}
