@@ -34,12 +34,21 @@ var sites: LaunchSites
 var finale: Finale
 var wildlife: WildlifeCase
 var _root: Control
+var _screen: Control              # content rect inside the device bezel; every OS surface lives here
+var _frame_inset := 0.0
 var _home: Control
 var _apps: Control
+var _drawer: Control
+var _drawer_search: LineEdit
+var _drawer_grid: GridContainer
+var _drawer_cells: Array[Control] = []
+var _drawer_shown := false
 var _switcher: Control
 var _switcher_panel: PanelContainer
 var _sys_nav: PanelContainer
 var _sys_nav_name: Label
+var _status_bar: MarginContainer
+var _status_icons: HBoxContainer
 var _clock: Label
 var _metrics: Label
 var _weather: Label
@@ -48,6 +57,7 @@ var _field_crew: Label
 var _field_case: Label
 var _drone_budz_badge: Label
 var _studio_badge: Label
+var _badges := {}                    # app key -> red Android count badge on the home icon
 var _wind_dial: TabletDial
 var _battery_dial: TabletDial
 var _credit: Label
@@ -56,6 +66,7 @@ var _mode_label: Label
 var _battery_pct := 0.74
 var _open := false
 var _current_app := "home"
+var _u := 1.0
 
 func setup(h: Hud, j: Jobs, p: PhotoLibrary, c: ChatData, cr: Crew, st: StoryArc, inv: Inventory, cl: ClipLibrary, dr: StoryDirector = null,
 		rd: Roads = null, ls: LaunchSites = null, fn: Finale = null, wl: WildlifeCase = null) -> void:
@@ -95,50 +106,67 @@ func _build() -> void:
 		var bg := PhoneBackground.new()
 		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_root.add_child(bg)
+	# Design unit. During _ready the viewport may still be the physical window size before the canvas stretch is
+	# applied, so do not derive the build-time layout from it; _resize_insets() refreshes it once the game is up.
+	_u = 1.0
 	var scrim := ColorRect.new()
 	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scrim.color = Color(0.025, 0.035, 0.028, 0.18)
+	scrim.color = Color(0.025, 0.035, 0.028, 0.10)
 	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(scrim)
+	# The kit ships a warm edge vignette for the wallpaper: it keeps the photograph bright and gives the launcher the
+	# darker edges Android wallpapers have, without darkening the whole screen.
+	var vignette_path := "res://assets/ui/tablet/polish/wallpaper_vignette.png"
+	if ResourceLoader.exists(vignette_path):
+		var vignette := TextureRect.new()
+		vignette.texture = load(vignette_path) as Texture2D
+		vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+		vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		vignette.stretch_mode = TextureRect.STRETCH_SCALE
+		vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_root.add_child(vignette)
 	var top_shade := TextureRect.new()
-	var g := Gradient.new(); g.set_color(0, Color(0.02, 0.03, 0.025, 0.72)); g.set_color(1, Color(0.02, 0.03, 0.025, 0.0))
-	var gt := GradientTexture2D.new(); gt.gradient = g; gt.fill_from = Vector2(0.0, 0.0); gt.fill_to = Vector2(0.0, 1.0); gt.width = 8; gt.height = 256
+	var g := Gradient.new(); g.set_color(0, Color(0.02, 0.03, 0.025, 0.62)); g.set_color(1, Color(0.02, 0.03, 0.025, 0.0))
+	var gt := GradientTexture2D.new(); gt.gradient = g; gt.fill_from = Vector2(0.0, 0.0); gt.fill_to = Vector2(0.0, 1.0); gt.width = 8; gt.height = 96
 	top_shade.texture = gt
-	top_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	top_shade.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top_shade.offset_bottom = 96.0 * _u
 	top_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(top_shade)
-	# status bar
-	var status := MarginContainer.new()
-	status.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	status.offset_bottom = 40
-	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# status bar (Android tablet: 24 dp, clock and notification glyphs left, signal/relay/battery right)
+	_status_bar = MarginContainer.new()
+	_status_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_status_bar.offset_bottom = _status_h()
+	_status_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for m in ["left", "right"]:
-		status.add_theme_constant_override("margin_" + m, 30)
-	status.z_index = 30
-	_root.add_child(status)
+		_status_bar.add_theme_constant_override("margin_" + m, int(round(16.0 * _u)))
+	_status_bar.z_index = 30
+	_root.add_child(_status_bar)
 	var st := HBoxContainer.new()
-	st.add_theme_constant_override("separation", 10)
-	status.add_child(st)
-	_clock = UniverseUI.label("", 12, UniverseUI.CREAM_DIM)
+	st.add_theme_constant_override("separation", int(round(8.0 * _u)))
+	_status_bar.add_child(st)
+	_clock = UniverseUI.label("", 13, UniverseUI.CREAM)
+	_clock.add_theme_font_size_override("font_size", int(round(13.0 * _u)))
 	_clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_clock.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	st.add_child(_clock)
-	var carrier := UniverseUI.label("", 10, UniverseUI.MUTED)
-	carrier.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	carrier.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	st.add_child(carrier)
-	_status_sig = UniverseUI.label("100%", 10, UniverseUI.MUTED)
-	st.add_child(_status_sig)
-	var stat_icons := HBoxContainer.new()
-	stat_icons.add_theme_constant_override("separation", 7)
-	st.add_child(stat_icons)
+	_status_icons = HBoxContainer.new()
+	_status_icons.add_theme_constant_override("separation", int(round(8.0 * _u)))
+	_status_icons.alignment = BoxContainer.ALIGNMENT_END
+	st.add_child(_status_icons)
 	for icon_name in ["status_signal", "status_wifi", "status_battery"]:
 		var icon := TextureRect.new()
 		icon.texture = load("res://assets/ui/tablet/status/64/%s.png" % icon_name) as Texture2D
-		icon.custom_minimum_size = Vector2(16, 16)
+		icon.custom_minimum_size = Vector2(18.0 * _u, 18.0 * _u)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.modulate = Color(0.92, 0.90, 0.82)
-		stat_icons.add_child(icon)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_status_icons.add_child(icon)
+	_status_sig = UniverseUI.label("100%", 11, UniverseUI.CREAM_DIM)
+	_status_sig.add_theme_font_size_override("font_size", int(round(11.0 * _u)))
+	_status_sig.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	st.add_child(_status_sig)
 	# home screen
 	_home = Control.new()
 	_home.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -149,12 +177,12 @@ func _build() -> void:
 	_home.add_child(hcol)
 	var hm := MarginContainer.new()
 	for m in ["left", "right"]:
-		hm.add_theme_constant_override("margin_" + m, 44)
-	hm.add_theme_constant_override("margin_top", 54)
+		hm.add_theme_constant_override("margin_" + m, int(round(44.0 * _u)))
+	hm.add_theme_constant_override("margin_top", int(round(54.0 * _u)))
 	hm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	hcol.add_child(hm)
 	var hbox := VBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 4)
+	hbox.add_theme_constant_override("separation", int(round(4.0 * _u)))
 	hm.add_child(hbox)
 	var date := UniverseUI.label("AUTUMN  ·  NORTH VALLEY  ·  52°N", 10, UniverseUI.AMBER)
 	hbox.add_child(date)
@@ -177,8 +205,8 @@ func _build() -> void:
 	hbox.add_child(gap)
 	var grid := GridContainer.new()
 	grid.columns = 5
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 14)
+	grid.add_theme_constant_override("h_separation", int(round(8.0 * _u)))
+	grid.add_theme_constant_override("v_separation", int(round(14.0 * _u)))
 	var content := HBoxContainer.new()
 	content.add_theme_constant_override("separation", 24)
 	hbox.add_child(content)
@@ -207,11 +235,11 @@ func _build() -> void:
 	dial_row.add_theme_constant_override("separation", 8)
 	ncol.add_child(dial_row)
 	_wind_dial = TabletDial.new()
-	_wind_dial.custom_minimum_size = Vector2(92, 92)
+	_wind_dial.custom_minimum_size = Vector2(92.0 * _u, 92.0 * _u)
 	_wind_dial.set_dial("wind", 0.35, "WIND", UniverseUI.AMBER)
 	dial_row.add_child(_wind_dial)
 	_battery_dial = TabletDial.new()
-	_battery_dial.custom_minimum_size = Vector2(92, 92)
+	_battery_dial.custom_minimum_size = Vector2(92.0 * _u, 92.0 * _u)
 	_battery_dial.set_dial("battery", _battery_pct, "DRONE", UniverseUI.MOSS)
 	dial_row.add_child(_battery_dial)
 	var div := HSeparator.new()
@@ -234,9 +262,9 @@ func _build() -> void:
 	]
 	for a in apps:
 		var cell := VBoxContainer.new()
-		cell.add_theme_constant_override("separation", 4)
+		cell.add_theme_constant_override("separation", int(round(4.0 * _u)))
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(64, 64)
+		btn.custom_minimum_size = Vector2(64.0 * _u, 64.0 * _u)
 		btn.focus_mode = Control.FOCUS_NONE
 		var empty := StyleBoxEmpty.new()
 		btn.add_theme_stylebox_override("normal", empty)
@@ -244,21 +272,44 @@ func _build() -> void:
 		btn.add_theme_stylebox_override("pressed", empty)
 		var key := str(a["key"])
 		var tint := UniverseUI.app_colour(key)
-		var icon := UniverseUI.app_icon(key, 64, tint)
+		var icon := UniverseUI.app_icon(key, 64.0 * _u, tint)
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		btn.add_child(icon)
+		# Android notification badge: a red count pill on the icon's top-right, never a caption under the name.
+		if key in ["chat", "studio", "jobs", "market", "casebook"]:
+			var badge := Label.new()
+			var bsb := StyleBoxFlat.new()
+			bsb.bg_color = Color(0.702, 0.149, 0.118, 1.0)
+			bsb.set_corner_radius_all(int(round(9.0 * _u)))
+			bsb.content_margin_left = 4.0 * _u
+			bsb.content_margin_right = 4.0 * _u
+			badge.add_theme_stylebox_override("normal", bsb)
+			badge.add_theme_font_size_override("font_size", int(round(10.0 * _u)))
+			badge.add_theme_color_override("font_color", Color(1, 1, 1, 1))
+			badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			badge.anchor_left = 1.0
+			badge.anchor_right = 1.0
+			badge.anchor_top = 0.0
+			badge.anchor_bottom = 0.0
+			badge.offset_left = -22.0 * _u
+			badge.offset_right = 2.0 * _u
+			badge.offset_top = -6.0 * _u
+			badge.offset_bottom = 12.0 * _u
+			badge.visible = false
+			btn.add_child(badge)
+			_badges[key] = badge
 		btn.pressed.connect(func(): _open_app(key))
 		cell.add_child(btn)
-		if key == "chat":
-			_drone_budz_badge = UniverseUI.label("", 10, UniverseUI.AMBER)
-			_drone_budz_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			cell.add_child(_drone_budz_badge)
-		elif key == "studio":
-			_studio_badge = UniverseUI.label("", 9, UniverseUI.AMBER)
-			_studio_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			cell.add_child(_studio_badge)
 		var lab := UniverseUI.label(str(a["name"]), 12, UniverseUI.CREAM_DIM)
+		lab.add_theme_font_size_override("font_size", int(round(12.0 * _u)))
 		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lab.clip_text = true
+		lab.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		# Material launcher labels get 100 dp, enough for "VidTube Studio" without an ellipsis.
+		lab.custom_minimum_size = Vector2(100.0 * _u, 0)
+		lab.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		cell.add_child(lab)
 		grid.add_child(cell)
 	var filler := Control.new()
@@ -275,71 +326,65 @@ func _build() -> void:
 	var tip := UniverseUI.label("Tab closes the phone. Land to use it safely. The valley keeps flying behind it.", 10, UniverseUI.MUTED)
 	tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tm.add_child(tip)
-	# launcher page dots
-	var dots := HBoxContainer.new()
-	dots.alignment = BoxContainer.ALIGNMENT_CENTER
-	dots.add_theme_constant_override("separation", 8)
-	dots.custom_minimum_size = Vector2(0, 16)
-	for i in 2:
-		var pdot := TextureRect.new()
-		pdot.texture = load("res://assets/ui/tablet/polish/page_dot_on.png" if i == 0 else "res://assets/ui/tablet/polish/page_dot_off.png") as Texture2D
-		pdot.custom_minimum_size = Vector2(8, 8)
-		pdot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		pdot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		dots.add_child(pdot)
-	hcol.add_child(dots)
-	# dock
+	# All apps entry. The launcher is one page plus a drawer, so the row under the grid is the touch route into the
+	# app list (the page-dot row would be decoration without paging).
+	var drawer_row := HBoxContainer.new()
+	drawer_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	drawer_row.custom_minimum_size = Vector2(0, int(round(34.0 * _u)))
+	var all_btn := Button.new()
+	all_btn.text = "All apps"
+	all_btn.theme_type_variation = "Ghost"
+	all_btn.custom_minimum_size = Vector2(140.0 * _u, 34.0 * _u)
+	all_btn.add_theme_font_size_override("font_size", int(round(12.0 * _u)))
+	var all_glyph := "res://assets/ui/tablet/glyphs/nav_allapps.png"
+	if ResourceLoader.exists(all_glyph):
+		all_btn.icon = load(all_glyph) as Texture2D
+		all_btn.expand_icon = true
+		all_btn.add_theme_constant_override("icon_max_width", int(round(15.0 * _u)))
+	all_btn.pressed.connect(_show_drawer)
+	drawer_row.add_child(all_btn)
+	hcol.add_child(drawer_row)
+	# dock: the kit dock tray, centred, five app shortcuts, no labels (Android)
 	var dock := PanelContainer.new()
-	var dsb := UniverseUI.box(Color(0.07, 0.085, 0.075, 0.96), 0, UniverseUI.LINE, 1, 26.0, 10.0)
-	dsb.border_width_left = 0
-	dsb.border_width_right = 0
-	dsb.border_width_bottom = 0
-	dock.add_theme_stylebox_override("panel", dsb)
-	dock.custom_minimum_size = Vector2(0, 84)
+	var dock_tex := "res://assets/ui/tablet/polish/dock_tray.png"
+	if ResourceLoader.exists(dock_tex):
+		var dsb := StyleBoxTexture.new()
+		dsb.texture = load(dock_tex) as Texture2D
+		dsb.set_texture_margin_all(44.0 * (84.0 * _u / 128.0))
+		dsb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
+		dock.add_theme_stylebox_override("panel", dsb)
+	else:
+		dock.add_theme_stylebox_override("panel", UniverseUI.box(Color(0.07, 0.085, 0.075, 0.96), 24, Color(0, 0, 0, 0), 0, 26.0, 10.0))
+	dock.custom_minimum_size = Vector2(0, int(round(84.0 * _u)))
 	hcol.add_child(dock)
 	var dm := MarginContainer.new()
 	for m in ["left", "right"]:
-		dm.add_theme_constant_override("margin_" + m, 56)
+		dm.add_theme_constant_override("margin_" + m, int(round(24.0 * _u)))
 	dock.add_child(dm)
 	var drow := HBoxContainer.new()
-	drow.add_theme_constant_override("separation", 16)
+	drow.alignment = BoxContainer.ALIGNMENT_CENTER
+	drow.add_theme_constant_override("separation", int(round(16.0 * _u)))
 	dm.add_child(drow)
-	var home_btn := Button.new(); home_btn.text = "Home"; home_btn.theme_type_variation = "Ghost"; home_btn.visible = false
-	home_btn.custom_minimum_size = Vector2(86, 36)
-	home_btn.pressed.connect(_show_home)
-	drow.add_child(home_btn)
-	var recents := Button.new(); recents.text = "Recents"; recents.theme_type_variation = "Ghost"; recents.visible = false
-	recents.custom_minimum_size = Vector2(96, 36)
-	recents.pressed.connect(_show_switcher)
-	drow.add_child(recents)
-	var dock_gap := Control.new(); dock_gap.custom_minimum_size = Vector2(18, 0)
-	drow.add_child(dock_gap)
 	for pair in [["chat", "DroneBudz"], ["studio", "VidTube Studio"], ["photos", "Photos"], ["market", "Facade"], ["map", "Map"]]:
 		var dock_btn := Button.new()
-		dock_btn.custom_minimum_size = Vector2(56, 56)
+		dock_btn.custom_minimum_size = Vector2(56.0 * _u, 56.0 * _u)
 		dock_btn.tooltip_text = str(pair[1])
 		dock_btn.focus_mode = Control.FOCUS_NONE
 		var empty := StyleBoxEmpty.new()
 		dock_btn.add_theme_stylebox_override("normal", empty)
-		dock_btn.add_theme_stylebox_override("hover", UniverseUI.box(Color(1, 1, 1, 0.06), 10, Color(0, 0, 0, 0), 0, 0.0, 0.0))
-		dock_btn.add_theme_stylebox_override("pressed", UniverseUI.box(Color(1, 1, 1, 0.10), 10, Color(0, 0, 0, 0), 0, 0.0, 0.0))
+		dock_btn.add_theme_stylebox_override("hover", UniverseUI.box(Color(1, 1, 1, 0.06), 14, Color(0, 0, 0, 0), 0, 0.0, 0.0))
+		dock_btn.add_theme_stylebox_override("pressed", UniverseUI.box(Color(1, 1, 1, 0.10), 14, Color(0, 0, 0, 0), 0, 0.0, 0.0))
 		var der := str(pair[0])
-		var dicon := UniverseUI.app_icon(der, 52, UniverseUI.app_colour(der))
+		var dicon := UniverseUI.app_icon(der, 56.0 * _u, UniverseUI.app_colour(der))
 		dicon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		dock_btn.add_child(dicon)
 		dock_btn.pressed.connect(func(): _open_app(der))
 		drow.add_child(dock_btn)
-	var st2 := Control.new(); st2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	drow.add_child(st2)
-	var put_away := Button.new(); put_away.text = "Put phone away  (Tab)"; put_away.theme_type_variation = "Ghost"; put_away.visible = false
-	put_away.custom_minimum_size = Vector2(176, 36)
-	put_away.pressed.connect(close)
-	drow.add_child(put_away)
-	# app host
+	# app host: below the status bar, above the navigation bar (Android system insets)
 	_apps = Control.new()
 	_apps.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_apps.offset_top = 38.0
-	_apps.offset_bottom = -54.0
+	_apps.offset_top = _status_h()
+	_apps.offset_bottom = -_nav_h()
 	_root.add_child(_apps)
 	_chat_app = ChatApp.new()
 	_chat_app.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -395,108 +440,347 @@ func _build() -> void:
 	sdim.color = Color(0.02, 0.03, 0.025, 0.82)
 	sdim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_switcher.add_child(sdim)
+	_build_drawer()
 	_build_system_nav()
 	_add_device_frame()
+	get_viewport().size_changed.connect(_resize_insets)
 	visible = false
 
 func open() -> void:
 	_open = true
 	visible = true
+	_resize_insets()
 	_show_home()
 	_refresh()
 
+## ------------------------------------------------------------------ system metrics
+## One scale unit for 720p, 1080p and 16:10 windows. The project stretches canvas items, so at 16:9 this is 1.0 at
+## 1280x720 and 1.5 at 1920x1080; at 16:10 the logical height is still 720 and the extra width is absorbed by the
+## centred layouts. Every insets value below is a 720-baseline number multiplied by this.
+func _compute_u() -> float:
+	var vp := get_viewport().get_visible_rect().size
+	return clampf(vp.y / 720.0, 0.6, 4.0)
+
+func _status_h() -> float:
+	return 28.0 * _u
+
+func _nav_h() -> float:
+	return 56.0 * _u
+
+## Android system insets: apps sit below the status bar and above the nav bar. Re-applied when the viewport changes
+## size, so a resized desktop window or a 16:10 tablet keeps the same layout instead of the old fixed 38/54 values.
+func _resize_insets() -> void:
+	_u = _compute_u()
+	if _status_bar != null:
+		_status_bar.offset_bottom = _status_h()
+		for m in ["left", "right"]:
+			_status_bar.add_theme_constant_override("margin_" + m, int(round(16.0 * _u)))
+	if _apps != null:
+		_apps.offset_top = _status_h()
+		_apps.offset_bottom = -_nav_h()
+	if _sys_nav != null:
+		_sys_nav.offset_top = -_nav_h()
+
+## ------------------------------------------------------------------ app drawer
+## The Android app drawer: search pill, alphabetical grid, wallpaper dimmed behind. Replaces the fake page dots the
+## launcher had; the home is one page and the drawer is the all-apps surface.
+func _build_drawer() -> void:
+	_drawer = Control.new()
+	_drawer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_drawer.mouse_filter = Control.MOUSE_FILTER_STOP
+	_drawer.z_index = 60
+	_drawer.visible = false
+	_root.add_child(_drawer)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.02, 0.03, 0.025, 0.58)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.pressed:
+			_close_drawer())
+	_drawer.add_child(dim)
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var sb := StyleBoxFlat.new()
+	# Material surface at 94 percent: the wallpaper stays faintly visible the way an Android drawer shows it.
+	sb.bg_color = Color(UniverseUI.NIGHT.r, UniverseUI.NIGHT.g, UniverseUI.NIGHT.b, 0.94)
+	panel.add_theme_stylebox_override("panel", sb)
+	_drawer.add_child(panel)
+	var margin := MarginContainer.new()
+	for side in ["left", "right"]:
+		margin.add_theme_constant_override("margin_" + side, int(round(28.0 * _u)))
+	margin.add_theme_constant_override("margin_top", int(round(34.0 * _u)))
+	margin.add_theme_constant_override("margin_bottom", int(round(20.0 * _u)))
+	panel.add_child(margin)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", int(round(12.0 * _u)))
+	margin.add_child(col)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", int(round(10.0 * _u)))
+	col.add_child(head)
+	var title := UniverseUI.label("All apps", 22, UniverseUI.CREAM)
+	title.add_theme_font_size_override("font_size", int(round(22.0 * _u)))
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(title)
+	var close_btn := _nav_button("nav_back", "Close", _close_drawer)
+	close_btn.icon = load("res://assets/ui/tablet/glyphs/nav_back.png") as Texture2D
+	head.add_child(close_btn)
+	# Search bar: a clean Material pill rather than the kit nine-patch. The kit art is a single fixed 640x96 lozenge
+	# with a 48 px cap radius, which cannot be nine-patched at a 48 dp row height without the ends bulging, so the pill
+	# surface is a StyleBoxFlat and only the magnifier glyph comes from the kit.
+	var search_wrap := Control.new()
+	search_wrap.custom_minimum_size = Vector2(720.0 * _u, 48.0 * _u)
+	search_wrap.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(search_wrap)
+	var search_pill := Panel.new()
+	var psb := StyleBoxFlat.new()
+	psb.bg_color = UniverseUI.FIELD
+	psb.set_corner_radius_all(int(round(24.0 * _u)))
+	psb.border_width_left = 1; psb.border_width_top = 1; psb.border_width_right = 1; psb.border_width_bottom = 1
+	psb.border_color = UniverseUI.LINE
+	search_pill.add_theme_stylebox_override("panel", psb)
+	search_pill.set_anchors_preset(Control.PRESET_FULL_RECT)
+	search_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	search_wrap.add_child(search_pill)
+	var search_icon := TextureRect.new()
+	search_icon.texture = load("res://assets/ui/tablet/glyphs/qs_search.png") as Texture2D
+	search_icon.custom_minimum_size = Vector2(18.0 * _u, 18.0 * _u)
+	search_icon.position = Vector2(20.0 * _u, 15.0 * _u)
+	search_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	search_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	search_icon.modulate = UniverseUI.CREAM_DIM
+	search_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	search_wrap.add_child(search_icon)
+	_drawer_search = LineEdit.new()
+	_drawer_search.placeholder_text = "Search apps"
+	_drawer_search.add_theme_font_size_override("font_size", int(round(14.0 * _u)))
+	_drawer_search.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	_drawer_search.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	_drawer_search.add_theme_color_override("font_placeholder_color", UniverseUI.FAINT)
+	_drawer_search.anchor_left = 0.0; _drawer_search.anchor_right = 1.0
+	_drawer_search.anchor_top = 0.0; _drawer_search.anchor_bottom = 1.0
+	_drawer_search.offset_left = 52.0 * _u
+	_drawer_search.offset_right = -18.0 * _u
+	_drawer_search.offset_top = 0.0
+	_drawer_search.offset_bottom = 0.0
+	_drawer_search.text_changed.connect(_filter_drawer)
+	search_wrap.add_child(_drawer_search)
+	# Material drawer grid: four columns of 120 dp cells, centred, labels always visible and single-line.
+	_drawer_grid = GridContainer.new()
+	_drawer_grid.columns = 4
+	_drawer_grid.add_theme_constant_override("h_separation", int(round(20.0 * _u)))
+	_drawer_grid.add_theme_constant_override("v_separation", int(round(16.0 * _u)))
+	_drawer_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	col.add_child(_drawer_grid)
+	_drawer_cells.clear()
+	for entry in [["casebook", "Casebook"], ["chat", "DroneBudz"], ["market", "Facade"], ["jobs", "Jobs"],
+			["map", "Map"], ["photos", "Photos"], ["studio", "VidTube Studio"]]:
+		var key := str(entry[0])
+		var cell := VBoxContainer.new()
+		cell.add_theme_constant_override("separation", int(round(6.0 * _u)))
+		cell.custom_minimum_size = Vector2(120.0 * _u, 0)
+		cell.set_meta("app_name", str(entry[1]).to_lower())
+		cell.set_meta("app_key", key)
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(64.0 * _u, 64.0 * _u)
+		btn.focus_mode = Control.FOCUS_NONE
+		var empty := StyleBoxEmpty.new()
+		btn.add_theme_stylebox_override("normal", empty)
+		btn.add_theme_stylebox_override("hover", empty)
+		btn.add_theme_stylebox_override("pressed", empty)
+		var icon := UniverseUI.app_icon(key, 64.0 * _u, UniverseUI.app_colour(key))
+		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		btn.add_child(icon)
+		btn.pressed.connect(func(): _open_app(key))
+		cell.add_child(btn)
+		var lab := UniverseUI.label(str(entry[1]), 13, UniverseUI.CREAM_DIM)
+		lab.add_theme_font_size_override("font_size", int(round(13.0 * _u)))
+		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lab.clip_text = true
+		lab.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		lab.custom_minimum_size = Vector2(120.0 * _u, 0)
+		lab.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		cell.add_child(lab)
+		_drawer_grid.add_child(cell)
+		_drawer_cells.append(cell)
+
+func _show_drawer() -> void:
+	if _drawer == null:
+		return
+	_drawer_shown = true
+	_drawer.visible = true
+	_current_app = "drawer"
+	_sys_nav.visible = false
+	_switcher.visible = false
+	_drawer_search.text = ""
+	_filter_drawer("")
+	_drawer_search.grab_focus()
+
+func _close_drawer() -> void:
+	_drawer_shown = false
+	if _drawer != null:
+		_drawer.visible = false
+	if _current_app == "drawer":
+		_current_app = "home"
+	_sys_nav.visible = false
+	_refresh()
+
+func _filter_drawer(text: String) -> void:
+	var q := text.strip_edges().to_lower()
+	for cell in _drawer_cells:
+		var nm := str(cell.get_meta("app_name", ""))
+		cell.visible = q.is_empty() or nm.contains(q)
+
 ## A real tablet bezel overlay from the UI kit. It makes the screen read as a physical Android tablet instead of a
-## bordered desktop rectangle; the frame is transparent over the display and only the bezel is opaque.
+## bordered desktop rectangle; the frame is transparent over the display and only the bezel is opaque. It is only
+## drawn on a 16:9 window: real tablets are 16:10/3:2/4:3, and stretching this art to those aspects would bend the
+## bezel and the screen corners.
 func _add_device_frame() -> void:
 	var frame := TextureRect.new()
 	var win := DisplayServer.window_get_size()
 	var aspect := float(win.x) / maxf(1.0, float(win.y))
 	if absf(aspect - 16.0 / 9.0) > 0.02:
 		return
-	var wide := win.x > 1600
-	var path := "res://assets/ui/tablet/frame/tablet_frame_1920x1080.png" if wide else "res://assets/ui/tablet/frame/tablet_frame_1280x720.png"
+	# Choose the frame export from the physical window size so the bezel is sharp on 1080p, 1440p and 4K monitors.
+	var path := "res://assets/ui/tablet/frame/tablet_frame_2560x1440.png" if win.x > 2400 else (
+		"res://assets/ui/tablet/frame/tablet_frame_1920x1080.png" if win.x > 1600 else
+		"res://assets/ui/tablet/frame/tablet_frame_1280x720.png")
 	if not ResourceLoader.exists(path):
 		return
 	frame.texture = load(path) as Texture2D
+	frame.name = "DeviceFrame"
 	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
 	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	frame.stretch_mode = TextureRect.STRETCH_SCALE
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.z_index = 300
 	_root.add_child(frame)
+	# The bezel is 2.5 percent of the frame height: 18 logical px on the 1280x720 export. Inset every OS surface so the
+	# status bar, app bars, dock and dialogs sit inside the glass instead of under the opaque bezel.
+	_frame_inset = 18.0
+	_apply_frame_inset()
+	_add_bezel_matte()
 
-## The persistent bottom tablet bar: every app gets the same Home, app title, Recents and Put away controls.
+## Solid matte under the frame's bezel ring. The frame art already draws the bezel, but the ring is also the window edge:
+## without an opaque matte, any HUD/OSD text at the extreme top or bottom edge can show through the 18 px border region
+## when the launcher is open. The matte sits above the OS surfaces and below the frame, so it is invisible under the art.
+func _add_bezel_matte() -> void:
+	var col := Color(0.040, 0.047, 0.043, 1.0)
+	var top := ColorRect.new()
+	top.color = col
+	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top.offset_bottom = _frame_inset
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.z_index = 299
+	_root.add_child(top)
+	var bottom := ColorRect.new()
+	bottom.color = col
+	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bottom.offset_top = -_frame_inset
+	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom.z_index = 299
+	_root.add_child(bottom)
+	for side in ["left", "right"]:
+		var edge := ColorRect.new()
+		edge.color = col
+		edge.anchor_top = 0.0
+		edge.anchor_bottom = 1.0
+		if side == "left":
+			edge.anchor_left = 0.0
+			edge.anchor_right = 0.0
+			edge.offset_right = _frame_inset
+		else:
+			edge.anchor_left = 1.0
+			edge.anchor_right = 1.0
+			edge.offset_left = -_frame_inset
+		edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		edge.z_index = 299
+		_root.add_child(edge)
+
+## Move every OS surface under a content rect inset by the device bezel, leaving the frame overlay on the root. Without
+## this the status bar clock and the screen edges are covered by the frame's opaque bezel.
+func _apply_frame_inset() -> void:
+	if _screen != null or _frame_inset <= 0.0:
+		return
+	_screen = Control.new()
+	_screen.name = "Screen"
+	_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_screen.offset_left = _frame_inset
+	_screen.offset_top = _frame_inset
+	_screen.offset_right = -_frame_inset
+	_screen.offset_bottom = -_frame_inset
+	_screen.mouse_filter = Control.MOUSE_FILTER_PASS
+	_root.add_child(_screen)
+	for child in _root.get_children():
+		if child == _screen:
+			continue
+		if child is TextureRect and child.name == "DeviceFrame":
+			continue
+		child.reparent(_screen, false)
+
+func is_drawer_open() -> bool:
+	return _drawer_shown
+
+## The persistent bottom navigation bar. Android 3-button order: back on the left, home and recents on the right, with
+## the tablet's "put away" action as the fourth control. Material glyphs come from the kit's generated glyph set.
 func _build_system_nav() -> void:
 	_sys_nav = PanelContainer.new()
 	_sys_nav.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_sys_nav.offset_top = -56.0
+	_sys_nav.offset_top = -_nav_h()
 	_sys_nav.z_index = 40
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.045, 0.055, 0.048, 0.97)
+	sb.bg_color = Color(0.050, 0.060, 0.052, 0.97)
 	sb.border_width_top = 1
-	sb.border_color = UniverseUI.LINE_STRONG
+	sb.border_color = UniverseUI.LINE
 	_sys_nav.add_theme_stylebox_override("panel", sb)
 	_root.add_child(_sys_nav)
 	var m := MarginContainer.new()
 	for side in ["left", "right"]:
-		m.add_theme_constant_override("margin_" + side, 24)
-	m.add_theme_constant_override("margin_top", 6)
-	m.add_theme_constant_override("margin_bottom", 6)
+		m.add_theme_constant_override("margin_" + side, int(round(20.0 * _u)))
+	for side in ["top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, int(round(4.0 * _u)))
 	_sys_nav.add_child(m)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", int(round(8.0 * _u)))
 	m.add_child(row)
-	var back_btn := Button.new()
-	back_btn.text = "‹"
-	back_btn.theme_type_variation = "Ghost"
-	back_btn.custom_minimum_size = Vector2(48, 48)
-	back_btn.add_theme_font_size_override("font_size", 28)
-	back_btn.tooltip_text = "Back"
-	back_btn.pressed.connect(_show_home)
-	row.add_child(back_btn)
-	var home_btn := Button.new()
-	home_btn.text = ""
-	home_btn.icon = load("res://assets/ui/tablet/icons/mono/44/icon_home_mono.png") as Texture2D
-	home_btn.expand_icon = true
-	home_btn.add_theme_constant_override("icon_max_width", 22)
-	home_btn.theme_type_variation = "Ghost"
-	home_btn.custom_minimum_size = Vector2(48, 48)
-	home_btn.tooltip_text = "Home"
-	home_btn.pressed.connect(_show_home)
-	row.add_child(home_btn)
+	row.add_child(_nav_button("nav_back", "Back", _show_home))
+	var stretch := Control.new()
+	stretch.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(stretch)
 	_sys_nav_name = UniverseUI.label("", 12, UniverseUI.MUTED)
 	_sys_nav_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sys_nav_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_sys_nav_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sys_nav_name.visible = false
 	row.add_child(_sys_nav_name)
-	var recents_btn := Button.new()
-	recents_btn.text = ""
-	recents_btn.icon = load("res://assets/ui/tablet/icons/mono/44/icon_recents_mono.png") as Texture2D
-	recents_btn.expand_icon = true
-	recents_btn.add_theme_constant_override("icon_max_width", 22)
-	recents_btn.theme_type_variation = "Ghost"
-	recents_btn.custom_minimum_size = Vector2(48, 48)
-	recents_btn.tooltip_text = "Recents"
-	recents_btn.pressed.connect(_show_switcher)
-	row.add_child(recents_btn)
-	var hide_btn := Button.new()
-	hide_btn.text = ""
-	hide_btn.icon = load("res://assets/ui/tablet/icons/mono/44/icon_phone_mono.png") as Texture2D
-	hide_btn.expand_icon = true
-	hide_btn.add_theme_constant_override("icon_max_width", 22)
-	hide_btn.theme_type_variation = "Ghost"
-	hide_btn.custom_minimum_size = Vector2(48, 48)
-	hide_btn.tooltip_text = "Put phone away"
-	hide_btn.pressed.connect(close)
-	row.add_child(hide_btn)
+	row.add_child(_nav_button("nav_home", "Home", _show_home))
+	row.add_child(_nav_button("nav_recents", "Recents", _show_switcher))
+	row.add_child(_nav_button("nav_phone", "Put the tablet away", close))
 	_sys_nav.visible = false
+
+func _nav_button(glyph: String, tip: String, cb: Callable) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(48.0 * _u, 48.0 * _u)
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = tip
+	var path := "res://assets/ui/tablet/glyphs/%s.png" % glyph
+	if ResourceLoader.exists(path):
+		b.icon = load(path) as Texture2D
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", int(round(24.0 * _u)))
+	var empty := StyleBoxEmpty.new()
+	b.add_theme_stylebox_override("normal", empty)
+	b.add_theme_stylebox_override("hover", UniverseUI.box(Color(1, 1, 1, 0.07), 12, Color(0, 0, 0, 0), 0, 0.0, 0.0))
+	b.add_theme_stylebox_override("pressed", UniverseUI.box(Color(1, 1, 1, 0.12), 12, Color(0, 0, 0, 0), 0, 0.0, 0.0))
+	b.pressed.connect(cb)
+	return b
 
 func _update_system_nav(app_key: String) -> void:
 	if _sys_nav == null:
 		return
-	_sys_nav.visible = app_key != "home" and app_key != "switcher"
-	_sys_nav_name.text = _app_title(app_key).to_upper() + "   ·   HALLOWAY PERSONAL"
+	_sys_nav.visible = app_key != "home" and app_key != "switcher" and app_key != "drawer"
+	_sys_nav_name.text = _app_title(app_key).to_upper()
 
 func _app_title(key: String) -> String:
 	match key:
@@ -508,11 +792,13 @@ func _app_title(key: String) -> String:
 		"market": return "Facade"
 		"map": return "Map"
 		"switcher": return "Recents"
+		"drawer": return "All apps"
 		_: return "Home"
 func close() -> void:
 	_open = false
 	visible = false
 	_switcher.visible = false
+	_close_drawer()
 	_update_system_nav("home")
 
 func toggle() -> void:
@@ -529,11 +815,17 @@ func _show_home() -> void:
 	_home.visible = true
 	_apps.visible = false
 	_switcher.visible = false
+	_drawer_shown = false
+	if _drawer != null:
+		_drawer.visible = false
 	_update_system_nav("home")
 	_refresh()
 
 func _show_switcher() -> void:
 	_current_app = "switcher"
+	_drawer_shown = false
+	if _drawer != null:
+		_drawer.visible = false
 	_update_system_nav("switcher")
 	if _switcher_panel != null and is_instance_valid(_switcher_panel):
 		_switcher_panel.queue_free()
@@ -568,19 +860,19 @@ func _show_switcher() -> void:
 	var hint := UniverseUI.label("Choose an app. Tab puts the phone away. Esc leaves an app.", 11, UniverseUI.MUTED)
 	col.add_child(hint)
 	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 12)
-	grid.add_theme_constant_override("v_separation", 10)
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 8)
 	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(grid)
 	var apps := [
-		{"key": "chat", "name": "DroneBudz", "desc": "The crew's Discord-style server: channels, DMs, jobs talk"},
-		{"key": "studio", "name": "VidTube Studio", "desc": "The channel's numbers, uploads and editor"},
-		{"key": "photos", "name": "Photos", "desc": "Everything the drone has photographed"},
+		{"key": "chat", "name": "DroneBudz", "desc": "Crew chat, channels and DMs"},
+		{"key": "studio", "name": "VidTube Studio", "desc": "Channel numbers and uploads"},
+		{"key": "photos", "name": "Photos", "desc": "Everything the drone shot"},
 		{"key": "jobs", "name": "Jobs", "desc": "Paid work on the valley board"},
-		{"key": "casebook", "name": "Casebook", "desc": "Rennick's file, evidence and chapter trail"},
-		{"key": "market", "name": "Facade", "desc": "The valley classifieds: drones, cameras, motors and parts"},
-		{"key": "map", "name": "Map", "desc": "The valley road map and launch sites"},
+		{"key": "casebook", "name": "Casebook", "desc": "Rennick's file and evidence"},
+		{"key": "market", "name": "Facade", "desc": "Classifieds, drones and kit"},
+		{"key": "map", "name": "Map", "desc": "The road map and launch sites"},
 	]
 	for a in apps:
 		var key := str(a["key"])
@@ -590,12 +882,12 @@ func _show_switcher() -> void:
 		grid.add_child(card)
 		var cm := MarginContainer.new()
 		for side in ["left", "right", "top", "bottom"]:
-			cm.add_theme_constant_override("margin_" + side, 10)
+			cm.add_theme_constant_override("margin_" + side, 8)
 		card.add_child(cm)
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
+		row.add_theme_constant_override("separation", 8)
 		cm.add_child(row)
-		var icon := UniverseUI.app_icon(key, 48, UniverseUI.app_colour(key))
+		var icon := UniverseUI.app_icon(key, 40, UniverseUI.app_colour(key))
 		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		row.add_child(icon)
@@ -603,13 +895,14 @@ func _show_switcher() -> void:
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text.add_theme_constant_override("separation", 1)
 		row.add_child(text)
-		text.add_child(UniverseUI.label(str(a["name"]), 15, UniverseUI.CREAM))
-		var d := UniverseUI.label(str(a["desc"]), 11, UniverseUI.MUTED)
+		text.add_child(UniverseUI.label(str(a["name"]), 14, UniverseUI.CREAM))
+		var d := UniverseUI.label(str(a["desc"]), 10, UniverseUI.MUTED)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		text.add_child(d)
 		var open_btn := Button.new(); open_btn.text = "Open"; open_btn.theme_type_variation = "Primary"
-		open_btn.custom_minimum_size = Vector2(66, 32)
-		open_btn.add_theme_font_size_override("font_size", 12)
+		open_btn.custom_minimum_size = Vector2(54, 30)
+		open_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		open_btn.add_theme_font_size_override("font_size", 11)
 		open_btn.pressed.connect(func(): _open_app(key))
 		row.add_child(open_btn)
 	_switcher.visible = true
@@ -627,6 +920,9 @@ func _app_letter(key: String) -> String:
 
 func _open_app(key: String) -> void:
 	_switcher.visible = false
+	_drawer_shown = false
+	if _drawer != null:
+		_drawer.visible = false
 	if _map_app != null:
 		_map_app.visible = false
 	match key:
@@ -704,9 +1000,8 @@ func _refresh() -> void:
 		_weather.text = "%.0f°C   WIND %.1f m/s" % [temp, wind]
 	if jobs != null:
 		_metrics.text = "%d FOLLOWERS   ·   $%d" % [jobs.followers(), jobs.money()]
-		if _drone_budz_badge != null:
-			var unread := chat.unread_total()
-			_drone_budz_badge.text = (("9+ NEW" if unread > 9 else "%d NEW" % unread) if unread > 0 else "")
+	if _badges.has("chat"):
+		_set_badge("chat", chat.unread_total() if chat != null else 0)
 	if _field_weather != null and hud != null:
 		var temp2 := float(hud.weather.get("temp", 10.0))
 		var wind2 := float(hud.weather.get("wind", 3.0))
@@ -716,9 +1011,8 @@ func _refresh() -> void:
 		_field_crew.text = "CREW  ·  %d on the server" % (chat.member_count() if chat != null else 0) + (("   9+ unread" if unread2 > 9 else "   %d unread" % unread2) if unread2 > 0 else "")
 	if _field_case != null:
 		_field_case.text = "CASEBOOK  ·  " + (story.current_status() if story != null else "No case yet.")
-	if _studio_badge != null:
-		var rushes := clips.rushes().size() if clips != null else 0
-		_studio_badge.text = ("%d RUSHES" % rushes) if rushes > 0 else ""
+	if _badges.has("studio"):
+		_set_badge("studio", clips.rushes().size() if clips != null else 0)
 	if _mode_label != null:
 		_mode_label.text = "FIELD KIT  ·  weather station online"
 	if _wind_dial != null and hud != null:
@@ -733,6 +1027,14 @@ func _refresh() -> void:
 	if _current_app == "studio" and _studio_app.visible:
 		_studio_app.refresh()
 
+## Android notification badge on a home icon: red pill, count, capped at 9+.
+func _set_badge(key: String, count: int) -> void:
+	var badge: Label = _badges.get(key) as Label
+	if badge == null:
+		return
+	badge.visible = count > 0
+	badge.text = "9+" if count > 9 else str(count)
+
 ## The drone battery, pushed from main while the phone is open. The dial reads this.
 func set_battery(pct: float) -> void:
 	_battery_pct = clampf(pct, 0.0, 1.0)
@@ -745,7 +1047,9 @@ func _input(event: InputEvent) -> void:
 	if not _open:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if _current_app != "home":
+		if _drawer_shown:
+			_close_drawer()
+		elif _current_app != "home":
 			_show_home()
 		else:
 			close()
@@ -757,3 +1061,5 @@ func _process(_delta: float) -> void:
 
 func stats() -> Dictionary:
 	return {"open": _open, "app": _current_app, "chat": chat.stats(), "followers": jobs.followers() if jobs else 0}
+
+

@@ -6,36 +6,70 @@ extends Control
 var kind := "chat"
 var accent := UniverseUI.MOSS
 var _texture: Texture2D
+var _texture_bucket := 0
 
 const ANDROID_ICONS := {
 	"chat": "dronebudz", "studio": "vidtube", "photos": "photos", "jobs": "jobs", "casebook": "casebook",
-	"market": "facade", "settings": "settings", "recents": "recents", "home": "home", "phone": "phone",
-	"camera": "camera", "weather": "weather",
+	"market": "facade", "map": "map", "settings": "settings", "recents": "recents", "home": "home",
+	"phone": "phone", "camera": "camera", "weather": "weather",
 }
+
+## The kit is rendered natively at 512/128/64/44, so pick the export nearest the display size instead of always
+## scaling the 128 down (which aliases the dock and notification copies). Cached because icons redraw on resize.
+static var _kit_cache := {}
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(64, 64)
-	resized.connect(queue_redraw)
+	resized.connect(_on_resized)
 
 func set_kind(k: String, tint: Color) -> void:
 	kind = k
 	accent = tint
 	_texture = null
-	var asset := str(ANDROID_ICONS.get(kind, ""))
-	if asset != "":
-		var path := "res://assets/ui/tablet/icons/128/icon_%s.png" % asset
-		if ResourceLoader.exists(path):
-			_texture = load(path) as Texture2D
+	_texture_bucket = 0
 	queue_redraw()
+
+func _on_resized() -> void:
+	# A change of display size can change the export bucket; drop the cached texture and redraw.
+	if _bucket_for(minf(size.x, size.y)) != _texture_bucket:
+		_texture = null
+	queue_redraw()
+
+func _bucket_for(s: float) -> int:
+	if s <= 52.0:
+		return 44
+	elif s <= 96.0:
+		return 64
+	return 128
+
+func _kit_texture(asset: String, s: float) -> Texture2D:
+	var bucket := _bucket_for(s)
+	if _texture != null and _texture_bucket == bucket:
+		return _texture
+	var key := "%s_%d" % [asset, bucket]
+	if _kit_cache.has(key):
+		_texture = _kit_cache[key] as Texture2D
+		_texture_bucket = bucket
+		return _texture
+	var path := "res://assets/ui/tablet/icons/%d/icon_%s.png" % [bucket, asset]
+	if ResourceLoader.exists(path):
+		_texture = load(path) as Texture2D
+		_texture_bucket = bucket
+		_kit_cache[key] = _texture
+		return _texture
+	return null
 
 func _draw() -> void:
 	var s := minf(size.x, size.y)
 	if s <= 4.0:
 		return
-	if _texture != null:
-		draw_texture_rect(_texture, Rect2(Vector2(1, 1), size - Vector2(2, 2)), false)
-		return
+	var asset := str(ANDROID_ICONS.get(kind, ""))
+	if asset != "":
+		var tex := _kit_texture(asset, s)
+		if tex != null:
+			draw_texture_rect(tex, Rect2(Vector2.ZERO, size), false)
+			return
 	var c := size * 0.5
 	var r := s * 0.24
 	var body := StyleBoxFlat.new()

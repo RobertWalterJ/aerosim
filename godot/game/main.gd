@@ -428,6 +428,9 @@ func _ready() -> void:
 	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips, director, roads, launch_sites, finale, wildlife)
 	phone_os.fly_drone.connect(switch_drone)
 	phone_os.travel_requested.connect(travel_to_site)
+	# HUD touch entry: the phone and the notification shade are reachable without a keyboard now.
+	hud.phone_requested.connect(func(): if phone_os != null: phone_os.toggle())
+	hud.notes_requested.connect(func(): if phone_notes != null: phone_notes.toggle_shade())
 	guide = GuideCoach.new()
 	add_child(guide)
 	guide.setup(hud, chat_data, phone_notes, phone_os, story, director, wildlife, inventory, photo_library, jobs, finale)
@@ -1265,6 +1268,9 @@ func _screenshot_mode(arg: String) -> void:
 			print("ROADLAND position %.3f %.3f %.3f, terrain %.3f, surface %.3f, and %.3f m above the surface" % [quad.position().x, quad.position().y, quad.position().z, terrain.height(rx, rz), roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz), quad.position().y - (roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz))])
 		elif c == "phone":        # session B dev hook: the phone home screen
 			phone_os.open()
+		elif c == "phonedrawer":  # session B dev hook: the Android app drawer with its search pill
+			phone_os.open()
+			phone_os._show_drawer()
 		elif c == "guidetip":     # session B dev hook: force Kit tip and open the DM
 			if guide != null:
 				guide.debug_tip("welcome")
@@ -1632,6 +1638,7 @@ func _screenshot_mode(arg: String) -> void:
 			gimbal_pitch = deg_to_rad(-22.0)
 			_apply_pose()
 			print("lakecar: car=", lp, " quad=", quad.position())
+
 		elif c == "wrenwave":       # session B dev hook: the end-beat Wren wave in front of the default camera
 			case_objects.show_hiker()
 			var spw := Vector3(38.0, 0.0, -746.0)

@@ -39,6 +39,8 @@ signal fireworks_changed(show: int)                  # session B: "Fireworks sho
 signal surprise_changed(on: bool)                    # session B: "Surprise shows"
 signal birds_changed(on: bool)                       # session B: Display > Graphics "Birds"
 signal attachment_requested(id: String)              # a camera add-on button on the flight screen
+signal phone_requested                               # touch entry: open or close the in-game tablet
+signal notes_requested                               # touch entry: open or close the notification shade
 signal sky_quality_changed(i: int)                   # sky lane: cloud raymarch quality
 
 const WEATHER_FILE := "user://weather.cfg"
@@ -111,6 +113,8 @@ var minimap: MiniMap
 var _root: Control
 var _back_btn: RoundButton
 var _gear_btn: RoundButton
+var _phone_btn: Button
+var _notes_btn: Button
 var _mode_btn: RoundButton
 var _tl_btn: RoundButton
 var _rth_btn: RoundButton
@@ -159,6 +163,35 @@ func _box(bg: Color, border: Color = Color(1, 1, 1, 0.22), radius: int = 12, mar
 	sb.bg_color = bg; sb.border_color = border; sb.set_border_width_all(1); sb.set_corner_radius_all(radius); sb.set_content_margin_all(margin)
 	return sb
 
+## A 40 dp glass disc with a kit glyph: the flight-screen touch entries for the tablet and the notification shade.
+func _hud_glyph_button(icon_path: String, tip: String, cb: Callable) -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = tip
+	b.size = Vector2(40, 40)
+	var tex: Texture2D = null
+	if ResourceLoader.exists(icon_path):
+		tex = load(icon_path) as Texture2D
+	if tex != null:
+		b.icon = tex
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 22)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.05, 0.06, 0.08, 0.46)
+	bg.set_corner_radius_all(20)
+	bg.set_border_width_all(1)
+	bg.border_color = Color(1, 1, 1, 0.34)
+	var hover := bg.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(0.10, 0.12, 0.16, 0.66)
+	var press := bg.duplicate() as StyleBoxFlat
+	press.bg_color = Color(0.32, 0.36, 0.42, 0.62)
+	b.add_theme_stylebox_override("normal", bg)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", press)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.pressed.connect(cb)
+	return b
+
 func _grabber(radius: int, col: Color) -> ImageTexture:
 	var n := radius * 2 + 2
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
@@ -199,6 +232,13 @@ func _make_theme() -> Theme:
 func _build_flight_hud() -> void:
 	_back_btn = RoundButton.new("back", 40); _back_btn.pressed.connect(func(): set_paused(true)); _root.add_child(_back_btn)
 	_gear_btn = RoundButton.new("gear", 40); _gear_btn.pressed.connect(func(): set_paused(true)); _root.add_child(_gear_btn)
+	# Touch entry for the tablet and its notifications. Until now the phone was keyboard-only (Tab) and the shade
+	# keyboard-only (N), which made both unreachable on a real tablet. These sit beside the pause glyph and are hidden
+	# while the pause menu is up.
+	_phone_btn = _hud_glyph_button("res://assets/ui/tablet/glyphs/nav_phone.png", "Tablet", func(): phone_requested.emit())
+	_root.add_child(_phone_btn)
+	_notes_btn = _hud_glyph_button("res://assets/ui/tablet/glyphs/nav_bell.png", "Notifications", func(): notes_requested.emit())
+	_root.add_child(_notes_btn)
 	_mode_btn = RoundButton.new("N", 52); _mode_btn.label = "Mode"; _mode_btn.pressed.connect(cycle_mode); _root.add_child(_mode_btn)
 	_tl_btn = RoundButton.new("takeoff", 52); _tl_btn.label = "Takeoff"; _tl_btn.pressed.connect(func(): takeoff_land_requested.emit()); _root.add_child(_tl_btn)
 	_rth_btn = RoundButton.new("home", 52); _rth_btn.label = "Return"; _rth_btn.pressed.connect(func(): rth_requested.emit()); _root.add_child(_rth_btn)
@@ -351,6 +391,15 @@ func layout_for(frame: Rect2) -> void:
 	var cy := frame.position.y + frame.size.y * 0.5
 	_place(_back_btn, Vector2(frame.position.x + 4.0 * u, frame.position.y - 2.0 * u), 40.0 * u)
 	_place(_gear_btn, Vector2(minf(frame.end.x, vp.x) - 44.0 * u, frame.position.y - 2.0 * u), 40.0 * u)
+	# Tablet and notification touch entries. They sit in the right-hand utility column under the camera add-ons, not
+	# beside the pause glyph: the pause row shares the OSD top bar with the ISO/EV/WB readout, and two more discs there
+	# covered the camera data. Under the add-ons they are clear of the OSD, the gimbal scale and the shutter.
+	var util_x := minf(frame.end.x, vp.x) - 168.0 * u
+	var util_y := frame.position.y + bar + 84.0 * u
+	_place(_phone_btn, Vector2(util_x, util_y), 40.0 * u)
+	_place(_notes_btn, Vector2(util_x + 46.0 * u, util_y), 40.0 * u)
+	_phone_btn.visible = not paused and not landing_mode
+	_notes_btn.visible = not paused and not landing_mode
 	var step := 82.0 * u
 	var y0 := top + 4.0 * u
 	_place(_mode_btn, Vector2(left, y0), 52.0 * u)
@@ -808,7 +857,7 @@ func _sync() -> void:
 ## Welcome screen on or off: the flight controls are hidden while it is up.
 func set_landing(on: bool) -> void:
 	landing_mode = on
-	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _toast_source, _nav_panel, _crash_box] + _attach_btns.values():
+	for c in [_back_btn, _gear_btn, _phone_btn, _notes_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _toast_source, _nav_panel, _crash_box] + _attach_btns.values():
 		(c as CanvasItem).visible = not on and not paused
 
 ## Open the settings page on a tab (0 Flight, 1 Drone, 2 Weather, 3 Camera, 4 Display, 5 Controls).
@@ -825,7 +874,7 @@ func set_paused(on: bool) -> void:
 	if _quit_btn: _quit_btn.text = "Exit game"
 	_menu_dim.visible = on
 	# the settings page covers the flight screen the way an app's settings page does
-	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _toast_source, _nav_panel, _crash_box] + _attach_btns.values():
+	for c in [_back_btn, _gear_btn, _phone_btn, _notes_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _toast_source, _nav_panel, _crash_box] + _attach_btns.values():
 		(c as CanvasItem).visible = not on and not landing_mode
 	if on: _sync()
 	pause_changed.emit(on)

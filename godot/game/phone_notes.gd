@@ -551,14 +551,14 @@ func _build_shade() -> void:
 	open_btn.text = "Open DroneBudz"
 	open_btn.flat = true
 	open_btn.add_theme_font_size_override("font_size", 14)
-	open_btn.add_theme_color_override("font_color", Color(0.55, 0.80, 0.95))
+	open_btn.add_theme_color_override("font_color", UniverseUI.AMBER)
 	open_btn.pressed.connect(func(): app_requested.emit("chat"); close_shade())
 	head.add_child(open_btn)
 	var clear_btn := Button.new()
 	clear_btn.text = "Clear all"
 	clear_btn.flat = true
 	clear_btn.add_theme_font_size_override("font_size", 14)
-	clear_btn.add_theme_color_override("font_color", Color(0.55, 0.80, 0.95))
+	clear_btn.add_theme_color_override("font_color", UniverseUI.AMBER)
 	clear_btn.pressed.connect(func(): _history.clear(); _group_n = 0; _rebuild_shade())
 	head.add_child(clear_btn)
 	var close_btn := Button.new()
@@ -568,11 +568,13 @@ func _build_shade() -> void:
 	close_btn.add_theme_color_override("font_color", Color(0.80, 0.82, 0.85))
 	close_btn.pressed.connect(close_shade)
 	head.add_child(close_btn)
+	# The quick-settings row sits at the top of the shade, so this label heads that section; the DroneBudz group
+	# summary card below carries the app name.
 	var group := Label.new()
-	group.text = "DroneBudz"
+	group.text = "QUICK SETTINGS"
 	group.add_theme_font_override("font", _f_medium)
-	group.add_theme_font_size_override("font_size", 14)
-	group.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78))
+	group.add_theme_font_size_override("font_size", 11)
+	group.add_theme_color_override("font_color", UniverseUI.AMBER)
 	col.add_child(group)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -688,13 +690,21 @@ func _rebuild_shade() -> void:
 		_shade_scroll.custom_minimum_size = Vector2(0, clampf(8.0 + 88.0 * float(mini(rows, 4)), 24.0, 330.0))
 
 func _add_quick_settings() -> void:
+	# Material 3 quick-setting tiles: the kit glyphs on a surface-container tile, with the primary-container tint when
+	# the tile is on. Uses the shared UniverseUI roles so the shade matches the launcher and the nav bar.
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
-	var items := [["Wi-Fi", "status_wifi", true], ["Bluetooth", "status_signal", false], ["Do not disturb", "status_notification", false], ["Battery saver", "status_battery", true]]
+	var items := [
+		["Wi-Fi", "res://assets/ui/tablet/status/64/status_wifi.png", true],
+		["Bluetooth", "res://assets/ui/tablet/glyphs/qs_bluetooth.png", false],
+		["Do not disturb", "res://assets/ui/tablet/glyphs/qs_dnd.png", false],
+		["Battery saver", "res://assets/ui/tablet/glyphs/qs_battery_saver.png", true],
+	]
 	for item in items:
 		var b := Button.new()
 		b.text = str(item[0])
-		b.icon = load("res://assets/ui/tablet/status/64/%s.png" % str(item[1])) as Texture2D
+		if ResourceLoader.exists(str(item[1])):
+			b.icon = load(str(item[1])) as Texture2D
 		b.expand_icon = true
 		b.add_theme_constant_override("icon_max_width", 24)
 		b.toggle_mode = true
@@ -704,19 +714,21 @@ func _add_quick_settings() -> void:
 		b.add_theme_font_override("font", _f_medium)
 		b.add_theme_font_size_override("font_size", 11)
 		var normal := StyleBoxFlat.new()
-		normal.bg_color = Color(0.10, 0.11, 0.12, 0.98)
+		normal.bg_color = UniverseUI.PANEL
 		normal.set_corner_radius_all(16)
 		normal.border_width_left = 1; normal.border_width_top = 1; normal.border_width_right = 1; normal.border_width_bottom = 1
-		normal.border_color = Color(1, 1, 1, 0.10)
+		normal.border_color = UniverseUI.LINE
 		var pressed := normal.duplicate() as StyleBoxFlat
-		pressed.bg_color = Color(0.18, 0.25, 0.34, 0.98)
-		pressed.border_color = Color(0.63, 0.78, 1.0, 0.55)
+		pressed.bg_color = UniverseUI.AMBER_SOFT
+		pressed.border_color = UniverseUI.AMBER
 		b.add_theme_stylebox_override("normal", normal)
 		b.add_theme_stylebox_override("hover", normal)
 		b.add_theme_stylebox_override("pressed", pressed)
 		b.add_theme_stylebox_override("hover_pressed", pressed)
-		b.add_theme_color_override("font_color", Color(0.85, 0.87, 0.90))
-		b.add_theme_color_override("font_pressed_color", Color(0.86, 0.92, 1.0))
+		b.add_theme_color_override("font_color", UniverseUI.CREAM_DIM)
+		b.add_theme_color_override("font_pressed_color", UniverseUI.CREAM)
+		b.add_theme_color_override("icon_normal_color", UniverseUI.CREAM_DIM)
+		b.add_theme_color_override("icon_pressed_color", UniverseUI.AMBER)
 		row.add_child(b)
 	_shade_list.add_child(row)
 
