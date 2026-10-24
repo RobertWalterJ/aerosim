@@ -682,8 +682,10 @@ banners and thumbnail overlays. Fonts in `assets/fonts/` (Work Sans, IBM Plex Se
 
 ## Avatars (lane/avatars)
 
-The eleven chat and Casebook avatars are illustrated emblems, not people renders (Robert's call): a prop, animal, mascot
-or mark per account, one rounded tile, border and palette, a different style family per person. Same file names and sizes
+No people renders as avatars (Robert's call). Two sets: the active **eclectic** set, where each account looks like a picture
+the person uploaded (CC0 photos, cartoons, a fictional constabulary badge, a mascot logo, a glitched default), and the
+alternate **emblem** set (round 1: illustrated emblems on one rounded tile), both kept in `assets/ui/avatars_alt/`.
+Switch with `python tools/ui_art/build_avatars.py --switch emblem` (or `--switch eclectic`). Same file names and sizes
 as appui2 (`assets/ui/avatar_<key>.png` 512, `sizes/96|48/avatar_<key>.png`, `avatars/cutout/<key>.png`), so no code
 change. Generator `tools/ui_art/build_avatars.py --sheet` (Pillow, 2048 px master); `build_appui.py` now calls it instead
 of the retired portrait path. Cast table in `assets/ui/APPUI-README.md`. Sheets `docs/realism/models/avatars_final_views.jpg`

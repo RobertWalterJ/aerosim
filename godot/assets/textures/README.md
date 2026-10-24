@@ -267,3 +267,16 @@ Made by `tools/blender/make_antidrone_textures.py` (own work, CC0) from photogra
 Re-used: `bld_paint_*` (tinted paints), `rust_diff.jpg`, `bld_timber_*` (planks), `postwood_*` (ply), `bld_corrugated_rust_*`,
 `fabric_nor.jpg` (tarp, canvas), `drones/drone_carbon_*`, `drone_plastic_*`, `drone_spun_*`, `drone_strap_*` (hunters), and the
 `site_*` sets through SiteAssets.
+
+## Avatar photographs (lane/avatars, 2026-10-24)
+
+The phone avatars use these CC0 photographs (no file in this folder is added; the crops live in
+`tools/ui_art/avatar_sources/`, made by `tools/ui_art/avatar_photo_prep.py`, listed in its `SOURCES.md`; the full cast
+table is in `assets/ui/APPUI-README.md`).
+
+| Crop | Used for | Source | Author | Licence |
+|---|---|---|---|---|
+| `cumulus.jpg`, `storm_cloud.jpg` | Sam; the sky of Tom's composite | Poly Haven `kloofendal_48d_partly_cloudy_puresky`, https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky (copy in RWJ-Shared-Assets `sky/sky.hdr`) | Greg Zaal | CC0 |
+| `sunrise_field.jpg`, `storm_ground.jpg` | You; the field of Tom's composite | Poly Haven HDRI bundled with Blender 4.2.3, `datafiles/studiolights/world/sunrise.exr` (its `license.txt`: CC0, Greg Zaal, Poly Haven) | Greg Zaal | CC0 |
+| `woodland_trail.jpg` | Wren | Poly Haven HDRI bundled with Blender 4.2.3, `datafiles/studiolights/world/forest.exr` | Greg Zaal | CC0 |
+| `barnwood_diff.jpg` (this folder, reused) | Alex's workbench | Poly Haven `wood_planks_grey`, https://polyhaven.com/a/wood_planks_grey | Rob Tuytel | CC0 |

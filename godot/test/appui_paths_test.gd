@@ -17,6 +17,11 @@ static func groups() -> Dictionary:
 		p0.append(["sizes/96/avatar_%s.png" % k, 96])      # lane avatars: native small sizes and the emblem cutout
 		p0.append(["sizes/48/avatar_%s.png" % k, 48])
 		p0.append(["avatars/cutout/%s.png" % k, 512])
+		for s in ["eclectic", "emblem"]:                          # both sets kept for --switch
+			p0.append(["avatars_alt/%s_%s.png" % [k, s], 512])
+			p0.append(["avatars_alt/cutout/%s_%s.png" % [k, s], 512])
+			p0.append(["avatars_alt/sizes/96/%s_%s.png" % [k, s], 96])
+			p0.append(["avatars_alt/sizes/48/%s_%s.png" % [k, s], 48])
 	for k in ITEMS: p0.append(["item_%s.png" % k, 512])
 	for n in ["status_signal", "status_wifi", "status_battery", "status_battery_low", "status_notification", "status_search",
 			"nav_home", "nav_back", "nav_recents", "nav_close", "nav_more"]:

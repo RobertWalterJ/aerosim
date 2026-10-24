@@ -1,0 +1,260 @@
+{
+ "version": 1,
+ "notes": "dp widths at 1280x720 logical; colours sRGB; zoom 13 = 1 px per 2 m, each zoom doubles",
+ "themes": {
+  "light": {
+   "land": "#F4F0E6",
+   "farmland": "#EEE8D3",
+   "lawn": "#CFE5BD",
+   "park": "#C6E2B3",
+   "forest": "#B3D69F",
+   "cemetery": "#D6E4C9",
+   "builtup": "#EDE7DB",
+   "building": "#E2DBCC",
+   "building_stroke": "#CFC6B4",
+   "water": "#A3D3EA",
+   "water_stroke": "#8CC2DC",
+   "water_label": "#2E6F8F",
+   "contour": "#D9CDB2",
+   "contour_index": "#C7B794",
+   "hillshade_strength": 0.2,
+   "road_highway": "#FBE29A",
+   "road_highway_casing": "#E0B85E",
+   "road_secondary": "#FFFFFF",
+   "road_secondary_casing": "#D3CBB8",
+   "road_lane": "#FFFFFF",
+   "road_lane_casing": "#DAD3C3",
+   "path": "#A99877",
+   "track": "#B79E73",
+   "label": "#4C473C",
+   "label_halo": "#FFFFFF",
+   "place_label": "#3A362D",
+   "route": "#3E86F5",
+   "route_casing": "#2462C9",
+   "route_alt": "#A8B9D3",
+   "route_walk": "#3E86F5",
+   "location": "#3E86F5",
+   "location_ring": "#FFFFFF",
+   "accuracy_fill": "#3E86F5",
+   "accuracy_fill_opacity": 0.14
+  },
+  "dark": {
+   "land": "#1D221E",
+   "farmland": "#22271F",
+   "lawn": "#223123",
+   "park": "#213222",
+   "forest": "#1D3020",
+   "cemetery": "#253226",
+   "builtup": "#262A25",
+   "building": "#30352F",
+   "building_stroke": "#3B4139",
+   "water": "#173A47",
+   "water_stroke": "#1F4B5B",
+   "water_label": "#7FB6C9",
+   "contour": "#2D332B",
+   "contour_index": "#3A4237",
+   "hillshade_strength": 0.3,
+   "road_highway": "#7A6538",
+   "road_highway_casing": "#2A2A22",
+   "road_secondary": "#4E534A",
+   "road_secondary_casing": "#23271F",
+   "road_lane": "#434840",
+   "road_lane_casing": "#23271F",
+   "path": "#6E6550",
+   "track": "#6E6550",
+   "label": "#C8C4B0",
+   "label_halo": "#121512",
+   "place_label": "#E6E0CB",
+   "route": "#6AA7FF",
+   "route_casing": "#1F4E9C",
+   "route_alt": "#4C5A70",
+   "route_walk": "#6AA7FF",
+   "location": "#6AA7FF",
+   "location_ring": "#FFFFFF",
+   "accuracy_fill": "#6AA7FF",
+   "accuracy_fill_opacity": 0.18
+  }
+ },
+ "road_class": {
+  "valley": "highway",
+  "ridge": "highway",
+  "east_link": "secondary",
+  "south_lane": "secondary",
+  "village": "lane",
+  "lake": "lane",
+  "west_link": "lane",
+  "launch": "lane"
+ },
+ "road_width_dp": {
+  "13": [
+   2.5,
+   1.6,
+   1.0,
+   0
+  ],
+  "14": [
+   3.5,
+   2.4,
+   1.6,
+   0.8
+  ],
+  "15": [
+   5.0,
+   3.5,
+   2.6,
+   1.0
+  ],
+  "16": [
+   7.0,
+   5.0,
+   4.0,
+   1.2
+  ],
+  "17": [
+   10.0,
+   7.5,
+   6.0,
+   1.5
+  ],
+  "18": [
+   16.0,
+   12.0,
+   10.0,
+   2.0
+  ]
+ },
+ "categories": {
+  "food": {
+   "colour": "#E37C2D",
+   "icons": [
+    "cafe",
+    "restaurant",
+    "beer",
+    "bar"
+   ]
+  },
+  "shop": {
+   "colour": "#4D7CC7",
+   "icons": [
+    "shop",
+    "grocery",
+    "post"
+   ]
+  },
+  "lodging": {
+   "colour": "#C25488",
+   "icons": [
+    "lodging",
+    "campsite"
+   ]
+  },
+  "outdoors": {
+   "colour": "#3E8E57",
+   "icons": [
+    "park",
+    "picnic-site",
+    "viewpoint",
+    "playground",
+    "garden",
+    "dog-park"
+   ]
+  },
+  "transport": {
+   "colour": "#3F7FB5",
+   "icons": [
+    "bus",
+    "rail",
+    "ferry",
+    "parking",
+    "fuel",
+    "harbor",
+    "slipway"
+   ]
+  },
+  "emergency": {
+   "colour": "#D04B4B",
+   "icons": [
+    "police",
+    "hospital",
+    "fire-station"
+   ]
+  },
+  "civic": {
+   "colour": "#7E6FC4",
+   "icons": [
+    "town-hall",
+    "library",
+    "school",
+    "information"
+   ]
+  },
+  "worship": {
+   "colour": "#77808A",
+   "icons": [
+    "place-of-worship",
+    "religious-christian",
+    "cemetery",
+    "monument"
+   ]
+  },
+  "farm": {
+   "colour": "#8F7A35",
+   "icons": [
+    "farm",
+    "barn",
+    "silo",
+    "windmill",
+    "water_tower"
+   ]
+  },
+  "water": {
+   "colour": "#2F86A8",
+   "icons": [
+    "boat_ramp",
+    "boating",
+    "fishing_pier",
+    "pier_fixed",
+    "swimming"
+   ]
+  },
+  "story": {
+   "colour": "#C8902F",
+   "icons": [
+    "marker",
+    "attraction"
+   ]
+  }
+ },
+ "labels": {
+  "road": {
+   "size_sp": 11,
+   "weight": 500,
+   "halo_dp": 2,
+   "min_zoom": 15
+  },
+  "place_village": {
+   "size_sp": 15,
+   "weight": 500,
+   "halo_dp": 2.5,
+   "min_zoom": 13
+  },
+  "poi": {
+   "size_sp": 11,
+   "weight": 500,
+   "halo_dp": 1.5,
+   "min_zoom": 16,
+   "colour": "category"
+  },
+  "water": {
+   "size_sp": 12,
+   "weight": 400,
+   "italic": true,
+   "min_zoom": 13
+  },
+  "contour": {
+   "size_sp": 9,
+   "every_m": 50,
+   "min_zoom": 16
+  }
+ }
+}
