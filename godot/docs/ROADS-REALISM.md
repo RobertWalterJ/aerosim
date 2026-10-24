@@ -13,7 +13,7 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 
 ## What changed
 
-- **Grass mask:** `Roads` bakes a 1024 px corridor mask, including the boat launch apron, and the grass shader keeps blades off it. The shoulders now read as shoulders instead of a strip of grass with a road underneath.
+- **Grass mask:** `Roads` bakes a 2048 px corridor mask, including the boat launch apron, and the grass shader keeps blades off it with a hard 0.02 to 0.30 threshold. The corridor is painted 5.5 m wider than each carriageway plus shoulder so a root at the verge cannot lean a tall blade over the asphalt. The shoulders read as shoulders instead of a strip of grass with a road underneath.
 - **Textures and normals:** the road shader samples `asphalt_diff`, `asphalt_nor` and `asphalt_arm`; the shoulder samples `gravel_diff`, `gravel_nor` and `gravel_arm`. The mesh now carries tangents and terrain-following normals so the normal maps work.
 - **Surface detail:** aggregate at two scales, wheel tracks, tar cracks, repaired patches, frayed edges, gravel in the edge, and slightly polished wheel paths.
 - **Markings:** edge lines and a dashed centre line only on roads 6.5 m and wider. The narrow lanes are unmarked. The paint is now separate geometry at real-world sizes: 120 mm edge lines and 120 mm centre dashes in a 3 m paint / 9 m gap rhythm, lifted clear of the asphalt and stopped short of the junction aprons.
@@ -113,6 +113,7 @@ The result in the junction overviews is a clean T or corner with one surface, on
 - `docs/realism/roads/14_clean_shoulder.jpg`, the shoulder and grass margin in daylight.
 - `docs/realism/roads/18_modular_markings.jpg`, separate edge and centre markings on the road.
 - `docs/realism/roads/19_road_edge_grounding.jpg`, the lowered ribbon and edge skirt.
+- `docs/realism/roads/20_grass_edge_clear.jpg`, the road edge at close range with no blades through the asphalt.
 - `docs/realism/boat_launch/00_boat_launch_aerial.jpg`, the launch from the air.
 - `docs/realism/boat_launch/01_boat_launch_ramp.jpg`, the ramp and dock at the water.
 

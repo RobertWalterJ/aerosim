@@ -989,3 +989,11 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - JOBF3. Should out-of-frame photos count as a miss when the pilot is near the subject but did not include it?
   - JOBF4. Should excellent work get money, followers, a client review or a new job lead?
   - JOBF5. Should the story's optional favour ever use these failure states, or stay failure-free?
+
+## Grass no longer pokes through the roads (lane/notify, session B, 2026-11-15)
+- **Problem:** at close range, blades appeared to grow out of the asphalt and the shoulder. The grass mask was 1024 px over the 4 km terrain, so each pixel was about 4 m, and the shader only began to fade blades at a mask value of 0.20 to 0.55. A root just outside the mask could lean a tall blade over the carriageway.
+- **Fix:** `Roads.MASK_N` is now 2048 px, about 2 m per pixel. The road corridor is painted 5.5 m wider than the carriageway plus shoulder instead of 3 m. The grass shader now fades from 0.02, so any partial mask value counts, not a soft half-mask. The combination keeps the roots far enough back that a tall blade cannot reach the asphalt, and a root right at the edge is removed.
+- **Scope:** the same mask covers the asphalt, shoulders, junction aprons, boat launch apron and old cabin dirt track. Litter and flowers use the same road mask.
+- **Evidence:** `docs/realism/roads/20_grass_edge_clear.jpg`, a close view of the road edge with no blades through the asphalt.
+- **Honest limits:** this is a texture-grid exclusion, not per-blade collision. Grass still exists on the verge and the bare corridor is wider than before. The mask is still 2 m per pixel, so a very close inspection of the exact mown edge is soft. There is no separate stubble or trampled edge. The mask is 4 MB in memory at 2048 L8.
+- **Question for Robert:** GRASS1. Should the verge stay this wide and bare, or should there be a shorter trampled edge strip closer to the asphalt?

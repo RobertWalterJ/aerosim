@@ -10,7 +10,7 @@ const STEP := 3.0
 const CLEAR_STEP := 6.0
 const CLEAR_CELL := 24.0
 const TREE_CLEARANCE := 10.0
-const MASK_N := 1024
+const MASK_N := 2048
 const JUNCTIONS := [
 	Vector2(270.0, 42.0), Vector2(286.0, 260.0), Vector2(215.0, 505.0), Vector2(12.0, -255.0),
 	Vector2(-300.0, 300.0), Vector2(-410.0, 120.0),
@@ -143,7 +143,7 @@ func _build_road_mask() -> void:
 	img.fill(Color(0, 0, 0, 1))
 	for r in ROUTES:
 		var pts: Array = paths.get(str(r["id"]), [])
-		var rad := float(r["width"]) * 0.5 + float(r["shoulder"]) + 3.0
+		var rad := float(r["width"]) * 0.5 + float(r["shoulder"]) + 5.5
 		for i in pts.size() - 1:
 			var a: Vector2 = pts[i]
 			var b: Vector2 = pts[i + 1]
