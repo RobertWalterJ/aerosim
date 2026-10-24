@@ -79,3 +79,17 @@ normal maps flagged as normal maps. 1.59 MB for all nine. The fieldstone foundat
 | `barnwood_*` | Poly Haven `wood_planks_grey`, https://polyhaven.com/a/wood_planks_grey | Rob Tuytel | CC0 | 1.5 m (as published; five 30 cm boards, grain upright) | barn boards under the red paint, white trim, bare soffits |
 | `roofsteel_*` | Poly Haven `corrugated_iron`, https://polyhaven.com/a/corrugated_iron | Dimitrios Savva (photography), Jenelle van Heerden (processing) | CC0 | 1.12 m (as published) | barn roof, hay hood, cupola roof, ironwork; silo dome, chute and pipe |
 | `silocrete_*` | Poly Haven `concrete_wall_004`, https://polyhaven.com/a/concrete_wall_004 | Charlotte Baglioni (photography), Dario Barresi (processing) | CC0 | 1.5 m across x 1.0 m up (published 2.0 m; squeezed so the blocks read as 75 x 25 cm silo staves) | silo staves |
+
+
+## Farm props (models5, 2026-10-23)
+
+Same recipe as above (Poly Haven 1k JPEGs from https://api.polyhaven.com/files/<id>, re-saved with PIL; `_arm` is r occlusion, g roughness, b metal). All CC0. Used by `game/shaders/farm_props.gdshader` through `game/new_models3.gd`.
+
+| Files | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `postwood_*` | Poly Haven `rough_wood`, https://polyhaven.com/a/rough_wood | Rob Tuytel | CC0 | 1.0 m | fence posts, rails and boards (grain along the part) |
+| `straw_*` | Poly Haven `riet_01`, https://polyhaven.com/a/riet_01 | Rob Tuytel | CC0 | 0.5 m | hay chaff under the stalk streaks and the straw colour |
+| `plough_*` | Poly Haven `farm_soil`, https://polyhaven.com/a/farm_soil | Amal Kumar | CC0 | 2.0 m | tilled and ploughed soil (crumb normals) |
+| `mudtrack_*` | Poly Haven `aerial_mud_1`, https://polyhaven.com/a/aerial_mud_1 | Rob Tuytel | CC0 | 2.5 m (wheel lines along z) | the muddy two-rut track |
+
+The `.import` files are committed with them.

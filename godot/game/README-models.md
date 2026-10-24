@@ -40,3 +40,37 @@ Same rules: real metres, forward -Z, up +Y, one surface per material, vertex col
 Batch 2 test: `test/new_models2_test.gd` (headless: finite, winding, budgets, real sizes; models3 adds the barn and silo shader and texture size, the sail cloths and bar width, the wheelsets on the gauge and the far-wheel budgets). Close views: `test/models3_views.gd` (`set=barn`: 8 m and 40 m, dry, wet and snow, `barn_views.jpg`; `set=mills`: 20, 60, 120 and 250 m; `set=train`: 3 m side and three-quarter). Sheet: `docs/realism/models/new_models2_sheet.jpg`, rendered by `test/new_models2_sheet.gd` (needs a window; `only=<title word>` renders a subset). models4 adds the wheel proportions (tread, rim, flange back to back, thin plate, 0.914 and 1.016 m diameters, the 1.435 m gauge), the locomotive budget (2500), the helicopter's see-through glass and rotor sizes, both airliner versions and its far mesh, and the flag cloth grid and UV. Close-ups: `test/models4_views.gd` (`set=loco|airliner|heli|flag`, needs a window) writes `loco_close.jpg`, `airliner_close.jpg`, `heli_close.jpg`, `flag_close.jpg`.
 
 Materials are shared and cached inside `NewModels`; every model is built once and cached. The preview contact sheet is `docs/realism/models/new_models_sheet.jpg`; the test is `test/new_models_test.gd` (headless) and the sheet is rendered by `test/new_models_sheet.gd` (needs a window).
+
+
+## Batch 5: farm pieces (`game/new_models3.gd`, class `NewModels3`; models5)
+
+One entry point, because there are 26 models and each has three levels of detail: `NewModels3.mesh(name, lod := 0) -> ArrayMesh` (lod 0 near, under about 25 m; 1 middle, to about 80 m; 2 far). Meshes are built once and kept. `NewModels3.NAMES` lists every name. `NewModels3.colliders(name) -> Array` gives AABB box strips (model frame) for fences and hay, empty for crops, weeds and ground. `NewModels3.TILE[name]` (x, z) is the repeat size of what is laid side by side. Real metres, forward -z, up +y, origin on the ground. Materials are `ShaderMaterial`s (`game/shaders/farm_props.gdshader` for fences, hay and ground; `game/shaders/farm_plant.gdshader` for crops) that read the vertex colour as the finish. Do not swap their materials for a plain colour: the photographed sets, wind and shadows live in them.
+
+| Name | Size and layout | Notes (triangles near / middle / far) |
+|---|---|---|
+| `fence_post_rail_a` | post at x = 0, three round rails run to x = 3; 1.3 m high | grey weathered posts with a chamfered top and a split; 130 / 60 / 40 |
+| `fence_post_rail_b` | square posts and four horizontal boards with nail heads; 1.35 m | dark brown; 75 / 70 / 35 |
+| `fence_post_rail_c` | slim leaning posts, two rustic poles crossing the post | pale silver-grey; 95 / 65 / 25 |
+| `fence_wire_a` | wood end post, steel T-post at x = 1.5, four sagging strands, barbs on the top one | 230 / 100 / 30 |
+| `fence_wire_b` | woven wire panel 0.8 m with two strands above, posts at 0 and 1.5 | 380 / 190 / 70 |
+| `fence_gate_a` | hinge post x = 0, latch post x = 3, galvanised pipe gate 3 m between | five bars, three uprights, diagonal brace; 300 / 210 / 110 |
+| `fence_corner_a` | corner post at the origin, sections run +x and -z, a strut and a diagonal brace on each leg | 345 / 235 / 125 |
+| `fence_broken_a` | leaning end post, snapped top rail, a middle rail dropped to the grass | 140 / 95 / 60 |
+| `hay_round_a` | round bale on its side (axis x), 1.2 m across and wide; pale plastic wrap with hay showing at the ends | smooth barrel; 900 / 120 / 24 |
+| `hay_round_b` | the same, unwrapped net-bound hay | |
+| `hay_roll_a` | 1.5 m round roll, 1.2 m wide, tight straw | |
+| `hay_square_a` | 0.9 x 0.45 x 0.35 m (x, z, y), gold hay with orange twine | 68 / 32 / 12 |
+| `hay_square_b` | same size, older grey-brown hay, green twine | |
+| `hay_stack_a` | 1.8 x 1.8 m footprint, 1.4 m high, four layers (8, 8, 4, 2 bales) crossed and a little off true | 650 / 240 / 36 |
+| `corn_stand_a` / `corn_stand_b` | a clump of 4 / 5 stalks 1.9 to 2.6 m, green summer / ripening; arching folded leaves, cob with husk leaves and silk, tassel | about 2000 / 130 / 18 |
+| `corn_row_chunk` | 4 m of one row along z (z -2 to 2, leaves overhang to about 2.5), stalk about every 0.4 m; tiles end to end at 4 m | 3000 / 320 / 14 |
+| `barley_patch_a` / `_b` | 0.5 m wide, about 0.8 m high: folded blades, stems and heads with awns; a ripening green-gold, b ripe gold, heads drooping | 1100 / 470 / 18 |
+| `alfalfa_patch_a` / `_b` | 0.5 m wide, 0.5 m high; trifoliate leaves; b in purple flower | 1500 (2200) / 480 / 18 |
+| `crop_edge_weeds` | 1.2 x 0.5 m margin strip, up to 1.1 m: tall grass, cream umbels, goldenrod, dock | 1200 / 60 / 18 |
+| `field_furrow_a` | tilled soil in ridges 0.76 m apart along z, 3.04 x 4 m, ridges 0.2 m high; tiles on both axes | lowest point about 0.01 m: lay it at the ground height; 2560 / 640 / 64 |
+| `field_furrow_b` | freshly ploughed, slices 0.45 m apart along z, 3.15 x 4.2 m; tiles on both axes | 3500 / 880 / 330 |
+| `field_headland_a` | 6 x 3 m turn row, flat packed soil with two tyre ruts swinging in an S, grass at the long edges; tiles along x | 1600 / 400 / 36 |
+| `field_track_a` | 2.6 x 8 m two-rut mud track, ruts 1.7 m apart holding wet shine; tiles along z | 2400 / 600 / 32 |
+
+How the finish works: the vertex colour carries the tint, and its alpha carries the grain direction (wood and hay: 1 up, 0.75 along x, 0.5 along z, 0.25 none) or, on a leaf, the way across the blade for veins and the pale midrib. Plants sway with `g_wind` (taller more), flutter at the leaf edge, lean away from the rotor downwash and take a per-field colour from where they stand. Fences, hay and soil darken and shine in rain (`g_wet`) and take snow and the cloud and drone shadows. Instancing: use a `MultiMesh` per model per level of detail; the plants' per-field colour reads the instance's world origin.
+Test: `test/new_models3_test.gd` (headless; finite, winding, budgets that must fall from near to far, real sizes, colliders inside their model, tiles whose edges meet, rebuilds identical, shaders and textures present). Sheets: `test/new_models3_sheet.gd` (needs a window; `set=fences|crops|ground`, `light=golden|overcast`) writes `docs/realism/models/new_models3_<set>_<light>.jpg`.
