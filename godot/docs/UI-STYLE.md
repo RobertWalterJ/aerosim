@@ -97,3 +97,7 @@ No pure white surfaces. No neon cyan. No blue-purple gradients. No drop shadows 
 - `game/casebook_app.gd`: the Casebook.
 - `game/menu_style.gd`: the HUD menu theme.
 - `game/phone_notes.gd`: notifications.
+
+## Tablet desktop
+
+The phone home is now a tablet-style desktop: an aerial red-barn photograph as the wallpaper, an Android-like status bar, adaptive app icons, a field-note widget with live wind and battery dials, a dock with app shortcuts and a proper Recents screen. The wallpaper is `assets/ui/tablet_red_barn.jpg`, an aerial view of Mt. Toby Farm by Lance Cheung / USDA NRCS, public domain. The credit is shown on the home card and in `assets/ui/TABLET-WALLPAPER-CREDIT.txt`. The icons are drawn in `game/tablet_icon.gd`; the dials are drawn in `game/tablet_dial.gd`; the battery dial reads the live drone pack from main. Claude has been asked for the polished icon, widget and control kit in `docs/CLAUDE-TABLET-UI.md`.

@@ -734,3 +734,18 @@ The welcome screen now chooses between Story, the normal game, and Sandbox, the 
   - MODE3. Should the fireworks show be allowed in Story for the optional fireworks job, or should the story schedule its own shows?
   - MODE4. Should Sandbox turn story and jobs off entirely, or keep them as they are now?
   - MODE5. Should the player be able to switch back to Sandbox from the pause menu, or only by returning to the welcome screen?
+
+## The tablet desktop (lane/notify, session B, 2026-11-10)
+The phone home is now a tablet-style desktop rather than a plain app grid, with a real public-domain aerial photograph and a warmer Android-like shell.
+- **Wallpaper:** `assets/ui/tablet_red_barn.jpg`, an aerial view of Mt. Toby Farm by Lance Cheung / USDA NRCS, public domain. The credit is on the home screen and in `assets/ui/TABLET-WALLPAPER-CREDIT.txt`. The image is overlaid with a warm dark scrim and a top shade so the text and icons read.
+- **Status and desktop:** an Android-like status bar with time, carrier, LTE, signal and battery; a large clock, date, story/sandbox mode line, followers and money; the app grid with six app icons; a field-note widget with a live wind compass dial and a live drone battery gauge; a dock with Home, Recents, DroneBudz, VidTube, Photos and Facade shortcuts; and the Put phone away action.
+- **Icons and dials (`game/tablet_icon.gd`, `game/tablet_dial.gd`):** app icons are now drawn as layered rounded tiles with soft highlights and shadows, each with its own glyph: a speech bubble and drone for DroneBudz, a play mark for VidTube, an aperture and valley for Photos, a clipboard for Jobs, a case folder for Casebook, a price tag for Facade. The Recents screen uses the same icons. The dials are a compass with a brass needle and a battery arc that reads the live drone pack, pushed from main with `set_battery`.
+- **Claude brief:** `docs/CLAUDE-TABLET-UI.md` asks for polished adaptive app icons, widget faces, separate dial needles, status-bar glyphs, Android toggles, sliders and an optional tablet frame. Board request posted. The current icons and dials are code-drawn placeholders.
+- **Evidence (docs/realism/tablet/):** 00 the tablet desktop, 01 Recents.
+- **Honest limits:** the icons and dials are code-drawn, not the final Claude asset set. The wallpaper is a real public-domain dairy farm aerial with a red barn in frame, not a dramatic close-up of one barn. The home screen is designed at 1280 x 720 and not yet checked at tablet portrait or 4:3. The dock icons are clipped slightly by the dock height at 720p. The status bar is cosmetic. There is no search bar or page-dot pager yet.
+- **Questions for Robert:**
+  - TAB1. Is the dairy-farm aerial right, or do you want a tighter drone photo of a single red barn?
+  - TAB2. Should the home show more Android-like furniture: a search pill, page dots and a quick-settings shade?
+  - TAB3. Should the tablet frame/bezel from Claude be used, or keep the UI edge-to-edge?
+  - TAB4. Should the app icons stay code-drawn if Claude's set does not match, or wait for the final set?
+  - TAB5. Should the field-note widget stay, or become a full weather widget with a forecast?

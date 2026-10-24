@@ -816,6 +816,8 @@ func _process(delta: float) -> void:
 		gimbal_pitch = clampf(gimbal_pitch + _gimbal_rate * delta, deg_to_rad(-90.0), deg_to_rad(20.0))
 		hud.set_gimbal_value(gimbal_pitch)
 	_tick_clock(delta)
+	if phone_os != null and quad != null:
+		phone_os.set_battery(quad.battery.soc)   # the tablet's battery dial reads the drone pack
 	if not paused:
 		_update_home_recharge(delta)   # after a Return to Home landing: props stopped, battery charging
 	_check_home_landing()

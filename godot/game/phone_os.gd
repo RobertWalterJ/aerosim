@@ -37,6 +37,11 @@ var _field_weather: Label
 var _field_crew: Label
 var _field_case: Label
 var _drone_budz_badge: Label
+var _wind_dial: TabletDial
+var _battery_dial: TabletDial
+var _credit: Label
+var _mode_label: Label
+var _battery_pct := 0.74
 var _open := false
 var _current_app := "home"
 
@@ -58,9 +63,31 @@ func _build() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.theme = UniverseUI.make_theme()
 	add_child(_root)
-	var bg := PhoneBackground.new()
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_root.add_child(bg)
+	var tex := load("res://assets/ui/tablet_red_barn.jpg") as Texture2D
+	if tex != null:
+		var photo := TextureRect.new()
+		photo.set_anchors_preset(Control.PRESET_FULL_RECT)
+		photo.texture = tex
+		photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_root.add_child(photo)
+	else:
+		var bg := PhoneBackground.new()
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_root.add_child(bg)
+	var scrim := ColorRect.new()
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.color = Color(0.025, 0.035, 0.028, 0.50)
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(scrim)
+	var top_shade := TextureRect.new()
+	var g := Gradient.new(); g.set_color(0, Color(0.02, 0.03, 0.025, 0.72)); g.set_color(1, Color(0.02, 0.03, 0.025, 0.0))
+	var gt := GradientTexture2D.new(); gt.gradient = g; gt.fill_from = Vector2(0.0, 0.0); gt.fill_to = Vector2(0.0, 1.0); gt.width = 8; gt.height = 256
+	top_shade.texture = gt
+	top_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	top_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(top_shade)
 	# status bar
 	var status := MarginContainer.new()
 	status.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -92,7 +119,7 @@ func _build() -> void:
 	var hm := MarginContainer.new()
 	for m in ["left", "right"]:
 		hm.add_theme_constant_override("margin_" + m, 44)
-	hm.add_theme_constant_override("margin_top", 70)
+	hm.add_theme_constant_override("margin_top", 54)
 	hm.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	hcol.add_child(hm)
 	var hbox := VBoxContainer.new()
@@ -100,7 +127,9 @@ func _build() -> void:
 	hm.add_child(hbox)
 	var date := UniverseUI.label("AUTUMN  ·  NORTH VALLEY  ·  47°N", 10, UniverseUI.AMBER)
 	hbox.add_child(date)
-	var big := UniverseUI.label("00:00", 56, UniverseUI.CREAM)
+	_mode_label = UniverseUI.label("", 9, UniverseUI.MOSS)
+	hbox.add_child(_mode_label)
+	var big := UniverseUI.label("00:00", 48, UniverseUI.CREAM)
 	big.name = "BigClock"
 	hbox.add_child(big)
 	var sub := HBoxContainer.new()
@@ -113,7 +142,7 @@ func _build() -> void:
 	_metrics = UniverseUI.label("", 13, UniverseUI.MOSS)
 	sub.add_child(_metrics)
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 34)
+	gap.custom_minimum_size = Vector2(0, 18)
 	hbox.add_child(gap)
 	var grid := GridContainer.new()
 	grid.columns = 3
@@ -127,12 +156,12 @@ func _build() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_child(spacer)
 	var note := PanelContainer.new()
-	note.custom_minimum_size = Vector2(300, 0)
+	note.custom_minimum_size = Vector2(320, 0)
 	note.add_theme_stylebox_override("panel", UniverseUI.card(16, Color(0.075, 0.090, 0.078, 0.92)))
 	content.add_child(note)
 	var nm := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:
-		nm.add_theme_constant_override("margin_" + m, 16)
+		nm.add_theme_constant_override("margin_" + m, 14)
 	note.add_child(nm)
 	var ncol := VBoxContainer.new()
 	ncol.add_theme_constant_override("separation", 6)
@@ -143,6 +172,17 @@ func _build() -> void:
 	_field_weather = UniverseUI.label("", 12, UniverseUI.MUTED)
 	_field_weather.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ncol.add_child(_field_weather)
+	var dial_row := HBoxContainer.new()
+	dial_row.add_theme_constant_override("separation", 8)
+	ncol.add_child(dial_row)
+	_wind_dial = TabletDial.new()
+	_wind_dial.custom_minimum_size = Vector2(92, 92)
+	_wind_dial.set_dial("wind", 0.35, "WIND", UniverseUI.AMBER)
+	dial_row.add_child(_wind_dial)
+	_battery_dial = TabletDial.new()
+	_battery_dial.custom_minimum_size = Vector2(92, 92)
+	_battery_dial.set_dial("battery", _battery_pct, "DRONE", UniverseUI.MOSS)
+	dial_row.add_child(_battery_dial)
 	var div := HSeparator.new()
 	div.add_theme_constant_override("separation", 8)
 	ncol.add_child(div)
@@ -152,6 +192,9 @@ func _build() -> void:
 	_field_case = UniverseUI.label("", 11, UniverseUI.CREAM_DIM)
 	_field_case.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ncol.add_child(_field_case)
+	_credit = UniverseUI.label("Photo: Lance Cheung / USDA NRCS  ·  public domain", 8, UniverseUI.FAINT)
+	_credit.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	ncol.add_child(_credit)
 	var apps := [
 		{"key": "chat", "letter": "DB", "name": "DroneBudz", "kind": "server"},
 		{"key": "studio", "letter": "VT", "name": "VidTube Studio", "kind": "channel"},
@@ -162,36 +205,30 @@ func _build() -> void:
 	]
 	for a in apps:
 		var cell := VBoxContainer.new()
-		cell.add_theme_constant_override("separation", 7)
+		cell.add_theme_constant_override("separation", 4)
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(112, 112)
+		btn.custom_minimum_size = Vector2(96, 96)
 		btn.focus_mode = Control.FOCUS_NONE
-		var tint := UniverseUI.app_colour(str(a["key"]))
-		var sb := UniverseUI.box(tint.darkened(0.58), 25, Color(tint.r, tint.g, tint.b, 0.36), 1, 0.0, 0.0)
-		sb.shadow_color = Color(0, 0, 0, 0.34)
-		sb.shadow_size = 8
-		sb.shadow_offset = Vector2(0, 3)
-		btn.add_theme_stylebox_override("normal", sb)
-		var sbh := sb.duplicate() as StyleBoxFlat
-		sbh.bg_color = tint.darkened(0.46)
-		btn.add_theme_stylebox_override("hover", sbh)
-		var sbp := sb.duplicate() as StyleBoxFlat
-		sbp.bg_color = tint.darkened(0.32)
-		btn.add_theme_stylebox_override("pressed", sbp)
-		btn.text = str(a["letter"])
-		btn.add_theme_font_size_override("font_size", 29)
-		btn.add_theme_color_override("font_color", UniverseUI.CREAM)
+		var empty := StyleBoxEmpty.new()
+		btn.add_theme_stylebox_override("normal", empty)
+		btn.add_theme_stylebox_override("hover", empty)
+		btn.add_theme_stylebox_override("pressed", empty)
 		var key := str(a["key"])
+		var tint := UniverseUI.app_colour(key)
+		var icon := TabletIcon.new()
+		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		icon.set_kind(key, tint)
+		btn.add_child(icon)
 		btn.pressed.connect(func(): _open_app(key))
 		cell.add_child(btn)
 		if key == "chat":
 			_drone_budz_badge = UniverseUI.label("", 10, UniverseUI.AMBER)
 			_drone_budz_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			cell.add_child(_drone_budz_badge)
-		var lab := UniverseUI.label(str(a["name"]), 12, UniverseUI.CREAM_DIM)
+		var lab := UniverseUI.label(str(a["name"]), 11, UniverseUI.CREAM_DIM)
 		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cell.add_child(lab)
-		var kind := UniverseUI.label(str(a["kind"]).to_upper(), 9, UniverseUI.FAINT)
+		var kind := UniverseUI.label(str(a["kind"]).to_upper(), 8, UniverseUI.FAINT)
 		kind.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		cell.add_child(kind)
 		grid.add_child(cell)
@@ -200,6 +237,7 @@ func _build() -> void:
 	hbox.add_child(filler)
 	var tip_card := PanelContainer.new()
 	tip_card.theme_type_variation = "FlatCard"
+	tip_card.visible = false
 	hbox.add_child(tip_card)
 	var tm := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:
@@ -215,7 +253,7 @@ func _build() -> void:
 	dsb.border_width_right = 0
 	dsb.border_width_bottom = 0
 	dock.add_theme_stylebox_override("panel", dsb)
-	dock.custom_minimum_size = Vector2(0, 62)
+	dock.custom_minimum_size = Vector2(0, 58)
 	hcol.add_child(dock)
 	var dm := MarginContainer.new()
 	for m in ["left", "right"]:
@@ -232,6 +270,24 @@ func _build() -> void:
 	recents.custom_minimum_size = Vector2(96, 36)
 	recents.pressed.connect(_show_switcher)
 	drow.add_child(recents)
+	var dock_gap := Control.new(); dock_gap.custom_minimum_size = Vector2(18, 0)
+	drow.add_child(dock_gap)
+	for pair in [["chat", "DroneBudz"], ["studio", "VidTube Studio"], ["photos", "Photos"], ["market", "Facade"]]:
+		var dock_btn := Button.new()
+		dock_btn.custom_minimum_size = Vector2(44, 44)
+		dock_btn.tooltip_text = str(pair[1])
+		dock_btn.focus_mode = Control.FOCUS_NONE
+		var empty := StyleBoxEmpty.new()
+		dock_btn.add_theme_stylebox_override("normal", empty)
+		dock_btn.add_theme_stylebox_override("hover", UniverseUI.box(Color(1, 1, 1, 0.06), 10, Color(0, 0, 0, 0), 0, 0.0, 0.0))
+		dock_btn.add_theme_stylebox_override("pressed", UniverseUI.box(Color(1, 1, 1, 0.10), 10, Color(0, 0, 0, 0), 0, 0.0, 0.0))
+		var der := str(pair[0])
+		var dicon := TabletIcon.new()
+		dicon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		dicon.set_kind(der, UniverseUI.app_colour(der))
+		dock_btn.add_child(dicon)
+		dock_btn.pressed.connect(func(): _open_app(der))
+		drow.add_child(dock_btn)
 	var st2 := Control.new(); st2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	drow.add_child(st2)
 	var put_away := Button.new(); put_away.text = "Put phone away  (Tab)"; put_away.theme_type_variation = "Ghost"
@@ -373,14 +429,11 @@ func _show_switcher() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
 		cm.add_child(row)
-		var icon := PanelContainer.new()
+		var icon := TabletIcon.new()
 		icon.custom_minimum_size = Vector2(48, 48)
-		var tint := UniverseUI.app_colour(key)
-		icon.add_theme_stylebox_override("panel", UniverseUI.box(tint.darkened(0.5), 13, Color(tint.r, tint.g, tint.b, 0.5), 1, 0.0, 0.0))
-		var il := UniverseUI.label(_app_letter(key), 17, UniverseUI.CREAM)
-		il.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		il.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		icon.add_child(il)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		icon.set_kind(key, UniverseUI.app_colour(key))
 		row.add_child(icon)
 		var text := VBoxContainer.new()
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -485,8 +538,23 @@ func _refresh() -> void:
 		_field_crew.text = "CREW  ·  6 on the server" + (("   %d unread" % unread2) if unread2 > 0 else "")
 	if _field_case != null:
 		_field_case.text = "CASEBOOK  ·  " + (story.current_status() if story != null else "No case yet.")
+	if _mode_label != null:
+		_mode_label.text = "STORY MODE  ·  the valley owns the weather" if (hud == null or hud.story_mode) else "SANDBOX  ·  weather controls unlocked"
+	if _wind_dial != null and hud != null:
+		var wind3 := float(hud.weather.get("wind", 3.0))
+		var from3 := float(hud.weather.get("from", 250.0))
+		_wind_dial.set_heading(from3)
+		_wind_dial.set_dial("wind", clampf(wind3 / 10.0, 0.0, 1.0), "WIND", UniverseUI.AMBER)
+	if _battery_dial != null:
+		_battery_dial.set_dial("battery", _battery_pct, "DRONE", UniverseUI.MOSS if _battery_pct > 0.25 else UniverseUI.RUST)
 	if _current_app == "studio" and _studio_app.visible:
 		_studio_app.refresh()
+
+## The drone battery, pushed from main while the phone is open. The dial reads this.
+func set_battery(pct: float) -> void:
+	_battery_pct = clampf(pct, 0.0, 1.0)
+	if _battery_dial != null and _open:
+		_battery_dial.set_dial("battery", _battery_pct, "DRONE", UniverseUI.MOSS if _battery_pct > 0.25 else UniverseUI.RUST)
 
 func _input(event: InputEvent) -> void:
 	if not _open:
