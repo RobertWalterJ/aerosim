@@ -126,19 +126,20 @@ func _build_ui() -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_root.theme = UniverseUI.make_theme()
 	add_child(_root)
 	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.02, 0.03, 0.72)
+	dim.color = Color(0.025, 0.035, 0.03, 0.80)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.add_child(dim)
 	var panel := PanelContainer.new()
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.095, 0.11, 0.99)
+	sb.bg_color = Color(0.075, 0.090, 0.078, 0.99)
 	sb.set_corner_radius_all(22)
 	sb.border_width_left = 1; sb.border_width_top = 1; sb.border_width_right = 1; sb.border_width_bottom = 1
-	sb.border_color = Color(1, 1, 1, 0.08)
+	sb.border_color = Color(0.88, 0.74, 0.50, 0.22)
 	panel.add_theme_stylebox_override("panel", sb)
 	_root.add_child(panel)
 	panel.anchor_left = 0.04; panel.anchor_right = 0.96
@@ -157,11 +158,11 @@ func _build_ui() -> void:
 	var title := Label.new()
 	title.text = "Photo gallery"
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(0.97, 0.97, 0.98))
+	title.add_theme_color_override("font_color", Color(0.94, 0.912, 0.82))
 	head.add_child(title)
 	_count_label = Label.new()
 	_count_label.add_theme_font_size_override("font_size", 15)
-	_count_label.add_theme_color_override("font_color", Color(0.70, 0.72, 0.76))
+	_count_label.add_theme_color_override("font_color", Color(0.60, 0.63, 0.555))
 	_count_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_count_label)
 	var stretch := Control.new()
@@ -170,14 +171,14 @@ func _build_ui() -> void:
 	var hint := Label.new()
 	hint.text = "Photos stay in the game. Export copy is the only way one leaves."
 	hint.add_theme_font_size_override("font_size", 13)
-	hint.add_theme_color_override("font_color", Color(0.60, 0.62, 0.66))
+	hint.add_theme_color_override("font_color", Color(0.60, 0.63, 0.555))
 	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(hint)
 	var close := Button.new()
 	close.text = "Close"
 	close.flat = true
 	close.add_theme_font_size_override("font_size", 16)
-	close.add_theme_color_override("font_color", Color(0.80, 0.82, 0.86))
+	close.add_theme_color_override("font_color", Color(0.94, 0.912, 0.82))
 	close.pressed.connect(close_gallery)
 	head.add_child(close)
 	var scroll := ScrollContainer.new()

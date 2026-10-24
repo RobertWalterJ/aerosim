@@ -62,7 +62,7 @@ class AppIcon extends Control:
 	var urgency := 0
 	func _draw() -> void:
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.11, 0.52, 0.34)
+		sb.bg_color = Color(0.22, 0.42, 0.27)
 		sb.set_corner_radius_all(int(size.x * 0.28))
 		draw_style_box(sb, Rect2(Vector2.ZERO, size))
 		var c := size * 0.5
@@ -480,7 +480,7 @@ func _build_shade() -> void:
 	_shade_panel = PanelContainer.new()
 	_shade_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.10, 0.10, 0.115, 0.98)
+	sb.bg_color = Color(0.075, 0.088, 0.078, 0.98)
 	sb.set_corner_radius_all(0)
 	sb.corner_radius_bottom_left = 28
 	sb.corner_radius_bottom_right = 28
@@ -587,7 +587,7 @@ func _rebuild_shade() -> void:
 	var group := PanelContainer.new()
 	group.mouse_filter = Control.MOUSE_FILTER_STOP
 	var gsb := StyleBoxFlat.new()
-	gsb.bg_color = Color(0.16, 0.16, 0.175, 0.97)
+	gsb.bg_color = Color(0.12, 0.14, 0.122, 0.97)
 	gsb.set_corner_radius_all(20)
 	group.add_theme_stylebox_override("panel", gsb)
 	var gpad := MarginContainer.new()
@@ -663,7 +663,7 @@ func _shade_child(rec: Dictionary) -> PanelContainer:
 	var card := PanelContainer.new()
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.155, 0.155, 0.17, 0.97)
+	sb.bg_color = Color(0.14, 0.16, 0.14, 0.97)
 	sb.set_corner_radius_all(16)
 	card.add_theme_stylebox_override("panel", sb)
 	var pad := MarginContainer.new()
@@ -739,7 +739,7 @@ func _build_pill() -> void:
 	_pill = PanelContainer.new()
 	_pill.mouse_filter = Control.MOUSE_FILTER_STOP
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.10, 0.10, 0.115, 0.93)
+	sb.bg_color = Color(0.075, 0.088, 0.078, 0.93)
 	sb.set_corner_radius_all(15)
 	sb.border_width_left = 1; sb.border_width_top = 1; sb.border_width_right = 1; sb.border_width_bottom = 1
 	sb.border_color = Color(1, 1, 1, 0.10)

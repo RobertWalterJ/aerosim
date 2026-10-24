@@ -664,3 +664,24 @@ The narrative now ends with the abandoned cabin, the 1980s police cruiser, the t
   - E4. Should Wren be named in the chat before the reveal, or stay Unknown until the rescue?
   - E5. Should the thermal camera be available in free flight after the story, or only during the last flight?
   - E6. Do you want Rennick's ghost to appear at the cabin as a translucent figure, or stay a voice in the messages?
+
+## The interface pass: the valley field kit (lane/notify, session B, 2026-11-06)
+The phone, its apps and the HUD menus now share one visual language: a wet autumn valley field notebook rather than a cool sci-fi dashboard.
+- **One theme (`game/ui_theme.gd`):** deep pine and charcoal surfaces, warm paper text, brass for actions, moss for the crew and the channel, lake teal for weather and water, rust for VidTube, warm hairlines and cards. Buttons, primary and ghost actions, chips, channel rows, fields, scrollbars and cards all come from this theme.
+- **The phone (`game/phone_os.gd`, `game/phone_background.gd`):** a drawn valley wallpaper with slow topographic contours and a low brass sun, a new status bar, a clock and weather header, app tiles with tinted cards and captions, a field note card with weather, crew unread and the current case, a quiet dock and a proper app switcher with app cards, descriptions and open buttons. The wallpaper only shows on the home screen; every app gets a dark scrim for legibility.
+- **DroneBudz (`game/chat_app.gd`):** a moss server mark, grouped CHANNELS and DIRECT MESSAGES, brass selection, a channel header with topic and crew status, warm paper message avatars, small caps roles, photo frames with a warm hairline, ASK chips and a brass Send. System and job events are centred, quiet lines.
+- **VidTube Studio (`game/studio_app.gd`):** a rust channel banner, a channel mark, four metric cards with coloured edges, a clean uploads list with play tiles and edited or direct tags, and the editor line in the header. It reads like a small valley broadcaster, not a corporate dashboard.
+- **Casebook:** the same warm cards and brass case accent, with the request, evidence, chapter trail and ending choice fitting the new palette.
+- **Jobs and Photos:** the full-screen menus now use the shared theme, warm panel and title colours, and the brass-outline panels instead of cool grey chrome.
+- **HUD menus (`game/menu_style.gd`):** the old cyan accent is gone. Settings and the pause menu now use brass, warm cards, pine surfaces and the same type scale.
+- **Notifications (`game/phone_notes.gd`):** the DroneBudz mark is moss, the heads-up and shade cards are warm charcoal, and urgency stays amber and rust.
+- **Style guide:** `godot/docs/UI-STYLE.md` records the palette, type, components, app identities, dialogue rules and consistency rules for future screens.
+- **Evidence (docs/realism/phone/):** 10 home, 11 app switcher, 12 chat, 13 VidTube Studio, 14 Casebook, 15 Jobs, 16 gallery, 17 HUD menu.
+- **Honest limits:** this is a visual and consistency pass, not a full redesign of every screen. Jobs, Photos and Casebook still carry some older card copy and a handful of hard-coded label colours that the theme cannot reach; the notification shade keeps its Android layout. The home screen uses a lot of empty space on a wide monitor by design, but a narrower layout on mobile is untested. There is no custom font asset, so the type is the Godot fallback. The chat still shows duplicate adjacent messages from the earlier dedupe rule, which is a data issue, not a styling one.
+- **Questions for Robert:**
+  - UI1. Is the warm field-kit palette the right universe look, or do you want it darker and more nocturnal?
+  - UI2. Should the home screen field note card stay, or should the wallpaper and app grid have the screen to themselves?
+  - UI3. Should VidTube Studio go further with channel art, thumbnails and a viewer-facing page, or stay a clean dashboard?
+  - UI4. Do you want a custom typeface for the valley, or is the clean system font right for readability?
+  - UI5. Should the chat keep the Discord-like layout, or move to a more distinct DroneBudz layout?
+  - UI6. Should notifications use the Android heads-up style everywhere, or become a quieter in-universe radio message style?

@@ -1,10 +1,10 @@
 class_name StudioApp
 extends Control
-## The DroneBudz Studio app: the channel's numbers and what it has made (session B).
+## VidTube Studio (session B UI pass): the channel's numbers, uploads and editor, in the voice of a small valley
+## broadcaster. Rust and cream, a channel card, four honest counters and a list of what has been published.
 ##
 ## Followers and money are the two things the crew cares about. Money comes from paid jobs and pays for gear and
-## travel; followers are the audience and bring the next job. This page shows both, the videos already made (completed
-## jobs), the photos in the library, and a way into the chat and the jobs board. Read only, nothing is spent here yet.
+## travel; followers are the audience and bring the next job. Read only, nothing is spent here yet.
 
 signal chat_requested
 signal jobs_requested
@@ -30,135 +30,137 @@ func setup(h: Hud, j: Jobs, c: ChatData, p: PhotoLibrary) -> void:
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	theme = UniverseUI.make_theme()
+	var scrim := ColorRect.new()
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.color = Color(0.045, 0.055, 0.048, 1.0)
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(scrim)
 	var col := VBoxContainer.new()
 	col.set_anchors_preset(Control.PRESET_FULL_RECT)
 	col.add_theme_constant_override("separation", 0)
 	add_child(col)
-	# banner
+	# ---------------- channel banner
 	var banner := PanelContainer.new()
-	banner.custom_minimum_size = Vector2(0, 150)
-	var bsb := StyleBoxFlat.new()
-	bsb.bg_color = Color(0.10, 0.13, 0.16)
-	bsb.border_width_bottom = 3
-	bsb.border_color = Color(0.35, 0.75, 0.55)
-	banner.add_theme_stylebox_override("panel", bsb)
+	banner.custom_minimum_size = Vector2(0, 146)
+	banner.add_theme_stylebox_override("panel", UniverseUI.box(UniverseUI.DEEP, 0, UniverseUI.LINE, 1, 0.0, 0.0))
 	col.add_child(banner)
 	var bm := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:
 		bm.add_theme_constant_override("margin_" + m, 22)
 	banner.add_child(bm)
-	var bcol := VBoxContainer.new()
-	bcol.add_theme_constant_override("separation", 2)
-	bm.add_child(bcol)
-	var title := Label.new()
-	title.text = "VidTube  ·  Studio"
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color(0.96, 0.97, 0.98))
-	bcol.add_child(title)
-	var sub := Label.new()
-	sub.text = "The DroneBudz channel on VidTube. Six crew, one pilot, whatever weather the valley gives us."
-	sub.add_theme_font_size_override("font_size", 14)
-	sub.add_theme_color_override("font_color", Color(0.70, 0.74, 0.78))
-	bcol.add_child(sub)
-	_editor_label = Label.new()
-	_editor_label.add_theme_font_size_override("font_size", 13)
-	_editor_label.add_theme_color_override("font_color", Color(0.60, 0.78, 0.66))
-	bcol.add_child(_editor_label)
-	var btn_row := HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 10)
-	bcol.add_child(btn_row)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 18)
+	bm.add_child(row)
+	var mark := PanelContainer.new()
+	mark.custom_minimum_size = Vector2(78, 78)
+	mark.add_theme_stylebox_override("panel", UniverseUI.box(UniverseUI.RUST.darkened(0.32), 20, UniverseUI.RUST, 1, 0.0, 0.0))
+	var mark_label := UniverseUI.label("DB", 24, UniverseUI.CREAM)
+	mark_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mark_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	mark.add_child(mark_label)
+	row.add_child(mark)
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_theme_constant_override("separation", 1)
+	row.add_child(text)
+	text.add_child(UniverseUI.label("VIDTUBE  ·  STUDIO", 10, UniverseUI.AMBER))
+	var title := UniverseUI.label("DroneBudz", 32, UniverseUI.CREAM)
+	text.add_child(title)
+	text.add_child(UniverseUI.label("Halloway Valley  ·  six crew  ·  one pilot  ·  whatever weather the valley gives us", 12, UniverseUI.MUTED))
+	_editor_label = UniverseUI.label("", 11, UniverseUI.MOSS)
+	text.add_child(_editor_label)
+	var actions := VBoxContainer.new()
+	actions.add_theme_constant_override("separation", 8)
+	row.add_child(actions)
 	var chat_btn := Button.new()
-	chat_btn.text = "Open DroneBudz chat"
-	chat_btn.custom_minimum_size = Vector2(190, 38)
+	chat_btn.text = "Open DroneBudz"
+	chat_btn.theme_type_variation = "Ghost"
+	chat_btn.custom_minimum_size = Vector2(172, 36)
 	chat_btn.pressed.connect(func(): chat_requested.emit())
-	btn_row.add_child(chat_btn)
-	var jobs_btn := Button.new()
-	jobs_btn.text = "Jobs board"
-	jobs_btn.custom_minimum_size = Vector2(130, 38)
-	jobs_btn.pressed.connect(func(): jobs_requested.emit())
-	btn_row.add_child(jobs_btn)
+	actions.add_child(chat_btn)
 	var up_btn := Button.new()
 	up_btn.text = "Upload from camera roll"
-	up_btn.custom_minimum_size = Vector2(200, 38)
+	up_btn.theme_type_variation = "Primary"
+	up_btn.custom_minimum_size = Vector2(216, 38)
 	up_btn.pressed.connect(func(): upload_requested.emit())
-	btn_row.add_child(up_btn)
-	# metrics row
+	actions.add_child(up_btn)
+	# ---------------- metrics
+	var metrics_pad := MarginContainer.new()
+	metrics_pad.add_theme_constant_override("margin_left", 22)
+	metrics_pad.add_theme_constant_override("margin_right", 22)
+	metrics_pad.add_theme_constant_override("margin_top", 16)
+	col.add_child(metrics_pad)
 	var metrics := HBoxContainer.new()
 	metrics.add_theme_constant_override("separation", 12)
-	var pad := MarginContainer.new()
-	for m in ["left", "right", "top"]:
-		pad.add_theme_constant_override("margin_" + m, 22)
-	pad.add_child(metrics)
-	col.add_child(pad)
-	var m1 := _metric("Followers", "0")
+	metrics_pad.add_child(metrics)
+	var m1 := _metric("FOLLOWERS", "0", "the audience", UniverseUI.MOSS)
 	_followers = m1["value"]
 	metrics.add_child(m1["card"])
-	var m2 := _metric("Money", "$0")
+	var m2 := _metric("MONEY", "$0", "fuel and gear", UniverseUI.AMBER)
 	_money = m2["value"]
 	metrics.add_child(m2["card"])
-	var m3 := _metric("Videos", "0")
+	var m3 := _metric("VIDEOS", "0", "on the channel", UniverseUI.RUST)
 	_videos = m3["value"]
 	metrics.add_child(m3["card"])
-	var m4 := _metric("Views", "0")
+	var m4 := _metric("VIEWS", "0", "all time", UniverseUI.LAKE)
 	_views = m4["value"]
 	metrics.add_child(m4["card"])
-	# content
-	var body := VBoxContainer.new()
+	# ---------------- uploads
+	var body := MarginContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var bp := MarginContainer.new()
-	bp.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	for m in ["left", "right", "bottom"]:
-		bp.add_theme_constant_override("margin_" + m, 22)
-	bp.add_child(body)
-	col.add_child(bp)
-	var gap2 := Control.new()
-	gap2.custom_minimum_size = Vector2(0, 10)
-	body.add_child(gap2)
-	var heading := Label.new()
-	heading.text = "Videos on the channel"
-	heading.add_theme_font_size_override("font_size", 20)
-	heading.add_theme_color_override("font_color", Color(0.94, 0.95, 0.96))
-	body.add_child(heading)
+		body.add_theme_constant_override("margin_" + m, 22)
+	col.add_child(body)
+	var bcol := VBoxContainer.new()
+	bcol.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	bcol.add_theme_constant_override("separation", 8)
+	body.add_child(bcol)
+	var heading_row := HBoxContainer.new()
+	heading_row.add_theme_constant_override("separation", 10)
+	bcol.add_child(heading_row)
+	var hcol := VBoxContainer.new()
+	hcol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hcol.add_theme_constant_override("separation", 0)
+	heading_row.add_child(hcol)
+	hcol.add_child(UniverseUI.label("UPLOADS", 10, UniverseUI.AMBER))
+	hcol.add_child(UniverseUI.label("What the channel has made", 18, UniverseUI.CREAM))
+	var jobs_btn := Button.new()
+	jobs_btn.text = "Jobs board"
+	jobs_btn.theme_type_variation = "Ghost"
+	jobs_btn.custom_minimum_size = Vector2(112, 32)
+	jobs_btn.pressed.connect(func(): jobs_requested.emit())
+	heading_row.add_child(jobs_btn)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 220)
+	scroll.custom_minimum_size = Vector2(0, 160)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.add_child(scroll)
+	bcol.add_child(scroll)
 	_list = VBoxContainer.new()
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 8)
 	scroll.add_child(_list)
 
-func _metric(name: String, value: String) -> Dictionary:
+func _metric(name: String, value: String, sub: String, accent: Color) -> Dictionary:
 	var card := PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	card.custom_minimum_size = Vector2(0, 92)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.12, 0.135, 0.15)
-	sb.set_corner_radius_all(14)
-	sb.border_width_left = 1
-	sb.border_width_top = 1
-	sb.border_width_right = 1
-	sb.border_width_bottom = 1
-	sb.border_color = Color(1, 1, 1, 0.06)
+	card.custom_minimum_size = Vector2(0, 86)
+	var sb := UniverseUI.card(14)
+	sb.border_width_left = 3
+	sb.border_color = accent
 	card.add_theme_stylebox_override("panel", sb)
 	var m := MarginContainer.new()
 	for s in ["left", "right", "top", "bottom"]:
-		m.add_theme_constant_override("margin_" + s, 14)
+		m.add_theme_constant_override("margin_" + s, 13)
 	card.add_child(m)
 	var c := VBoxContainer.new()
-	c.add_theme_constant_override("separation", 2)
+	c.add_theme_constant_override("separation", 0)
 	m.add_child(c)
-	var n := Label.new()
-	n.text = name
-	n.add_theme_font_size_override("font_size", 13)
-	n.add_theme_color_override("font_color", Color(0.62, 0.66, 0.70))
-	c.add_child(n)
-	var v := Label.new()
-	v.text = value
-	v.add_theme_font_size_override("font_size", 30)
-	v.add_theme_color_override("font_color", Color(0.96, 0.96, 0.97))
+	c.add_child(UniverseUI.label(name, 9, UniverseUI.MUTED))
+	var v := UniverseUI.label(value, 28, UniverseUI.CREAM)
 	c.add_child(v)
+	var sub_label := UniverseUI.label(sub, 10, accent)
+	c.add_child(sub_label)
 	return {"card": card, "value": v}
 
 func refresh() -> void:
@@ -167,68 +169,56 @@ func refresh() -> void:
 		_money.text = "$" + str(jobs.money())
 		_views.text = str(jobs.views())
 		if _editor_label != null:
-			_editor_label.text = "Editor: Maya (friend) · send a photo to #clips and she cuts it" if jobs.editor_friend() else "No editor yet · uploads go straight to VidTube"
-	var st: Dictionary = jobs.stats() if jobs != null else {}
+			_editor_label.text = "EDITOR: Maya  ·  send a photo to #clips and she cuts it" if jobs.editor_friend() else "EDITOR: none yet  ·  uploads go straight to VidTube"
 	var uploads: Array = jobs.videos() if jobs != null else []
 	_videos.text = str(uploads.size())
 	for ch in _list.get_children():
 		ch.queue_free()
-	var names := {"lake": "Lake at golden hour", "chapel": "The chapel for the heritage page", "fireworks": "Festival fireworks coverage", "fields": "The harvest postcard"}
-	var done_ids: Array = []
-	if jobs != null:
-		done_ids = []
-	if done_ids.is_empty() and uploads.is_empty():
-		var none := Label.new()
-		none.text = "No videos yet. Finish a job or upload a photo from the camera roll."
-		none.add_theme_font_size_override("font_size", 15)
-		none.add_theme_color_override("font_color", Color(0.66, 0.68, 0.72))
-		_list.add_child(none)
+	if uploads.is_empty():
+		var empty := PanelContainer.new()
+		empty.add_theme_stylebox_override("panel", UniverseUI.card(14, UniverseUI.CARD))
+		_list.add_child(empty)
+		var em := MarginContainer.new()
+		for s in ["left", "right", "top", "bottom"]:
+			em.add_theme_constant_override("margin_" + s, 18)
+		empty.add_child(em)
+		var ecol := VBoxContainer.new()
+		ecol.add_theme_constant_override("separation", 3)
+		em.add_child(ecol)
+		ecol.add_child(UniverseUI.label("No uploads yet", 18, UniverseUI.CREAM))
+		var hint := UniverseUI.label("Finish a job or send a photo from the camera roll to #clips. Maya will cut it, or it goes straight to VidTube.", 12, UniverseUI.MUTED)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		ecol.add_child(hint)
 		return
 	for up in uploads:
 		var row := PanelContainer.new()
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.12, 0.135, 0.15)
-		sb.set_corner_radius_all(10)
-		row.add_theme_stylebox_override("panel", sb)
-		var m := MarginContainer.new()
-		for s in ["left", "right", "top", "bottom"]:
-			m.add_theme_constant_override("margin_" + s, 12)
-		row.add_child(m)
-		var c := VBoxContainer.new()
-		c.add_theme_constant_override("separation", 2)
-		m.add_child(c)
-		var t := Label.new()
-		t.text = str(up.get("title", "Clip")) + ("  ·  edited by Maya" if bool(up.get("edited", false)) else "  ·  direct upload")
-		t.add_theme_font_size_override("font_size", 16)
-		t.add_theme_color_override("font_color", Color(0.92, 0.93, 0.95))
-		c.add_child(t)
-		var d := Label.new()
-		d.text = "%d views · +%d followers · +$%d" % [int(up.get("views", 0)), int(up.get("followers", 0)), int(up.get("money", 0))]
-		d.add_theme_font_size_override("font_size", 12)
-		d.add_theme_color_override("font_color", Color(0.62, 0.72, 0.66))
-		c.add_child(d)
+		row.add_theme_stylebox_override("panel", UniverseUI.card(12, UniverseUI.CARD))
 		_list.add_child(row)
-	for jid in done_ids:
-		var row := PanelContainer.new()
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.12, 0.135, 0.15)
-		sb.set_corner_radius_all(10)
-		row.add_theme_stylebox_override("panel", sb)
-		var m := MarginContainer.new()
+		var rm := MarginContainer.new()
 		for s in ["left", "right", "top", "bottom"]:
-			m.add_theme_constant_override("margin_" + s, 12)
-		row.add_child(m)
-		var c := VBoxContainer.new()
-		c.add_theme_constant_override("separation", 2)
-		m.add_child(c)
-		var t := Label.new()
-		t.text = str(names.get(str(jid), str(jid)))
-		t.add_theme_font_size_override("font_size", 16)
-		t.add_theme_color_override("font_color", Color(0.92, 0.93, 0.95))
-		c.add_child(t)
-		var d := Label.new()
-		d.text = "Published on the channel. The crew is still talking about it in #clips."
-		d.add_theme_font_size_override("font_size", 12)
-		d.add_theme_color_override("font_color", Color(0.62, 0.65, 0.69))
-		c.add_child(d)
-		_list.add_child(row)
+			rm.add_theme_constant_override("margin_" + s, 10)
+		row.add_child(rm)
+		var r := HBoxContainer.new()
+		r.add_theme_constant_override("separation", 12)
+		rm.add_child(r)
+		var thumb := PanelContainer.new()
+		thumb.custom_minimum_size = Vector2(102, 58)
+		thumb.add_theme_stylebox_override("panel", UniverseUI.box(UniverseUI.NIGHT, 9, UniverseUI.RUST, 1, 0.0, 0.0))
+		var play := UniverseUI.label("▶", 20, UniverseUI.AMBER)
+		play.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		play.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		thumb.add_child(play)
+		r.add_child(thumb)
+		var text := VBoxContainer.new()
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text.add_theme_constant_override("separation", 2)
+		r.add_child(text)
+		var edited := bool(up.get("edited", false))
+		text.add_child(UniverseUI.label(str(up.get("title", "Clip")), 16, UniverseUI.CREAM))
+		var tag := "EDITED BY MAYA" if edited else "DIRECT UPLOAD"
+		text.add_child(UniverseUI.label(tag, 9, UniverseUI.MOSS if edited else UniverseUI.MUTED))
+		var meta := UniverseUI.label("%d views   ·   +%d followers   ·   +$%d" % [int(up.get("views", 0)), int(up.get("followers", 0)), int(up.get("money", 0))], 11, UniverseUI.MUTED)
+		text.add_child(meta)
+		var num := UniverseUI.label(str(int(up.get("views", 0))), 20, UniverseUI.CREAM)
+		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		r.add_child(num)

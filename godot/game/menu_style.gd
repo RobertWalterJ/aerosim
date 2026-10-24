@@ -4,16 +4,16 @@ extends RefCounted
 ## Everything is drawn from styleboxes in one Theme, so a button, slider or tab looks the same wherever it appears.
 ## Variations: SideTab (the tab list), Primary (the one main action), Ghost (quiet outline), Danger (leave the game), DroneCard.
 
-const BG := Color(0.045, 0.055, 0.075, 0.975)
-const CARD := Color(0.09, 0.105, 0.135, 1.0)
-const FIELD := Color(0.135, 0.155, 0.195, 1.0)
-const FIELD_HOVER := Color(0.175, 0.2, 0.25, 1.0)
-const ACCENT := Color(0.30, 0.78, 0.98)
-const ON_ACCENT := Color(0.02, 0.07, 0.11)
-const TEXT := Color(0.93, 0.955, 0.98)
-const MUTED := Color(0.60, 0.67, 0.76)
-const DANGER := Color(0.98, 0.45, 0.45)
-const LINE := Color(1, 1, 1, 0.07)
+const BG := Color(0.050, 0.062, 0.055, 0.975)
+const CARD := Color(0.105, 0.124, 0.108, 1.0)
+const FIELD := Color(0.155, 0.178, 0.152, 1.0)
+const FIELD_HOVER := Color(0.195, 0.222, 0.190, 1.0)
+const ACCENT := Color(0.88, 0.672, 0.35)
+const ON_ACCENT := Color(0.085, 0.075, 0.045)
+const TEXT := Color(0.940, 0.912, 0.820)
+const MUTED := Color(0.62, 0.65, 0.575)
+const DANGER := Color(0.86, 0.36, 0.32)
+const LINE := Color(0.94, 0.88, 0.74, 0.10)
 
 static func box(bg: Color, radius := 12, border := Color(0, 0, 0, 0), bw := 0, mx := 18.0, my := 12.0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()

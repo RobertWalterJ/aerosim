@@ -24,15 +24,20 @@ func setup(s: StoryArc, p: PhotoLibrary) -> void:
 
 func _build() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	var scrim := ColorRect.new()
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.color = Color(0.045, 0.055, 0.048, 1.0)
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(scrim)
 	var col := VBoxContainer.new()
 	col.set_anchors_preset(Control.PRESET_FULL_RECT)
 	col.add_theme_constant_override("separation", 0)
 	add_child(col)
 	var head := PanelContainer.new()
 	var hsb := StyleBoxFlat.new()
-	hsb.bg_color = Color(0.10, 0.12, 0.16, 1.0)
+	hsb.bg_color = UniverseUI.DEEP
 	hsb.border_width_bottom = 3
-	hsb.border_color = Color(0.36, 0.50, 0.68)
+	hsb.border_color = UniverseUI.AMBER
 	head.add_theme_stylebox_override("panel", hsb)
 	col.add_child(head)
 	var hm := MarginContainer.new()
@@ -45,11 +50,11 @@ func _build() -> void:
 	var title := Label.new()
 	title.text = "Casebook  ·  The Lake Car"
 	title.add_theme_font_size_override("font_size", 28)
-	title.add_theme_color_override("font_color", Color(0.96, 0.97, 0.98))
+	title.add_theme_color_override("font_color", UniverseUI.CREAM)
 	hcol.add_child(title)
 	_status = Label.new()
 	_status.add_theme_font_size_override("font_size", 14)
-	_status.add_theme_color_override("font_color", Color(0.72, 0.78, 0.84))
+	_status.add_theme_color_override("font_color", UniverseUI.MUTED)
 	hcol.add_child(_status)
 	var open_btn := Button.new()
 	open_btn.text = "Open #town in DroneBudz"
@@ -67,10 +72,10 @@ func _build() -> void:
 	body.add_child(main)
 	var req_card := PanelContainer.new()
 	var rsb := StyleBoxFlat.new()
-	rsb.bg_color = Color(0.12, 0.14, 0.17)
+	rsb.bg_color = UniverseUI.CARD
 	rsb.set_corner_radius_all(14)
 	rsb.border_width_left = 3
-	rsb.border_color = Color(0.36, 0.50, 0.68)
+	rsb.border_color = UniverseUI.AMBER
 	req_card.add_theme_stylebox_override("panel", rsb)
 	main.add_child(req_card)
 	var rm := MarginContainer.new()
@@ -83,17 +88,17 @@ func _build() -> void:
 	var what := Label.new()
 	what.text = "Open request"
 	what.add_theme_font_size_override("font_size", 14)
-	what.add_theme_color_override("font_color", Color(0.62, 0.76, 0.90))
+	what.add_theme_color_override("font_color", UniverseUI.AMBER)
 	rcol.add_child(what)
 	_request = Label.new()
 	_request.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_request.add_theme_font_size_override("font_size", 15)
-	_request.add_theme_color_override("font_color", Color(0.90, 0.92, 0.94))
+	_request.add_theme_color_override("font_color", UniverseUI.CREAM)
 	rcol.add_child(_request)
 	_progress = Label.new()
 	_progress.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_progress.add_theme_font_size_override("font_size", 13)
-	_progress.add_theme_color_override("font_color", Color(0.66, 0.82, 0.70))
+	_progress.add_theme_color_override("font_color", UniverseUI.MOSS)
 	rcol.add_child(_progress)
 	_evidence_list = VBoxContainer.new()
 	_evidence_list.add_theme_constant_override("separation", 6)
@@ -151,7 +156,7 @@ func refresh() -> void:
 		var h := Label.new()
 		h.text = "The case is ready to close. What happens to the story?"
 		h.add_theme_font_size_override("font_size", 15)
-		h.add_theme_color_override("font_color", Color(0.94, 0.92, 0.78))
+		h.add_theme_color_override("font_color", UniverseUI.AMBER)
 		_choice_box.add_child(h)
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)
@@ -187,7 +192,7 @@ func refresh() -> void:
 		var status := str(ch["status"])
 		var card := PanelContainer.new()
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.11, 0.12, 0.145) if status != "active" else Color(0.13, 0.16, 0.20)
+		sb.bg_color = UniverseUI.CARD if status != "active" else Color(0.16, 0.17, 0.135)
 		sb.set_corner_radius_all(10)
 		card.add_theme_stylebox_override("panel", sb)
 		var m := MarginContainer.new()
@@ -203,24 +208,24 @@ func refresh() -> void:
 		var mark := Label.new()
 		mark.text = "✓" if status == "done" else ("●" if status == "active" else "○")
 		mark.add_theme_font_size_override("font_size", 16)
-		mark.add_theme_color_override("font_color", Color(0.62, 0.86, 0.66) if status == "done" else (Color(0.66, 0.80, 0.94) if status == "active" else Color(0.46, 0.49, 0.53)))
+		mark.add_theme_color_override("font_color", UniverseUI.MOSS if status == "done" else (UniverseUI.AMBER if status == "active" else UniverseUI.FAINT))
 		top.add_child(mark)
 		var t := Label.new()
 		t.text = "%d. %s" % [int(ch["index"]) + 1, str(ch["title"])]
 		t.add_theme_font_size_override("font_size", 16)
-		t.add_theme_color_override("font_color", Color(0.92, 0.93, 0.95) if status != "locked" else Color(0.52, 0.55, 0.59))
+		t.add_theme_color_override("font_color", UniverseUI.CREAM if status != "locked" else UniverseUI.FAINT)
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		top.add_child(t)
 		var badge := Label.new()
 		badge.text = "done" if status == "done" else ("open" if status == "active" else "waiting")
 		badge.add_theme_font_size_override("font_size", 11)
-		badge.add_theme_color_override("font_color", Color(0.56, 0.60, 0.65))
+		badge.add_theme_color_override("font_color", UniverseUI.MUTED)
 		top.add_child(badge)
 		if status == "active":
 			for rq in ch["requirements"]:
 				var d := Label.new()
 				d.text = "%s  %d/%d photographs" % [str(rq.get("text", "")), int(rq.get("have", 0)), int(rq.get("count", 1))]
 				d.add_theme_font_size_override("font_size", 12)
-				d.add_theme_color_override("font_color", Color(0.72, 0.80, 0.86))
+				d.add_theme_color_override("font_color", UniverseUI.CREAM_DIM)
 				c.add_child(d)
 		_chapters.add_child(card)

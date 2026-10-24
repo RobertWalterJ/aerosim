@@ -370,18 +370,19 @@ func _build_ui() -> void:
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_root.theme = UniverseUI.make_theme()
 	add_child(_root)
 	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.02, 0.03, 0.76)
+	dim.color = Color(0.025, 0.035, 0.03, 0.80)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dim)
 	var panel := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.095, 0.11, 0.99)
+	sb.bg_color = Color(0.075, 0.090, 0.078, 0.99)
 	sb.set_corner_radius_all(22)
 	sb.border_width_left = 1; sb.border_width_top = 1; sb.border_width_right = 1; sb.border_width_bottom = 1
-	sb.border_color = Color(1, 1, 1, 0.08)
+	sb.border_color = Color(0.88, 0.74, 0.50, 0.22)
 	panel.add_theme_stylebox_override("panel", sb)
 	_root.add_child(panel)
 	panel.anchor_left = 0.08; panel.anchor_right = 0.92
@@ -400,11 +401,11 @@ func _build_ui() -> void:
 	var title := Label.new()
 	title.text = "DroneBudz jobs"
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(0.97, 0.97, 0.98))
+	title.add_theme_color_override("font_color", Color(0.94, 0.912, 0.82))
 	head.add_child(title)
 	_followers_label = Label.new()
 	_followers_label.add_theme_font_size_override("font_size", 15)
-	_followers_label.add_theme_color_override("font_color", Color(0.72, 0.74, 0.78))
+	_followers_label.add_theme_color_override("font_color", Color(0.60, 0.63, 0.555))
 	_followers_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(_followers_label)
 	var stretch := Control.new()
@@ -414,13 +415,13 @@ func _build_ui() -> void:
 	close.text = "Close"
 	close.flat = true
 	close.add_theme_font_size_override("font_size", 16)
-	close.add_theme_color_override("font_color", Color(0.80, 0.82, 0.86))
+	close.add_theme_color_override("font_color", Color(0.94, 0.912, 0.82))
 	close.pressed.connect(close_page)
 	head.add_child(close)
 	var hint := Label.new()
 	hint.text = "Optional jobs from the DroneBudz group. Ignore them and the sandbox is unchanged."
 	hint.add_theme_font_size_override("font_size", 13)
-	hint.add_theme_color_override("font_color", Color(0.60, 0.62, 0.66))
+	hint.add_theme_color_override("font_color", Color(0.60, 0.63, 0.555))
 	col.add_child(hint)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
