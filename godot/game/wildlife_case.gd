@@ -74,7 +74,7 @@ func update(delta: float, drone_pos: Vector3) -> void:
 		if chat != null:
 			chat.post("general", "Riley", "That is the thermal camera fitted. West pasture, after dark. The flock is in the hay field, the wolf is somewhere along the trees. Keep high and do not land.", false)
 		if notes != null:
-			notes.post_text("Riley", "Night pasture", "Thermal camera fitted. Fly the west pasture with T on and find the wolf.", 0)
+			notes.post_text("Riley", "Night pasture", "Thermal camera fitted. Fly the west pasture with the thermal camera on and find the wolf.", 0)
 		if hud != null and objects != null:
 			hud.set_nav_target(objects.wolf_position(), "WOLF")
 	_set_objective("Night pasture: find the wolf with the thermal camera", "Press T for thermal. Fly the west pasture, keep high, and look for the heat signature along the trees. Launch from the farm gate if you are far away.")

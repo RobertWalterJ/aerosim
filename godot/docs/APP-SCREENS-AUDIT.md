@@ -1,6 +1,6 @@
 # In-game apps: screens, assets and story director audit
 
-Status: 2026-11-14. This is the checklist behind "are all the screens and assets there?" The answer is: every app screen exists, the story director is now a real system with a player-facing act card, and the remaining missing pieces are mostly final art, not missing functionality.
+Status: 2026-11-15, revised after the Claude review. Every app screen still exists and the story director reads the real systems, but the asset situation is now verified: **0 of the 13 `CLAUDE-*` briefs has been delivered** (roughly 450-480 named files). See `docs/MODEL-STATUS.md` and `docs/REVIEW-CLAUDE-2026-11-15.md`. The remaining gap is not just "final art"; most briefs also need a loader and scene pass.
 
 ## The story director
 
@@ -32,8 +32,8 @@ The player sees it at the top of the Casebook as the **STORY DIRECTOR** card: AC
 | Jobs board | `jobs.gd` | built |
 | Casebook: story director, request, evidence, chapters, choice | `casebook_app.gd` | built |
 | Facade market and kit | `marketplace_app.gd`, `facade_catalog.gd` | built |
-| Night pasture objective card | `wildlife_case.gd` | built |
-| Last flight objective card | `finale.gd` | built |
+| Night pasture notes and NAV target | `wildlife_case.gd`, `finale.gd`, `hud.gd` | in-world notices and HUD waypoint; no visible objective card |
+| Last flight notes and NAV target | `finale.gd`, `hud.gd` | in-world notices and HUD waypoint; no visible objective card |
 | Ending, epilogue and credits | `ending.gd` | built |
 | Thermal and night vision screens | `thermal.gd`, `night_vision.gd` | built |
 | Tablet home, app icons, dials, Recents | `phone_os.gd`, `tablet_icon.gd`, `tablet_dial.gd` | built |
@@ -51,13 +51,13 @@ The player sees it at the top of the Casebook as the **STORY DIRECTOR** card: AC
 
 | Gap | Current placeholder | Needed asset |
 |---|---|---|
-| Final app icon set | code-drawn layered icons | Claude icon pack for the six apps, in the existing tablet brief |
-| Crew and story portraits | coloured initials | 10 illustrated avatars: Maya, Jo, Riley, Tom, Alex, Sam, Rennick, Unknown, You, Wren |
-| Facade product art | coloured category tiles | product tiles for every camera, drone, motor and battery listing |
+| Final app icon set | code-drawn layered icons | none of the Claude icon pack is present; see `MODEL-STATUS.md` |
+| Crew and story portraits | coloured initials | 10 illustrated avatars: Maya, Jo, Riley, Tom, Alex, Sam, Rennick, Unknown, You, Wren; none delivered |
+| Facade product art | coloured category tiles | product tiles for every camera, drone, motor and battery listing; none delivered |
 | Casebook stamps and act marks | text and borders | five act stamps, one evidence stamp |
 | Notification and channel art | code icons | small notification and channel badges |
 | Video thumbnail templates | the player's own thumbnail plus text | optional YouTube-style frame and duration overlays |
-| Final world and story models | code placeholders | already requested in the narrative, endgame and wildlife briefs |
+| Final world and story models | code placeholders | 0 of the 13 briefs delivered; only `traffic.gd:52-53` and the UI hooks exist |
 
 The detailed production request is `docs/CLAUDE-APP-ASSETS.md`.
 

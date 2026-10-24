@@ -274,7 +274,7 @@ func set_attachment_state(id: String, available: bool, on: bool, label: String, 
 	var b: Button = _attach_btns.get(id)
 	if b == null:
 		return
-	b.visible = available
+	b.visible = available and not paused and not landing_mode
 	if not available:
 		return
 	b.text = "%s%s  ·  %s" % [label, " ON" if on else "", key]
@@ -569,7 +569,7 @@ func _build_flight_tab() -> void:
 	# session B: the optional story and jobs layer, fed by the DroneBudz group
 	_heading(p, "DroneBudz")
 	_action(p, "DroneBudz jobs", func(): jobs_requested.emit())
-	_sub(p, "Optional photo jobs from the group. Ignore them and the sandbox is unchanged.")
+	_sub(p, "Optional photo jobs from the group. Take one when you want the work.")
 
 func _build_drone_tab() -> void:
 	var p := _page("Drone")
@@ -650,7 +650,7 @@ func _gslider(parent: Control, title: String, lo: float, hi: float, step: float,
 func _build_weather_tab() -> void:
 	var p := _page("Weather")
 	_story_note = Label.new()
-	_story_note.text = "STORY MODE  ·  The valley owns its weather and its clock. The story, the investigation and the festival set the conditions. To control the sky, the time and the storms, choose Sandbox on the welcome screen."
+	_story_note.text = "STORY  ·  The valley owns its weather and its clock. The investigation, the jobs and the festival set the pace. To choose the sky, the time and the storms, select Free flight on the welcome screen."
 	_story_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_story_note.add_theme_font_size_override("font_size", 16)
 	_story_note.add_theme_color_override("font_color", MenuStyle.MUTED)

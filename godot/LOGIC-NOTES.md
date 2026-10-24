@@ -1133,3 +1133,15 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - MSG3. Should job failure notices come from the contact's chat, the app, or both?
   - MSG4. Should place discoveries stay app notices or become Riley's messages again?
   - MSG5. Should the player be able to answer these notes, or are one-way notifications enough?
+## UX/UI review and Claude model audit (lane/notify, session B, 2026-11-15)
+- **Claude agent review:** `docs/REVIEW-CLAUDE-2026-11-15.md`. The verified result is that **none of the 13 `CLAUDE-*` briefs has been delivered**: roughly 450-480 named files, zero present. The only model loader hook in the game is `game/traffic.gd:52-53`; the UI has code fallback hooks in `game/ui_theme.gd`; the village has a texture hook only. `docs/MODEL-STATUS.md` is the short production status. Do not tell Robert the models are done.
+- **Tablet home cleaned:** real USDA photo credit moved to the welcome screen, the mode line is `FIELD KIT · weather station online`, latitude is `52°N`, status is `LINK · <battery>` instead of fake `LTE 100%`, and the clock/battery update inside apps. Unread badges cap at `9+`.
+- **Welcome screen:** `Sandbox` is `Free flight`; copy is in-universe; the thermal and night camera buttons were showing on the welcome screen and are now hidden by `landing_mode` in `hud.gd`.
+- **Casebook:** a closed file no longer shows the last open request; the overview shows archived evidence totals. The Evidence tab archives by chapter and no longer shows a stale `0 / 2` request. Contact `Message` buttons now route to `#town`, the Unknown DM, or `#general` correctly. Wren changes to `FOUND` after the story completes. `chat_requested` now carries the person key.
+- **Story beats:** the duplicate chapter beats came from posting at both `_begin` and `_complete`; removed the `_begin` post. Old saved chat still has the duplicates.
+- **Notifications:** app ownership added to `PhoneNotes.post_text`/`_add`/`_header`; DroneBudz, VidTube and Facade get their own names and icons; titles no longer repeat the sender when the sender is the app; the pill follows the latest app. The shade is still one mixed group, not per-app sections.
+- **Messages:** ghost notes unique titles; job notes from VidTube not the contact; job failure lines are normal chat rows; Riley note says thermal camera not `T`; Jo says jobs board not `Flight >`; `money` as unit changed to `$` in touched strings; Studio metric is `POT`.
+- **Keyboard guide:** Tab, T, K, N, G and J labelled; it previously omitted six documented controls.
+- **Escape:** inside a tablet app, Esc now returns Home first; a second Esc closes the tablet. This matches `UI-STYLE.md`.
+- **Honest leftovers:** models are absent; notification grouping is partial; `AeroSim` is still the welcome title; `$` in a British-leaning valley is a product choice; dialogs are only tested at 1280x720; old user:// messages are not rewritten; a normal playthrough should show evidence thumbnails rather than the test save's "no longer in the camera roll".
+- **Evidence:** `docs/realism/ui_review/00-04`; `docs/UX-UI-REVIEW-2026-11-15.md`.

@@ -7,7 +7,7 @@ extends Control
 ## Chapters is the timeline, Contacts is the small cast directory. The case is optional; with the story switched off or
 ## not started this still reads as a quiet, empty official app.
 
-signal chat_requested
+signal chat_requested(person: String)
 signal map_requested
 signal close_requested
 
@@ -115,7 +115,7 @@ func _app_bar() -> Control:
 	var message := Button.new()
 	message.text = "Message Rennick"
 	message.custom_minimum_size = Vector2(162, 38)
-	message.pressed.connect(func(): chat_requested.emit())
+	message.pressed.connect(func(): chat_requested.emit("rennick"))
 	row.add_child(message)
 	return bar
 
@@ -190,7 +190,7 @@ func _rail() -> Control:
 	open_chat.text = "Open #town"
 	open_chat.theme_type_variation = "Ghost"
 	open_chat.custom_minimum_size = Vector2(0, 30)
-	open_chat.pressed.connect(func(): chat_requested.emit())
+	open_chat.pressed.connect(func(): chat_requested.emit("rennick"))
 	ac.add_child(open_chat)
 	col.add_child(UniverseUI.label("AUTUMN  ·  NORTH VALLEY  ·  FILE OPENED IN THE FIELD", 8, UniverseUI.FAINT))
 	return panel
@@ -281,22 +281,25 @@ func _overview_view() -> void:
 		_empty("No case loaded", "The constabulary file is empty.")
 		return
 	if story.story_off_hint():
-		_empty("The file is resting", "Story and jobs are switched off in Display > Overlay and sound. The case will wait.")
+		_empty("The file is resting", "The constable has put the file aside. It will be here when story and jobs are switched on again.")
 		return
 	if not story.started:
 		_empty("No case yet", "Rennick will get in touch when something comes up. The file stays sealed until then.")
 		return
-	# current request
-	var request := _card(ACCENT)
-	var rv: VBoxContainer = request["body"]
-	rv.add_child(UniverseUI.label("CURRENT REQUEST", 9, ACCENT))
-	var req := story.active_request()
-	var rtext := "No open request right now. Rennick will come back when there is something." if req == "" else req
-	var r := UniverseUI.label(rtext, 16, UniverseUI.CREAM)
-	r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	rv.add_child(r)
-	var st := UniverseUI.label("Status  ·  " + story.current_status(), 11, UniverseUI.MUTED)
-	rv.add_child(st)
+	# current request: only while the file is open. A closed file should not show a stale open request.
+	if not story.case_closed():
+		var request := _card(ACCENT)
+		var rv: VBoxContainer = request["body"]
+		rv.add_child(UniverseUI.label("CURRENT REQUEST", 9, ACCENT))
+		var req := story.active_request()
+		var rtext := "All evidence is in. The file is ready to close." if story.has_choice() else req
+		if rtext == "":
+			rtext = "No open request right now. Rennick will come back when there is something."
+		var r := UniverseUI.label(rtext, 16, UniverseUI.CREAM)
+		r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		rv.add_child(r)
+		var st := UniverseUI.label("Status  ·  " + story.current_status(), 11, UniverseUI.MUTED)
+		rv.add_child(st)
 	# next step + director
 	if director != null:
 		_section("Next step")
@@ -314,21 +317,35 @@ func _overview_view() -> void:
 		gate.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		nv.add_child(gate)
 	# evidence progress
-	_section("Evidence register")
-	var progs := story.evidence_progress()
-	if progs.is_empty():
-		_empty("No evidence yet", "Photographs taken for the case will be filed here.")
+	if story.case_closed():
+		var totals := story.evidence_totals()
+		_section("Evidence register")
+		var filed := _card(UniverseUI.LINE)
+		var fv: VBoxContainer = filed["body"]
+		var ft := HBoxContainer.new()
+		fv.add_child(ft)
+		var ftl := UniverseUI.label("Filed evidence", 14, UniverseUI.CREAM)
+		ftl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ft.add_child(ftl)
+		ft.add_child(UniverseUI.label("%d / %d" % [int(totals.get("have", 0)), int(totals.get("count", 0))], 12, UniverseUI.MOSS))
+		fv.add_child(_progress_bar(int(totals.get("have", 0)), int(totals.get("count", 0))))
+		_empty("The file is closed", "The evidence register is archived. Rennick has the photographs and the case is closed.")
 	else:
-		for p in progs:
-			var pc := _card(UniverseUI.LINE)
-			var pv: VBoxContainer = pc["body"]
-			var top := HBoxContainer.new()
-			pv.add_child(top)
-			var t := UniverseUI.label(str(p.get("text", "Evidence")), 14, UniverseUI.CREAM)
-			t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			top.add_child(t)
-			top.add_child(UniverseUI.label("%d / %d" % [int(p.get("have", 0)), int(p.get("count", 1))], 12, UniverseUI.MOSS))
-			pv.add_child(_progress_bar(int(p.get("have", 0)), int(p.get("count", 1))))
+		_section("Evidence register")
+		var progs := story.evidence_progress()
+		if progs.is_empty():
+			_empty("No evidence yet", "Photographs taken for the case will be filed here.")
+		else:
+			for p in progs:
+				var pc := _card(UniverseUI.LINE)
+				var pv: VBoxContainer = pc["body"]
+				var top := HBoxContainer.new()
+				pv.add_child(top)
+				var t := UniverseUI.label(str(p.get("text", "Evidence")), 14, UniverseUI.CREAM)
+				t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				top.add_child(t)
+				top.add_child(UniverseUI.label("%d / %d" % [int(p.get("have", 0)), int(p.get("count", 1))], 12, UniverseUI.MOSS))
+				pv.add_child(_progress_bar(int(p.get("have", 0)), int(p.get("count", 1))))
 	# suggested launch site
 	if sites != null:
 		_section("Approach")
@@ -358,6 +375,24 @@ func _overview_view() -> void:
 		_closed_card()
 
 func _evidence_view() -> void:
+	if story != null and story.case_closed():
+		_page_title("Evidence register", "The photographs filed with the closed Lake Car file.")
+		var any := false
+		for ch in story.chapter_entries():
+			var reqs: Array = ch.get("requirements", [])
+			var filed_reqs: Array = []
+			for p in reqs:
+				if int(p.get("have", 0)) > 0:
+					filed_reqs.append(p)
+			if filed_reqs.is_empty():
+				continue
+			any = true
+			_section("%d. %s" % [int(ch.get("index", 0)) + 1, str(ch.get("title", "Chapter"))])
+			for p in filed_reqs:
+				_add_evidence_card(p)
+		if not any:
+			_empty("Nothing filed", "The file is closed with no photographs in this register.")
+		return
 	_page_title("Evidence register", "Every photograph filed against the open request.")
 	if story == null or not story.started:
 		_empty("Nothing filed yet", "The evidence register fills as the case progresses.")
@@ -367,30 +402,7 @@ func _evidence_view() -> void:
 		_empty("Nothing filed yet", "Take a photograph that matches the request and it will appear here.")
 		return
 	for p in progs:
-		var c := _card(UniverseUI.LINE)
-		var v: VBoxContainer = c["body"]
-		var top := HBoxContainer.new()
-		v.add_child(top)
-		var t := UniverseUI.label(str(p.get("text", "Evidence")), 15, UniverseUI.CREAM)
-		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		top.add_child(t)
-		top.add_child(UniverseUI.label("%d / %d FILED" % [int(p.get("have", 0)), int(p.get("count", 1))], 10, UniverseUI.MOSS if int(p.get("have", 0)) >= int(p.get("count", 1)) else UniverseUI.MUTED))
-		v.add_child(_progress_bar(int(p.get("have", 0)), int(p.get("count", 1))))
-		var grid := GridContainer.new()
-		grid.columns = 3
-		grid.add_theme_constant_override("h_separation", 8)
-		grid.add_theme_constant_override("v_separation", 8)
-		v.add_child(grid)
-		var added := 0
-		for pid in p.get("photos", []):
-			if int(pid) >= 0 and photos != null:
-				var tex := photos.texture_for(int(pid))
-				if tex != null:
-					grid.add_child(_photo_tile(tex, 152, 86))
-					added += 1
-		if added == 0:
-			var empty := UniverseUI.label("No photograph filed for this requirement yet.", 11, UniverseUI.MUTED)
-			v.add_child(empty)
+		_add_evidence_card(p)
 	var stamp := UniverseUI.case_art("stamp_evidence")
 	if stamp != null:
 		var pic := TextureRect.new()
@@ -399,6 +411,33 @@ func _evidence_view() -> void:
 		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		_content.add_child(pic)
+
+func _add_evidence_card(p: Dictionary) -> void:
+	var c := _card(UniverseUI.LINE)
+	var v: VBoxContainer = c["body"]
+	var top := HBoxContainer.new()
+	v.add_child(top)
+	var t := UniverseUI.label(str(p.get("text", "Evidence")), 15, UniverseUI.CREAM)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(t)
+	top.add_child(UniverseUI.label("%d / %d FILED" % [int(p.get("have", 0)), int(p.get("count", 1))], 10, UniverseUI.MOSS if int(p.get("have", 0)) >= int(p.get("count", 1)) else UniverseUI.MUTED))
+	v.add_child(_progress_bar(int(p.get("have", 0)), int(p.get("count", 1))))
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	v.add_child(grid)
+	var added := 0
+	for pid in p.get("photos", []):
+		if int(pid) >= 0 and photos != null:
+			var tex := photos.texture_for(int(pid))
+			if tex != null:
+				grid.add_child(_photo_tile(tex, 152, 86))
+				added += 1
+	if added == 0:
+		var empty_text := "No photograph filed for this requirement yet." if int(p.get("have", 0)) == 0 else "Filed, but the photographs are no longer in the camera roll."
+		var empty := UniverseUI.label(empty_text, 11, UniverseUI.MUTED)
+		v.add_child(empty)
 
 func _chapters_view() -> void:
 	_page_title("Chapter trail", "The inquiry as it happened, in the order it happened.")
@@ -443,9 +482,10 @@ func _chapters_view() -> void:
 
 func _contacts_view() -> void:
 	_page_title("Contacts", "The people connected to the file.")
+	var wren_found := story != null and story.is_completed()
 	var people := [
 		{"key": "rennick", "name": "Constable Rennick", "role": "CASE OFFICER", "note": "Halloway Valley Constabulary. Keeps the file by the phone and the notes short."},
-		{"key": "wren", "name": "Wren", "role": "MISSING HIKER", "note": "Last seen north of the cabin. The reason the file is still open."},
+		{"key": "wren", "name": "Wren", "role": "FOUND" if wren_found else "MISSING HIKER", "note": "Found east of the cabin. The file is closed and Wren is safe." if wren_found else "Last seen north of the cabin. The reason the file is still open."},
 		{"key": "riley", "name": "Riley", "role": "PARK RANGER", "note": "Knows the pasture, the flock and every track on the ridge."},
 		{"key": "maya", "name": "Maya", "role": "EDITOR", "note": "Cuts the channel footage. Has opinions about the last shot."},
 		{"key": "jo", "name": "Jo", "role": "EVENTS", "note": "Runs the festival and knows who was where on the night."},
@@ -471,7 +511,7 @@ func _contacts_view() -> void:
 		msg.text = "Message"
 		msg.theme_type_variation = "Ghost"
 		msg.custom_minimum_size = Vector2(96, 30)
-		msg.pressed.connect(func(): chat_requested.emit())
+		msg.pressed.connect(func(): chat_requested.emit(str(p["key"])))
 		v.add_child(msg)
 
 func _progress_bar(have: int, count: int) -> ProgressBar:
@@ -525,7 +565,7 @@ func _closed_card() -> void:
 	done.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(done)
 	if story.choice == "published" and not story.last_result.is_empty():
-		var r := UniverseUI.label("The cut is at %d views so far, with %d new followers and %d money." % [int(story.last_result.get("views", 0)), int(story.last_result.get("followers", 0)), int(story.last_result.get("money", 0))], 11, UniverseUI.MUTED)
+		var r := UniverseUI.label("The cut is at %d views so far, with %d new followers and $%d." % [int(story.last_result.get("views", 0)), int(story.last_result.get("followers", 0)), int(story.last_result.get("money", 0))], 11, UniverseUI.MUTED)
 		r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		v.add_child(r)
 	var stamp := UniverseUI.case_art("stamp_case_closed")

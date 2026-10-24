@@ -173,9 +173,6 @@ func _begin(i: int) -> void:
 		objects.move_bus_to_festival()
 	if chat != null:
 		chat.post(CHANNEL, "Rennick", str(ch["request"]))
-	for b in ch.get("beats", []):
-		if chat != null:
-			chat.post(str(b.get("channel", "general")), str(b.get("from", "")), str(b.get("text", "")), false)
 	if notes != null:
 		notes.post_text("Rennick", "Casebook: " + str(ch["title"]), str(ch["request"]), 0)
 	_save()
@@ -320,6 +317,18 @@ func chapter_entries() -> Array:
 			"have": total_have, "count": total_count,
 		})
 	return out
+
+## A single count across every chapter, for the Casebook when the file is closed or ready to close.
+func evidence_totals() -> Dictionary:
+	var have := 0
+	var count := 0
+	for i in CHAPTERS.size():
+		var reqs: Array = CHAPTERS[i]["evidence"]
+		for ri in reqs.size():
+			var req: Dictionary = reqs[ri]
+			have += _evidence.get(i, {}).get(str(ri), []).size()
+			count += int(req.get("count", 1))
+	return {"have": have, "count": count}
 
 func current_status() -> String:
 	if not started:

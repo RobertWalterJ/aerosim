@@ -23,9 +23,9 @@ func _init() -> void:
 		[k.call("Esc", "Menu", VIOLET, 1.5), n.call(" ", 12.0)],
 		[n.call("`"), n.call("1"), n.call("2"), n.call("3"), n.call("4"), n.call("5"), n.call("6"), n.call("7"), n.call("8"), n.call("9"), n.call("0"),
 			k.call("-", "Dark", GREEN), k.call("=", "Bright", GREEN), n.call("Bksp", 1.6)],
-		[n.call("Tab", 1.5), k.call("Q", "Cam up", GREEN), k.call("W", "Climb", BLUE), k.call("E", "Cam dn", GREEN), k.call("R", "Reset", VIOLET), n.call("T"), n.call("Y"), n.call("U"), n.call("I"), n.call("O"), n.call("P"), n.call("["), n.call("]"), n.call("\\", 1.1)],
-		[n.call("Caps", 1.8), k.call("A", "Turn L", BLUE), k.call("S", "Descend", BLUE), k.call("D", "Turn R", BLUE), n.call("F"), n.call("G"), k.call("H", "Overlay", VIOLET), n.call("J"), n.call("K"), k.call("L", "Lens", GREEN), n.call(";"), n.call("'"), n.call("Enter", 1.7)],
-		[n.call("Shift", 2.3), n.call("Z"), n.call("X"), k.call("C", "Camera", GREEN), k.call("V", "Sound", VIOLET), n.call("B"), n.call("N"), k.call("M", "Mode", VIOLET), n.call(","), n.call("."), n.call("/"), n.call("Shift", 2.2)],
+		[k.call("Tab", "Phone", VIOLET, 1.5), k.call("Q", "Cam up", GREEN), k.call("W", "Climb", BLUE), k.call("E", "Cam dn", GREEN), k.call("R", "Reset", VIOLET), k.call("T", "Thermal", GREEN), n.call("Y"), n.call("U"), n.call("I"), n.call("O"), n.call("P"), n.call("["), n.call("]"), n.call("\\", 1.1)],
+		[n.call("Caps", 1.8), k.call("A", "Turn L", BLUE), k.call("S", "Descend", BLUE), k.call("D", "Turn R", BLUE), n.call("F"), k.call("G", "Gallery", VIOLET), k.call("H", "Overlay", VIOLET), k.call("J", "Jobs", VIOLET), k.call("K", "Night", GREEN), k.call("L", "Lens", GREEN), n.call(";"), n.call("'"), n.call("Enter", 1.7)],
+		[n.call("Shift", 2.3), n.call("Z"), n.call("X"), k.call("C", "Camera", GREEN), k.call("V", "Sound", VIOLET), n.call("B"), k.call("N", "Alerts", VIOLET), k.call("M", "Mode", VIOLET), n.call(","), n.call("."), n.call("/"), n.call("Shift", 2.2)],
 	]
 
 func _draw() -> void:

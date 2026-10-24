@@ -169,7 +169,7 @@ func _build_ui() -> void:
 	stretch.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(stretch)
 	var hint := Label.new()
-	hint.text = "Photos stay in the game. Export copy is the only way one leaves."
+	hint.text = "Photos stay in the camera roll. Export a copy when you want one outside it."
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(0.60, 0.63, 0.555))
 	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER

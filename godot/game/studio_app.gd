@@ -114,7 +114,7 @@ func _build() -> void:
 	var m1 := _metric("FOLLOWERS", "0", "the audience", UniverseUI.MOSS)
 	_followers = m1["value"]
 	metrics.add_child(m1["card"])
-	var m2 := _metric("MONEY", "$0", "fuel and gear", UniverseUI.AMBER)
+	var m2 := _metric("POT", "$0", "fuel and gear", UniverseUI.AMBER)
 	_money = m2["value"]
 	metrics.add_child(m2["card"])
 	var m3 := _metric("VIDEOS", "0", "on the channel", UniverseUI.RUST)

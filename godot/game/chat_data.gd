@@ -79,6 +79,9 @@ func is_dm(channel: String) -> bool:
 func unread(channel: String) -> int:
 	return int(_unread.get(channel, 0))
 
+func member_count() -> int:
+	return CAST.size()
+
 func unread_total() -> int:
 	var n := 0
 	for c in CHANNELS:
@@ -136,7 +139,7 @@ func _seed_for(channel: String) -> Array:
 		"jobs":
 			return [
 				_msg("Maya", "Paid jobs go here. Take one from the jobs board in the menu, get the shot, submit it, and the channel pays the pilot."),
-				_msg("Maya", "Money pays for gear and travel. Followers are what gets us the next job. We need both."),
+				_msg("Maya", "The pot pays for gear and travel. Followers are what gets us the next job. We need both."),
 			]
 	return []
 

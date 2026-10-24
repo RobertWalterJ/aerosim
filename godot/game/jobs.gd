@@ -211,7 +211,7 @@ func upload_photo(photo_id: int, meta: Dictionary, via_editor := false) -> Dicti
 	if _chat != null and not via_editor:
 		_chat.post("clips", "You", "Uploaded a clip to VidTube." , false, true, photo_id)
 	if notes != null and not (not _editor and not via_editor):
-		notes.post_text("VidTube", "Your video is live", "%s earned %d views, %d followers and %d money." % [title, views_gain, gain, money_gain], 0)
+		notes.post_text("VidTube", "Your video is live", "%s earned %d views, %d followers and $%d." % [title, views_gain, gain, money_gain], 0)
 	return rec
 
 ## Views and earnings keep ticking over between flights. Slow on purpose: the channel is small.
@@ -268,7 +268,7 @@ func upload_clip(clip: Dictionary, via_editor := false) -> Dictionary:
 		else:
 			_chat.post("clips", "You", "Uploaded a clip to VidTube.", false, true)
 	if notes != null:
-		notes.post_text("VidTube", "Your video is live", "%s earned %d views, %d followers and %d money." % [title, views_gain, gain, money_gain], 0)
+		notes.post_text("VidTube", "Your video is live", "%s earned %d views, %d followers and $%d." % [title, views_gain, gain, money_gain], 0)
 	return rec
 
 ## String every waiting rush into one polished video. The result is a single representative video with a clip count and
@@ -318,7 +318,7 @@ func publish_rushes(via_editor := true) -> Dictionary:
 	if _chat != null:
 		_chat.post("clips", "Maya", "Cut and published. %d views already. %d rushes, one thumbnail, one story. That is what an edit does." % [views_gain, rushes.size()], false)
 	if notes != null:
-		notes.post_text("VidTube", "Your cut is live", "%s earned %d views, %d followers and %d money." % [title, views_gain, gain, money_gain], 0)
+		notes.post_text("VidTube", "Your cut is live", "%s earned %d views, %d followers and $%d." % [title, views_gain, gain, money_gain], 0)
 	return rec
 
 # ------------------------------------------------------------------ job flow
@@ -492,7 +492,7 @@ func _fail_job(jid: String, mode: String, o: Dictionary) -> void:
 	else:
 		msg = "I called. The subject was never held cleanly inside the frame and the job has been pulled."
 	if _chat != null:
-		_chat.post("jobs", who, msg, true)
+		_chat.post("jobs", who, msg, false)
 	if notes != null:
 		notes.post_text(who, "Job pulled", msg, 1)
 	if hud != null:
@@ -631,17 +631,17 @@ func submit(job_id: String, edited := false) -> void:
 	_save_state()
 	if notes != null:
 		var body := "The channel is at %d followers and %d views from this one. Nice work." % [_followers, views_gain]
-		var title := "Your shot is live: +%d followers, +%d money" % [gain, money_gain]
+		var title := "Your shot is live: +%d followers, +$%d" % [gain, money_gain]
 		if grade == "excellent":
-			title = "That is the shot: +%d followers, +%d money" % [gain, money_gain]
-			body = "That is better than the brief. I have sent a 25 money bonus. %d followers and %d views from this one." % [gain, views_gain]
+			title = "That is the shot: +%d followers, +$%d" % [gain, money_gain]
+			body = "The contact says that is better than the brief and added a $25 bonus to the pot. %d followers and %d views from this one." % [gain, views_gain]
 		elif grade == "poor":
-			title = "It is up, but not the shot I hoped for: +%d followers, +%d money" % [gain, money_gain]
-			body = "I wanted more from it. The channel is at %d followers and %d views." % [_followers, views_gain]
-		notes.post_text(str(job["from"]), title, body, 0)
+			title = "It is up, but not the shot they wanted: +%d followers, +$%d" % [gain, money_gain]
+			body = "The contact wanted more from it. The channel is at %d followers and %d views." % [_followers, views_gain]
+		notes.post_text("VidTube", title, body, 0)
 	if _chat != null:
 		_chat.post("jobs", str(job["from"]),
-			"Published: %s. %d views, %d followers and %d money so far." % [str(job.get("title", "")), views_gain, gain, money_gain], true)
+			"Published: %s. %d views, %d followers and $%d so far." % [str(job.get("title", "")), views_gain, gain, money_gain], true)
 		if grade == "excellent":
 			_chat.post("jobs", str(job["from"]), "That is not a job shot, that is a portfolio shot. I have put a bonus in the pot and told the committee your name.", false)
 			_chat.post("clips", "Maya", "I saw the frame. That is the cleanest one that has come through this channel. Keep that up.", false)
@@ -722,7 +722,7 @@ func _build_ui() -> void:
 	close.pressed.connect(close_page)
 	head.add_child(close)
 	var hint := Label.new()
-	hint.text = "Optional jobs from the DroneBudz group. Ignore them and the sandbox is unchanged."
+	hint.text = "Jobs from the DroneBudz crew. Take one when you want the work. Nothing is forced."
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(0.60, 0.63, 0.555))
 	col.add_child(hint)
@@ -744,7 +744,7 @@ func _refresh() -> void:
 	_followers_label.text = "   %d followers" % _followers
 	if not _story_on():
 		var off := Label.new()
-		off.text = "Story and jobs are switched off in Display > Overlay and sound."
+		off.text = "The board is resting. Story and jobs are switched off in the kit settings."
 		off.add_theme_font_size_override("font_size", 15)
 		off.add_theme_color_override("font_color", Color(0.66, 0.68, 0.72))
 		_list.add_child(off)

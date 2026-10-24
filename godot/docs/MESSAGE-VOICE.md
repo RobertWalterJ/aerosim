@@ -59,3 +59,12 @@ Status: message pass, 2026-11-15. The chat, phone notes and app notices now keep
 - MSG3. Should the job failure notes come from the contact's chat, the app, or both?
 - MSG4. Should place discoveries stay app notices, or become Riley's messages again?
 - MSG5. Should the player be able to answer these notes, or are one-way notifications enough?
+## Second pass after the Claude review, 2026-11-15
+- **App ownership:** a note now carries the app that sent it. `post_text("VidTube", ...)` and `post_text("Facade", ...)` render their own name and icon instead of DroneBudz. Character notes still default to DroneBudz.
+- **No mixed voice:** job publish notes are VidTube app copy now, not a contact saying "I have sent a 25 money bonus". Contact failure lines are normal messages, so the sender is visible; they are no longer system rows.
+- **No duplicate beats:** the story no longer posts each chapter's crew beats at both the start and the end. They post once, on completion.
+- **Unique ghost titles:** the finale's ghost notes are titled `The truth`, `Forty years`, `The lake road`, `Wren`, `Please find Wren`, `The cabin`, `The old plot`, `The cabin lights`, `The ridge` and `Found`, not ten copies of `A message`.
+- **No keys in a character's mouth:** Riley says "with the thermal camera on", not "with T on"; Jo says "take one from the jobs board", not "Flight > DroneBudz jobs".
+- **Money:** player-facing job notes and the Casebook use `$`, not `money` as a unit. VidTube Studio's metric is `POT`.
+- **Still not rewritten:** messages already saved in `user://chat.json` keep their old duplicates and third-person lines. The fix applies to new messages and opening seeds.
+- **Still unresolved:** Rennick's gender in third-person references, the player character's gender, currency symbol (`$` versus `£`), and whether the player can reply to one-way notes. Those are product decisions, not string fixes.

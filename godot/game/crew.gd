@@ -186,7 +186,7 @@ func _jobs_text() -> String:
 			for j in active:
 				atitles.append(str(j.get("title", "")))
 			text += "You are on %s. " % ", ".join(atitles)
-		text += "Take one in Flight > DroneBudz jobs. Money pays for gear, followers bring the next job."
+		text += "Take one from the jobs board when you are ready. The pot pays for gear and the followers bring the next job."
 	return text
 
 func _edit_text() -> String:

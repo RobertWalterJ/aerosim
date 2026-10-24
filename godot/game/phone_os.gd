@@ -51,6 +51,7 @@ var _studio_badge: Label
 var _wind_dial: TabletDial
 var _battery_dial: TabletDial
 var _credit: Label
+var _status_sig: Label
 var _mode_label: Label
 var _battery_pct := 0.74
 var _open := false
@@ -125,8 +126,8 @@ func _build() -> void:
 	carrier.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	carrier.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	st.add_child(carrier)
-	var sig := UniverseUI.label("LTE   ▮▮▮   100%", 10, UniverseUI.MUTED)
-	st.add_child(sig)
+	_status_sig = UniverseUI.label("LINK   ·   100%", 10, UniverseUI.MUTED)
+	st.add_child(_status_sig)
 	# home screen
 	_home = Control.new()
 	_home.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -144,7 +145,7 @@ func _build() -> void:
 	var hbox := VBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 4)
 	hm.add_child(hbox)
-	var date := UniverseUI.label("AUTUMN  ·  NORTH VALLEY  ·  47°N", 10, UniverseUI.AMBER)
+	var date := UniverseUI.label("AUTUMN  ·  NORTH VALLEY  ·  52°N", 10, UniverseUI.AMBER)
 	hbox.add_child(date)
 	_mode_label = UniverseUI.label("", 9, UniverseUI.MOSS)
 	hbox.add_child(_mode_label)
@@ -211,9 +212,6 @@ func _build() -> void:
 	_field_case = UniverseUI.label("", 11, UniverseUI.CREAM_DIM)
 	_field_case.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	ncol.add_child(_field_case)
-	_credit = UniverseUI.label("Photo: Lance Cheung / USDA NRCS  ·  public domain", 8, UniverseUI.FAINT)
-	_credit.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	ncol.add_child(_credit)
 	var apps := [
 		{"key": "chat", "letter": "DB", "name": "DroneBudz", "kind": "server"},
 		{"key": "studio", "letter": "VT", "name": "VidTube Studio", "kind": "channel"},
@@ -341,9 +339,14 @@ func _build() -> void:
 	_casebook_app.visible = false
 	_apps.add_child(_casebook_app)
 	_casebook_app.setup(story, photos, director, sites)
-	_casebook_app.chat_requested.connect(func():
+	_casebook_app.chat_requested.connect(func(person: String):
 		_open_app("chat")
-		_chat_app.open("town"))
+		var channel := "general"
+		if person == "rennick":
+			channel = "town"
+		elif person == "wren":
+			channel = "unknown"
+		_chat_app.open(channel))
 	_casebook_app.close_requested.connect(_show_home)
 	_casebook_app.map_requested.connect(func(): _open_app("map"))
 	_marketplace_app = MarketplaceApp.new()
@@ -640,21 +643,21 @@ func _refresh() -> void:
 		_metrics.text = "%d FOLLOWERS   ·   $%d" % [jobs.followers(), jobs.money()]
 		if _drone_budz_badge != null:
 			var unread := chat.unread_total()
-			_drone_budz_badge.text = ("%d NEW" % unread) if unread > 0 else ""
+			_drone_budz_badge.text = (("9+ NEW" if unread > 9 else "%d NEW" % unread) if unread > 0 else "")
 	if _field_weather != null and hud != null:
 		var temp2 := float(hud.weather.get("temp", 10.0))
 		var wind2 := float(hud.weather.get("wind", 3.0))
 		_field_weather.text = "%.0f°C, wind %.1f m/s. The valley is holding its autumn colour." % [temp2, wind2]
 	if _field_crew != null:
 		var unread2 := chat.unread_total() if chat != null else 0
-		_field_crew.text = "CREW  ·  6 on the server" + (("   %d unread" % unread2) if unread2 > 0 else "")
+		_field_crew.text = "CREW  ·  %d on the server" % (chat.member_count() if chat != null else 0) + (("   9+ unread" if unread2 > 9 else "   %d unread" % unread2) if unread2 > 0 else "")
 	if _field_case != null:
 		_field_case.text = "CASEBOOK  ·  " + (story.current_status() if story != null else "No case yet.")
 	if _studio_badge != null:
 		var rushes := clips.rushes().size() if clips != null else 0
 		_studio_badge.text = ("%d RUSHES" % rushes) if rushes > 0 else ""
 	if _mode_label != null:
-		_mode_label.text = "STORY MODE  ·  the valley owns the weather" if (hud == null or hud.story_mode) else "SANDBOX  ·  weather controls unlocked"
+		_mode_label.text = "FIELD KIT  ·  weather station online"
 	if _wind_dial != null and hud != null:
 		var wind3 := float(hud.weather.get("wind", 3.0))
 		var from3 := float(hud.weather.get("from", 250.0))
@@ -662,12 +665,16 @@ func _refresh() -> void:
 		_wind_dial.set_dial("wind", clampf(wind3 / 10.0, 0.0, 1.0), "WIND", UniverseUI.AMBER)
 	if _battery_dial != null:
 		_battery_dial.set_dial("battery", _battery_pct, "DRONE", UniverseUI.MOSS if _battery_pct > 0.25 else UniverseUI.RUST)
+	if _status_sig != null:
+		_status_sig.text = "LINK   ·   %d%%" % int(round(_battery_pct * 100.0))
 	if _current_app == "studio" and _studio_app.visible:
 		_studio_app.refresh()
 
 ## The drone battery, pushed from main while the phone is open. The dial reads this.
 func set_battery(pct: float) -> void:
 	_battery_pct = clampf(pct, 0.0, 1.0)
+	if _status_sig != null:
+		_status_sig.text = "LINK   ·   %d%%" % int(round(_battery_pct * 100.0))
 	if _battery_dial != null and _open:
 		_battery_dial.set_dial("battery", _battery_pct, "DRONE", UniverseUI.MOSS if _battery_pct > 0.25 else UniverseUI.RUST)
 
@@ -675,11 +682,14 @@ func _input(event: InputEvent) -> void:
 	if not _open:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		close()
+		if _current_app != "home":
+			_show_home()
+		else:
+			close()
 		get_viewport().set_input_as_handled()
 
 func _process(_delta: float) -> void:
-	if _open and _current_app == "home":
+	if _open:
 		_refresh()
 
 func stats() -> Dictionary:

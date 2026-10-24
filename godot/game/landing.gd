@@ -56,7 +56,7 @@ func build(drone_name: String, story_mode := true) -> void:
 	_root.add_child(col)
 	var title := Label.new(); title.text = "AeroSim"
 	title.add_theme_font_size_override("font_size", 54); title.add_theme_color_override("font_color", Color.WHITE)
-	var sub := Label.new(); sub.text = "A drone flight simulator  ·  the valley and the story"
+	var sub := Label.new(); sub.text = "A drone field story  ·  Halloway Valley"
 	sub.add_theme_font_size_override("font_size", 17); sub.add_theme_color_override("font_color", MenuStyle.MUTED)
 	col.add_child(title); col.add_child(sub)
 	# mode
@@ -65,7 +65,7 @@ func build(drone_name: String, story_mode := true) -> void:
 	col.add_child(mode_head)
 	var mode_row := HBoxContainer.new(); mode_row.add_theme_constant_override("separation", 8)
 	_story_btn = Button.new(); _story_btn.text = "Story"; _story_btn.toggle_mode = true; _story_btn.custom_minimum_size = Vector2(0, 38)
-	_sandbox_btn = Button.new(); _sandbox_btn.text = "Sandbox"; _sandbox_btn.toggle_mode = true; _sandbox_btn.custom_minimum_size = Vector2(0, 38)
+	_sandbox_btn = Button.new(); _sandbox_btn.text = "Free flight"; _sandbox_btn.toggle_mode = true; _sandbox_btn.custom_minimum_size = Vector2(0, 38)
 	_story_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sandbox_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_story_btn.pressed.connect(func(): _set_mode(true))
@@ -91,7 +91,7 @@ func build(drone_name: String, story_mode := true) -> void:
 		b.pressed.connect(func(): sig.emit())
 		col.add_child(b)
 	_story_note = Label.new()
-	_story_note.text = "STORY MODE  ·  the valley owns the weather and the clock. The story, the jobs and the investigation set the conditions."
+	_story_note.text = "STORY  ·  the valley keeps its weather and its clock. The investigation, the jobs and the festival set the pace."
 	_story_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_story_note.add_theme_font_size_override("font_size", 12)
 	_story_note.add_theme_color_override("font_color", MenuStyle.ACCENT)
@@ -99,7 +99,7 @@ func build(drone_name: String, story_mode := true) -> void:
 	# quick looks only exist in sandbox
 	_looks_section = VBoxContainer.new(); _looks_section.add_theme_constant_override("separation", 6)
 	col.add_child(_looks_section)
-	var lh := Label.new(); lh.text = "SANDBOX TIME AND WEATHER"; lh.add_theme_font_size_override("font_size", 11); lh.add_theme_color_override("font_color", MenuStyle.ACCENT)
+	var lh := Label.new(); lh.text = "TIME, LIGHT AND WEATHER"; lh.add_theme_font_size_override("font_size", 11); lh.add_theme_color_override("font_color", MenuStyle.ACCENT)
 	_looks_section.add_child(lh)
 	var flow := HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 6); flow.add_theme_constant_override("v_separation", 6)
 	_looks_section.add_child(flow)
@@ -117,6 +117,12 @@ func build(drone_name: String, story_mode := true) -> void:
 	var hint := Label.new(); hint.text = "Esc opens the menu while you fly."
 	hint.add_theme_font_size_override("font_size", 14); hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
 	col.add_child(hint)
+	var credit := Label.new()
+	credit.text = "Wallpaper: Lance Cheung / USDA NRCS  ·  public domain"
+	credit.add_theme_font_size_override("font_size", 9)
+	credit.add_theme_color_override("font_color", Color(1, 1, 1, 0.38))
+	credit.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(credit)
 	_apply_mode()
 
 func _set_mode(story: bool) -> void:
@@ -136,7 +142,7 @@ func _apply_mode() -> void:
 	_story_btn.add_theme_color_override("font_color", MenuStyle.ON_ACCENT if _story_mode else MenuStyle.TEXT)
 	_sandbox_btn.add_theme_color_override("font_color", MenuStyle.ON_ACCENT if not _story_mode else MenuStyle.TEXT)
 	if _mode_desc != null:
-		_mode_desc.text = "Story: the investigation, the jobs and the festival. Weather, time and storms belong to the valley." if _story_mode else "Sandbox: the old free-play powers. Time, weather, storms, events and quick looks are yours."
+		_mode_desc.text = "Story: the investigation, the jobs and the festival. Weather, time and storms belong to the valley." if _story_mode else "Free flight: take the valley weather and light into your hands. Time, storms and quick looks are yours."
 	if _story_note != null:
 		_story_note.visible = _story_mode
 	if _looks_section != null:

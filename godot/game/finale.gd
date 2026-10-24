@@ -188,7 +188,28 @@ func start() -> void:
 
 func _ghost(text: String, from: String) -> void:
 	chat.post("town", from, text, false)
-	notes.post_text(from, "A message", text, 0)
+	var title := "A message"
+	if text.contains("not the new constable"):
+		title = "The truth"
+	elif text.contains("died out here"):
+		title = "Forty years"
+	elif text.contains("woman went missing"):
+		title = "The lake road"
+	elif text.contains("person messaging you is Wren"):
+		title = "Wren"
+	elif text.contains("I am sorry I lied"):
+		title = "Please find Wren"
+	elif text.contains("cabin is ahead"):
+		title = "The cabin"
+	elif text.contains("old plot"):
+		title = "The old plot"
+	elif text.contains("getting close"):
+		title = "The cabin lights"
+	elif text.contains("jammer is off"):
+		title = "The ridge"
+	elif text.contains("You found them"):
+		title = "Found"
+	notes.post_text(from, title, text, 0)
 
 func _print_reveal() -> void:
 	print("finale: started; state=", stats())

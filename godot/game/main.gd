@@ -1185,6 +1185,12 @@ func _screenshot_mode(arg: String) -> void:
 			weather_events.debug_event("park")
 		elif c.begins_with("course"):
 			weather_events.debug_course(int(c.substr(6)))
+		elif c == "notifyapps":    # session B dev hook: notifications owned by different apps
+			phone_notes.debug_clear()
+			phone_notes.post_text("Rennick", "The cabin", "Wren is on foot east of the cabin. Use the thermal camera and search the trees.", 0)
+			phone_notes.post_text("VidTube", "Your shot is live", "The channel is at 154 followers and 399 views from this one.", 0)
+			phone_notes.post_text("Facade", "Order ready", "The thermal camera is in your kit. Fit it before the next flight.", 0)
+			phone_notes.debug_shade()
 		elif c == "notesdemo":     # session B dev hook: a bundle of three DroneBudz notifications
 			phone_notes.debug_demo()
 		elif c == "notesios":

@@ -136,7 +136,7 @@ func _build() -> void:
 	hcol.add_child(_title)
 	_topic = UniverseUI.label("", 11, UniverseUI.MUTED)
 	hcol.add_child(_topic)
-	_members = UniverseUI.label("●  6 CREW", 10, UniverseUI.MOSS)
+	_members = UniverseUI.label("●  %d MEMBERS" % chat.member_count(), 10, UniverseUI.MOSS)
 	_members.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hrow.add_child(_members)
 	_scroll = ScrollContainer.new()
@@ -215,7 +215,7 @@ func _refresh_sidebar() -> void:
 			added_group = true
 		var unread := chat.unread(id)
 		var b := Button.new()
-		b.text = ("  DM  " + str(ch["name"]) if chat.is_dm(id) else "  #  " + str(ch["name"])) + (("   %d" % unread) if unread > 0 else "")
+		b.text = ("  DM  " + str(ch["name"]) if chat.is_dm(id) else "  #  " + str(ch["name"])) + (("   9+" if unread > 9 else "   %d" % unread) if unread > 0 else "")
 		b.theme_type_variation = "Channel"
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.custom_minimum_size = Vector2(0, 32)
@@ -239,7 +239,7 @@ func _refresh_channel() -> void:
 		_title.text = "#  " + str(ch.get("name", _current))
 		_input.placeholder_text = "Message #" + str(ch.get("name", _current))
 	_topic.text = str(ch.get("topic", ""))
-	_members.text = "●  DIRECT" if chat.is_dm(_current) else "●  6 CREW"
+	_members.text = "●  DIRECT" if chat.is_dm(_current) else "●  %d MEMBERS" % chat.member_count()
 	for m in _messages.get_children():
 		m.queue_free()
 	_messages.add_child(_day_label("TODAY"))

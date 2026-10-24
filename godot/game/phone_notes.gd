@@ -60,14 +60,23 @@ var _f_spaced: FontVariation
 # ------------------------------------------------------------------ drawn icons and avatars
 class AppIcon extends Control:
 	var urgency := 0
+	var app := "DroneBudz"
 	func _draw() -> void:
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.22, 0.42, 0.27)
+		sb.bg_color = Color(0.22, 0.42, 0.27) if app == "DroneBudz" else (Color(0.70, 0.39, 0.28) if app == "VidTube" else Color(0.88, 0.67, 0.35))
 		sb.set_corner_radius_all(int(size.x * 0.28))
 		draw_style_box(sb, Rect2(Vector2.ZERO, size))
 		var c := size * 0.5
 		var s := size.x
 		var white := Color(0.97, 0.99, 0.98)
+		if app == "VidTube":
+			var tri := PackedVector2Array([c + Vector2(-0.20, -0.28) * s, c + Vector2(0.34, 0.0) * s, c + Vector2(-0.20, 0.28) * s])
+			draw_colored_polygon(tri, white)
+			return
+		if app == "Facade":
+			draw_rect(Rect2(c + Vector2(-0.30, -0.26) * s, Vector2(0.60, 0.52) * s), white, false, maxf(1.3, s * 0.055))
+			draw_circle(c + Vector2(0.30, -0.02) * s, 0.075 * s, white)
+			return
 		draw_line(c + Vector2(-0.31, -0.31) * s, c + Vector2(0.31, 0.31) * s, white, maxf(1.3, s * 0.055))
 		draw_line(c + Vector2(0.31, -0.31) * s, c + Vector2(-0.31, 0.31) * s, white, maxf(1.3, s * 0.055))
 		draw_circle(c + Vector2(-0.31, -0.31) * s, 0.115 * s, white)
@@ -192,14 +201,23 @@ func post(kind: String, force := false) -> void:
 		return
 	_post_kind(kind)
 
-func post_text(sender: String, title: String, body: String, urgency := 0) -> void:
-	_add({"sender": sender, "title": title, "body": body, "urgency": urgency})
+func post_text(sender: String, title: String, body: String, urgency := 0, app := "") -> void:
+	_add({"sender": sender, "title": title, "body": body, "urgency": urgency, "app": _app_for(sender, app)})
+
+func _app_for(sender: String, explicit := "") -> String:
+	if explicit != "":
+		return explicit
+	if sender == "VidTube":
+		return "VidTube"
+	if sender == "Facade":
+		return "Facade"
+	return "DroneBudz"
 
 func _post_kind(kind: String) -> void:
 	if not MESSAGES.has(kind):
 		return
 	var m: Array = MESSAGES[kind]
-	_add({"sender": m[0], "title": m[1], "body": m[2], "urgency": int(m[3])})
+	_add({"sender": m[0], "title": m[1], "body": m[2], "urgency": int(m[3]), "app": "DroneBudz"})
 
 func _add(msg: Dictionary) -> void:
 	var rec := {"msg": msg, "clock": _clock_str(), "hour": _clock_hour(), "id": _history.size()}
@@ -292,7 +310,7 @@ func _base_card() -> Dictionary:
 	margin.add_child(col)
 	return {"holder": holder, "glass": glass, "margin": margin, "col": col, "t": 0.0, "fade": 1.0, "idx": 0}
 
-func _header(col: VBoxContainer, urgency: int, trailing: String, chevron := false) -> HBoxContainer:
+func _header(col: VBoxContainer, urgency: int, trailing: String, chevron := false, app_name := "DroneBudz") -> HBoxContainer:
 	var head := HBoxContainer.new()
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_theme_constant_override("separation", 7)
@@ -303,10 +321,11 @@ func _header(col: VBoxContainer, urgency: int, trailing: String, chevron := fals
 	icon.size = Vector2(icon_size, icon_size)
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	icon.urgency = urgency if _style == 0 else 0
+	icon.app = app_name
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(icon)
 	var app := Label.new()
-	app.text = "DRONEBUDZ" if _style == 0 else "DroneBudz"
+	app.text = app_name.to_upper() if _style == 0 else app_name
 	app.add_theme_font_override("font", _f_spaced if _style == 0 else _f_medium)
 	app.add_theme_font_size_override("font_size", 12 if _style == 0 else 13)
 	app.add_theme_color_override("font_color", Color(0.70, 0.72, 0.76) if _style == 0 else Color(0.80, 0.82, 0.85))
@@ -342,7 +361,8 @@ func _build_android_card(msg: Dictionary, group_n: int) -> void:
 	var col: VBoxContainer = c["col"]
 	var sender := str(msg["sender"])
 	var urgency := int(msg.get("urgency", 0))
-	_header(col, urgency, "" if group_n <= 1 else "·  %d notifications" % group_n, group_n > 1)
+	var app_name := str(msg.get("app", "DroneBudz"))
+	_header(col, urgency, "" if group_n <= 1 else "·  %d notifications" % group_n, group_n > 1, app_name)
 	# Android messaging style: the text on the left and the sender's picture as the large icon on the right
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -354,7 +374,7 @@ func _build_android_card(msg: Dictionary, group_n: int) -> void:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(v)
 	var title := Label.new()
-	title.text = "%s: %s" % [sender, str(msg["title"])]
+	title.text = (str(msg["title"]) if sender == app_name else "%s: %s" % [sender, str(msg["title"])])
 	title.add_theme_font_override("font", _f_bold)
 	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(0.96, 0.96, 0.97))
@@ -386,7 +406,8 @@ func _build_ios_card(msg: Dictionary) -> void:
 	var col: VBoxContainer = c["col"]
 	var sender := str(msg["sender"])
 	var urgency := int(msg.get("urgency", 0))
-	_header(col, urgency, "")
+	var app_name := str(msg.get("app", "DroneBudz"))
+	_header(col, urgency, "", false, app_name)
 	var body_row := HBoxContainer.new()
 	body_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body_row.add_theme_constant_override("separation", 10)
@@ -405,7 +426,7 @@ func _build_ios_card(msg: Dictionary) -> void:
 	vcol.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body_row.add_child(vcol)
 	var title := Label.new()
-	title.text = "%s  ·  %s" % [sender, str(msg["title"])]
+	title.text = (str(msg["title"]) if sender == app_name else "%s  ·  %s" % [sender, str(msg["title"])])
 	title.add_theme_font_override("font", _f_bold)
 	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(0.97, 0.97, 0.98))
@@ -460,6 +481,7 @@ var _shade_h := 420.0
 var _shade_total: Label
 var _shade_expanded := true
 var _pill: PanelContainer
+var _pill_icon: AppIcon
 var _pill_count: Label
 
 func _build_shade() -> void:
@@ -602,13 +624,16 @@ func _rebuild_shade() -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 8)
 	gcol.add_child(head)
+	var latest_msg: Dictionary = _history.back()["msg"]
+	var latest_app := str(latest_msg.get("app", "DroneBudz"))
 	var icon := AppIcon.new()
+	icon.app = latest_app
 	icon.custom_minimum_size = Vector2(22, 22)
 	icon.size = Vector2(22, 22)
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(icon)
 	var name_l := Label.new()
-	name_l.text = "DroneBudz"
+	name_l.text = latest_app
 	name_l.add_theme_font_override("font", _f_bold)
 	name_l.add_theme_font_size_override("font_size", 15)
 	name_l.add_theme_color_override("font_color", Color(0.95, 0.95, 0.96))
@@ -691,7 +716,7 @@ func _shade_child(rec: Dictionary) -> PanelContainer:
 	var top := HBoxContainer.new()
 	v.add_child(top)
 	var name_l := Label.new()
-	name_l.text = "%s: %s" % [sender, str(msg["title"])]
+	name_l.text = (str(msg["title"]) if sender == str(msg.get("app", "DroneBudz")) else "%s: %s" % [sender, str(msg["title"])])
 	name_l.add_theme_font_override("font", _f_bold)
 	name_l.add_theme_font_size_override("font_size", 14)
 	name_l.add_theme_color_override("font_color", Color(0.95, 0.95, 0.96))
@@ -759,6 +784,7 @@ func _build_pill() -> void:
 	icon.custom_minimum_size = Vector2(18, 18)
 	icon.size = Vector2(18, 18)
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_pill_icon = icon
 	row.add_child(icon)
 	_pill_count = Label.new()
 	_pill_count.add_theme_font_override("font", _f_bold)
@@ -781,6 +807,9 @@ func _update_pill(vp: Vector2) -> void:
 	if not show:
 		return
 	_pill_count.text = str(_history.size())
+	if _pill_icon != null and not _history.is_empty():
+		_pill_icon.app = str(_history.back()["msg"].get("app", "DroneBudz"))
+		_pill_icon.queue_redraw()
 	_pill.reset_size()
 	_pill.position = Vector2(vp.x - _pill.size.x - 18.0, 30.0)
 
