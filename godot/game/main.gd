@@ -335,6 +335,8 @@ func _ready() -> void:
 	# session B: the phone. The chat server is the story spine; the phone hosts the apps (chat, studio, photos, jobs).
 	chat_data = ChatData.new()
 	jobs.set_chat(chat_data)
+	photo_library.jobs = jobs
+	photo_library.chat = chat_data
 	phone_os = PhoneOS.new()
 	add_child(phone_os)
 	phone_os.setup(hud, jobs, photo_library, chat_data)
@@ -748,6 +750,8 @@ func _process(delta: float) -> void:
 		gimbal_pitch = clampf(gimbal_pitch + _gimbal_rate * delta, deg_to_rad(-90.0), deg_to_rad(20.0))
 		hud.set_gimbal_value(gimbal_pitch)
 	_tick_clock(delta)
+	if jobs != null and not paused:
+		jobs.tick(delta)   # session B: the channel keeps earning views and money between flights
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
 		_celestial_t = 0.25
@@ -999,6 +1003,32 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os.open()
 			phone_os._open_app("chat")
 			phone_os._chat_app.open("jobs")
+		elif c == "vidtube":      # session B dev hook: the VidTube Studio app
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "uploaddemo":   # session B dev hook: upload the newest photo straight to VidTube
+			var pid := -1
+			var meta: Dictionary = {}
+			if photo_library.count() > 0:
+				var rec: Dictionary = photo_library.photos()[-1]
+				pid = int(rec.get("id", -1))
+				meta = rec.get("meta", {})
+			jobs.upload_photo(pid, meta, false)
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "editdemo":     # session B dev hook: Maya edits the newest photo and publishes it
+			if not jobs.editor_friend():
+				jobs._editor = true
+			var pid2 := -1
+			var meta2: Dictionary = {}
+			if photo_library.count() > 0:
+				var rec2: Dictionary = photo_library.photos()[-1]
+				pid2 = int(rec2.get("id", -1))
+				meta2 = rec2.get("meta", {})
+			jobs.upload_photo(pid2, meta2, true)
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("clips")
 		elif c == "notestorm":
 			phone_notes.debug_one("storm")
 		elif c == "notetornado":
@@ -1074,6 +1104,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("photo library: ", photo_library.stats())
 	print("jobs: ", jobs.stats())
 	print("phone: ", phone_os.stats())
+	print("channel: ", {"views": jobs.views(), "videos": jobs.videos().size(), "editor": jobs.editor_friend()})
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:

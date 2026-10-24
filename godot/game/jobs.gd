@@ -45,6 +45,11 @@ var _done: Array = []            # completed job ids
 var _followers := 0
 var _money := 0
 var _chat: ChatData              # the DroneBudz server; job events are posted there when it exists
+var _views := 0
+var _videos: Array = []          # every published video: uploads from the camera roll and edited cuts
+var _editor := false             # has Maya become the pilot's editor friend yet
+var _view_frac := 0.0
+var _money_frac := 0.0
 var _obj_done := {}              # job id -> Array of completed objective indices
 var _obj_photo := {}             # "job:index" -> photo id
 var _root: Control
@@ -72,6 +77,9 @@ func _save_state() -> void:
 	var cf := ConfigFile.new()
 	cf.set_value(FOLLOWERS, "count", _followers)
 	cf.set_value("economy", "money", _money)
+	cf.set_value("channel", "views", _views)
+	cf.set_value("channel", "videos", _videos)
+	cf.set_value("channel", "editor", _editor)
 	cf.set_value("jobs", "offers", _offers)
 	cf.set_value("jobs", "active", _active)
 	cf.set_value("jobs", "done", _done)
@@ -85,6 +93,9 @@ func _load_state() -> void:
 		return
 	_followers = int(cf.get_value(FOLLOWERS, "count", 0))
 	_money = int(cf.get_value("economy", "money", 0))
+	_views = int(cf.get_value("channel", "views", 0))
+	_videos = cf.get_value("channel", "videos", [])
+	_editor = bool(cf.get_value("channel", "editor", false))
 	_offers = cf.get_value("jobs", "offers", [])
 	_active = cf.get_value("jobs", "active", [])
 	_done = cf.get_value("jobs", "done", [])
@@ -96,6 +107,73 @@ func followers() -> int:
 
 func money() -> int:
 	return _money
+
+func views() -> int:
+	return _views
+
+func videos() -> Array:
+	return _videos
+
+func editor_friend() -> bool:
+	return _editor
+
+# ------------------------------------------------------------------ uploads, edits and passive channel growth
+## The player publishes a photo from the camera roll. Straight to VidTube it does modestly; if Maya edits it first it
+## does much better. The first self-upload is also how Maya becomes the pilot's editor friend: she watches it, messages
+## the channel and offers to cut the next one.
+func upload_photo(photo_id: int, meta: Dictionary, via_editor := false) -> Dictionary:
+	var subjects: Array = meta.get("subjects", [])
+	var quality := 0.65 + 0.14 * minf(subjects.size(), 3)
+	if bool(meta.get("night", false)):
+		quality += 0.08
+	if bool(meta.get("fireworks", false)):
+		quality += 0.35
+	if bool(meta.get("storm", false)):
+		quality += 0.25
+	quality = clampf(quality, 0.5, 1.8)
+	var mult := 2.3 if via_editor else 1.0
+	var base_views := 30.0 + float(_followers) * 0.45
+	var views_gain := int(base_views * quality * mult)
+	var gain := maxi(1, int((1.0 + quality * 2.0) * mult))
+	var money_gain := int((3.0 + float(views_gain) * 0.03) * mult)
+	_views += views_gain
+	_followers += gain
+	_money += money_gain
+	var title := "DroneBudz clip " + str(_videos.size() + 1)
+	if not subjects.is_empty():
+		title = str(subjects[0].get("name", title))
+	var rec := {"title": title, "views": views_gain, "followers": gain, "money": money_gain,
+		"edited": via_editor, "photo": photo_id, "quality": snappedf(quality, 0.01)}
+	_videos.append(rec)
+	_save_state()
+	if not _editor and not via_editor:
+		_editor = true
+		_save_state()
+		if _chat != null:
+			_chat.post("clips", "Maya", "Watched your upload. The light on that is really good, but the edit is doing nothing. I am your editor now. Send the next one in here and I will cut it before it goes up.", false)
+		if notes != null:
+			notes.post_text("Maya", "Maya is now your editor", "Upload to the DroneBudz #clips channel and she will edit it before it is published.", 1)
+	elif via_editor and _chat != null:
+		_chat.post("clips", "Maya", "Cut it and published it. %d views already. This is what happens when you let me edit." % views_gain, false)
+	if _chat != null and not via_editor:
+		_chat.post("clips", "You", "Uploaded a clip to VidTube." , false, true, photo_id)
+	if notes != null and not (not _editor and not via_editor):
+		notes.post_text("VidTube", "Your video is live", "%s earned %d views, %d followers and %d money." % [title, views_gain, gain, money_gain], 0)
+	return rec
+
+## Views and earnings keep ticking over between flights. Slow on purpose: the channel is small.
+func tick(delta: float) -> void:
+	var per_second := 0.04 + float(_followers) * 0.006
+	_view_frac += per_second * delta
+	var whole := int(_view_frac)
+	if whole > 0:
+		_view_frac -= float(whole)
+		_views += whole
+		_money_frac += float(whole) * 0.012
+	var m := int(_money_frac)
+	if m > 0:
+		_money_frac -= float(m)
+		_money += m
 
 ## The DroneBudz server: job events are also posted as chat messages there, so the story lives in one place.
 func set_chat(c: ChatData) -> void:

@@ -18,6 +18,8 @@ const MAX_PHOTOS := 120
 signal photo_saved(id: int, meta: Dictionary)
 
 var hud: Hud
+var jobs: Jobs                   # assigned by main: uploads to VidTube and the editor
+var chat: ChatData
 var world_life: WorldLife
 var _index: Array = []
 var _next_id := 1
@@ -233,6 +235,14 @@ func _build_detail() -> void:
 	var export := Button.new(); export.text = "Export copy"; export.custom_minimum_size = Vector2(0, 42)
 	export.pressed.connect(_export_current)
 	side.add_child(export)
+	var upload := Button.new(); upload.text = "Upload to VidTube Studio"; upload.custom_minimum_size = Vector2(0, 42)
+	upload.pressed.connect(func(): _upload_current(false))
+	side.add_child(upload)
+	var send_edit := Button.new(); send_edit.text = "Send to Maya to edit"; send_edit.custom_minimum_size = Vector2(0, 42)
+	send_edit.disabled = jobs == null or not jobs.editor_friend()
+	send_edit.tooltip_text = "Uploaded to the DroneBudz #clips channel first, then Maya cuts and publishes it"
+	send_edit.pressed.connect(func(): _upload_current(true))
+	side.add_child(send_edit)
 	var del := Button.new(); del.text = "Delete photo"; del.custom_minimum_size = Vector2(0, 42)
 	del.add_theme_color_override("font_color", Color(0.95, 0.55, 0.50))
 	del.pressed.connect(_delete_current)
@@ -339,6 +349,17 @@ func _export_current() -> void:
 		out.store_buffer(data)
 		if hud != null:
 			hud.toast("Exported a copy to " + ProjectSettings.globalize_path(dst))
+
+func _upload_current(via_editor: bool) -> void:
+	if _detail_index < 0 or _detail_index >= _index.size() or jobs == null:
+		return
+	var rec: Dictionary = _index[_detail_index]
+	var rec_out := jobs.upload_photo(int(rec.get("id", -1)), rec.get("meta", {}), via_editor)
+	if hud != null:
+		if via_editor:
+			hud.toast("Sent to Maya: edited cut published with %d views" % int(rec_out.get("views", 0)))
+		else:
+			hud.toast("Uploaded to VidTube Studio: %d views, +%d followers" % [int(rec_out.get("views", 0)), int(rec_out.get("followers", 0))])
 
 func _delete_current() -> void:
 	if _detail_index < 0 or _detail_index >= _index.size():

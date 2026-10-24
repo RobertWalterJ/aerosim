@@ -10,6 +10,7 @@ extends Control
 var chat: ChatData
 var hud: Hud
 var jobs: Jobs
+var photos: PhotoLibrary
 var _current := "general"
 var _sidebar_channels: VBoxContainer
 var _messages: VBoxContainer
@@ -21,10 +22,11 @@ var _crew_label: Label
 var _root: HBoxContainer
 var _build_t := 0.0
 
-func setup(c: ChatData, h: Hud, j: Jobs) -> void:
+func setup(c: ChatData, h: Hud, j: Jobs, p: PhotoLibrary) -> void:
 	chat = c
 	hud = h
 	jobs = j
+	photos = p
 	_build()
 
 func _build() -> void:
@@ -246,6 +248,18 @@ func _message_row(msg: Dictionary) -> Control:
 	body.add_theme_font_size_override("font_size", 14)
 	body.add_theme_color_override("font_color", Color(0.82, 0.84, 0.87) if not system else Color(0.62, 0.64, 0.68))
 	col.add_child(body)
+	var photo_id := int(msg.get("photo", -1))
+	if photo_id >= 0 and photos != null:
+		var tex := photos.texture_for(photo_id)
+		if tex != null:
+			var pic := TextureRect.new()
+			pic.texture = tex
+			pic.custom_minimum_size = Vector2(280, 158)
+			pic.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			pic.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			col.add_child(pic)
 	return pad
 
 func _send() -> void:

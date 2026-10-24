@@ -119,7 +119,7 @@ func _build() -> void:
 	hbox.add_child(grid)
 	var apps := [
 		{"key": "chat", "letter": "DB", "name": "DroneBudz", "colour": Color(0.20, 0.45, 0.34)},
-		{"key": "studio", "letter": "ST", "name": "Studio", "colour": Color(0.62, 0.34, 0.26)},
+		{"key": "studio", "letter": "VT", "name": "VidTube", "colour": Color(0.62, 0.34, 0.26)},
 		{"key": "photos", "letter": "PH", "name": "Photos", "colour": Color(0.24, 0.38, 0.58)},
 		{"key": "jobs", "letter": "JB", "name": "Jobs", "colour": Color(0.50, 0.40, 0.18)},
 	]
@@ -201,7 +201,7 @@ func _build() -> void:
 	_chat_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_chat_app.visible = false
 	_apps.add_child(_chat_app)
-	_chat_app.setup(chat, hud, jobs)
+	_chat_app.setup(chat, hud, jobs, photos)
 	_studio_app = StudioApp.new()
 	_studio_app.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_studio_app.visible = false
@@ -209,6 +209,7 @@ func _build() -> void:
 	_studio_app.setup(hud, jobs, chat, photos)
 	_studio_app.chat_requested.connect(func(): _open_app("chat"))
 	_studio_app.jobs_requested.connect(func(): jobs.open_page())
+	_studio_app.upload_requested.connect(func(): photos.open_gallery())
 	# switcher
 	_switcher = Control.new()
 	_switcher.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -276,7 +277,7 @@ func _show_switcher() -> void:
 	col.add_child(h)
 	var apps := [
 		{"key": "chat", "name": "DroneBudz", "desc": "The crew's Discord-style server: chat, jobs, channel talk"},
-		{"key": "studio", "name": "Studio", "desc": "Followers, money and the videos the channel has made"},
+		{"key": "studio", "name": "VidTube", "desc": "The channel on VidTube: followers, views, earnings and videos"},
 		{"key": "photos", "name": "Photos", "desc": "The gallery of everything the drone has taken"},
 		{"key": "jobs", "name": "Jobs", "desc": "Paid work on the board, ready to accept"},
 	]

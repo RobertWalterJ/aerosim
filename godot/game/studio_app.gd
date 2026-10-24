@@ -8,6 +8,7 @@ extends Control
 
 signal chat_requested
 signal jobs_requested
+signal upload_requested
 
 var hud: Hud
 var jobs: Jobs
@@ -16,7 +17,8 @@ var photos: PhotoLibrary
 var _followers: Label
 var _money: Label
 var _videos: Label
-var _shots: Label
+var _views: Label
+var _editor_label: Label
 var _list: VBoxContainer
 
 func setup(h: Hud, j: Jobs, c: ChatData, p: PhotoLibrary) -> void:
@@ -49,15 +51,19 @@ func _build() -> void:
 	bcol.add_theme_constant_override("separation", 2)
 	bm.add_child(bcol)
 	var title := Label.new()
-	title.text = "DroneBudz  ·  Studio"
+	title.text = "VidTube  ·  Studio"
 	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color(0.96, 0.97, 0.98))
 	bcol.add_child(title)
 	var sub := Label.new()
-	sub.text = "A small drone channel run by friends. Six crew, one pilot, whatever weather the valley gives us."
+	sub.text = "The DroneBudz channel on VidTube. Six crew, one pilot, whatever weather the valley gives us."
 	sub.add_theme_font_size_override("font_size", 14)
 	sub.add_theme_color_override("font_color", Color(0.70, 0.74, 0.78))
 	bcol.add_child(sub)
+	_editor_label = Label.new()
+	_editor_label.add_theme_font_size_override("font_size", 13)
+	_editor_label.add_theme_color_override("font_color", Color(0.60, 0.78, 0.66))
+	bcol.add_child(_editor_label)
 	var btn_row := HBoxContainer.new()
 	btn_row.add_theme_constant_override("separation", 10)
 	bcol.add_child(btn_row)
@@ -71,6 +77,11 @@ func _build() -> void:
 	jobs_btn.custom_minimum_size = Vector2(130, 38)
 	jobs_btn.pressed.connect(func(): jobs_requested.emit())
 	btn_row.add_child(jobs_btn)
+	var up_btn := Button.new()
+	up_btn.text = "Upload from camera roll"
+	up_btn.custom_minimum_size = Vector2(200, 38)
+	up_btn.pressed.connect(func(): upload_requested.emit())
+	btn_row.add_child(up_btn)
 	# metrics row
 	var metrics := HBoxContainer.new()
 	metrics.add_theme_constant_override("separation", 12)
@@ -85,11 +96,11 @@ func _build() -> void:
 	var m2 := _metric("Money", "$0")
 	_money = m2["value"]
 	metrics.add_child(m2["card"])
-	var m3 := _metric("Videos made", "0")
+	var m3 := _metric("Videos", "0")
 	_videos = m3["value"]
 	metrics.add_child(m3["card"])
-	var m4 := _metric("Photos kept", "0")
-	_shots = m4["value"]
+	var m4 := _metric("Views", "0")
+	_views = m4["value"]
 	metrics.add_child(m4["card"])
 	# content
 	var body := VBoxContainer.new()
@@ -154,22 +165,49 @@ func refresh() -> void:
 	if jobs != null:
 		_followers.text = str(jobs.followers())
 		_money.text = "$" + str(jobs.money())
+		_views.text = str(jobs.views())
+		if _editor_label != null:
+			_editor_label.text = "Editor: Maya (friend) · send a photo to #clips and she cuts it" if jobs.editor_friend() else "No editor yet · uploads go straight to VidTube"
 	var st: Dictionary = jobs.stats() if jobs != null else {}
-	_videos.text = str(int(st.get("done", 0)))
-	_shots.text = str(photos.count()) if photos != null else "0"
+	var uploads: Array = jobs.videos() if jobs != null else []
+	_videos.text = str(int(st.get("done", 0)) + uploads.size())
 	for ch in _list.get_children():
 		ch.queue_free()
 	var names := {"lake": "Lake at golden hour", "chapel": "The chapel for the heritage page", "fireworks": "Festival fireworks coverage"}
 	var done_ids: Array = []
 	if jobs != null:
 		done_ids = jobs._done.duplicate()
-	if done_ids.is_empty():
+	if done_ids.is_empty() and uploads.is_empty():
 		var none := Label.new()
-		none.text = "No videos yet. Finish a job and the footage becomes the next video."
+		none.text = "No videos yet. Finish a job or upload a photo from the camera roll."
 		none.add_theme_font_size_override("font_size", 15)
 		none.add_theme_color_override("font_color", Color(0.66, 0.68, 0.72))
 		_list.add_child(none)
 		return
+	for up in uploads:
+		var row := PanelContainer.new()
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.12, 0.135, 0.15)
+		sb.set_corner_radius_all(10)
+		row.add_theme_stylebox_override("panel", sb)
+		var m := MarginContainer.new()
+		for s in ["left", "right", "top", "bottom"]:
+			m.add_theme_constant_override("margin_" + s, 12)
+		row.add_child(m)
+		var c := VBoxContainer.new()
+		c.add_theme_constant_override("separation", 2)
+		m.add_child(c)
+		var t := Label.new()
+		t.text = str(up.get("title", "Clip")) + ("  ·  edited by Maya" if bool(up.get("edited", false)) else "  ·  direct upload")
+		t.add_theme_font_size_override("font_size", 16)
+		t.add_theme_color_override("font_color", Color(0.92, 0.93, 0.95))
+		c.add_child(t)
+		var d := Label.new()
+		d.text = "%d views · +%d followers · +$%d" % [int(up.get("views", 0)), int(up.get("followers", 0)), int(up.get("money", 0))]
+		d.add_theme_font_size_override("font_size", 12)
+		d.add_theme_color_override("font_color", Color(0.62, 0.72, 0.66))
+		c.add_child(d)
+		_list.add_child(row)
 	for jid in done_ids:
 		var row := PanelContainer.new()
 		var sb := StyleBoxFlat.new()

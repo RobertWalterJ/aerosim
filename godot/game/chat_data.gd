@@ -52,10 +52,10 @@ func messages(channel: String, mark_read := true) -> Array:
 		_save()
 	return out
 
-func post(channel: String, from: String, text: String, system := false, mine := false) -> void:
+func post(channel: String, from: String, text: String, system := false, mine := false, photo := -1) -> void:
 	if not _dyn.has(channel):
 		_dyn[channel] = []
-	_dyn[channel].append({"from": from, "text": text, "time": _now_label(), "system": system, "mine": mine})
+	_dyn[channel].append({"from": from, "text": text, "time": _now_label(), "system": system, "mine": mine, "photo": photo})
 	if channel != _current and not mine:
 		_unread[channel] = int(_unread.get(channel, 0)) + 1
 	_save()
