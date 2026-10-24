@@ -2,12 +2,12 @@
 
 Status: 2026-11-15, after the Claude review. **None of the 13 `CLAUDE-*` asset briefs has been delivered.** This is a verified inventory, not a to-do guess.
 
-The full matrix is in `docs/REVIEW-CLAUDE-2026-11-15.md`. This page is the short version.
+The full matrix is in `docs/REVIEW-CLAUDE-2026-11-15.md`. This page is the short version. The shared model library is now copied in from the sibling AeroSim checkout; the integration counts in the table are deliberately lower than the file count.
 
 ## The count
 
-- **13 briefs** ask for roughly **450 to 480 named files**.
-- **0 of those files were present before this modelling pass.** Now present: the Lake Car (`assets/story/lake_car.glb`, built by `tools/blender/build_lake_car.py`) and all five Priority 0 traffic fleet GLBs in `assets/traffic/`.
+- **13 briefs** ask for roughly **450 to 480 named files**. The full shared Blender model library is now present in this lane: **455 GLB files, 313.5 MB** under `assets/models/`, plus the custom Lake Car and five traffic GLBs. Presence is not the same as integration: the matrix below tracks what the code actually loads.
+- The physical model gap is largely closed: 455 shared GLBs are present, including people, story, camp, storm, halloway/town, sites, wildlife, animals, drones and the vehicle fleet; the custom Lake Car and five traffic fleet files are also present. The remaining gap is **wiring**, not missing files, for most categories.
 - The only Claude-model loader hook in the game is `game/traffic.gd:52-53` for the traffic fleet.
 - App icons, avatars and Casebook stamps have code fallbacks and hooks in `game/ui_theme.gd:71-126`; the village has a texture hook only at `game/village.gd:353`.
 - `assets/` contains 23 `.glb` files: 20 tree LODs, `env/all.glb` (cemetery and ground cover), `world/park.glb` (one merged park) and `world/props.glb` (cemetery props plus seven web-derived vehicle variants with none of the brief's wheel or lamp nodes).

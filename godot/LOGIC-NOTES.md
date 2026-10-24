@@ -1196,3 +1196,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **Notifications:** `PhoneNotes` raised from layer 20 to 34 above `PhoneOS`; shade uses the UI theme and Inter; added a Quick Settings row (Wi-Fi, Bluetooth, DND, Battery saver) with kit status icons.
 - **Limits:** no Map kit icon (falls back to code); no app drawer/page 2; QS tiles are visual only; 16:9 frame disabled on 16:10; fixed-pixel layout not fully `u`-scaled; wallpaper 1024x683; dials still code-drawn; apps are Material-coloured but not Material components.
 - **Gate:** `GATE PASS (androidui)`; evidence `docs/realism/android_os/00-03`.
+## Full Blender model library staged (lane/notify, session B, 2026-11-15)
+- Copied the complete shared Blender model library from the sibling AeroSim checkout into `godot/assets/models/`: **455 GLB files, 313.5 MB**, including people, story/endgame, camp, storm, halloway/town, sites, wildlife, animals, drones and vehicles. The custom Lake Car and five traffic GLBs remain in `assets/story/` and `assets/traffic/`.
+- This closes the physical model-file gap for the Claude briefs. It does **not** mean every category is wired: current code still uses placeholders for most village cottages, the anti-drone ridge, boat launch, cabin track, signs, road-surface kit, most people/character GLBs and many story/endgame props.
+- Import of the full library completed in 219.7 s with exit 0. The shared library has no dedicated anti-drone jammer/hunter set, so that brief still has no asset source.
+- Next integration priority: people/character GLBs (Wren/Rennick crowd), then village cottages/furniture, boat launch, cabin track, signs and storm/story sets.
