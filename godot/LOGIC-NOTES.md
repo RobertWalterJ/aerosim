@@ -939,3 +939,18 @@ Every app screen now exists, and the story director is a real system rather than
   - SURF3. Should the default centre line be white or yellow?
   - SURF4. Should the wider roads get a 3 m paint / 9 m gap dash, or a shorter village-style rhythm?
   - SURF5. Should the road get a visible crown/camber and textured edge skirt in the next pass?
+
+## Photoreal vehicles: the fleet is still placeholder (lane/notify, session B, 2026-11-15)
+Owner note: the point is photorealism. The current cars are code-built boxes with wheels and emissive lamp blocks. They are not acceptable as final vehicles, and no amount of code polish makes a box photoreal. The vehicle art must be modelled and textured by Claude.
+- **What is wired now:** `game/traffic.gd` has model paths for `assets/traffic/hatchback_a.glb`, `hatchback_b.glb`, `pickup_a.glb`, `van_a.glb` and `tractor_a.glb`. If a file exists, the code instantiates it, finds wheel nodes named `wheel_*`, spins them around local X, finds StandardMaterial3D materials named `headlight` for the dusk glow, and orients the vehicle with local -Z forward. If the file is missing, the old box placeholder stays. GATE PASS (vehicles) covers the fallback and the new hook.
+- **The brief:** `docs/CLAUDE-VEHICLE-ASSETS.md` is the full request. Priority 0 is the five right-hand-drive moving vehicles plus parked cars. Priority 1 is the hero story fleet: the abandoned Lake Car (1980s blue estate), the festival bus (faded single-decker) and the police cruiser (1980s provincial car). Priority 1 also covers the farm trailer and farm truck. Priority 2 adds variation, dirt overlays, wiper and indicator details.
+- **The realism requirements in the brief:** real dimensions and wheelbase, panel gaps and bevels, separate glass, visible interiors, rubber and brake detail, plates, lights, mirrors, wipers, underbody, dirt and stone chips, PBR albedo/normal/roughness/AO, LOD0/1/2, 4K hero textures and 2K fleet textures. No real logos, no gore, no weapons.
+- **Orientation contract:** metres, Y up, origin at the ground under the vehicle centre, local -Z forward, local X wheel axle, wheel nodes `wheel_fl`, `wheel_fr`, `wheel_rl`, `wheel_rr`, headlight materials named exactly `headlight`.
+- **What is not done:** no vehicle model has been delivered yet. The traffic still looks like boxes in the game. Parked cars, the Lake Car, the festival bus and the police cruiser are still code placeholders. There are no interiors, no LODs, no authored PBR textures and no wheel animation on the placeholder that resembles real rolling.
+- **Evidence:** the gate shot `vehicles_*` only proves the fallback and the model hook. It is not photoreal evidence.
+- **Questions for Robert:**
+  - VEH1. Should the valley drive on the left with right-hand-drive cars, as the brief assumes?
+  - VEH2. Should the fleet keep the current five types, or add an estate, a flatbed and a livestock truck?
+  - VEH3. Are the fictional plates and the period details for the Lake Car, bus and cruiser right?
+  - VEH4. Should parked cars and story vehicles share the same LOD/material kit, or be separate hero assets?
+  - VEH5. Should the traffic have engine and tyre audio once the models land?

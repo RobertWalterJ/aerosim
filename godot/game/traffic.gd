@@ -4,16 +4,16 @@ extends Node3D
 ## valley highway, lakeside lane and ridge road, in both directions, with their wheels turning and headlights coming on
 ## in the dark. Harmless scenery: no collisions, no gameplay, just life on the roads.
 ##
-## The vehicles are simple code-built placeholders (bodies, cabs, wheels) until Claude's vehicle models arrive. Counts:
+## The vehicles load Claude's GLB fleet from assets/traffic when those files exist, and fall back to the code-built placeholders until then. Counts:
 ## eight on a computer, four on a phone; speeds 7 to 16 m/s and the tractor about 6, so the roads never look empty but
 ## the drone can easily outpace them.
 
 const TYPES := [
-	{"name": "hatchback", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 13.5, "colour": Color(0.62, 0.20, 0.16)},
-	{"name": "hatchback", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 12.0, "colour": Color(0.24, 0.32, 0.44)},
-	{"name": "pickup", "body": Vector3(1.85, 0.72, 4.8), "cab": Vector3(1.65, 0.62, 1.7), "cab_y": 0.86, "speed": 11.0, "colour": Color(0.70, 0.68, 0.60)},
-	{"name": "van", "body": Vector3(1.95, 1.35, 4.6), "cab": Vector3(1.80, 0.80, 1.2), "cab_y": 1.55, "speed": 10.0, "colour": Color(0.82, 0.82, 0.80)},
-	{"name": "tractor", "body": Vector3(1.55, 0.95, 3.2), "cab": Vector3(1.30, 1.10, 1.4), "cab_y": 1.45, "speed": 6.0, "colour": Color(0.36, 0.44, 0.20)},
+	{"name": "hatchback", "id": "hatchback_a", "model": "res://assets/traffic/hatchback_a.glb", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 13.5, "colour": Color(0.62, 0.20, 0.16)},
+	{"name": "hatchback", "id": "hatchback_b", "model": "res://assets/traffic/hatchback_b.glb", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 12.0, "colour": Color(0.24, 0.32, 0.44)},
+	{"name": "pickup", "id": "pickup_a", "model": "res://assets/traffic/pickup_a.glb", "body": Vector3(1.85, 0.72, 4.8), "cab": Vector3(1.65, 0.62, 1.7), "cab_y": 0.86, "speed": 11.0, "colour": Color(0.70, 0.68, 0.60)},
+	{"name": "van", "id": "van_a", "model": "res://assets/traffic/van_a.glb", "body": Vector3(1.95, 1.35, 4.6), "cab": Vector3(1.80, 0.80, 1.2), "cab_y": 1.55, "speed": 10.0, "colour": Color(0.82, 0.82, 0.80)},
+	{"name": "tractor", "id": "tractor_a", "model": "res://assets/traffic/tractor_a.glb", "body": Vector3(1.55, 0.95, 3.2), "cab": Vector3(1.30, 1.10, 1.4), "cab_y": 1.45, "speed": 6.0, "colour": Color(0.36, 0.44, 0.20)},
 ]
 
 var terrain: Terrain
@@ -48,6 +48,26 @@ func setup(t: Terrain, r: Roads, h: Hud) -> void:
 func _make_vehicle(type: Dictionary, route: String, s: float, dir: float, rng: RandomNumberGenerator) -> Dictionary:
 	var node := Node3D.new()
 	add_child(node)
+	var model_path := str(type.get("model", ""))
+	if model_path != "" and ResourceLoader.exists(model_path):
+		var packed := load(model_path) as PackedScene
+		if packed != null:
+			var inst := packed.instantiate()
+			node.add_child(inst)
+			var model_wheels: Array = []
+			for n in inst.find_children("wheel_*", "Node3D", true, false):
+				model_wheels.append(n)
+			var lamps: Array = []
+			for n in inst.find_children("*", "MeshInstance3D", true, false):
+				var mi := n as MeshInstance3D
+				var m = mi.get_active_material(0)
+				if m is StandardMaterial3D:
+					var mm := m as StandardMaterial3D
+					if mm.resource_name.to_lower().contains("headlight"):
+						lamps.append(mm)
+			return {"node": node, "type": type, "route": route, "s": s, "dir": dir,
+				"speed": float(type["speed"]) * rng.randf_range(0.9, 1.1),
+				"wheels": model_wheels, "wheel_axis": "x", "lamp": null, "lamps": lamps, "model": true}
 	var body_mat := StandardMaterial3D.new()
 	body_mat.albedo_color = type["colour"]
 	body_mat.roughness = 0.45
@@ -110,7 +130,7 @@ func _make_vehicle(type: Dictionary, route: String, s: float, dir: float, rng: R
 		lamp_mi.material_override = lamp_mat
 		lamp_mi.position = Vector3(sx * float(type["body"].x) * 0.28, 0.62, -float(type["body"].z) * 0.5)
 		node.add_child(lamp_mi)
-	return {"node": node, "type": type, "route": route, "s": s, "dir": dir, "speed": float(type["speed"]) * rng.randf_range(0.9, 1.1), "wheels": wheels, "lamp": lamp_mat}
+	return {"node": node, "type": type, "route": route, "s": s, "dir": dir, "speed": float(type["speed"]) * rng.randf_range(0.9, 1.1), "wheels": wheels, "wheel_axis": "z", "lamp": lamp_mat, "lamps": [lamp_mat]}
 
 func update(delta: float, hour: float, paused: bool) -> void:
 	if paused:
@@ -149,10 +169,16 @@ func update(delta: float, hour: float, paused: bool) -> void:
 		node.rotation.y = atan2(-tangent.x, -tangent.y)
 		var wheels: Array = v["wheels"]
 		var spin := speed * delta / 0.34
+		var wheel_axis := str(v.get("wheel_axis", "z"))
 		for w in wheels:
-			(w as Node3D).rotation.z += spin
-		var lamp: StandardMaterial3D = v["lamp"]
-		lamp.emission_energy_multiplier = 2.4 * darkness
+			if wheel_axis == "x":
+				(w as Node3D).rotation.x += spin
+			else:
+				(w as Node3D).rotation.z += spin
+		for lm in v.get("lamps", []):
+			var lamp := lm as StandardMaterial3D
+			if lamp != null:
+				lamp.emission_energy_multiplier = 2.4 * darkness
 		# brake/tail glow is left off on purpose: no real lights mean no cost on the phone
 
 ## Dev hook: line the vehicles up along the valley highway for a look shot.
