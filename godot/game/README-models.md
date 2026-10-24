@@ -137,3 +137,66 @@ Origin: the ground (the lowest point is within 0.1 m of y = 0 for everything on 
 
 What is honest about the look: the fur shading is real (see the sheets), but the animal anatomy is a code-drawn stand-in: heads are the weakest part (a cow's head is a rounded wedge), legs are plain tubes with joint bumps, the dog and horse bodies are too heavy; the boats and the jetty, wood pile, feed rack, silo, oil tank and mooring post are the closest to photographic. The sails are plain cloth with a belly. Thin things (wire, rigging, fence rails far away) will shimmer; use lod 2 beyond 80 m.
 Test: `test/new_models5_test.gd` (headless; finite, winding, budgets that fall from near to far, real sizes, parts that add up to the whole and have sensible pivots, colliders inside their model, rebuilds identical, materials and shaders present). Contact sheets: `docs/realism/models/new_models5_*_{golden,overcast}.jpg` from `test/new_models5_sheet.gd`.
+
+## Batch 6: road vehicles and roadside furniture (`game/new_models4.gd` with `new_models4_big.gd` and `new_models4_props.gd`; class `NewModels4`; models6)
+
+Real metres, forward -z (a vehicle's front, a sign's face), up +y, origin on the ground in the middle of the vehicle's length. Three levels of detail everywhere (lod 0 near, under about 25 m; 1 middle, to about 80 m; 2 far). Everything is built once and kept. Finish: every surface is a `ShaderMaterial` of `game/shaders/vehicle.gdshader` (clear-coated car paint with metallic flake, wear, rust and road dirt on the lower panels; rubber; chrome and aluminium; reflective glass; trim plastic; glowing lamp lenses; painted sheet; concrete), or the farm wood and galvanised-steel materials of batch 5 for poles, gates and signs' backs. The vertex colour is the finish and its alpha is how worn it is (1 clean, lower dirtier and rustier). Do not swap in plain materials: the paint, glass and dirt live in the shader. Rain (`g_wet`), snow (`g_snow`) and the cloud and drone shadows act on all of it.
+
+Entry points:
+- `NewModels4.NAMES` lists every model. `CARS`, `BIG` (the farm and heavy vehicles) and `PROPS` split it.
+- `NewModels4.mesh(name, lod := 0, paint := Color(0, 0, 0, 0)) -> ArrayMesh`: the whole model as one still mesh, wheels in place. `paint` is the body colour in sRGB (transparent black = the model's own). `NewModels4.PAINTS` is a palette to pick from; each colour is built once and cached, so use a handful.
+- `NewModels4.vehicle(name, lod, paint) -> Dictionary` for the cars, pickups, vans, tractor, trailer, tanker, bus and motorcycle: `"body"` (ArrayMesh without wheels), `"wheels"` (Array of `{"name", "pos" (hub centre in the model frame), "radius", "steer" (true on the front wheels), "mesh"}`), `"size"` (Vector3 m), `"wheel_radius"`, `"track"` (distance between left and right hubs), `"wheelbase"`, `"colliders"`. A wheel mesh is made for its own side, with its axle along local x through the origin: spin it with `rotation.x -= distance / radius` for either side. A front wheel steers by turning its pivot about y.
+- `NewModels4.build_node(name, lod, paint) -> Node3D` is the easy way: a `Body` MeshInstance3D and one pivot Node3D per wheel named `wheel_fl`, `wheel_fr`, `wheel_rl`, `wheel_rr` (tractor and tanker also `wheel_a*`, `wheel_b*`; the motorcycle `wheel_f`, `wheel_r`) holding a `Wheel` MeshInstance3D. Steer by turning the pivot, roll by turning its `Wheel` child about x.
+- `NewModels4.colliders(name) -> Array` box strips (AABB, model frame) for everything a drone can hit.
+- `NewModels4.attachments(name) -> Array` of Vector3: where a wire hangs (the insulator tops of `telegraph_pole_a/b` and the insulator strings of `power_pylon_a/b`), so a wire mesh can span from model to model.
+
+| Name | Size and layout |
+|---|---|
+| `car_hatch_a` | 4.0 x 1.72 x 1.46 m supermini, alloy wheels, silver |
+| `car_hatch_b` | 4.3 x 1.80 x 1.45 m hatchback, alloy wheels, red, some wear |
+| `car_estate_a` | 4.7 x 1.82 x 1.5 m estate with roof rails, dark blue-grey |
+| `pickup_a` | 5.3 x 1.98 x 1.82 m full-size pickup, open bed, blue |
+| `pickup_b` | 4.9 x 1.82 x 1.7 m older compact pickup, steel wheels, sun-faded and rusty |
+| `van_a` | 5.3 x 1.98 x 2.1 m panel van, white, rear doors with windows |
+| `van_b` | 4.4 x 1.8 x 1.9 m small van, blue, blank rear doors |
+| `tractor_a` | 4.7 x 2.4 x 2.95 m cab tractor, lugged tyres, 3-point linkage and PTO; front wheels steer |
+| `tractor_wheels_a` | the tractor's four wheels in place as one mesh (stand-in); the wheels as parts are in `vehicle("tractor_a")` |
+| `tractor_trailer_a` | 6.6 x 2.4 x 2.05 m tandem-axle farm trailer, hitch eye at -z |
+| `milk_tanker_a` | 9.4 x 2.5 x 3.4 m rigid tanker: cab, stainless tank, manways, ladder, six wheels |
+| `bus_a` | 10.6 x 2.5 x 3.2 m single-decker, door on the +x side, blank destination board, cream with a red band |
+| `motorcycle_a` | 2.1 x 0.8 x 1.35 m naked motorcycle, no rider |
+| `telegraph_pole_a` | 8.6 m wooden pole with a four-pin crossarm and a top pin; wires along x |
+| `telegraph_pole_b` | 10.4 m distribution pole, three-pin crossarm, pole-mounted transformer |
+| `power_pylon_a` | 36 m steel lattice tower, three tiers of arms, glass insulator strings; wires along x |
+| `power_pylon_b` | 19.5 m tubular steel monopole, three tiers of arms |
+| `road_sign_bend_a` / `road_sign_junction_a` | yellow warning diamonds on a galvanised post, 2.3 m to the centre; face toward -z |
+| `road_sign_speed_a` | white regulatory sign reading 60, on a post |
+| `road_marker_a` | 1.1 m white roadside post with a black band and an amber reflector |
+| `cattle_grid_a` | 3.6 x 2.4 m steel-bar grid over a pit, concrete sills; lay it flush with the road (top at y = 0) |
+| `field_gate_a` | 3.6 m timber five-bar gate hung on two posts (x = 0 and 3.6) |
+| `field_gate_b` | 3.8 m galvanised livestock gate on tubular posts (x = 0 and 3.8) |
+| `bus_shelter_a` | 3 x 1.4 x 2.5 m shelter, glass back and ends, bench, timetable case, stop sign pole |
+| `post_box_a` | roadside rural mailbox on a wooden post, flag up |
+| `road_works_a` | striped barrier, four cones, a blank orange warning sign |
+| `milestone_a` | 0.9 m stone post with a white face reading 12 |
+| `road_bridge_rail_a` | 4 m of bridge parapet along +x: kerb, three steel posts, two rails |
+
+Tests: `test/new_models4_test.gd` (headless; finite, winding, budgets that must fall from near to far, real sizes, wheels named, on the ground and facing outward, colliders inside, wire attachment points on the poles, rebuilds identical). Sheets: `test/new_models4_sheet.gd` (needs a window; `set=cars|big|props`, `light=golden|overcast`, `only=<word>`, `cell=WxH`, `cols=N`, `views=N`). In the game's own sky and haze: screenshot token `models4demo:<name>+<name>` (see `game/model_demo4.gd`).
+
+
+## Batch 8: the story assets (`game/new_models6*.gd`, `StoryAssets`; models8)
+
+The Lake Car and Halloway (brief: `docs/story/CLAUDE-NARRATIVE-ASSETS.md` on lane/notify). One entry point per use:
+- **In the game:** `StoryAssets.place(parent, name, Transform3D, lod := 0) -> Node3D` or `StoryAssets.instance(name, lod)`. It loads the exported glTF from `assets/models/story/<group>/<name>.glb` (`_lod1`, `_lod2` for the bus), gives the nodes back the farm kit's photographed materials (the file carries plain vertex-colour stand-ins whose material names are the kit keys: `wood`, `paintwood`, `brick`, `roof`, `stone`, `concrete`, `steel`, `paint`, `gloss`, `sheet`, `cloth`, `canvas`, `tarp`, `rubber`, `skin`, `fur`, `leather`, `enamel`, `chrome`, `glass`, `lamp`, `warm`, `flame`...) and falls back to building from code if a file is missing. `NewModels6.names()` lists every asset, `NewModels6.group_of(name)` its folder (`characters`, `camp`, `festival`, `halloway`, `evidence`, `reward`), `NewModels6.colliders(name)` AABB hulls.
+- **Frame (the story brief's, not the older batches'):** metres, Y up, **+Z is the front**, origin at the base. The model's right-hand side is -x. One root node named after the asset, a `body` mesh, then named children: `wheel_fl wheel_fr wheel_rl wheel_rr` (spin about x at the axle), `door` (pivot at the hinge), `destination_board`, `headlamp_glass`, `interior_light`, `lamp_glass`, `blue_lamp`, `window_light` (the lit panes, hide by day), `card_stand`, `flame`, `steam`, `bulbs`, `roller_door`. Collision comes from `hullN-colonly` boxes (Godot's importer makes a StaticBody3D): the bus, buildings, benches, barriers and larger props; none on people, dogs, cloth, bunting or camp soft goods.
+- **Lettering** is real geometry (a 5 x 7 block alphabet in `new_models6.gd`: `HALLOWAY FESTIVAL`, `VOSS & SON`, `MOTOR WORKS`, `HALLOWAY PROVINCIAL POLICE`, `VILLAGE HALL`, `THE PLOUGH`, `HALLOWAY STORES`, `MOTOR PARTS`...), all fictional.
+- **Regenerate:** `Godot --headless --path godot -s res://tools/export_story.gd [-- only=<name prefix>]` writes the .glb files and the two 2D pieces (`reward/livery_voss_son_decal.png`, `reward/casebook_badge_voss.png`). Checks: `test/story_probe.gd` (headless: triangles and sizes), `test/story_sheet.gd` (contact sheets, golden and overcast), `StoryAssets.dev_row` through the game's `story<distance>_<name>+<name>` shot token (the assets in the real scene with the real lighting).
+
+### Batch 5b: photoreal pass on the farm pieces (models5b)
+Same names, same sizes and colliders; what changed is how they look and what the triangle budgets are.
+- **Crops, middle and far levels are leaf cards, not blocks.** `corn_stand_*`, `corn_row_chunk`, `barley_patch_*`, `alfalfa_patch_*` and `crop_edge_weeds` at lod 1 and 2 are standing quads cut out by drawn plant textures (`assets/textures/cards/*.png`, made by `test/gen_card_textures.gd`; r light, g stem, b accent, a cut-out) through `farm_plant.gdshader` kind 2. The row chunk adds a flat canopy quad (kind 3) so a field seen from above reads as rows of leaves. Texture coordinates come from the vertex position, so the quads carry no UVs. Cards are the size of their texture tile (corn 1.0 x 2.35, barley 0.55 x 0.8, alfalfa 0.5 x 0.5, weeds 0.9 x 0.8 m): scale a whole instance, never one card.
+- **Near corn** (lod 0) has longer leaves with a wavy margin and a ripple along the blade, more segments, the translucency turned down (no cream glow) and wrapped diffuse lighting so low sun does not leave the far side black.
+- **Hay (lod 0):** loose stalks stand out of the bales and fray at the cut ends, net lines on `hay_round_b`, rope rings on `hay_roll_a`, the raised overlap lips and gathered ties of the film on `hay_round_a`. Budgets near: round bales 3000, standalone square bales 1100 (the stack is unchanged). Bounds are a little larger (loose straw).
+- **Fences (lod 0):** soil collar at each post, three cracks and lichen patches, staples on wire posts, strands of wire with ten segments so the sag is a curve.
+- `game/farm_demo.gd` places a patch of all of it in the real scene: screenshot token `farmdemo<x>_<z>` in `game/main.gd` (put it after the `at...` token).
+

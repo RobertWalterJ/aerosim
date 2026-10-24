@@ -825,6 +825,9 @@ func _screenshot_mode(arg: String) -> void:
 		if c == "gallery":
 			_build_gallery()
 		if c.begins_with("props5"): Gallery5.build(self, terrain, home, c.substr(6))   # models7 test hook: NewModels5 props in the real scene
+		if c.begins_with("farmdemo"):     # models5b test hook: a patch of the batch 5 farm models at x_z (game/farm_demo.gd)
+			var fv := c.substr(8).split("_")
+			FarmDemo.build(self, terrain, Vector2(float(fv[0]), float(fv[1])), quad.position())
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
 		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
@@ -861,6 +864,8 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.test_big(int(c.substr(5)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
 		elif c == "fwfar":     # dev: one break 1.6 km from the pilot, for the far distance sound and delay
 			fireworks.test_far()
+		elif c.begins_with("models4demo"):     # Claude dev hook: models4demo:<name>+<name>... lines the batch-6 models up 22 m ahead of the drone
+			ModelDemo4.spawn(self, terrain, quad.position(), fc.heading, c.substr(12).split("+"))
 		elif c == "waterspout":     # session B dev hook: start a waterspout over the lake
 			weather_events.debug_event("waterspout")
 		elif c == "tornado":
@@ -885,6 +890,10 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
 			fireworks.test_burst(int(c.substr(7)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c.begins_with("story"):     # models8 dev hook: story<distance>_<name>+<name>... puts story assets in a row ahead of the camera
+			var sp := c.substr(5).split("_", true, 1)
+			for i in 4: await get_tree().process_frame     # let the pose settle so the row lands where the camera really is
+			StoryAssets.dev_row(self, terrain, cam, float(sp[0]), sp[1].split("+"))
 		elif c == "nosmoke":
 			fireworks.set_smoke(false)
 		elif c == "birdsdemo":     # session B dev hook: birds up close, ignoring night, season and weather
