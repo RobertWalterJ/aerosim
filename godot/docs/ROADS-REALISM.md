@@ -22,6 +22,23 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 - **Rain:** the weather's wetness value is passed to both shaders. Wet asphalt darkens and the wheel tracks pick up a little reflection; wet gravel darkens and smooths.
 - **Boat launch access:** the launch lane is a short branch from the lakeside lane and ends on the gravel apron. The apron and ramp head are included in the grass mask.
 
+## Signs, speed limits and junctions
+
+`game/road_signs.gd` now puts the traffic language on the roads:
+
+- **Stop signs** on the eight minor approaches to the main junctions: the south lane, festival lane, east lane at both ends, lakeside lane at the farm, launch lane, cabin track and west lane. Each stop sign has a white stop line across the approach.
+- **Speed limit plates** at every route entry: 40 on the valley highway and ridge, 30 on the east lane, 25 on the lakeside lane, 20 on the south and west lanes, 15 on the cabin track and 10 on the festival and launch lanes.
+- **Junction warning diamonds** before the south-lane, east-gate and west-lane junctions.
+- **A fingerpost** at the east gate car park pointing to Halloway Lake.
+- **Traffic behaviour:** vehicles are capped at 85 percent of the route speed limit in `traffic.gd`; the signs and the traffic share the same limits in `roads.gd`.
+- The signs are code placeholders with readable text plates and galvanised posts. Final sign faces are requested in `docs/CLAUDE-ROAD-SIGNS-ASSETS.md`.
+
+### Sign evidence
+
+- `docs/realism/road_signs/00_stop_sign.jpg`
+- `docs/realism/road_signs/01_speed_limit.jpg`
+- `docs/realism/road_signs/02_east_gate_signs.jpg`
+
 ## Evidence
 
 - `docs/realism/roads/12_road_surface_and_posts.jpg`, the dry road with texture, markings and delineator posts.
@@ -35,7 +52,9 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 - The asphalt and gravel maps tile visibly when the camera is very close to the surface.
 - There are no standing puddles, spray or tyre wet marks; wetness only darkens and polishes the material.
 - There is no road camber, no banking and no deformation; the mesh still follows the terrain as a ribbon.
-- No guardrails, chevron signs, road signs, cattle grids or passing places yet. The delineator posts are the only roadside furniture.
+- No guardrails, chevron boards, cattle grids or passing places yet. The delineator posts and the new stop, speed and warning signs are the main roadside furniture.
+- The sign art is placeholder: text plates and simple octagons and diamonds, not final reflective sign faces. Stop signs are scenery; traffic does not actually stop at them.
+- Speed signs show one plate at each route entry rather than a full sign schedule along every road.
 - The grass mask is 1024 px over 4 km, so the exact grass edge at the shoulder is coarse. The shader hides most of it, but a close inspection can find it.
 - The lane-width threshold is a simple width test; a future route can still opt in or out of markings only by changing its width.
 - Traffic does not leave tyre marks or dust, and wet roads do not change grip.
@@ -46,4 +65,6 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 - ROADR2. Should the wider roads get a yellow centre line, or stay white?
 - ROADR3. Do you want visible puddles and wet tyre tracks in rain, or is the darkening enough?
 - ROADR4. Should the narrow lanes become gravel roads with a different surface, rather than unmarked asphalt?
+- ROADR5. Are the current speed limits right, and should they be in mph or km/h?
+- ROADR6. Should traffic actually stop and give way at the junctions, or are the signs scenery?
 - ROADR5. Should the boat launch lane stay asphalt to the apron, or turn to gravel for the last few metres?

@@ -14,52 +14,52 @@ const MASK_N := 1024
 
 const ROUTES := [
 	{
-		"id": "valley", "name": "valley highway", "width": 8.0, "shoulder": 2.4,
+		"id": "valley", "name": "valley highway", "width": 8.0, "shoulder": 2.4, "speed_limit": 40,
 		# east gate car park, then around the east and south walls to the farm
 		"points": [Vector2(270.0, 42.0), Vector2(280.0, 110.0), Vector2(286.0, 180.0), Vector2(286.0, 260.0),
 			Vector2(270.0, 360.0), Vector2(240.0, 440.0), Vector2(215.0, 505.0)],
 	},
 	{
-		"id": "south_lane", "name": "south gate lane", "width": 5.5, "shoulder": 1.8,
+		"id": "south_lane", "name": "south gate lane", "width": 5.5, "shoulder": 1.8, "speed_limit": 20,
 		# from the valley highway along the south wall to the south gate
 		"points": [Vector2(286.0, 260.0), Vector2(200.0, 255.0), Vector2(100.0, 252.0), Vector2(17.0, 250.0)],
 	},
 	{
-		"id": "east_link", "name": "east boundary lane", "width": 6.0, "shoulder": 2.0,
+		"id": "east_link", "name": "east boundary lane", "width": 6.0, "shoulder": 2.0, "speed_limit": 30,
 		# east gate car park north along the east wall to the north gate
 		"points": [Vector2(270.0, 42.0), Vector2(276.0, -60.0), Vector2(276.0, -170.0), Vector2(260.0, -245.0),
 			Vector2(150.0, -255.0), Vector2(12.0, -255.0)],
 	},
 	{
-		"id": "ridge", "name": "ridge road", "width": 7.0, "shoulder": 2.2,
+		"id": "ridge", "name": "ridge road", "width": 7.0, "shoulder": 2.2, "speed_limit": 40,
 		# north gate north to the garage and the camp, outside the west side of the park
 		"points": [Vector2(12.0, -255.0), Vector2(30.0, -320.0), Vector2(48.0, -420.0), Vector2(58.0, -520.0),
 			Vector2(55.0, -600.0), Vector2(45.0, -760.0), Vector2(36.0, -900.0), Vector2(36.0, -1120.0)],
 	},
 	{
-		"id": "cabin", "name": "cabin track", "width": 4.5, "shoulder": 1.6,
+		"id": "cabin", "name": "cabin track", "width": 4.5, "shoulder": 1.6, "speed_limit": 15,
 		# branch from the ridge road out to the old cabin
 		"points": [Vector2(45.0, -760.0), Vector2(-60.0, -790.0), Vector2(-160.0, -810.0), Vector2(-250.0, -820.0)],
 	},
 	{
-		"id": "lake", "name": "lakeside lane", "width": 5.0, "shoulder": 1.8,
+		"id": "lake", "name": "lakeside lane", "width": 5.0, "shoulder": 1.8, "speed_limit": 25,
 		# farm south and west, outside the park, down to the lake overlook
 		"points": [Vector2(215.0, 505.0), Vector2(90.0, 470.0), Vector2(-80.0, 420.0), Vector2(-200.0, 360.0),
 			Vector2(-300.0, 300.0), Vector2(-340.0, 240.0), Vector2(-380.0, 180.0), Vector2(-410.0, 120.0)],
 	},
 	{
-		"id": "festival", "name": "festival lane", "width": 4.5, "shoulder": 1.6,
+		"id": "festival", "name": "festival lane", "width": 4.5, "shoulder": 1.6, "speed_limit": 10,
 		# short branch from the valley highway to the festival field
 		"points": [Vector2(286.0, 260.0), Vector2(300.0, 300.0)],
 	},
 	{
-		"id": "west_link", "name": "west boundary lane", "width": 5.0, "shoulder": 1.8,
+		"id": "west_link", "name": "west boundary lane", "width": 5.0, "shoulder": 1.8, "speed_limit": 20,
 		# from the lakeside lane up the outside of the west wall to the west gate
 		"points": [Vector2(-300.0, 300.0), Vector2(-292.0, 200.0), Vector2(-285.0, 100.0), Vector2(-280.0, 0.0),
 			Vector2(-252.0, -4.0)],
 	},
 	{
-		"id": "launch", "name": "boat launch lane", "width": 4.5, "shoulder": 1.6,
+		"id": "launch", "name": "boat launch lane", "width": 4.5, "shoulder": 1.6, "speed_limit": 10,
 		# the last few metres from the lakeside lane to the boat launch parking apron
 		"points": [Vector2(-410.0, 120.0), Vector2(-432.0, 112.0)],
 	},
@@ -189,6 +189,12 @@ func set_wetness(w: float) -> void:
 
 func route_ids() -> Array:
 	return paths.keys()
+
+func speed_limit(id: String) -> float:
+	for r in ROUTES:
+		if str(r["id"]) == id:
+			return float(r.get("speed_limit", 25))
+	return 25.0
 
 func path(id: String) -> Array:
 	return paths.get(id, [])

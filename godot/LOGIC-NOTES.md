@@ -844,3 +844,20 @@ Every app screen now exists, and the story director is a real system rather than
   - ROADR2. Should the wider roads get a yellow centre line, or stay white?
   - ROADR3. Do you want visible puddles and wet tyre tracks in rain, or is the darkening enough?
   - ROADR4. Should the narrow lanes become gravel roads with a different surface, rather than unmarked asphalt?
+
+## Road signs, speed limits and junction control (lane/notify, session B, 2026-11-15)
+- **Stop signs (`game/road_signs.gd`):** eight stop signs on the minor approaches to the main junctions, each on the right of the approaching traffic and facing it: south lane to the valley highway, festival lane to the valley highway, both ends of the east lane, lakeside lane at the farm, launch lane, cabin track and west lane. Each has a white stop line across the approach.
+- **Speed limits:** each route has a `speed_limit` in mph in `roads.gd` and a speed plate at its entry. Valley and ridge 40, east lane 30, lakeside 25, south and west lanes 20, cabin track 15, festival and launch lanes 10.
+- **Junction warnings:** yellow diamond warning signs before the south-lane, east-gate and west-lane junctions.
+- **Fingerpost:** a green two-post direction board at the east gate car park pointing to Halloway Lake.
+- **Traffic:** `traffic.gd` caps each vehicle at 85 percent of its route speed limit, so the signs and the traffic share the same numbers.
+- **Visuals:** code-built octagonal stop plates with white rims, white speed plates with black lettering, yellow warning diamonds, a green fingerpost and galvanised posts. Signs are on the right side and face the oncoming driver.
+- **Evidence:** `docs/realism/road_signs/00_stop_sign.jpg`, `01_speed_limit.jpg`, `02_east_gate_signs.jpg`.
+- **Asset brief:** `docs/CLAUDE-ROAD-SIGNS-ASSETS.md` asks for final stop face and back, six speed faces (10, 15, 20, 25, 30, 40), junction and crossroad warnings, a blank fingerpost with separate arms, posts, brackets, gate boards, end-of-limit, parking, boat launch, chevrons, narrow bridge, steep hill, mirror and wear decals.
+- **Honest limits:** signs are scenery and traffic does not actually stop at the stop signs. There is one speed plate at each route entry, not a full sign schedule. The lettering is Label3D placeholder text, not final reflective sign faces. Speed units are mph but the HUD and flight speeds are metric, so the two are not explicitly explained in-game. The fingerpost only points to the lake. No school, animal, bend, narrow bridge or gate signs yet.
+- **Questions for Robert:**
+  - SIGN1. Are the current speed limits right, and should they be shown in mph or km/h?
+  - SIGN2. Should traffic actually stop and give way at the junctions, or are the signs enough?
+  - SIGN3. Do you want more junction warnings, chevrons and gate name boards next?
+  - SIGN4. Should the sign style stay British rural, American rural, or a made-up Halloway blend?
+  - SIGN5. Should there be a school, farm vehicle or animal warning near the farm and the sheep pasture?

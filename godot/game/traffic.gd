@@ -121,7 +121,9 @@ func update(delta: float, hour: float, paused: bool) -> void:
 		if pts.size() < 2:
 			continue
 		var length: float = float(roads._lengths.get(route, 1.0))
-		var s: float = float(v["s"]) + float(v["speed"]) * delta * float(v["dir"])
+		var limit := roads.speed_limit(route) * 0.44704 * 0.85
+		var speed := minf(float(v["speed"]), limit)
+		var s: float = float(v["s"]) + speed * delta * float(v["dir"])
 		if s > length:
 			s = 0.0
 		if s < 0.0:
@@ -139,7 +141,7 @@ func update(delta: float, hour: float, paused: bool) -> void:
 		node.global_position = Vector3(lane.x, y, lane.y)
 		node.rotation.y = atan2(-tangent.x, -tangent.y)
 		var wheels: Array = v["wheels"]
-		var spin := float(v["speed"]) * delta / 0.34
+		var spin := speed * delta / 0.34
 		for w in wheels:
 			(w as Node3D).rotation.z += spin
 		var lamp: StandardMaterial3D = v["lamp"]
