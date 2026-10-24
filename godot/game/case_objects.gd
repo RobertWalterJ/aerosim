@@ -530,6 +530,10 @@ func _build_cabin(pos: Vector3) -> void:
 	_cabin_root = Node3D.new()
 	_cabin_root.position = pos
 	add_child(_cabin_root)
+	if _try_story_model(_cabin_root, "res://assets/models/story/cabin/cabin_abandoned_a_broken_roof.glb", 0.0):
+		_cabin_root.rotation.y = -0.3
+		_cabin_asset_lights()
+		return
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.30, 0.24, 0.17)
 	wood.roughness = 0.95
@@ -637,6 +641,22 @@ func _build_cabin(pos: Vector3) -> void:
 		_cabin_root.add_child(l)
 		_cabin_lights.append(l)
 	_cabin_root.rotation.y = -0.3
+
+func _cabin_asset_lights() -> void:
+	_porch_light = OmniLight3D.new()
+	_porch_light.light_color = Color(1.0, 0.72, 0.38)
+	_porch_light.light_energy = 0.0
+	_porch_light.omni_range = 22.0
+	_porch_light.position = Vector3(0.0, 2.5, 4.0)
+	_cabin_root.add_child(_porch_light)
+	for p in [Vector3(-2.0, 3.0, -1.0), Vector3(2.0, 3.0, 1.0)]:
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.72, 0.38)
+		l.light_energy = 0.0
+		l.omni_range = 10.0
+		l.position = p
+		_cabin_root.add_child(l)
+		_cabin_lights.append(l)
 
 func _build_cruiser(pos: Vector3) -> void:
 	var root := Node3D.new()
