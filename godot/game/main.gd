@@ -824,6 +824,7 @@ func _screenshot_mode(arg: String) -> void:
 			_apply_pose(); drone_node.reset_physics_interpolation()
 		if c == "gallery":
 			_build_gallery()
+		if c.begins_with("props5"): Gallery5.build(self, terrain, home, c.substr(6))   # models7 test hook: NewModels5 props in the real scene
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
 		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
