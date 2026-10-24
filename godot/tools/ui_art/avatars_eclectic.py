@@ -24,10 +24,11 @@ CAST = {
            "Jo books the festival: her picture is the bunting and lights she spends every summer hanging."),
     "riley": ("a cartoon of her sheepdog", "cartoon", "drawn in code (own work)", "original",
               "The ranger protecting the flock picks her working dog, a black-and-white collie, not herself."),
-    "tom": ("a lightning storm over an open field", "photo composite",
-            "CC0 photographs: Poly Haven kloofendal_48d_partly_cloudy_puresky (cloud) and the Blender-bundled sunrise.exr"
-            " (field), both Greg Zaal; storm grade and lightning painted in code",
-            "CC0", "Tom chases weather, so his picture is a storm: dark cloud, a lightning strike over a field."),
+    "tom": ("a tornado over the Kansas plains", "photo",
+            "NOAA Photo Library nssl0232 'Tornado over the Kansas plains' (Wikimedia Commons; full URL in APPUI-README),"
+            " Sean Waugh, NOAA/NSSL, 23 May 2008",
+            "public domain (NOAA employee work)",
+            "Tom chases storms, so his picture is the one he is proudest of: a tornado roping down over a wheat field."),
     "sam": ("fair-weather cumulus in a blue sky", "photo",
             "Poly Haven kloofendal_48d_partly_cloudy_puresky, https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky,"
             " Greg Zaal", "CC0", "A precise meteorologist posts a textbook cumulus sky, the kind he reads windows from."),
@@ -317,9 +318,14 @@ def wren():
 
 
 def tom():
-    real = os.path.join(SRC, "tom_photo.jpg")          # a real storm photo, if one is added later (record its licence)
-    if os.path.exists(real):
-        return _grade(photo("tom_photo"), 1.05, 1.0).convert("RGBA")
+    """The real NOAA tornado photo when present (avatar_sources/tom_photo.jpg), else the lightning composite."""
+    if os.path.exists(os.path.join(SRC, "tom_photo.jpg")):
+        return _grade(photo("tom_photo"), 1.32, 1.08, 0.94).convert("RGBA")
+    return tom_lightning()
+
+
+def tom_lightning():
+    """Round-2 composite: CC0 cloud regraded as a storm, CC0 field, painted lightning. Kept as an alternate."""
     sky =np.asarray(photo("storm_cloud"), np.float32) / 255
     lum = (sky * [0.3, 0.59, 0.11]).sum(-1)
     t = np.clip((lum - 0.45) / 0.55, 0, 1) ** 1.6                     # cloud light -> storm palette

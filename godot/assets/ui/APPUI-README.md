@@ -45,7 +45,7 @@ TextureRect without mipmaps, so for 36 to 48 px avatar slots either use `sizes/4
 | maya | Maya, editor | a cartoon of her ginger cat on yellow | cartoon | drawn in code | original |
 | jo | Jo, events and bookings | festival bunting and string lights at dusk | stock-style vector | drawn in code | original |
 | riley | Riley, park ranger | a cartoon of her black-and-white sheepdog | cartoon | drawn in code | original |
-| tom | Tom, storm chaser | lightning strike under a dark storm cloud over a field | photo composite | cloud: Poly Haven `kloofendal_48d_partly_cloudy_puresky` (https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky), Greg Zaal; field: Poly Haven HDRI bundled with Blender 4.2.3 as `datafiles/studiolights/world/sunrise.exr`, Greg Zaal; storm grade and lightning painted in code | CC0 |
+| tom | Tom, storm chaser | a tornado over the Kansas plains, square crop around the funnel | photo | NOAA Photo Library nssl0232 "Tornado over the Kansas plains", https://commons.wikimedia.org/wiki/File:Tornado_over_the_Kansas_plains_(Nssl0232_-_Flickr_-_NOAA_Photo_Library).jpg (file https://upload.wikimedia.org/wikipedia/commons/4/43/Tornado_over_the_Kansas_plains_%28Nssl0232_-_Flickr_-_NOAA_Photo_Library%29.jpg), photographer Sean Waugh, NOAA/NSSL, 23 May 2008; original kept as `tools/ui_art/avatar_sources/tom_photo_original.jpg` (3888 x 2592, 3,401,943 bytes, downloaded 2026-10-24), crop `tom_photo.jpg` | public domain (made by a NOAA employee in official duties; Commons PD-USGov-NOAA notice) |
 | sam | Sam, meteorologist | fair-weather cumulus in a blue sky | photo | Poly Haven `kloofendal_48d_partly_cloudy_puresky`, Greg Zaal | CC0 |
 | alex | Alex, tech reviewer | his Raptor race quad on the workbench | product shot | Raptor render from lane appui2 (`items/cutout/raptor.png`, own work) on Poly Haven `wood_planks_grey` (https://polyhaven.com/a/wood_planks_grey), Rob Tuytel | own work + CC0 |
 | rennick | Constable Rennick | Halloway Provincial Constabulary emblem: crown, blue shield with a lit lamp, gold laurel, blank ribbon | logo / badge | drawn in code; fictional service, not modelled on any real crest | original |
@@ -54,10 +54,10 @@ TextureRect without mipmaps, so for 36 to 48 px avatar slots either use `sizes/4
 | wren | Wren, lost hiker | a gravel trail through green woods | photo | Poly Haven HDRI bundled with Blender 4.2.3 as `forest.exr`, Greg Zaal | CC0 |
 | kit | Kit, DroneBudz support | the app's prop-bot mascot in a headset, on teal | logo / mascot | drawn in code | original |
 
-Tom's picture is a composite of real CC0 photographs, not a single photograph of a tornado: the lane did not download
-new images (a download needs Robert's own go-ahead). To use a real storm photo, put a square JPEG at
-`tools/ui_art/avatar_sources/tom_photo.jpg`, record its URL, author and licence here and in `assets/textures/README.md`,
-and `avatars_eclectic.tom()` uses it instead.
+Tom's NOAA tornado photo is the only image downloaded for the avatars (Robert asked for it). The earlier round-2 storm
+composite (CC0 Poly Haven cloud and field by Greg Zaal, lightning painted in code) is kept as
+`avatars_alt/tom_lightning_eclectic.png` (+ cutout and sizes). `avatars_eclectic.tom()` uses `avatar_sources/tom_photo.jpg`
+when it exists and falls back to the composite.
 
 ## The alternate set "emblem" (round 1, in `avatars_alt/`)
 

@@ -151,8 +151,8 @@ def build(masters_by_set, active):
 def textures():
     """Sources sheet: the photographs and textures actually used, with source and licence."""
     import avatars_eclectic as E
-    items = [("cumulus.jpg", "Sam"), ("sunrise_field.jpg", "You"), ("woodland_trail.jpg", "Wren"), ("storm_cloud.jpg", "Tom, sky"),
-             ("storm_ground.jpg", "Tom, field")]
+    items = [("cumulus.jpg", "Sam"), ("sunrise_field.jpg", "You"), ("woodland_trail.jpg", "Wren"),
+             ("tom_photo.jpg", "Tom: NOAA nssl0232, PD"), ("storm_cloud.jpg", "Tom alt composite, sky")]
     W = 1880
     im = Image.new("RGB", (W, 760), DARK)
     d = ImageDraw.Draw(im)
