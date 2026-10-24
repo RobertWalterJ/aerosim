@@ -719,3 +719,18 @@ The RTH landing finishes at the pad, the motors stop, and the battery charges be
   - RTH3. Should the HUD show a clear CHARGING label and percentage, or is the DISARMED status and the toast enough?
   - RTH4. Should Takeoff be blocked until full, or should the pilot be able to leave early on a partial battery?
   - RTH5. Should the motors cut after a manual landing anywhere as well?
+
+## Story mode is the normal game (lane/notify, session B, 2026-11-09)
+The welcome screen now chooses between Story, the normal game, and Sandbox, the old creator mode. Story mode takes the god powers away from the player so the investigation, the jobs, the follower growth and the festival cannot be interrupted by a player-spawned tornado.
+- **Landing menu (`game/landing.gd`):** a MODE row with Story and Sandbox. Story is the default. Story shows a short note that the valley owns its weather and clock and hides the TIME AND WEATHER quick looks. Sandbox shows the quick looks and the old descriptions. The choice saves to `user://mode.cfg` and is restored at launch.
+- **HUD (`game/hud.gd`):** in Story mode the whole Weather settings page is replaced by a short read-only note; the Sky, Time, Wind, Fireworks and Events controls are hidden. In Sandbox mode the full page returns. Switching into Story mode clears every active weather event, stops fireworks and surprise shows and disables the event toggles, so nothing already running keeps going.
+- **What Story mode protects:** no player tornado, waterspout, thunderstorm, thermals, dust devil, fog bank, snow squall, surprise events, far traffic or kites; no fireworks show control; no quick time/weather looks on the landing screen. The story finale can still bring its own storm because that call is internal, not a player toggle.
+- **Not affected:** flying, camera, jobs, photo evidence, followers, money, the Casebook, the storm narrative's scripted weather, the festival writing and the ending. Courses, drone choice, camera settings and display settings remain.
+- **Evidence (docs/realism/modes/):** 00 Story landing, 01 Sandbox landing, 02 the read-only Story Weather page, 03 the full Sandbox Weather page.
+- **Honest limits:** Story mode locks the whole Weather page, so the optional fireworks job, which needs a night show, is only playable in Sandbox unless a show is scheduled by the story later. The mode can only be changed from the welcome screen, not from the pause menu. Existing saves default to Story on first launch after this change. Story mode does not stop natural weather or scripted storms; it only removes player control. The sandbox mode is still the only place to test events.
+- **Questions for Robert:**
+  - MODE1. Is separating Story and Sandbox on the welcome screen the right shape, or should the mode instead be a single "no player weather powers" switch in Settings?
+  - MODE2. Should Story mode keep the time and weather controls for photography, and only remove the severe events?
+  - MODE3. Should the fireworks show be allowed in Story for the optional fireworks job, or should the story schedule its own shows?
+  - MODE4. Should Sandbox turn story and jobs off entirely, or keep them as they are now?
+  - MODE5. Should the player be able to switch back to Sandbox from the pause menu, or only by returning to the welcome screen?

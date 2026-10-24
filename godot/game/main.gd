@@ -121,8 +121,11 @@ func _show_landing() -> void:
 	if sticks: sticks.enabled = false
 	landing = Landing.new()
 	add_child(landing)
-	landing.build(str(af["name"]))
+	landing.build(str(af["name"]), hud.story_mode)
 	landing.fly_pressed.connect(_start_flight)
+	landing.mode_chosen.connect(func(story: bool):
+		hud.set_story_mode(story)
+		landing.set_story_mode(story))
 	landing.drone_pressed.connect(func(): hud.set_paused(true); hud.open_tab(1))
 	landing.settings_pressed.connect(func(): hud.set_paused(true); hud.open_tab(3))
 	landing.controls_pressed.connect(func(): hud.set_paused(true); hud.open_tab(5))
@@ -402,6 +405,7 @@ func _ready() -> void:
 	if sensor.simple:
 		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC; env.glow_enabled = true; env.glow_intensity = 0.25; env.glow_bloom = 0.02
 	_loaded = true
+	if hud != null: hud.set_story_mode(hud.story_mode)
 	if q_arg == "" and not _apstest and not _selftest and not "nolanding" in OS.get_cmdline_user_args(): _show_landing()
 	if _load_layer: _load_layer.queue_free()
 	_make_drone_pictures()
@@ -1101,6 +1105,20 @@ func _screenshot_mode(arg: String) -> void:
 			quad.reset(home.x, hy, home.y, deg_to_rad(150.0))
 			quad.battery.soc = 0.2
 			_home_landed()
+		elif c == "landingstory": # session B dev hook: the welcome screen in Story mode
+			hud.set_story_mode(true)
+			_show_landing()
+		elif c == "landingsandbox":  # session B dev hook: the welcome screen in Sandbox mode
+			hud.set_story_mode(false)
+			_show_landing()
+		elif c == "storyweather":  # session B dev hook: the Weather settings tab in Story mode
+			hud.set_story_mode(true)
+			hud.set_paused(true)
+			hud.open_tab(2)
+		elif c == "sandboxweather":  # session B dev hook: the Weather settings tab in Sandbox mode
+			hud.set_story_mode(false)
+			hud.set_paused(true)
+			hud.open_tab(2)
 		elif c == "market":      # session B dev hook: the Facade marketplace
 			phone_os.open()
 			phone_os._open_app("market")

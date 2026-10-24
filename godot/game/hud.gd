@@ -41,6 +41,7 @@ signal birds_changed(on: bool)                       # session B: Display > Grap
 signal sky_quality_changed(i: int)                   # sky lane: cloud raymarch quality
 
 const WEATHER_FILE := "user://weather.cfg"
+const MODE_FILE := "user://mode.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0, "lowcloud": 0, "lowcloud_h": 300.0}
 const PRESETS := [["Still", 0.0, 0.0], ["Calm", 1.0, 0.45], ["Light", 3.0, 0.65], ["Breezy", 5.0, 0.85], ["Strong", 7.5, 1.0]]
 const COMPASS := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
@@ -96,6 +97,11 @@ var birds_on := true               # session B: the flocks over the valley
 var events := {"waterspout": false, "tornado": false, "thunderstorm": false, "thermals": false,
 	"dustdevil": false, "fogbank": false, "snowsquall": false, "surprise": false,
 	"far_traffic": false, "park_life": false, "course": 0}
+## Story mode is the normal game: the valley owns the weather and the clock. Sandbox mode is chosen on the welcome
+## screen and gives the old god powers back (weather events, quick looks and the event toggles).
+var story_mode := true
+var _weather_sandbox: VBoxContainer
+var _story_note: Label
 var sky_quality := 1               # sky lane: cloud quality 0 low, 1 medium, 2 high
 
 var minimap: MiniMap
@@ -129,6 +135,7 @@ var _slider_labels := {}
 func _ready() -> void:
 	layer = 10
 	_load_weather()
+	_load_mode()
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -542,48 +549,56 @@ func _gslider(parent: Control, title: String, lo: float, hi: float, step: float,
 
 func _build_weather_tab() -> void:
 	var p := _page("Weather")
-	_heading(p, "Sky")
-	_choice(p, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
-	_slider(p, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
-	_choice(p, "Low cloud layer", ["Off", "Thin", "Thick"], func(): return int(weather["lowcloud"]), func(i): weather["lowcloud"] = i; _weather_edited())
-	_slider(p, "lowcloud_h", "Low cloud height", 150.0, 600.0, 10.0)
-	_heading(p, "Time of day")
-	_choice(p, "Clock", ["Real clock", "Set the time"], func(): return int(weather["clock_mode"]), func(i): weather["clock_mode"] = i; _weather_edited())
-	_slider(p, "hour", "Hour of day (moving this sets the time)", 0.0, 23.99, 0.05)
+	_story_note = Label.new()
+	_story_note.text = "STORY MODE  ·  The valley owns its weather and its clock. The story, the investigation and the festival set the conditions. To control the sky, the time and the storms, choose Sandbox on the welcome screen."
+	_story_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_story_note.add_theme_font_size_override("font_size", 16)
+	_story_note.add_theme_color_override("font_color", MenuStyle.MUTED)
+	p.add_child(_story_note)
+	var c := VBoxContainer.new()
+	c.add_theme_constant_override("separation", 8)
+	p.add_child(c)
+	_weather_sandbox = c
+	_heading(c, "Sky")
+	_choice(c, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
+	_slider(c, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
+	_choice(c, "Low cloud layer", ["Off", "Thin", "Thick"], func(): return int(weather["lowcloud"]), func(i): weather["lowcloud"] = i; _weather_edited())
+	_slider(c, "lowcloud_h", "Low cloud height", 150.0, 600.0, 10.0)
+	_heading(c, "Time of day")
+	_choice(c, "Clock", ["Real clock", "Set the time"], func(): return int(weather["clock_mode"]), func(i): weather["clock_mode"] = i; _weather_edited())
+	_slider(c, "hour", "Hour of day (moving this sets the time)", 0.0, 23.99, 0.05)
 	_sliders["hour"].value_changed.connect(func(_x: float): if int(weather["clock_mode"]) != 1: weather["clock_mode"] = 1; _weather_edited())
-	_choice(p, "Time passes", ["Real time", "Fast (a minute a second)", "Frozen"], func(): return int(weather["clock_speed"]), func(i): weather["clock_speed"] = i; _weather_edited())
-	_choice(p, "Date", ["Today", "Spring (21 Mar)", "Summer (21 Jun)", "Autumn (22 Sep)", "Winter (21 Dec)"], func(): return int(weather["date"]), func(i): weather["date"] = i; _weather_edited())
-	_heading(p, "Wind")
-	var seg := HFlowContainer.new(); seg.add_theme_constant_override("h_separation", 8); p.add_child(seg)
+	_choice(c, "Time passes", ["Real time", "Fast (a minute a second)", "Frozen"], func(): return int(weather["clock_speed"]), func(i): weather["clock_speed"] = i; _weather_edited())
+	_choice(c, "Date", ["Today", "Spring (21 Mar)", "Summer (21 Jun)", "Autumn (22 Sep)", "Winter (21 Dec)"], func(): return int(weather["date"]), func(i): weather["date"] = i; _weather_edited())
+	_heading(c, "Wind")
+	var seg := HFlowContainer.new(); seg.add_theme_constant_override("h_separation", 8); c.add_child(seg)
 	for pr in PRESETS:
 		var b := Button.new(); b.text = pr[0]; b.custom_minimum_size = Vector2(0, 50)
 		b.pressed.connect(func(): weather["wind"] = pr[1]; weather["gust"] = pr[2]; _weather_edited())
 		seg.add_child(b)
-	_slider(p, "wind", "Wind speed", 0.0, 10.0, 0.1)
-	_slider(p, "gust", "Gusts", 0.0, 1.0, 0.01)
-	_slider(p, "from", "Wind comes from", 0.0, 359.0, 1.0)
-	# wind lane: how the wind treats the drone and the picture
-	_choice(p, "Wind effects on the drone", ["Off", "Natural"], func(): return 1 if wind_fx else 0, func(i): wind_fx = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
-	_choice(p, "Camera shake", ["Off", "Natural"], func(): return 1 if cam_shake else 0, func(i): cam_shake = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
-	_heading(p, "Fireworks")
-	# session B: a show over the lake. Off stops a running show; the other three start one.
-	_choice(p, "Fireworks show", Fireworks.SHOW_NAMES, func(): return fireworks_show, func(i): fireworks_show = i; fireworks_changed.emit(i))
-	_choice(p, "Surprise shows", ["Off", "On"], func(): return 1 if surprise_shows else 0, func(i): surprise_shows = i == 1; surprise_changed.emit(surprise_shows))
-	# session B: the extreme-weather events. Each one is off until the player starts it, and Off stops it at once.
-	_heading(p, "Events")
-	_sub(p, "Weather you can start yourself. Nothing here can damage the drone.")
-	_choice(p, "Funnel detail", ["Low", "Normal", "High"], func(): return funnel_detail, func(i): funnel_detail = i)
-	_event_toggle(p, "Waterspout over the lake", "waterspout")
-	_event_toggle(p, "Tornado", "tornado")
-	_event_toggle(p, "Thunderstorm", "thunderstorm")
-	_event_toggle(p, "Thermals", "thermals")
-	_event_toggle(p, "Dust devil", "dustdevil")
-	_event_toggle(p, "Fog bank", "fogbank")
-	_event_toggle(p, "Snow squall", "snowsquall")
-	_event_toggle(p, "Far traffic", "far_traffic")
-	_event_toggle(p, "Kites and flag", "park_life")
-	_event_toggle(p, "Surprise events", "surprise")
-	_action(p, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
+	_slider(c, "wind", "Wind speed", 0.0, 10.0, 0.1)
+	_slider(c, "gust", "Gusts", 0.0, 1.0, 0.01)
+	_slider(c, "from", "Wind comes from", 0.0, 359.0, 1.0)
+	_choice(c, "Wind effects on the drone", ["Off", "Natural"], func(): return 1 if wind_fx else 0, func(i): wind_fx = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
+	_choice(c, "Camera shake", ["Off", "Natural"], func(): return 1 if cam_shake else 0, func(i): cam_shake = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
+	_heading(c, "Fireworks")
+	_choice(c, "Fireworks show", Fireworks.SHOW_NAMES, func(): return fireworks_show, func(i): fireworks_show = i; fireworks_changed.emit(i))
+	_choice(c, "Surprise shows", ["Off", "On"], func(): return 1 if surprise_shows else 0, func(i): surprise_shows = i == 1; surprise_changed.emit(surprise_shows))
+	_heading(c, "Events")
+	_sub(c, "Weather you can start yourself. Nothing here can damage the drone.")
+	_choice(c, "Funnel detail", ["Low", "Normal", "High"], func(): return funnel_detail, func(i): funnel_detail = i)
+	_event_toggle(c, "Waterspout over the lake", "waterspout")
+	_event_toggle(c, "Tornado", "tornado")
+	_event_toggle(c, "Thunderstorm", "thunderstorm")
+	_event_toggle(c, "Thermals", "thermals")
+	_event_toggle(c, "Dust devil", "dustdevil")
+	_event_toggle(c, "Fog bank", "fogbank")
+	_event_toggle(c, "Snow squall", "snowsquall")
+	_event_toggle(c, "Far traffic", "far_traffic")
+	_event_toggle(c, "Kites and flag", "park_life")
+	_event_toggle(c, "Surprise events", "surprise")
+	_action(c, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
+	_apply_mode_ui()
 
 func _build_camera_tab() -> void:
 	var p := _page("Camera")
@@ -729,3 +744,36 @@ func _save_weather() -> void:
 	var cf := ConfigFile.new()
 	for k in weather: cf.set_value("weather", k, weather[k])
 	cf.save(WEATHER_FILE)
+
+func _load_mode() -> void:
+	var cf := ConfigFile.new()
+	if cf.load(MODE_FILE) != OK:
+		story_mode = true
+		_save_mode()
+		return
+	story_mode = bool(cf.get_value("mode", "story", true))
+
+func _save_mode() -> void:
+	var cf := ConfigFile.new()
+	cf.set_value("mode", "story", story_mode)
+	cf.save(MODE_FILE)
+
+## Story mode is the curated game: no player weather or storm powers. Sandbox gives the old controls back.
+func set_story_mode(on: bool) -> void:
+	story_mode = on
+	if on:
+		for k in events.keys():
+			if k != "course":
+				events[k] = false
+		fireworks_show = 0
+		surprise_shows = false
+		fireworks_changed.emit(0)
+		surprise_changed.emit(false)
+	_save_mode()
+	_apply_mode_ui()
+
+func _apply_mode_ui() -> void:
+	if _story_note != null:
+		_story_note.visible = story_mode
+	if _weather_sandbox != null:
+		_weather_sandbox.visible = not story_mode
