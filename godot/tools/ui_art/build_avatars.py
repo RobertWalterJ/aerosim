@@ -1,4 +1,10 @@
-"""Chat and Casebook avatars as illustrated emblems (lane avatars). Replaces the appui2 MakeHuman portrait renders.
+"""Chat and Casebook avatars (lane avatars). Replaces the appui2 MakeHuman portrait renders.
+
+Two sets (see "sets and output" at the end of this file): "eclectic", the active one, made in avatars_eclectic.py, where each
+account looks like a picture the person uploaded; and "emblem", round 1, drawn by the functions in this file and kept as
+the alternate set in assets/ui/avatars_alt/. Switch: python build_avatars.py --switch emblem   (or --switch eclectic).
+
+The emblem set, as first briefed:
 
 Robert does not want people-model renders as avatars. Each account gets a profile-picture emblem that says something
 about the person: a prop, an animal, a mascot or a mark. One tile shape, one border and one palette (docs/UI-STYLE.md)
@@ -581,71 +587,143 @@ EMBLEM = {"maya": maya, "jo": jo, "riley": riley, "tom": tom, "sam": sam, "alex"
           "unknown": unknown, "you": you, "wren": wren, "kit": kit}
 
 
-# ---------------------------------------------------------------- output
+# ---------------------------------------------------------------- sets and output
+#
+# Two sets exist. "eclectic" (the default, ACTIVE_SET) looks like pictures people uploaded themselves (avatars_eclectic.py).
+# "emblem" is round 1: the illustrated emblems above, kept as the alternate set at Robert's request.
+# Both are always written to assets/ui/avatars_alt/ as <key>_<set>.png (512), cutout/<key>_<set>.png and sizes/96|48/.
+# The active set is what the game loads: avatar_<key>.png, sizes/96|48/avatar_<key>.png, avatars/cutout/<key>.png.
+#   python build_avatars.py --sheet                 render both, eclectic active, rebuild the contact sheet
+#   python build_avatars.py --set emblem --sheet    render both, emblem active
+#   python build_avatars.py --switch emblem         no rendering: copy avatars_alt/*_emblem into the active files
+ACTIVE_SET = "eclectic"
+SETS = ("eclectic", "emblem")
+
 
 def render(key):
-    """Returns (tile 2048 RGBA, emblem-only 2048 RGBA)."""
+    """Emblem set: returns (tile 2048 RGBA, emblem-only 2048 RGBA)."""
     em = EMBLEM[key]().img
     bg = tile_background(key)
     tile = frame(Image.alpha_composite(bg, em), key)
     return tile, em
 
 
+def circle_cut(img):
+    m = m_ell(0.5, 0.5, 0.5)
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    out.paste(img, (0, 0), ImageChops.multiply(m, img.getchannel("A")))
+    return out
+
+
+def render_set(name):
+    """{key: (master 2048 RGBA, cutout 2048 RGBA)} for one set."""
+    out = {}
+    if name == "emblem":
+        for key in TILE:
+            out[key] = render(key)
+    else:
+        import avatars_eclectic as E
+        for key in TILE:
+            img = E.EMBLEM[key]().convert("RGBA")
+            out[key] = (img, circle_cut(img))
+    return out
+
+
 def small(img, s):
     return img.resize((s, s), Image.LANCZOS).filter(ImageFilter.UnsharpMask(radius=0.6, percent=55, threshold=1))
 
 
-def note(key):
-    for k, person, concept, style, _ in CAST:
-        if k == key:
-            return f"{person.split(',')[0]}: {concept}, {style} emblem"
-    return ""
+def note(key, name):
+    if name == "emblem":
+        for k, person, concept, style, _ in CAST:
+            if k == key:
+                return f"{person.split(',')[0]}: {concept}, {style} emblem (alternate set)"
+    import avatars_eclectic as E
+    what, kind, src, lic, _ = E.CAST[key]
+    return f"{key.capitalize()}: {what} ({kind}; {lic})"
 
 
-def manifest_rows():
-    """Rows in appui_lib.MANIFEST form, so a full build_appui.py run keeps the avatar entries."""
+def files_for(key, name, active):
+    """(rel path 512, rel cutout, {size: rel small})"""
+    if active:
+        return (f"avatar_{key}.png", f"avatars/cutout/{key}.png", {s: f"sizes/{s}/avatar_{key}.png" for s in (96, 48)})
+    return (f"avatars_alt/{key}_{name}.png", f"avatars_alt/cutout/{key}_{name}.png",
+            {s: f"avatars_alt/sizes/{s}/{key}_{name}.png" for s in (96, 48)})
+
+
+def write(key, master, cut, rels):
+    big, cutp, sm = rels
+    for rel in (big, cutp, *sm.values()):
+        os.makedirs(os.path.dirname(os.path.join(UI, rel)), exist_ok=True)
+    master.resize((512, 512), Image.LANCZOS).save(os.path.join(UI, big), optimize=True)
+    cut.resize((512, 512), Image.LANCZOS).save(os.path.join(UI, cutp), optimize=True)
+    for s, rel in sm.items():
+        small(master, s).save(os.path.join(UI, rel), optimize=True)
+
+
+def manifest_rows(active=ACTIVE_SET):
+    """Rows in appui_lib.MANIFEST form (rel, w, h, nine, note) for the active files and both alternate sets."""
     rows = []
     for key in TILE:
-        rows.append((f"avatar_{key}.png", 512, 512, None, note(key)))
-        rows.append((f"avatars/cutout/{key}.png", 512, 512, None, "emblem only, transparent"))
-        for s in (96, 48):
-            rows.append((f"sizes/{s}/avatar_{key}.png", s, s, None, ""))
+        for name, is_active in [(active, True)] + [(s, False) for s in SETS]:
+            big, cutp, sm = files_for(key, name, is_active)
+            tag = "" if is_active else f" [{name} set]"
+            rows.append((big, 512, 512, None, note(key, name) + (" ACTIVE" if is_active else "")))
+            rows.append((cutp, 512, 512, None, ("circle crop" if name == "eclectic" else "emblem only") + ", transparent" + tag))
+            for s, rel in sm.items():
+                rows.append((rel, s, s, None, tag.strip()))
     return rows
 
 
-def update_manifest():
-    """Rewrite the avatar rows of APPUI-MANIFEST.md in place; every other row is left exactly as it was."""
+def update_manifest(active=ACTIVE_SET):
+    """Replace every avatar row of APPUI-MANIFEST.md (active and avatars_alt) and keep the table sorted; other rows untouched."""
     p = os.path.join(UI, "APPUI-MANIFEST.md")
     lines = open(p, encoding="utf-8").read().splitlines()
-    out = []
-    for ln in lines:
-        for key in TILE:
-            if ln.startswith(f"| `avatar_{key}.png` |"):
-                ln = f"| `avatar_{key}.png` | 512 x 512 | - | {note(key)} |"
-            elif ln.startswith(f"| `avatars/cutout/{key}.png` |"):
-                ln = f"| `avatars/cutout/{key}.png` | 512 x 512 | - | emblem only, transparent |"
-        out.append(ln)
-    open(p, "w", encoding="utf-8").write("\n".join(out) + "\n")
+    head = [ln for ln in lines if not ln.startswith("| `")]
+    rows = [ln for ln in lines if ln.startswith("| `")]
+    def is_avatar(ln):
+        rel = ln.split("`")[1]
+        return rel.startswith("avatar_") or rel.startswith("avatars/") or rel.startswith("avatars_alt/") or \
+            (rel.startswith("sizes/") and "/avatar_" in rel)
+    rows = [ln for ln in rows if not is_avatar(ln)]
+    for rel, w, h, nine, nt in manifest_rows(active):
+        rows.append(f"| `{rel}` | {w} x {h} | - | {nt} |")
+    rows.sort(key=lambda ln: ln.split("`")[1])
+    open(p, "w", encoding="utf-8").write("\n".join(head + rows) + "\n")
 
 
-def build(sheet=False):
-    masters = {}
+def switch(name):
+    """Make an archived set active by copying avatars_alt/*_<name> over the active files. No rendering."""
+    import shutil
     for key in TILE:
-        tile, em = render(key)
-        masters[key] = tile
-        tile.resize((512, 512), Image.LANCZOS).save(os.path.join(UI, f"avatar_{key}.png"), optimize=True)
+        src, dst = files_for(key, name, False), files_for(key, name, True)
+        shutil.copyfile(os.path.join(UI, src[0]), os.path.join(UI, dst[0]))
+        shutil.copyfile(os.path.join(UI, src[1]), os.path.join(UI, dst[1]))
         for s in (96, 48):
-            os.makedirs(os.path.join(UI, "sizes", str(s)), exist_ok=True)
-            small(tile, s).save(os.path.join(UI, "sizes", str(s), f"avatar_{key}.png"), optimize=True)
-        os.makedirs(os.path.join(UI, "avatars", "cutout"), exist_ok=True)
-        em.resize((512, 512), Image.LANCZOS).save(os.path.join(UI, "avatars", "cutout", f"{key}.png"), optimize=True)
-        print("avatar", key)
-    update_manifest()
+            shutil.copyfile(os.path.join(UI, src[2][s]), os.path.join(UI, dst[2][s]))
+    update_manifest(name)
+    print("active set:", name)
+
+
+def build(sheet=False, active=ACTIVE_SET):
+    rendered = {}
+    for name in SETS:
+        rendered[name] = render_set(name)
+        for key, (master, cut) in rendered[name].items():
+            write(key, master, cut, files_for(key, name, False))
+        print("set", name)
+    for key, (master, cut) in rendered[active].items():
+        write(key, master, cut, files_for(key, active, True))
+    update_manifest(active)
     if sheet:
         import avatars_sheet
-        avatars_sheet.build(masters, CAST, TILE)
-    return masters
+        avatars_sheet.build({n: {k: v[0] for k, v in r.items()} for n, r in rendered.items()}, active)
+    return rendered
 
 
 if __name__ == "__main__":
-    build(sheet="--sheet" in sys.argv)
+    a = sys.argv
+    if "--switch" in a:
+        switch(a[a.index("--switch") + 1])
+    else:
+        build(sheet="--sheet" in a, active=a[a.index("--set") + 1] if "--set" in a else ACTIVE_SET)
