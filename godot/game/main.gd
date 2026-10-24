@@ -1092,6 +1092,28 @@ func _screenshot_mode(arg: String) -> void:
 			story.debug_next()
 			phone_os.open()
 			phone_os._open_app("casebook")
+		elif c == "storycamp":    # session B dev hook: jump to the camp chapter
+			story.debug_jump(3)
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storybus":     # session B dev hook: jump to the bus chapter
+			story.debug_jump(4)
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storyfinish":  # session B dev hook: finish the case and show the ending choice
+			story.debug_run_all()
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storypublish": # session B dev hook: finish and publish with Maya's cut
+			story.debug_run_all()
+			story.make_choice("publish")
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storyprivate": # session B dev hook: finish and keep the story private
+			story.debug_run_all()
+			story.make_choice("private")
+			phone_os.open()
+			phone_os._open_app("casebook")
 		elif c == "uploaddemo":   # session B dev hook: upload the newest photo straight to VidTube
 			var pid := -1
 			var meta: Dictionary = {}

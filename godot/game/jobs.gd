@@ -114,6 +114,15 @@ func followers() -> int:
 func money() -> int:
 	return _money
 
+## Story rewards, community fund payments and other one-off additions to the channel pot.
+func add_money(amount: int) -> void:
+	_money += amount
+	_save_state()
+
+func add_followers(amount: int) -> void:
+	_followers += amount
+	_save_state()
+
 func views() -> int:
 	return _views
 
