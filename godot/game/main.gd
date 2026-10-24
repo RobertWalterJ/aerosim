@@ -824,6 +824,9 @@ func _screenshot_mode(arg: String) -> void:
 			_apply_pose(); drone_node.reset_physics_interpolation()
 		if c == "gallery":
 			_build_gallery()
+		if c.begins_with("farmdemo"):     # models5b test hook: a patch of the batch 5 farm models at x_z (game/farm_demo.gd)
+			var fv := c.substr(8).split("_")
+			FarmDemo.build(self, terrain, Vector2(float(fv[0]), float(fv[1])), quad.position())
 		if c.begins_with("menu"):
 			hud.set_paused(true); hud._tabs.current_tab = int(c.substr(4))
 		if c.begins_with("cloudq"): _sky_quality = int(c.substr(6))   # sky test hook: cloud quality 0 low / 1 medium / 2 high
@@ -886,6 +889,10 @@ func _screenshot_mode(arg: String) -> void:
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
 			fireworks.test_burst(int(c.substr(7)), quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0))
+		elif c.begins_with("story"):     # models8 dev hook: story<distance>_<name>+<name>... puts story assets in a row ahead of the camera
+			var sp := c.substr(5).split("_", true, 1)
+			for i in 4: await get_tree().process_frame     # let the pose settle so the row lands where the camera really is
+			StoryAssets.dev_row(self, terrain, cam, float(sp[0]), sp[1].split("+"))
 		elif c == "nosmoke":
 			fireworks.set_smoke(false)
 		elif c == "birdsdemo":     # session B dev hook: birds up close, ignoring night, season and weather
