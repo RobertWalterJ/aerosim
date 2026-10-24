@@ -861,3 +861,20 @@ Every app screen now exists, and the story director is a real system rather than
   - SIGN3. Do you want more junction warnings, chevrons and gate name boards next?
   - SIGN4. Should the sign style stay British rural, American rural, or a made-up Halloway blend?
   - SIGN5. Should there be a school, farm vehicle or animal warning near the farm and the sheep pasture?
+
+## The cemetery gateway, location signs and turnoffs (lane/notify, session B, 2026-11-15)
+- **Big cemetery sign:** `game/landmark_signs.gd` puts an 8.2 m gateway board on two stone pillars at the east gate turnoff, with HALLOWAY CEMETERY and CHAPEL / WAR MEMORIAL / EAST GATE on both faces. Smaller HALLOWAY CEMETERY gate boards stand at the south, north and west gates.
+- **Other location and business signs:** Toby Farm, Voss and Son Motor Works, Halloway Lake, the festival field, the ridge camp, the old cabin, the boat launch and the chapel. The signs are two-sided where traffic can approach from either direction. Code placeholder boards and Label3D lettering until Claude's art arrives.
+- **Turnoffs and approaches:** new short routes now connect the road network to the actual places. The four cemetery gates have their own driveways from the east car park, south lane, north lane and west lane. Toby Farm has a driveway from the valley and lake junction. The boat launch and festival already had lanes; the cabin, camp, garage and lake are served by the existing ridge and lake roads.
+- **Road audit:** the cemetery rectangle check now uses the actual wall line at 238 m rather than the old 248 m margin, so the gate driveways can reach the gate without being reported as road inside the cemetery. The audit still reports zero centreline samples inside the walls.
+- **Traffic:** the smallest driveways and field spurs are excluded from the vehicle route pool, so traffic stays on the real roads rather than looping around 10 m gate drives.
+- **Visual fixes:** sign labels are pushed 0.12 to 0.14 m in front of the plates to stop z-fighting at distance, and the big gateway lettering is higher resolution than the first pass.
+- **Evidence:** `docs/realism/location_signs/00_cemetery_gateway.jpg`, `01_cemetery_gateway_back.jpg`, `02_garage_sign.jpg`.
+- **Asset brief:** `docs/CLAUDE-LOCATION-SIGNS-ASSETS.md` asks for the stone gateway, gate boards, farm, garage, lake, festival, camp, cabin, boat launch and chapel boards, posts, arrows and weathering.
+- **Honest limits:** the gateway is still placeholder board-and-pillar geometry, not a designed cemetery entrance. Lettering is Label3D rather than painted or printed board faces. The farm, camp and cabin signs are visible but not yet checked against every approach angle. The signs are two-sided but the boards are simple boxes. There is no lighting on the big gateway. The east car park is still the only car park with parked cars; the other gate driveways end without formal bays.
+- **Questions for Robert:**
+  - LOC1. Is the big cemetery gateway in the right place, and should it arch over the driveway or sit beside it?
+  - LOC2. Should the gate boards at the south, north and west gates stay, or only the east gateway have a sign?
+  - LOC3. Should the farm sign say TOBY FARM or another name?
+  - LOC4. Should Voss and Son, the festival, the camp and the cabin have larger signs, or stay modest roadside boards?
+  - LOC5. Should the location signs be lit or reflective for night approaches?

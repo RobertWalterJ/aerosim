@@ -28,10 +28,17 @@ Every asphalt centreline stays outside a 248 m square around the cemetery. Insid
 | festival lane | valley at (286, 260) | festival field | festival field moved out of the cemetery to (300, 300) |
 | west boundary lane | lakeside lane at (-300, 300) | west gate | access to the west gate and close the ring |
 | boat launch lane | lakeside lane at (-410, 120) | boat launch apron | short lane to the Halloway Lake boat launch |
+| east gate drive | east car park at (270, 42) | east cemetery gate | connects the car park to the east gate |
+| south gate drive | south gate lane | south cemetery gate | connects the lane to the south gate |
+| north gate drive | north gate lane | north cemetery gate | connects the lane to the north gate |
+| west gate drive | west gate lane | west cemetery gate | connects the lane to the west gate |
+| Toby Farm drive | valley and lake junction | Toby Farm | turns off the main road into the farmyard |
 
 The four gates are now the only motor entrances to the cemetery. The east gate keeps its existing car park. The home pad and chapel are reached by the park paths, not by cars. The festival bus field has moved from inside the park at (24, -96) to the field at (300, 300), so the bus and festival are no longer parked among the graves.
 
 The boat launch lane leaves the lakeside lane at its old overlook end and runs the last few metres to the gravel apron at `CaseObjects.BOAT_LAUNCH_SPOT`, where the concrete ramp goes down into Halloway Lake. The launch itself is built in `game/boat_launch.gd`; see `docs/CLAUDE-BOAT-LAUNCH-ASSETS.md` for the asset brief.
+
+The four cemetery gates now have short driveways from the road network to the gate line, and the farm has its own driveway from the valley and lake junction. The large location and business signs are placed by `game/landmark_signs.gd`: the cemetery gateway at the east turn off, smaller gate boards at the other gates, and signs for Toby Farm, Voss and Son, Halloway Lake, the festival field, the ridge camp, the old cabin, the boat launch and the chapel. The art brief is `docs/CLAUDE-LOCATION-SIGNS-ASSETS.md`.
 
 ## Map
 

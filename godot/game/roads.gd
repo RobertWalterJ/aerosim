@@ -63,6 +63,27 @@ const ROUTES := [
 		# the last few metres from the lakeside lane to the boat launch parking apron
 		"points": [Vector2(-410.0, 120.0), Vector2(-432.0, 112.0)],
 	},
+	{
+		"id": "gate_east", "name": "cemetery east gate driveway", "width": 4.2, "shoulder": 1.5, "speed_limit": 10,
+		# from the east car park to the cemetery gate, outside the wall
+		"points": [Vector2(270.0, 42.0), Vector2(255.0, 43.0), Vector2(240.0, 43.0)],
+	},
+	{
+		"id": "gate_south", "name": "cemetery south gate driveway", "width": 3.8, "shoulder": 1.3, "speed_limit": 10,
+		"points": [Vector2(17.0, 250.0), Vector2(17.0, 239.5)],
+	},
+	{
+		"id": "gate_north", "name": "cemetery north gate driveway", "width": 3.8, "shoulder": 1.3, "speed_limit": 10,
+		"points": [Vector2(12.0, -255.0), Vector2(12.0, -239.5)],
+	},
+	{
+		"id": "gate_west", "name": "cemetery west gate driveway", "width": 3.8, "shoulder": 1.3, "speed_limit": 10,
+		"points": [Vector2(-252.0, -4.0), Vector2(-239.5, -4.0)],
+	},
+	{
+		"id": "farm_drive", "name": "Toby Farm driveway", "width": 4.2, "shoulder": 1.5, "speed_limit": 10,
+		"points": [Vector2(215.0, 505.0), Vector2(190.0, 513.0), Vector2(165.0, 522.0)],
+	},
 ]
 
 static var _ready := false
@@ -430,7 +451,7 @@ func audit() -> Dictionary:
 	var first := Vector2.ZERO
 	for id in paths:
 		for p in paths[id]:
-			if absf(p.x) < 248.0 and absf(p.y) < 248.0:
+			if absf(p.x) < 238.0 and absf(p.y) < 238.0:
 				inside += 1
 				if inside == 1:
 					first = p

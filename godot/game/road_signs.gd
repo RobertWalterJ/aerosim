@@ -95,10 +95,10 @@ func _make_stop(root: Node3D) -> void:
 	root.add_child(ri)
 	var label := Label3D.new()
 	label.text = "STOP"
-	label.font_size = 96
-	label.pixel_size = 0.0028
+	label.font_size = 220
+	label.pixel_size = 0.00122
 	label.modulate = Color(0.93, 0.91, 0.85)
-	label.position = Vector3(0.0, SIGN_Y, 0.075)
+	label.position = Vector3(0.0, SIGN_Y, 0.14)
 	root.add_child(label)
 
 func _make_speed(root: Node3D, limit: String) -> void:
@@ -118,10 +118,10 @@ func _make_speed(root: Node3D, limit: String) -> void:
 	root.add_child(pi)
 	var label := Label3D.new()
 	label.text = "SPEED\nLIMIT\n%s" % limit
-	label.font_size = 76
-	label.pixel_size = 0.0040
+	label.font_size = 180
+	label.pixel_size = 0.00170
 	label.modulate = Color(0.05, 0.05, 0.045)
-	label.position = Vector3(0.0, SIGN_Y, 0.055)
+	label.position = Vector3(0.0, SIGN_Y, 0.12)
 	root.add_child(label)
 
 func _make_warn(root: Node3D, text: String) -> void:
@@ -135,10 +135,10 @@ func _make_warn(root: Node3D, text: String) -> void:
 	root.add_child(pi)
 	var label := Label3D.new()
 	label.text = text
-	label.font_size = 150
-	label.pixel_size = 0.0032
+	label.font_size = 260
+	label.pixel_size = 0.00185
 	label.modulate = Color(0.05, 0.05, 0.045)
-	label.position = Vector3(0.0, SIGN_Y, 0.05)
+	label.position = Vector3(0.0, SIGN_Y, 0.10)
 	root.add_child(label)
 
 func _make_finger(root: Node3D, text: String) -> void:
@@ -151,10 +151,10 @@ func _make_finger(root: Node3D, text: String) -> void:
 	root.add_child(pi)
 	var label := Label3D.new()
 	label.text = text
-	label.font_size = 56
-	label.pixel_size = 0.0042
+	label.font_size = 150
+	label.pixel_size = 0.00155
 	label.modulate = Color(0.92, 0.90, 0.82)
-	label.position = Vector3(0.0, SIGN_Y, 0.05)
+	label.position = Vector3(0.0, SIGN_Y, 0.10)
 	root.add_child(label)
 
 func _build_stop_signs() -> void:

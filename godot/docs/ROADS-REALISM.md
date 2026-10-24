@@ -33,6 +33,31 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 - **Traffic behaviour:** vehicles are capped at 85 percent of the route speed limit in `traffic.gd`; the signs and the traffic share the same limits in `roads.gd`.
 - The signs are code placeholders with readable text plates and galvanised posts. Final sign faces are requested in `docs/CLAUDE-ROAD-SIGNS-ASSETS.md`.
 
+## Location signs and turnoffs
+
+The bigger place-making signs are in `game/landmark_signs.gd`:
+
+- an 8.2 m HALLOWAY CEMETERY gateway on two stone pillars at the east gate turnoff, with CHAPEL / WAR MEMORIAL / EAST GATE on both faces;
+- smaller gate boards at the south, north and west gates;
+- Toby Farm, Voss and Son Motor Works, Halloway Lake, the festival field, the ridge camp, the old cabin, the boat launch and the chapel signs.
+
+The road network now has explicit turnoffs instead of signs floating beside a through route:
+
+- **east gate drive:** east car park to the east cemetery gate;
+- **south, north and west gate drives:** each gate lane now reaches its own gate;
+- **Toby Farm drive:** a proper turn off the valley and lake junction into the farmyard;
+- the boat launch and festival lanes already existed, and the cabin, camp, garage and lake are reached from the ridge and lake roads.
+
+The small gate, farm and field drives are excluded from the traffic route pool, so vehicles stay on the through roads rather than looping around a 10 m driveway loop. The cemetery audit now uses the actual wall line at 238 m, so gate driveways can reach the gate while the centreline still reports `inside_cemetery: 0`.
+
+### Location sign evidence
+
+- `docs/realism/location_signs/00_cemetery_gateway.jpg`
+- `docs/realism/location_signs/01_cemetery_gateway_back.jpg`
+- `docs/realism/location_signs/02_garage_sign.jpg`
+
+The final gateway and place-sign art is requested in `docs/CLAUDE-LOCATION-SIGNS-ASSETS.md`.
+
 ### Sign evidence
 
 - `docs/realism/road_signs/00_stop_sign.jpg`
@@ -54,6 +79,9 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 - There is no road camber, no banking and no deformation; the mesh still follows the terrain as a ribbon.
 - No guardrails, chevron boards, cattle grids or passing places yet. The delineator posts and the new stop, speed and warning signs are the main roadside furniture.
 - The sign art is placeholder: text plates and simple octagons and diamonds, not final reflective sign faces. Stop signs are scenery; traffic does not actually stop at them.
+- The big gateway is placeholder board-and-pillar geometry, not a designed entrance. Its lettering is Label3D, pushed in front of the board to stop z-fighting.
+- Location and business boards are two-sided simple boxes; only the east gate has a large gateway sign.
+- Gate driveways end at the gates without formal parking bays; only the east car park has parked cars.
 - Speed signs show one plate at each route entry rather than a full sign schedule along every road.
 - The grass mask is 1024 px over 4 km, so the exact grass edge at the shoulder is coarse. The shader hides most of it, but a close inspection can find it.
 - The lane-width threshold is a simple width test; a future route can still opt in or out of markings only by changing its width.
@@ -67,4 +95,6 @@ Status: implemented, 2026-11-15. This is the appearance work on top of the road 
 - ROADR4. Should the narrow lanes become gravel roads with a different surface, rather than unmarked asphalt?
 - ROADR5. Are the current speed limits right, and should they be in mph or km/h?
 - ROADR6. Should traffic actually stop and give way at the junctions, or are the signs scenery?
+- ROADR7. Should the cemetery gateway arch over the driveway or sit beside it?
+- ROADR8. Should the gate driveways get gravel aprons and formal parking bays?
 - ROADR5. Should the boat launch lane stay asphalt to the apron, or turn to gravel for the last few metres?

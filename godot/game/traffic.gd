@@ -28,7 +28,14 @@ func setup(t: Terrain, r: Roads, h: Hud) -> void:
 	hud = h
 	_mobile = OS.has_feature("mobile")
 	var n := 4 if _mobile else 8
-	var routes: Array = roads.route_ids()
+	var all_routes: Array = roads.route_ids()
+	var routes: Array = []
+	for id in all_routes:
+		# keep the tiny gate driveways and field spurs for the player to read; traffic belongs on the real roads
+		if float(roads._lengths.get(str(id), 0.0)) >= 100.0:
+			routes.append(id)
+	if routes.is_empty():
+		routes = all_routes
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4451
 	for i in n:
