@@ -71,10 +71,16 @@ var _arm_l: Node3D
 var _arm_r: Node3D
 var _elbow_l: Node3D
 var _elbow_r: Node3D
+var _hand_l: Node3D
+var _hand_r: Node3D
 var _leg_l: Node3D
 var _leg_r: Node3D
 var _knee_l: Node3D
 var _knee_r: Node3D
+var _ankle_l: Node3D
+var _ankle_r: Node3D
+var _pose_mode := "stand"
+var _wave_t := 0.0
 var _collider: CollisionShape3D
 var _heat: Node3D
 
@@ -172,7 +178,11 @@ func _build_body() -> void:
 	_elbow_l.position.y = -0.28
 	_arm_l.add_child(_elbow_l)
 	_add_mesh(_elbow_l, _capsule(0.043, 0.26), skin_mat, Vector3(0.0, -0.12, 0.0))
-	_add_mesh(_elbow_l, _sphere(0.052), skin_mat, Vector3(0.0, -0.27, 0.0))
+	_hand_l = Node3D.new()
+	_hand_l.name = "HandL"
+	_hand_l.position.y = -0.28
+	_elbow_l.add_child(_hand_l)
+	_add_mesh(_hand_l, _sphere(0.052), skin_mat, Vector3(0.0, -0.02, 0.0))
 	_arm_r = Node3D.new()
 	_arm_r.name = "UpperArmR"
 	_hips.add_child(_arm_r)
@@ -182,7 +192,11 @@ func _build_body() -> void:
 	_elbow_r.position.y = -0.28
 	_arm_r.add_child(_elbow_r)
 	_add_mesh(_elbow_r, _capsule(0.043, 0.26), skin_mat, Vector3(0.0, -0.12, 0.0))
-	_add_mesh(_elbow_r, _sphere(0.052), skin_mat, Vector3(0.0, -0.27, 0.0))
+	_hand_r = Node3D.new()
+	_hand_r.name = "HandR"
+	_hand_r.position.y = -0.28
+	_elbow_r.add_child(_hand_r)
+	_add_mesh(_hand_r, _sphere(0.052), skin_mat, Vector3(0.0, -0.02, 0.0))
 
 	# legs: hip -> knee -> foot
 	_leg_l = Node3D.new()
@@ -194,7 +208,11 @@ func _build_body() -> void:
 	_knee_l.position.y = -0.44
 	_leg_l.add_child(_knee_l)
 	_add_mesh(_knee_l, _capsule(0.060, 0.42), trouser, Vector3(0.0, -0.21, 0.0))
-	_add_mesh(_knee_l, _box(Vector3(0.12, 0.08, 0.24)), shoe, Vector3(0.0, -0.44, -0.055))
+	_ankle_l = Node3D.new()
+	_ankle_l.name = "AnkleL"
+	_ankle_l.position.y = -0.40
+	_knee_l.add_child(_ankle_l)
+	_add_mesh(_ankle_l, _box(Vector3(0.12, 0.08, 0.24)), shoe, Vector3(0.0, -0.03, -0.055))
 	_leg_r = Node3D.new()
 	_leg_r.name = "UpperLegR"
 	_hips.add_child(_leg_r)
@@ -204,7 +222,11 @@ func _build_body() -> void:
 	_knee_r.position.y = -0.44
 	_leg_r.add_child(_knee_r)
 	_add_mesh(_knee_r, _capsule(0.060, 0.42), trouser, Vector3(0.0, -0.21, 0.0))
-	_add_mesh(_knee_r, _box(Vector3(0.12, 0.08, 0.24)), shoe, Vector3(0.0, -0.44, -0.055))
+	_ankle_r = Node3D.new()
+	_ankle_r.name = "AnkleR"
+	_ankle_r.position.y = -0.40
+	_knee_r.add_child(_ankle_r)
+	_add_mesh(_ankle_r, _box(Vector3(0.12, 0.08, 0.24)), shoe, Vector3(0.0, -0.03, -0.055))
 
 func _build_hair(mat: StandardMaterial3D) -> void:
 	_hair_root = Node3D.new()
@@ -276,22 +298,50 @@ func _settle_ground() -> void:
 
 func _animate(delta: float, moving: float) -> void:
 	if seated:
+		# Bench contract: hips 2 cm above the seat surface, thighs forward and slightly down, knees back under
+		# the seat front, feet flat on the ground. The ankle cancels the thigh and knee rotation so the soles
+		# stay level instead of pointing at the sky.
 		_hips.position.y = seat_height + 0.02
-		_leg_l.rotation.x = 1.45
-		_leg_r.rotation.x = 1.45
-		_knee_l.rotation.x = -1.42
-		_knee_r.rotation.x = -1.42
-		_arm_l.rotation.x = 0.20
-		_arm_r.rotation.x = 0.20
-		_elbow_l.rotation.x = -0.30
-		_elbow_r.rotation.x = -0.30
+		_leg_l.rotation.x = 1.30
+		_leg_r.rotation.x = 1.30
+		_knee_l.rotation.x = -1.50
+		_knee_r.rotation.x = -1.50
+		_ankle_l.rotation.x = 0.20
+		_ankle_r.rotation.x = 0.20
+		_arm_l.rotation = Vector3(0.18, 0.0, 0.0)
+		_arm_r.rotation = Vector3(0.18, 0.0, 0.0)
+		_elbow_l.rotation = Vector3(-0.35, 0.0, 0.0)
+		_elbow_r.rotation = Vector3(-0.35, 0.0, 0.0)
+		_torso.rotation.x = 0.04
+		_torso.rotation.z = 0.0
+		return
+	if _pose_mode == "wave":
+		_wave_t += delta
+		_hips.position.y = 0.92
+		_leg_l.rotation = Vector3.ZERO
+		_leg_r.rotation = Vector3.ZERO
+		_knee_l.rotation = Vector3.ZERO
+		_knee_r.rotation = Vector3.ZERO
+		_ankle_l.rotation = Vector3.ZERO
+		_ankle_r.rotation = Vector3.ZERO
+		_arm_l.rotation = Vector3(0.08, 0.0, -0.06)
+		_elbow_l.rotation = Vector3(-0.10, 0.0, 0.0)
+		_arm_r.rotation = Vector3(-0.10, 0.0, 2.05 + sin(_wave_t * 7.0) * 0.18)
+		_elbow_r.rotation = Vector3(-0.18, 0.0, -0.25)
+		_hand_r.rotation = Vector3(0.0, 0.0, sin(_wave_t * 7.0 + 0.8) * 0.25)
+		_torso.rotation.x = 0.02
+		_torso.rotation.z = sin(_wave_t * 3.5) * 0.025
 		return
 	_hips.position.y = 0.92
-	var stride := sin(_phase) * 0.55 * moving
+	_hips.rotation.z = 0.0
+	var stride := sin(_phase) * 0.50 * moving
 	_leg_l.rotation.x = stride
 	_leg_r.rotation.x = -stride
-	_knee_l.rotation.x = -maxf(0.0, -stride) * 0.55
-	_knee_r.rotation.x = -maxf(0.0, stride) * 0.55
+	_knee_l.rotation.x = maxf(0.0, -stride) * 0.62
+	_knee_r.rotation.x = maxf(0.0, stride) * 0.62
+	# Keep the feet level: the ankle takes the opposite of the thigh and knee bend.
+	_ankle_l.rotation.x = -(stride + _knee_l.rotation.x) + 0.04
+	_ankle_r.rotation.x = -(-stride + _knee_r.rotation.x) + 0.04
 	_arm_l.rotation.x = -stride * 0.70
 	_arm_r.rotation.x = stride * 0.70
 	_elbow_l.rotation.x = -0.08 - absf(stride) * 0.25
@@ -303,13 +353,29 @@ func _animate(delta: float, moving: float) -> void:
 		_torso.rotation.x = 0.02 + breathe
 		_arm_l.rotation.x = 0.08 + breathe
 		_arm_r.rotation.x = 0.08 + breathe
+		_ankle_l.rotation.x = 0.0
+		_ankle_r.rotation.x = 0.0
+
+func set_animation(pose: String) -> void:
+	_set_pose(pose)
+
+func face_towards(world_pos: Vector3) -> void:
+	var d := world_pos - global_position
+	if absf(d.x) + absf(d.z) > 0.001:
+		rotation.y = atan2(-d.x, -d.z)
 
 func _set_pose(pose: String) -> void:
+	_pose_mode = pose
 	seated = pose == "sit"
 	if seated:
 		_collider.disabled = true
 		set_physics_process(false)
 		set_process(false)
+		_animate(0.0, 0.0)
+	elif pose == "wave":
+		_collider.disabled = false
+		set_physics_process(true)
+		set_process(true)
 		_animate(0.0, 0.0)
 	else:
 		_collider.disabled = false

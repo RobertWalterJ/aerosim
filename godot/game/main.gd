@@ -1592,6 +1592,13 @@ func _screenshot_mode(arg: String) -> void:
 				person.rotation.y = PI
 				person.set_physics_process(false)
 				cast_x += 2.2
+		elif c == "wrenwave":       # session B dev hook: the end-beat Wren wave in front of the default camera
+			case_objects.show_hiker()
+			var spw := Vector3(38.0, 0.0, -746.0)
+			spw.y = terrain.height(spw.x, spw.z)
+			case_objects._hiker.position = spw
+			case_objects.wave_hiker()
+			case_objects.face_hiker_towards(Vector3(38.0, spw.y + 1.7, -752.0))
 		elif c == "wrenspawn":      # session B dev hook: Wren in front of the default camera
 			case_objects.show_hiker()
 			var sp3 := Vector3(38.0, 0.0, -746.0)

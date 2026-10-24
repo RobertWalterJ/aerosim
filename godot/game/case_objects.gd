@@ -468,6 +468,16 @@ func show_hiker() -> void:
 	_hiker.position = search_world_pos()
 	_hiker.rotation.y = 2.2
 	_hiker.set_physics_process(true)
+	if _hiker is CharacterActor:
+		(_hiker as CharacterActor).set_animation("stand")
+
+func wave_hiker() -> void:
+	if _hiker is CharacterActor:
+		(_hiker as CharacterActor).set_animation("wave")
+
+func face_hiker_towards(world_pos: Vector3) -> void:
+	if _hiker is CharacterActor:
+		(_hiker as CharacterActor).face_towards(world_pos)
 
 func hiker_world_pos() -> Vector3:
 	return _hiker.position if _hiker != null else search_world_pos()

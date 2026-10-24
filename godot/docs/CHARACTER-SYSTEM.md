@@ -64,3 +64,16 @@ Wren uses they/them in the story. Rennick is a Black woman in her early thirties
 - `docs/realism/characters/04_sit.jpg`
 - `docs/realism/characters/05_walk.jpg`
 - `docs/CLAUDE-CHARACTER-BRIEF-2026-11-15.md`
+## Rig pass 2: knees, elbows, hips, feet and the end beat
+
+The placeholder is now articulated at every joint the brief asks for:
+- **Legs:** hip pivot -> thigh -> knee pivot -> shin -> ankle pivot -> shoe. The shoe sole sits on the root/ground line. The ankle counter-rotates against the thigh and knee in the walk so the soles stay level; the old version rotated the whole foot with the shin.
+- **Arms:** shoulder -> upper arm -> elbow -> forearm -> wrist -> hand. The elbows bend in the walk and in the seated rest pose.
+- **Sitting:** hips are 2 cm above the real bench seat surface, thighs go forward and slightly down, knees fold back under the seat front, and the ankles keep the feet flat. The old sit was a straight-legged fold with the soles angled.
+- **Walk:** the stride drives the hip swing, the knee lifts only on the back swing, the arms counter-swing, the torso has a small counter-rotation, and the ankles cancel the leg angles. This is still a procedural placeholder, not a baked clip; the final `walk` still needs a stance-phase foot lock from the Claude animation set.
+- **End beat:** when the finale finds Wren, Wren now faces the camera and **waves** instead of remaining a static standing body. The wave is a new `wave` animation state, used only at the find. The ghost Rennick is still a message voice, not a physical character, which keeps the end scene from adding an unexplained extra figure.
+- **Visible cast:** eight small ambient villagers remain for the village, plus Wren. They are deliberately ordinary and sparse enough to read as a working village, not a crowd. No other human characters are visible; Rennick, the festival crowd and the wider cast stay text/model-delivery items.
+
+Honest limits: there is still no IK or foot-plant lock; the walk is an approximation at close range. The seat contract is a simple seat-height anchor, not a full bench clip. The production clips, actual skeleton and skin maps are still the Claude character brief's work, not part of this placeholder.
+
+Evidence after the joint pass: `docs/realism/characters/00_wren_stand.jpg`, `01_cast_line.jpg`, `02_wren_thermal.jpg`, `04_sit.jpg`, `05_walk.jpg`.

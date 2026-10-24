@@ -144,6 +144,13 @@ func _found() -> void:
 	_found_announced = true
 	ended = true
 	stage = 4
+	# The story beat is Wren turning to the drone and waving. Keep the actor visible for the fade instead of
+	# leaving a static body in the treeline.
+	if objects != null:
+		objects.wave_hiker()
+		var cam := get_viewport().get_camera_3d()
+		if cam != null:
+			objects.face_hiker_towards(cam.global_position)
 	_ghost("You found them. Thank you. Tell Wren the lights in the cabin were not the storm. Tell them I am sorry it took so long.", "Rennick")
 	chat.post("unknown", "Unknown", "thank you. i can see the drone. i am waving.", false)
 	if hud != null:

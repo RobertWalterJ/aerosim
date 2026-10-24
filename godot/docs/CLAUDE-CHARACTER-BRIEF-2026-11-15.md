@@ -711,3 +711,5 @@ The code placeholder has been aligned to the brief's first P0s:
 - The production GLBs and clips are still not delivered. The placeholder walk still scuffs because it has no stance lock; the brief's clips remain the fix.
 
 Evidence: `docs/realism/characters/00_wren_stand.jpg`, `01_cast_line.jpg`, `02_wren_thermal.jpg`, `03_village_walk.jpg`, `04_sit.jpg`, `05_walk.jpg`. Full status: `docs/CHARACTER-SYSTEM.md`.
+### Rig pass 2 addendum
+The placeholder now has explicit hip, knee and ankle pivots on both legs, shoulder, elbow and wrist pivots on both arms, and a level-foot ankle correction in the walk. The seated pose uses the real seat height, thigh and knee folds, and flat feet. Wren gets a `wave` state on the finale find, facing the camera. The production clips still replace all of this; the placeholder is now a joint check rather than a static mannequin.

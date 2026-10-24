@@ -1163,3 +1163,10 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **ROAD1-5 decisions:** asphalt ends at the pad; yes to three new pads and bollards; festival field stays at (300,300); chapel stays footpath-only with no vehicle service track; gate boards stay and each pad gets a P/path sign.
 - **Honest limits:** the pads are visual ground surfaces, not rigid-body colliders; bollards and P signs are code placeholders, not Claude sign models; the east pad is existing world art and was not rebuilt; no parked cars are added to the new pads yet.
 - **Evidence:** `docs/realism/roads/12_gate_car_park.jpg`.
+## Rig pass 2: joints, walk, sit and the finale wave (lane/notify, session B, 2026-11-15)
+- **Joints:** `CharacterActor` now has hip -> thigh -> knee -> shin -> ankle -> shoe on each leg, and shoulder -> upper arm -> elbow -> forearm -> wrist -> hand on each arm. The shoe sole is at the root line; the capsule bottom is on that line.
+- **Walk:** hip swing drives the legs, the knee bends on the back swing, arms counter-swing, torso counter-rotates, and the ankles cancel the leg angles so the feet stay level. It remains a procedural placeholder, not a stance-locked clip.
+- **Sit:** bench seat surface is read through `seat_height`; hips sit 2 cm above it; thighs 1.30 rad forward/down, knees -1.50 rad, ankles 0.20 rad. The result is flat feet and hips on the seat rather than a straight-legged fold.
+- **End beat:** `Finale._found()` now makes Wren face the camera and wave via `CaseObjects.wave_hiker()`. The wave is a dedicated actor state used only at the find. Rennick is still a message ghost, not a visible extra figure.
+- **Visible people:** the eight small village actors plus Wren remain; no crowd is added. The user said the objective is not many ambient people, and this pass does not add more.
+- **Limits:** no IK/foot plant; no baked animation; no production skeleton or skin maps; Rennick, the festival crowd and the delivered character set are still absent.
