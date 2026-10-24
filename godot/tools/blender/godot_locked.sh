@@ -1,17 +1,18 @@
-#!/bin/sh
-# Run one Godot command under the shared AeroSim lock (RWJ Coding Projects/godot-run.lock): wait while another session holds
-# a fresh lock (under 10 minutes old), take it, run, give it back. Usage: godot_locked.sh <timeout seconds> <godot args...>
+#!/bin/bash
+# Runs one Godot command under the shared godot-run.lock (one Godot at a time on Robert's PC).
+# Usage: godot_locked.sh <timeout-seconds> <godot args...>
+# Waits while the lock exists and is younger than 10 minutes, then writes it, runs Godot, and removes it.
 LOCK="/c/Users/Robert Walter-Joseph/Documents/RWJ Coding Projects/godot-run.lock"
 GODOT="/c/Users/Robert Walter-Joseph/Documents/RWJ Coding Projects/_tools/godot-4.7.2/Godot_v4.7.2-stable_win64_console.exe"
-T=$1; shift
+TO=$1; shift
 while [ -f "$LOCK" ]; do
-  age=$(( $(date +%s) - $(stat -c %Y "$LOCK") ))
-  [ $age -ge 600 ] && break
-  echo "waiting for godot-run.lock (age ${age}s)" >&2
-  sleep 20
+  m=$(stat -c %Y "$LOCK" 2>/dev/null) || break
+  age=$(( $(date +%s) - m ))
+  if [ $age -gt 600 ]; then echo "stale lock ($age s), taking it"; break; fi
+  sleep 15
 done
-echo "lane/drones $(date)" > "$LOCK"
-timeout "$T" "$GODOT" "$@"
+echo "claude buildings $(date)" > "$LOCK"
+timeout "$TO" "$GODOT" "$@"
 rc=$?
 rm -f "$LOCK"
 exit $rc

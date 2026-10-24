@@ -378,3 +378,54 @@ The Facade kit drones from session B's request of 2026-11-07, modelled in Blende
 - **Fallback:** if a file is missing the code placeholder stands in (DroneView's Race for the Raptor, the Mini for the Night Owl, the story `thermal_pod_a` for the pod).
 - **Regenerate:** `python tools/blender/drones_prep_textures.py <folder with the extracted ambientCG 1K-JPG sets>`, then `blender -b -P tools/blender/build_drones.py [-- only=<name>] [stats]`. Checks: `test/drones_blender_test.gd` (headless: files, nodes, materials and shared textures, lamps, base and nose, budgets falling from near to far, props on the motors and twisted the right way for their spin, tip to tip, DroneView builds the Facade drones with four props, blur discs and FPV hiding, Race and Mini untouched), `test/drones_sheet.gd` (views in the game's renderer, golden and overcast), `test/drones_chooser_shot.gd` (needs lane/notify's airframes), `tools/blender/render_drones.py` (Cycles views and the 512 px listing photos in `docs/realism/models/drones_thumbs/`), `tools/blender/drones_sheets.py` (`drones_final_views.jpg`, `drones_final_textures.jpg`). Godot runs go through `tools/blender/godot_locked.sh` (the shared godot-run.lock).
 - **Honest limits:** LOD 0 is 19.6k and 22.8k triangles, above the 8 to 15k aimed at (the motors with magnets and windings, and the screws, cost the most); the ambientCG sets are CC0 but procedural (no CC0 photographed carbon weave exists on Poly Haven or ambientCG); the lens coating sits under opaque glass, so in Godot the lenses read as glossy black with only a faint tint; screw sockets are round recesses, not hexagons; wires are smooth tubes; the gimbal does not move yet (the nodes are ready); the Night Owl is a 4-inch model on lane/notify's 5-inch airframe numbers (R 0.0635), so the chooser's "5.0 in" label and tip-to-tip figure disagree with the drawn discs until the airframe says R 0.0508; its gimbal lens sits about 4.6 cm below and 2 cm ahead of the physics camOffset (the Raptor's FPV lens is within 2 cm).
+
+## Buildings pass (lane/buildings)
+
+**The upside-down roofs.** The V-shaped, floating roofs Robert saw are in the committed models8 contact sheets
+(`docs/realism/models/story_town1_golden.jpg` and `_overcast.jpg`, now re-rendered): those sheets were made while the pitch
+rotation in `NewModels6Hall._roof` and `NewModels6Town._garage` had the opposite sign (`Basis(Vector3.RIGHT, -sz * ang)`),
+so each pitch rose outwards from the ridge and stood clear of its walls. The committed code and the shipped .glb files
+already had the right sign; the sheets were never re-made. Reproduced exactly by flipping the sign back: the three files in
+`test/fixtures/roof_broken/` named `*_v.glb` are that broken output, plus `town_shop_a_float.glb` (roof lifted 0.6 m).
+The audit also found two real faults in the game: **`cabin_lean_to_a`** (models9) had its tarp tilted the wrong way, high at
+the front post and 0.4 m clear of the back one (now laid on the rafters in `new_models7_cabin.gd`), and
+**`festival_stage_a`** had its canvas hovering on nothing (now a ridge pole, king posts and rafter poles carry it).
+
+**Automated test:** `test/roof_orientation_test.gd` (headless; `-- fixtures` also runs the broken files, which must fail;
+`-- only=<prefix> verbose`). It reads each roofed model from the file the game loads (GLTFDocument) or the mesh the game
+builds, and checks: ridge above eaves (the median top-surface profile across the ridge must not dip in the middle), roof
+faces up (stored normal and winding), roof sits on its walls (a wall-top-to-roof gap under 0.15 m along the eaves or a
+gable top) and no floating pieces. 56 models (every Halloway building and its lods, garage, cabin and variants, lean-to,
+rail hut, bus shelters, marquee, stage, stalls, toilets, tents, barn, silos, coop, kennel, and the park chapel cut out of
+park.glb): all pass, and all four broken fixtures are caught.
+
+**Rebuilt in Blender** (`tools/blender/build_buildings.py`, library `bldg_lib.py` and `bldg_parts.py`; portable Blender
+4.2.3, headless): `town_police_house_a` (and `_open`), `town_pub_a`, `town_village_hall_a`, `town_shop_a`, `town_shop_b`,
+`town_bakery_a`, `town_chip_shop_a`, `town_church_a`, `town_school_a`, `garage_shell_a`, `cabin_abandoned_a` (and
+`_broken_roof`). Same names, origin (ground, middle of the footprint), +Z front and node names (`body`, `door` with its pivot
+at the hinge, `window_light`, `windows`, `blue_lamp`, `card_stand`, `roller_door`, `hullN-colonly`), as direct children of
+the scene root. Every building now has `_lod1` and `_lod2` files (LOD0 9k to 23k triangles; the cabin 3k). Hollow wall
+shells cut by exact booleans (real reveals); stone sills, lintels or gauged-brick arches, quoins, plinths and string
+courses; box-sash windows (two sashes, glazing bars, horns) with glass, curtains and a room behind; panelled doors with
+brass ironmongery, fanlights, doorcases and steps; Victorian shopfronts (pilasters, consoles, fascia, cornice, stallriser,
+transom lights, recessed door, striped awning); slate or corrugated roofs whose underside rests on the wall plates, with
+ridge tiles, fascia, soffit, bargeboards, half-round gutters, downpipes, chimney stacks with oversailing courses,
+flaunching, clay pots and lead flashing. Lettering is real glyph geometry (OFL fonts in `tools/blender/fonts/`): HALLOWAY
+STORES, MOTOR PARTS, BAKERY, FISH & CHIPS, THE PLOUGH, VILLAGE HALL, HALLOWAY SCHOOL, HALLOWAY PROVINCIAL POLICE,
+VOSS & SON and MOTOR WORKS. Heights are now true to life (two storeys about 5.7 to 6.2 m to the eaves); footprints are
+unchanged.
+- **Materials:** the files carry `bld_*` material names, UVs in metres and a vertex colour (paint times weathering).
+  `game/building_mats.gd` (called from `NewModels6.mat`, so `StoryAssets` swaps them in) builds ORM materials from
+  `assets/textures/bld_*.jpg` at their real repeat (the brick has parallax from a height map). Sources: `assets/textures/README.md`.
+- **Do not re-export these from code:** `tools/export_story.gd` now skips them (and the two buoys) unless given `code_buildings`.
+- **Buoys:** `lake_buoy_a` (POLICE DIVE on the blue band, twice round) and `dive_marker_a` (DIVER, an Alpha flag) are
+  Blender-made (`tools/blender/build_buoys.py`); the code-built `buoy_a` merges `assets/models/lettering/buoy_a_lettering.glb`
+  (the number 4 and HALLOWAY LAKE wrapped to the hull). The old DIVE lettering stood mirrored and half inside the float.
+- **Sheets:** `docs/realism/models/buildings_final_views.jpg` (and `_overcast`, `_night`, `_close`, `_props_views`),
+  `buildings_final_roofs.jpg` (eye-level gable and front views and roof close-ups; rows one, three and five are the broken
+  fixtures for comparison), `buildings_final_textures.jpg`, `buildings_final_scene.jpg` (in the game at 15, 40 and 100 m,
+  through the `story<d>_<names>` token), `buoys_final.jpg` (and `_close`). Made by `test/buildings_sheet.gd` and
+  `test/buildings_textures_sheet.gd`.
+- **Regenerate:** `python -I tools/blender/fetch_textures.py tools/blender/tex_src` (a download, not committed), then
+  `python -I tools/blender/make_building_textures.py <godot dir>`, then `blender -b --factory-startup --python
+  tools/blender/build_buildings.py [-- only=<names> lods=0,1,2]` and `build_buoys.py`, then a Godot `--import`.

@@ -121,6 +121,14 @@ static func _stage(md: NewModels6.Model, lod: int) -> void:
 	for sz: float in [-1.0, 1.0]:
 		NewModels6.limb(md, "steel", Vector3(-w * 0.5 + 0.15, h + ph, sz * (d * 0.5 - 0.15)), Vector3(w * 0.5 - 0.15, h + ph, sz * (d * 0.5 - 0.15)), 0.022, 0.022, Color(0.62, 0.64, 0.66), 7)
 	var y0 := h + ph; var y1 := h + ph + 0.45
+	# the ridge pole on two king posts and four rafter poles, so the canvas rests on a frame (buildings lane: it hovered)
+	for sx: float in [-1.0, 1.0]:
+		NewModels6.limb(md, "steel", Vector3(sx * (w * 0.5 - 0.15), y0, 0), Vector3(sx * (w * 0.5 - 0.15), y1 - 0.03, 0), 0.022, 0.022, Color(0.62, 0.64, 0.66), 7)
+		for sz: float in [-1.0, 1.0]:
+			var ez := sz * (d * 0.5 - 0.15)
+			var ey := y0 + 0.45 * (1.0 - absf(ez) / (d * 0.5 + 0.1 if sz < 0.0 else d * 0.5 + 0.3)) - 0.025
+			NewModels6.limb(md, "steel", Vector3(sx * (w * 0.5 - 0.15), ey, ez), Vector3(sx * (w * 0.5 - 0.15), y1 - 0.025, 0), 0.02, 0.02, Color(0.62, 0.64, 0.66), 7)
+	NewModels6.limb(md, "steel", Vector3(-w * 0.5 + 0.15, y1 - 0.025, 0), Vector3(w * 0.5 - 0.15, y1 - 0.025, 0), 0.025, 0.025, Color(0.62, 0.64, 0.66), 8)
 	_canvas(md, "canvas", Vector3(-w * 0.5 - 0.1, y0, -d * 0.5 - 0.1), Vector3(w * 0.5 + 0.1, y0, -d * 0.5 - 0.1), Vector3(w * 0.5 + 0.1, y1, 0), Vector3(-w * 0.5 - 0.1, y1, 0), GREEN, 0.03, 10, 3, 0.05, 5)
 	_canvas(md, "canvas", Vector3(-w * 0.5 - 0.1, y1, 0), Vector3(w * 0.5 + 0.1, y1, 0), Vector3(w * 0.5 + 0.1, y0, d * 0.5 + 0.3), Vector3(-w * 0.5 - 0.1, y0, d * 0.5 + 0.3), GREEN, 0.03, 10, 3, 0.05, 5)
 	_canvas(md, "canvas", Vector3(-w * 0.5, y0, -d * 0.5 + 0.1), Vector3(w * 0.5, y0, -d * 0.5 + 0.1), Vector3(w * 0.5, h + 0.15, -d * 0.5 + 0.1), Vector3(-w * 0.5, h + 0.15, -d * 0.5 + 0.1), Color(0.1, 0.1, 0.12), 0.1, 8, 6, 0.06)

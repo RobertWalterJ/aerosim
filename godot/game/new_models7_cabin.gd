@@ -308,7 +308,9 @@ static func _lean_to(md: NewModels6.Model) -> void:
 		NewModels7.board(md, "wood", Vector3(sx * 1.1, 1.9, 1.0), Vector3(sx * 1.1, 2.4, -0.2), 0.08, 0.08, NewModels7.W(BARE * 0.8, 0.5))
 	var f := func(x: float, z: float) -> float:
 		return -0.05 * (1.0 - pow(x / 1.25, 2.0)) * (1.0 - pow(z / 0.75, 2.0)) + 0.012 * sin(x * 8.0 + z * 3.0)
-	NewModels7.sheet_grid(md, "tarp", 2.5, 1.5, 20, 12, Color(0.1, 0.27, 0.34), f, Transform3D(Basis(Vector3.RIGHT, 0.0), Vector3(0, 2.15, 0.4)) * Transform3D(Basis(Vector3.RIGHT, -0.36), Vector3.ZERO), 0.05)
+	NewModels7.sheet_grid(md, "tarp", 2.5, 1.5, 20, 12, Color(0.1, 0.27, 0.34), f, Transform3D(Basis(Vector3.RIGHT, 0.0), Vector3(0, 2.2, 0.4)) * Transform3D(Basis(Vector3.RIGHT, atan2(0.5, 1.2)), Vector3.ZERO), 0.05)
+	# (buildings lane: the tarp used to tilt the other way, high at the front, so it hung in the air off the front rafters
+	# and stood 0.4 m clear of the back posts; it now lies on the rafters, high at the back post and low at the front)
 	NewModels6.box(md, "wood", Vector3(0, 0.45, 0.8), Vector3(1.8, 0.05, 0.4), NewModels7.W(BARE * 0.9, 0.75))
 	for sx: float in [-1.0, 1.0]:
 		NewModels6.box(md, "wood", Vector3(sx * 0.8, 0.22, 0.8), Vector3(0.06, 0.44, 0.36), NewModels7.W(BARE * 0.8, 1.0))
