@@ -104,6 +104,7 @@ var started := false
 var chapter := -1
 var waiting := false
 var choice := ""                 # "", "published", "private" after the last chapter
+var completed := false           # the end card has played and the whole story is finished
 var last_result := {}
 var _done := {}
 var _evidence := {}              # chapter -> {requirement index (String) -> Array of photo ids}
@@ -356,6 +357,14 @@ func evidence_progress() -> Array:
 func item_pos(id: String) -> Vector3:
 	return objects.item_pos(id) if objects != null else Vector3.ZERO
 
+## The end card has been seen. The story is complete and the valley is simply the sandbox again.
+func mark_completed() -> void:
+	completed = true
+	_save()
+
+func is_completed() -> bool:
+	return completed
+
 func story_off_hint() -> bool:
 	return hud != null and hud.story_on == false
 
@@ -374,6 +383,7 @@ func _save() -> void:
 	cf.set_value("case", "abs_hours", _abs_hours)
 	cf.set_value("case", "next_at", _next_at)
 	cf.set_value("case", "notified", _start_notified)
+	cf.set_value("case", "completed", completed)
 	cf.save(SAVE)
 
 func _load() -> void:
@@ -389,6 +399,7 @@ func _load() -> void:
 	_abs_hours = float(cf.get_value("case", "abs_hours", 0.0))
 	_next_at = float(cf.get_value("case", "next_at", 0.0))
 	_start_notified = bool(cf.get_value("case", "notified", false))
+	completed = bool(cf.get_value("case", "completed", false))
 	# older saves stored a flat Array of photo ids for a chapter; lift it into requirement 0
 	for k in _evidence.keys():
 		if _evidence[k] is Array:

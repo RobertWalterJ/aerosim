@@ -74,6 +74,12 @@ var launch_yaw := 150.0
 var director: StoryDirector        # session B: the one player-facing route through all the story arcs
 var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
 var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
+var end_sequence := false         # session B: the slow end wash and the end card
+var end_walk := false             # session B: free look and walk after the card, before flying again
+var _end_cam_pos := Vector3.ZERO
+var _end_yaw := 0.0
+var _end_pitch := -0.08
+var _end_marker: MeshInstance3D
 var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
 var boat_launch: BoatLaunch        # session B: the Halloway Lake boat launch at the end of the launch lane
 var cabin_track: CabinTrack        # session B: the dirt and gravel track, fallen trees, rockfall and cave
@@ -407,6 +413,8 @@ func _ready() -> void:
 	ending = Ending.new()
 	add_child(ending)
 	ending.setup(jobs)
+	ending.began.connect(_on_ending_began)
+	ending.card_finished.connect(_on_ending_free)
 	finale = Finale.new()
 	add_child(finale)
 	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife, launch_sites)
@@ -1437,6 +1445,25 @@ func _screenshot_mode(arg: String) -> void:
 			finale.debug_thermal_view()
 		elif c == "endingdemo":   # session B dev hook: the fade and the credits
 			finale.debug_found()
+		elif c == "endingcabin":   # session B dev hook: put the ending at the cabin for review
+			var cp: Vector3 = case_objects.cabin_world_pos()
+			quad.reset(cp.x, terrain.height(cp.x, cp.z) + 18.0, cp.z, deg_to_rad(200.0))
+			_apply_pose()
+			finale.debug_found()
+			if ending != null:
+				ending.debug_time(22.1)
+		elif c == "endingwash":   # session B dev hook: the blur and wash before the card
+			finale.debug_found()
+			if ending != null:
+				ending.debug_time(6.0)
+		elif c == "endingcard":   # session B dev hook: jump to the end card over the washed world
+			finale.debug_found()
+			if ending != null:
+				ending.debug_time(17.5)
+		elif c == "endingfree":   # session B dev hook: jump to the free walk after the card
+			finale.debug_found()
+			if ending != null:
+				ending.debug_time(22.1)
 		elif c == "storyprivate": # session B dev hook: finish and keep the story private
 			story.debug_run_all()
 			story.make_choice("private")
@@ -1753,6 +1780,148 @@ func _toggle_rth() -> void:
 	if fc.mode == "M": hud.set_mode("N")
 	autopilot.start_rth(agl)
 
+func _make_end_marker() -> void:
+	if _end_marker != null:
+		return
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.025
+	mesh.bottom_radius = 0.055
+	mesh.height = 3.2
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.95, 0.78, 0.42, 0.55)
+	mat.emission_enabled = true
+	mat.emission = Color(0.95, 0.70, 0.30)
+	mat.emission_energy_multiplier = 1.4
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_end_marker = MeshInstance3D.new()
+	_end_marker.mesh = mesh
+	_end_marker.material_override = mat
+	_end_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_end_marker.visible = false
+	add_child(_end_marker)
+# ------------------------------------------------------------------ the end card and the free walk
+func _on_ending_began() -> void:
+	end_sequence = true
+	end_walk = false
+	if quad != null:
+		quad.motor_cut = true
+		quad.armed = false
+		quad.cmd.fill(0.0)
+	if phone_os != null:
+		phone_os.close()
+	if hud != null:
+		hud.visible = false
+	if osd != null:
+		osd.visible = false
+	if phone_notes != null:
+		phone_notes.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if story != null:
+		story.mark_completed()
+
+func _on_ending_free() -> void:
+	end_sequence = false
+	end_walk = true
+	if sensor != null:
+		sensor.set_cinematic_blur(0.0)
+		sensor.set_focus_overlay(false)
+	if quad != null:
+		var fwd: Vector3 = quad.attitude() * Vector3(0.0, 0.0, -1.0)
+		_end_yaw = atan2(-fwd.x, -fwd.z)
+		# the drone is put down at the place the story ended, so the walk starts around a real object
+		var p: Vector3 = quad.position()
+		quad.reset(p.x, terrain.height(p.x, p.z) + 0.3, p.z, _end_yaw)
+		quad.armed = false
+		quad.motor_cut = true
+		_apply_pose()
+		var back := Vector3(sin(_end_yaw), 0.0, cos(_end_yaw))
+		_end_cam_pos = quad.position() + back * 4.5
+		_end_cam_pos.y = terrain.height(_end_cam_pos.x, _end_cam_pos.z) + 1.7
+		var to_drone: Vector3 = (quad.position() + Vector3(0.0, 0.6, 0.0) - _end_cam_pos).normalized()
+		_end_yaw = atan2(-to_drone.x, -to_drone.z)
+		_end_pitch = asin(clampf(to_drone.y, -0.95, 0.95))
+		print("ENDFREE cam ", _end_cam_pos, " drone ", quad.position(), " yaw ", _end_yaw, " pitch ", _end_pitch, " visible ", drone_view.visible)
+		print("ENDFREE node ", drone_node.global_position, " node_visible ", drone_node.visible, " view_visible ", drone_view.visible, " scale ", drone_view.scale)
+	if hud != null:
+		hud.visible = false
+	if osd != null:
+		osd.visible = false
+	if phone_notes != null:
+		phone_notes.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _update_end_walk(delta: float) -> void:
+	var basis := Basis(Vector3.UP, _end_yaw)
+	var dir := Vector3.ZERO
+	if Input.is_key_pressed(KEY_W):
+		dir -= basis.z
+	if Input.is_key_pressed(KEY_S):
+		dir += basis.z
+	if Input.is_key_pressed(KEY_A):
+		dir -= basis.x
+	if Input.is_key_pressed(KEY_D):
+		dir += basis.x
+	if dir.length_squared() > 0.0:
+		_end_cam_pos += dir.normalized() * 4.2 * delta
+	var ground := terrain.height(_end_cam_pos.x, _end_cam_pos.z) + 1.7
+	_end_cam_pos.y = maxf(_end_cam_pos.y, ground)
+	var eye := Basis(Vector3.UP, _end_yaw) * Basis(Vector3.RIGHT, _end_pitch)
+	cam.global_transform = Transform3D(eye, _end_cam_pos)
+	cam.fov = 68.0
+	if drone_view != null:
+		drone_view.visible = true
+		drone_view.set_fpv(false)
+
+func _try_end_click() -> void:
+	if quad == null or cam == null:
+		return
+	var p: Vector3 = quad.position() + Vector3(0.0, 0.55, 0.0)
+	if cam.is_position_behind(p):
+		return
+	var sp := cam.unproject_position(p)
+	var centre := get_viewport().get_visible_rect().size * 0.5
+	if sp.distance_to(centre) < 105.0:
+		_resume_after_ending()
+
+func _resume_after_ending() -> void:
+	end_walk = false
+	end_sequence = false
+	if ending != null:
+		ending.hide_prompt()
+	if quad != null:
+		var p: Vector3 = quad.position()
+		var gy := terrain.height(p.x, p.z) + 0.25
+		quad.reset(p.x, gy, p.z, _end_yaw)
+		quad.armed = true
+		quad.motor_cut = false
+		quad.crashed = false
+		quad.crash_reason = ""
+		quad.cmd.fill(0.0)
+		if fc != null:
+			fc.reset_state()
+			fc.heading = _end_yaw
+		_cam_yaw = _end_yaw
+		_apply_pose()
+		drone_node.reset_physics_interpolation()
+	if sensor != null:
+		sensor.set_focus_overlay(true)
+	if hud != null:
+		hud.visible = true
+		hud.toast("Back in the air. The valley is open.")
+	if phone_notes != null:
+		phone_notes.visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _input(event: InputEvent) -> void:
+	if not end_walk:
+		return
+	if event is InputEventMouseMotion:
+		_end_yaw -= event.relative.x * 0.0035
+		_end_pitch = clampf(_end_pitch - event.relative.y * 0.0025, -1.15, 1.15)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_try_end_click()
 ## The RTH landing finished at home: cut the motors and start the battery charging for the next mission.
 func _home_landed() -> void:
 	if _home_charging:

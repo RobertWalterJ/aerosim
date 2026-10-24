@@ -129,6 +129,7 @@ func _trees() -> void:
 		if not _trunks.has(tk): _trunks[tk] = []
 		_trunks[tk].append([x, y, z, float(info[2]) * s, float(info[1]) * s * sy])
 		tree_count += 1
+	_plant_cabin_forest(cells, counts)
 	print("trees: ", tree_count, " by species ", counts)
 	for key in cells:
 		for vi in cells[key]:
@@ -139,6 +140,50 @@ func _trees() -> void:
 			Assets.scatter(self, "trees/%s_l1" % n, xfs, true, TREE_NEAR_END, TREE_MID_END + CELL_PAD)
 			Assets.scatter(self, "trees/far_%s" % ("conifer" if TREE_INFO[vi][0] and vi != 8 else "broadleaf"), xfs, false, TREE_MID_END, 0.0, cols)
 
+## The abandoned cabin sits in a real wood, not on an open lawn. The layout already keeps a 30 m evidence clearing
+## around it, so this fills that clearing edge with a dense ring of broadleaf and conifer trees. The drone can drop
+## under the crowns on the last flight; the cabin itself keeps a 12 m clearing.
+func _plant_cabin_forest(cells: Dictionary, counts: Array) -> void:
+	var centre := CaseObjects.CABIN_SPOT
+	var made := 0
+	for i in 620:
+		var a := TAU * _hash2(float(i), 1.0, 0.37)
+		var r := 14.0 + 56.0 * _hash2(float(i), 2.0, 0.81)
+		var x := centre.x + cos(a) * r
+		var z := centre.y + sin(a) * r
+		if Lake.is_wet(x, z):
+			continue
+		if Roads.near_road(x, z, 2.0):
+			continue
+		if CabinTrack.near_track(x, z, 4.0):
+			continue
+		if CaseObjects.near_evidence(x, z, 11.0):
+			continue
+		var vi: int = [0, 1, 2, 3, 4, 5, 6, 8][int(_hash2(float(i), 3.0, 0.5) * 8.0) % 8]
+		var info: Array = TREE_INFO[vi]
+		var y := terrain.height(x, z)
+		var s := 0.72 + 0.22 * _hash2(float(i), 4.0, 0.29)
+		var sx := 0.9 + 0.2 * _hash2(x, z, 1.7)
+		var sz := 0.9 + 0.2 * _hash2(x, z, 2.9)
+		var sy := 0.92 + 0.16 * _hash2(x, z, 4.3)
+		var la := TAU * _hash2(x, z, 5.1)
+		var lean := deg_to_rad(1.5 if bool(info[0]) else 3.5) * _hash2(x, z, 6.7)
+		var basis := Basis(Vector3(cos(la), 0.0, sin(la)), lean) * Basis(Vector3.UP, TAU * _hash2(float(i), 5.0, 0.61)) * Basis.from_scale(Vector3(s * sx, s * sy, s * sz))
+		var xf := Transform3D(basis, Vector3(x, y, z))
+		var key := Vector2i(floori(x / CELL), floori(z / CELL))
+		if not cells.has(key): cells[key] = {}
+		if not cells[key].has(vi): cells[key][vi] = [[] as Array[Transform3D], [] as Array[Color]]
+		cells[key][vi][0].append(xf)
+		var shade := 0.84 + 0.26 * _hash2(x, z, 8.3)
+		var fc: Color = info[4]
+		cells[key][vi][1].append(Color(fc.r * shade, fc.g * shade, fc.b * shade))
+		var tk := Vector2i(floori(x / GRID), floori(z / GRID))
+		if not _trunks.has(tk): _trunks[tk] = []
+		_trunks[tk].append([x, y, z, float(info[2]) * s, float(info[1]) * s * sy])
+		counts[vi] = int(counts[vi]) + 1
+		tree_count += 1
+		made += 1
+	print("cabin forest: ", made, " extra trees")
 func _far_trees(touch_device: bool) -> void:
 	for kind in ["conifer", "broad"]:
 		var arr: Array = layout["farTrees"][kind]

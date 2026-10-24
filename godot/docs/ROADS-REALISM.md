@@ -86,7 +86,7 @@ Evidence: `docs/realism/roads/18_modular_markings.jpg`, `19_road_edge_grounding.
 
 The abandoned cabin is deliberately not served by a country highway. `game/cabin_track.gd` builds a narrow dirt and gravel track from the ridge road at (45, -760) through the trees to the cabin at (-250, -820). It has two worn wheel ruts, no markings, no shoulders and no asphalt connection.
 
-The track is obstructed by two fallen trees lying across it and two rockfalls. A cave entrance sits in an outcrop west of the cabin, with a dark mouth, boulder arch, bare rock apron and an old KEEP OUT board. The cave is a named photo subject. None of the obstructions have collisions; they are scenery for the air and for the cabin approach.
+The track is obstructed by two fallen trees lying across it and two rockfalls. A cave entrance sits in an outcrop west of the cabin, with a dark mouth, boulder arch, bare rock apron and an old KEEP OUT board. The cave is a named photo subject. None of the obstructions have collisions; they are scenery for the air and for the cabin approach. The cabin now sits inside a dense wood: `World._plant_cabin_forest()` fills the edge of the old evidence clearing with a 14 to 70 m ring of extra conifer and broadleaf trees, leaving a 12 m cabin clearing and keeping the track and cave clear. The last leg is flown under the treeline.
 
 Evidence: `docs/realism/cabin_track/00_dirt_track.jpg`, `01_fallen_tree.jpg`, `02_cave_entrance.jpg`.
 

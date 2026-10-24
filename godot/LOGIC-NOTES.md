@@ -1037,3 +1037,18 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - KIT3. Should Kit also speak in the other story threads, or stay in the direct message?
   - KIT4. Should the colour language be optional for colour-blind players, with underlines as a second cue?
   - KIT5. Should Kit ever offer a manual "show me how" choice in the bottom bar?
+
+## The slow end wash, the A24 card, the walk and the cabin forest (lane/notify, session B, 2026-11-15)
+- **The ending:** `game/ending.gd` is rebuilt. The old 1.2 s black fade and credit scroll are gone. Over eight seconds a screen-space post shader in `game/shaders/end_wash.gdshader` blurs the valley, desaturates it, lifts it toward warm paper and adds a slow vignette and grain. `SensorPipeline.set_cinematic_blur()` pushes the actual depth of field far past the normal lens underneath it. The HUD and the notification bundle disappear.
+- **The card:** from seven seconds the black A24-style card arrives in slow beats: A HALLOWAY VALLEY STORY, THE LAKE CAR, AFTER THE STORM, three short lines, THE END and a thank-you. It holds after THE END and clears at 22 seconds. Evidence: `docs/realism/ending/00_end_wash.jpg`, `01_end_card.jpg`.
+- **The walk:** after the card the player is on foot near the drone. Mouse rotates the camera, WASD walks, and clicking the drone brings the flight controls back. A small amber marker sits over the drone and the bottom hint names the three actions. The drone is put on the ground at the place the story ended. Escape no longer quits the end card.
+- **Saved completion:** `StoryArc.mark_completed()` writes `completed=true` to `user://story_lake_car.cfg` as the wash begins. On a later launch the case stays closed and the valley is the sandbox again.
+- **Cabin forest:** `World._plant_cabin_forest()` adds a 14 to 70 m ring of extra conifer and broadleaf trees around the cabin, up to about 620 attempts. It leaves a 12 m cabin clearing, skips the roads, dirt track and other evidence, and adds the trunks to the collision grid. The last flight is now under the treeline. Evidence: `docs/realism/cabin_forest/00_cabin_forest.jpg`.
+- **Docs:** `docs/ENDING.md`; `ROADS-REALISM.md` notes the forest.
+- **Honest limits:** the wash is a screen-space shader plus a pushed depth of field, not a physical lens. The card is code typography, not a designed film plate. The walk is a free camera, not a character: no footstep collision, body, animation or interactions beyond clicking the drone. The world is frozen while walking. The drone marker and click test are simple screen-space checks. The walk camera can start inside a building or a tree if the ending lands there. The end text is fixed and does not use the player's stats or choice. The forest ring is extra trees, not a new terrain biome.
+- **Questions for Robert:**
+  - END1. Is the 22-second card too long or too short?
+  - END2. Should the end card use the player's stats, photos or ending choice?
+  - END3. Should the walk have a visible body and footstep collision?
+  - END4. Should the world keep living during the walk, or stay frozen and quiet?
+  - END5. Should the cabin forest also close the clearing completely behind the last flight, so the cabin is only visible between the trunks?

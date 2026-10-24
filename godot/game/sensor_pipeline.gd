@@ -489,6 +489,7 @@ var box_uv := Vector2.ZERO          # where the box is, in the video frame: -1..
 var subject_held := false           # a tapped subject is being kept in focus
 var subject_uv := Vector2.ZERO      # where that subject is in the frame now
 var dof_blur_px := 0.0              # blur radius at infinity in scene pixels (readout)
+var cinematic_blur := 0.0            # the ending pushes the lens past subtle and into a wash of blur
 signal focus_message(text: String)  # short notes for the pilot ("Focus returned to centre")
 var _subject_world := Vector3.ZERO
 var _acquiring := true              # the box is up: hunting, or locked and about to fade
@@ -508,6 +509,18 @@ var _last_airframe := ""
 var _box: Control
 var _terrain: Object
 var _world: Object
+
+## The ending deliberately overdoes the focus. Normal flight never touches this.
+func set_cinematic_blur(amount: float) -> void:
+	cinematic_blur = clampf(amount, 0.0, 1.0)
+
+## The free walk after the story does not want an autofocus box and a readout floating over the valley.
+func set_focus_overlay(on: bool) -> void:
+	if _box != null:
+		_box.visible = on
+	if not on:
+		focus_shown = false
+		box_alpha = 0.0
 
 func _setup_dof() -> void:
 	_dof_attr = CameraAttributesPractical.new()
@@ -711,6 +724,15 @@ func update_focus(dt: float, terrain: Object, world: Object, airframe_id: String
 		_dof_attr.dof_blur_near_enabled = true
 		_dof_attr.dof_blur_near_distance = near_b
 		_dof_attr.dof_blur_near_transition = maxf(near_b - near_e, 0.01)
+	if cinematic_blur > 0.001:
+		# Everything outside a narrow strip is soft, and the strip itself is soft too. This is not a correct lens.
+		_dof_attr.dof_blur_amount = 0.16 * cinematic_blur
+		_dof_attr.dof_blur_far_enabled = true
+		_dof_attr.dof_blur_far_distance = 0.35
+		_dof_attr.dof_blur_far_transition = 0.6
+		_dof_attr.dof_blur_near_enabled = true
+		_dof_attr.dof_blur_near_distance = 0.12
+		_dof_attr.dof_blur_near_transition = 0.2
 	if _dof_debug and _frame % 30 == 0:
 		print("dof: mode %d %s focus %.2f m (target %.2f) %s, f %.1f mm f/%.1f c %.3f mm, H %.2f m, light %.2f, blur at infinity %.2f px, size %.2f px (cap %.1f), far %s %.1f..%.1f, near %.2f..%.2f, probe %d us" % [dof_mode, "MF" if manual_focus else "AF", s, 1.0 / _af_target, "locked" if focus_locked else "hunting", f_mm, n, c_max, hyper_m, light, a_px, kk, cap_px, "on" if far_on else "off", far_b, far_e, near_e, near_b, _af_us])
 
