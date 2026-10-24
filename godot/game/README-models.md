@@ -719,3 +719,16 @@ posed variants) to these files, turns them to the story frame (+Z front) and add
   silt line on the paint). Sheets: `test/vehicles_blender_sheet.gd -- names=...` and `test/wreckvan_textures_sheet.gd`,
   written to `docs/realism/models/wreckvan_final_views.jpg` and `wreckvan_final_textures.jpg`. Texture sources:
   `assets/textures/README.md` "Wreck and dive van".
+
+
+## Tablet OS, notifications and flight HUD art (lane osui)
+
+UI art, not 3D models; recorded here so every lane is listed. Everything is under ssets/ui/osui/ (Material 3
+adaptive app icons in circle/squircle/themed/mono forms, Material Symbols rasterised at 24/32/48/96, Material 3
+component kit light and dark with states, the flight-HUD icon set with four button states and the thermal/night
+camera-mode buttons, map symbology with map_style.json, per-app splash/header/empty-state art), plus the downloaded
+permissive icon sets in ssets/ui/svg/ (LICENSES.md) and Roboto / Roboto Mono in ssets/ui/fonts_osui/.
+Generator: 	ools/ui_art/osui/build_osui.py. Spec and implementation checklist for session B:
+docs/OS-UX-SPEC-2026-10-24.md. Manifest: ssets/ui/osui/OSUI-MANIFEST.md. Sheets:
+docs/realism/models/osui_final_views.jpg, osui_final_textures.jpg; mocks in docs/realism/osui/.
+No game code was changed; nothing loads these files until B wires them.
