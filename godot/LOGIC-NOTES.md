@@ -1188,3 +1188,11 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **Cabin:** the abandoned cabin shell now uses `cabin_abandoned_a_broken_roof.glb` through `CaseObjects._try_story_model()`; `_cabin_asset_lights()` re-adds the porch and two interior lights so the finale's light sequence still works. The code cabin remains the fallback.
 - **Evidence:** `docs/realism/models/village_buildings.jpg`; docs `VILLAGE-BLENDER-IMPORT.md` and updated `STORY-VEHICLES-BLENDER-IMPORT.md`. Gates `models4`, `models5`.
 - **Remaining:** the shared AeroSim checkout contains 453 model GLBs; this pass integrated the ones with existing code hooks (traffic, wildlife, story vehicles, cabin, three village buildings) plus the new Lake Car. Cottages, anti-drone set, boat launch, cabin track, signs, road surfaces, people/character GLBs, traffic variants and the rest of the story/endgame set are still outstanding.
+## Android OS UI pass (lane/notify, session B, 2026-11-15)
+- **DSH Session A review:** `docs/ANDROID-OS-UI-SPEC-2026-11-15.md` (534 lines); the Lead implementation summary is `docs/ANDROID-UI-PASS-2026-11-15.md`.
+- **Real kit:** the 215-file tablet UI kit is in `assets/ui/tablet/` (real 512/128/64/44 app icons, frame, status glyphs, controls, dials, polish, Inter). `TabletIcon` now loads the real icons; Inter is the phone/tablet font; `UniverseUI` is on a Material dark palette.
+- **System chrome:** status bar has real signal/Wi-Fi/battery glyphs and percentage; `LINK · %` regression removed; carrier text removed; device-frame overlay with aspect guard; bottom nav uses 48 px back/home/recents/put-away icon buttons.
+- **Launcher:** 5-column 64 px app grid, one-line labels, no category captions; dock has five icon-only apps; page dots; wallpaper scrim reduced to 18%.
+- **Notifications:** `PhoneNotes` raised from layer 20 to 34 above `PhoneOS`; shade uses the UI theme and Inter; added a Quick Settings row (Wi-Fi, Bluetooth, DND, Battery saver) with kit status icons.
+- **Limits:** no Map kit icon (falls back to code); no app drawer/page 2; QS tiles are visual only; 16:9 frame disabled on 16:10; fixed-pixel layout not fully `u`-scaled; wallpaper 1024x683; dials still code-drawn; apps are Material-coloured but not Material components.
+- **Gate:** `GATE PASS (androidui)`; evidence `docs/realism/android_os/00-03`.
