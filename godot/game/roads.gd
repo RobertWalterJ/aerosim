@@ -16,6 +16,23 @@ const JUNCTIONS := [
 	Vector2(-300.0, 300.0), Vector2(-410.0, 120.0),
 ]
 
+## The four cemetery gate car parks. The asphalt ends at the car park, never at the graves; a pedestrian path runs
+## from the car park through the gate and into the park. The east car park already exists in the world art, so it only
+## gets the pedestrian path and bollards; south, north and west get gravel pads. `axis` is the direction the entrance
+## path runs from the gate: "z" for south/north, "x" for east/west.
+const GATE_LOTS := [
+	{"id": "south", "center": Vector2(34.0, 246.0), "size": Vector2(16.0, 10.0), "axis": "z", "build": true,
+		"gate": Vector2(34.0, 238.0), "inside": Vector2(34.0, 226.0), "drive": [Vector2(17.0, 250.0), Vector2(26.0, 246.0)]},
+	{"id": "north", "center": Vector2(28.0, -246.0), "size": Vector2(16.0, 10.0), "axis": "z", "build": true,
+		"gate": Vector2(28.0, -238.0), "inside": Vector2(28.0, -226.0), "drive": [Vector2(12.0, -255.0), Vector2(20.0, -250.0)]},
+	{"id": "west", "center": Vector2(-247.0, 8.0), "size": Vector2(10.0, 16.0), "axis": "x", "build": true,
+		"gate": Vector2(-238.0, 8.0), "inside": Vector2(-226.0, 8.0), "drive": [Vector2(-252.0, -4.0), Vector2(-250.0, 2.0)]},
+	{"id": "east", "center": Vector2(264.0, 58.0), "size": Vector2(24.0, 16.0), "axis": "x", "build": false,
+		"gate": Vector2(238.0, 58.0), "inside": Vector2(224.0, 58.0), "drive": []},
+]
+const GATE_PATH_WIDTH := 2.4
+const GATE_LOT_TOP := 0.06   # metres above the terrain, matching the road mask's 0.20 offset value
+
 const ROUTES := [
 	{
 		"id": "valley", "name": "valley highway", "width": 8.0, "shoulder": 2.4, "speed_limit": 40,
@@ -118,6 +135,15 @@ static func near_road(x: float, z: float, margin := TREE_CLEARANCE) -> bool:
 	for j in JUNCTIONS:
 		if p.distance_to(j) < 13.0 + margin * 0.4:
 			return true
+	for lot in GATE_LOTS:
+		var c: Vector2 = lot["center"]
+		var s: Vector2 = lot["size"]
+		if absf(x - c.x) < s.x * 0.5 + margin and absf(z - c.y) < s.y * 0.5 + margin:
+			return true
+		if p.distance_to(Vector2(lot["gate"])) < 7.0 + margin * 0.3:
+			return true
+		if p.distance_to(Vector2(lot["inside"])) < 4.0 + margin * 0.2:
+			return true
 	for a in range(-1, 2):
 		for b in range(-1, 2):
 			for q in _clear_grid.get(Vector2i(cell.x + a, cell.y + b), []):
@@ -152,6 +178,7 @@ func setup(t: Terrain) -> void:
 	for r in ROUTES:
 		_build_route(r)
 	_build_junction_aprons()
+	_build_gate_parking()
 	print("roads: ", stats(), " audit: ", audit())
 
 ## Rasterise the road corridor into a small mask. Grass reads it and keeps clear of the asphalt and the bare shoulder,
@@ -238,11 +265,58 @@ func _build_road_mask() -> void:
 						img.set_pixel(txx, tzz, Color.WHITE)
 					if twp.distance_to(tp) <= 2.0:
 						top.set_pixel(txx, tzz, Color(0.80, 0.80, 0.80))   # 0.24 m / 0.30 m
+	# the four gate car parks and their pedestrian paths: no meadow grows through the parking pad or the path
+	for lot in GATE_LOTS:
+		if bool(lot.get("build", true)):
+			_mask_rect(img, top, Vector2(lot["center"]), Vector2(lot["size"]), Color.WHITE, 0.20)
+		var gate: Vector2 = lot["gate"]
+		var inside: Vector2 = lot["inside"]
+		_mask_strip_points(img, top, [Vector2(lot["center"]), gate, inside], GATE_PATH_WIDTH, Color.WHITE, 0.20)
+		var drive: Array = lot.get("drive", [])
+		if drive.size() >= 2:
+			_mask_strip_points(img, top, drive, 5.0, Color.WHITE, 0.20)
 	road_mask = ImageTexture.create_from_image(img)
 	_road_top_img = top
 	road_top = ImageTexture.create_from_image(top)
 ## Rasterise the junction aprons. The asphalt shader fades the painted lines through these circles, so a centre line does
 ## not run straight across a T junction.
+func _mask_rect(img: Image, top: Image, center: Vector2, size: Vector2, col: Color, top_v: float) -> void:
+	var x0 := center.x - size.x * 0.5
+	var x1 := center.x + size.x * 0.5
+	var z0 := center.y - size.y * 0.5
+	var z1 := center.y + size.y * 0.5
+	var px0 := int((x0 / Terrain.SIZE + 0.5) * MASK_N)
+	var px1 := int((x1 / Terrain.SIZE + 0.5) * MASK_N)
+	var pz0 := int((z0 / Terrain.SIZE + 0.5) * MASK_N)
+	var pz1 := int((z1 / Terrain.SIZE + 0.5) * MASK_N)
+	for z in range(maxi(0, pz0), mini(MASK_N, pz1 + 1)):
+		for x in range(maxi(0, px0), mini(MASK_N, px1 + 1)):
+			img.set_pixel(x, z, col)
+			top.set_pixel(x, z, Color(top_v, top_v, top_v, 1.0))
+
+func _mask_strip_points(img: Image, top: Image, points: Array, width: float, col: Color, top_v: float) -> void:
+	for i in points.size() - 1:
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var steps := maxi(1, int(ceil(a.distance_to(b) / 1.5)))
+		for k in steps:
+			var p := a.lerp(b, float(k) / float(steps))
+			var cx := int((p.x / Terrain.SIZE + 0.5) * MASK_N)
+			var cz := int((p.y / Terrain.SIZE + 0.5) * MASK_N)
+			var pr := int(ceil((width * 0.5 + 0.8) / Terrain.SIZE * MASK_N))
+			for dz in range(-pr, pr + 1):
+				for dx in range(-pr, pr + 1):
+					var xx := cx + dx
+					var zz := cz + dz
+					if xx < 0 or zz < 0 or xx >= MASK_N or zz >= MASK_N:
+						continue
+					var wp := Vector2((float(xx) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5,
+						(float(zz) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
+					if wp.distance_to(p) <= width * 0.5 + 0.8:
+						img.set_pixel(xx, zz, col)
+					if wp.distance_to(p) <= width * 0.5:
+						top.set_pixel(xx, zz, Color(top_v, top_v, top_v, 1.0))
+
 func _build_junction_mask() -> void:
 	var img := Image.create(MASK_N, MASK_N, false, Image.FORMAT_L8)
 	img.fill(Color(0, 0, 0, 1))
@@ -395,7 +469,8 @@ func _build_route(route: Dictionary) -> void:
 		var sa := i * 4
 		var sc := (i + 1) * 4
 		sidx.append_array([sa, sa + 1, sc, sa + 1, sc + 1, sc])             # left shoulder
-		sidx.append_array([sa + 2, sa + 3, sc + 2, sa + 3, sc + 3, sc + 2]) # right shoulder	_lengths[str(route["id"])] = dist
+		sidx.append_array([sa + 2, sa + 3, sc + 2, sa + 3, sc + 3, sc + 2]) # right shoulder
+	_lengths[str(route["id"])] = dist
 	var road_mesh := ArrayMesh.new()
 	var arr := []
 	arr.resize(Mesh.ARRAY_MAX)
@@ -728,11 +803,257 @@ func _build_reflector_posts(pts: Array, outer: float, _route: Dictionary) -> voi
 	cmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(cmi)
 
+# ------------------------------------------------------------------ gate car parks and pedestrian paths
+## Builds the four small car parks outside the cemetery gates. The asphalt routes stop at these pads; from each pad a
+## narrow pedestrian path runs through the gate and into the park. Bollards close the vehicle side of the gate, with a
+## clear central gap for the path, and a small P sign marks the entrance. The east car park already exists in the world
+## art, so its pad is skipped and only the path, bollards and sign are added.
+func _build_gate_parking() -> void:
+	var gravel := _gate_flat_material(Color(0.72, 0.70, 0.63), 0.95)
+	var path_mat := _gate_flat_material(Color(0.62, 0.60, 0.53), 0.92)
+	var asphalt := _gate_surface_material(_asphalt_diff, Color(0.92, 0.92, 0.90), 0.86)
+	var line := _gate_flat_material(Color(0.88, 0.86, 0.76), 0.8)
+	var iron := _gate_flat_material(Color(0.07, 0.075, 0.07), 0.62)
+	var band := _gate_flat_material(Color(0.86, 0.82, 0.66), 0.55)
+	var blue := _gate_flat_material(Color(0.10, 0.22, 0.34), 0.75)
+	for lot in GATE_LOTS:
+		var c: Vector2 = lot["center"]
+		var s: Vector2 = lot["size"]
+		var axis := str(lot["axis"])
+		if bool(lot.get("build", true)):
+			_conform_quad(c, s, GATE_LOT_TOP, gravel)
+			_parking_lines(c, s, axis, line)
+			_kerbs(c, s, axis, line)
+		var gate: Vector2 = lot["gate"]
+		var inside: Vector2 = lot["inside"]
+		# the pedestrian path runs from the pad, through the gate, into the park
+		_conform_strip([c.lerp(gate, 0.55), gate, inside], GATE_PATH_WIDTH, 0.05, path_mat)
+		_gate_bollards(c, s, axis, gate, iron, band)
+		_parking_sign(c, s, axis, gate, iron, blue)
+		var drive: Array = lot.get("drive", [])
+		if drive.size() >= 2:
+			_conform_strip(drive, 5.0, 0.06, asphalt)
+
+func _gate_surface_material(tex: Texture2D, tint: Color, rough: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.albedo_color = tint
+	m.roughness = rough
+	m.metallic = 0.0
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(0.18, 0.18, 0.18)
+	return m
+
+func _gate_flat_material(c: Color, rough: float) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = rough
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+## A grave-safe gravel/asphalt pad laid on the terrain. UVs are world metres, so the texture does not stretch.
+func _conform_quad(center: Vector2, size: Vector2, offset: float, mat: Material) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var nx := maxi(4, int(ceil(size.x / 2.0)))
+	var nz := maxi(4, int(ceil(size.y / 2.0)))
+	for z in nz:
+		for x in nx:
+			var fx := float(x) / float(nx)
+			var fz := float(z) / float(nz)
+			var px := center.x - size.x * 0.5 + size.x * fx
+			var pz := center.y - size.y * 0.5 + size.y * fz
+			st.set_uv(Vector2(px, pz))
+			st.set_normal(Vector3.UP)
+			st.add_vertex(Vector3(px, terrain.height(px, pz) + offset, pz))
+	for z in nz - 1:
+		for x in nx - 1:
+			var a := z * nx + x
+			var b := a + 1
+			var c := a + nx
+			var d := c + 1
+			st.add_index(a); st.add_index(c); st.add_index(b)
+			st.add_index(b); st.add_index(c); st.add_index(d)
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	add_child(mi)
+
+## A narrow strip following a short point list, conforming to the terrain. Used for the pedestrian path and the
+## short asphalt driveway from the road end into each car park.
+func _conform_strip(points: Array, width: float, offset: float, mat: Material) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var samples: Array[Vector2] = []
+	for i in points.size() - 1:
+		var a: Vector2 = points[i]
+		var b: Vector2 = points[i + 1]
+		var steps := maxi(1, int(ceil(a.distance_to(b) / 2.0)))
+		for k in steps:
+			samples.append(a.lerp(b, float(k) / float(steps)))
+	samples.append(Vector2(points[points.size() - 1]))
+	var base := 0
+	for i in samples.size() - 1:
+		var a := samples[i]
+		var b := samples[i + 1]
+		var t := (b - a).normalized()
+		var side := Vector2(-t.y, t.x) * width * 0.5
+		var p0 := a + side
+		var p1 := a - side
+		var p2 := b + side
+		var p3 := b - side
+		for p in [p0, p1, p2, p3]:
+			var vp: Vector2 = p
+			st.set_uv(vp)
+			st.set_normal(Vector3.UP)
+			st.add_vertex(Vector3(vp.x, terrain.height(vp.x, vp.y) + offset, vp.y))
+		st.add_index(base); st.add_index(base + 1); st.add_index(base + 2)
+		st.add_index(base + 2); st.add_index(base + 1); st.add_index(base + 3)
+		base += 4
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	add_child(mi)
+
+## White bay lines. They are laid parallel to the gate side so the pad reads as parking rather than a gravel apron.
+func _parking_lines(c: Vector2, s: Vector2, axis: String, mat: Material) -> void:
+	var n := 3
+	for i in n:
+		var f := (float(i) + 1.0) / float(n + 1) - 0.5
+		var node := Node3D.new()
+		var p := c
+		if axis == "z":
+			p.x = c.x + f * s.x * 0.72
+			node.position = Vector3(p.x, terrain.height(p.x, p.y) + GATE_LOT_TOP + 0.012, p.y)
+			_add_gate_box(node, Vector3(0.10, 0.018, s.y * 0.55), Vector3.ZERO, mat)
+		else:
+			p.y = c.y + f * s.y * 0.72
+			node.position = Vector3(p.x, terrain.height(p.x, p.y) + GATE_LOT_TOP + 0.012, p.y)
+			_add_gate_box(node, Vector3(s.x * 0.55, 0.018, 0.10), Vector3.ZERO, mat)
+		add_child(node)
+
+## A low kerb along the two long sides and the road entrance side; the gate side stays open to the path.
+func _kerbs(c: Vector2, s: Vector2, axis: String, mat: Material) -> void:
+	var long := 0.16
+	if axis == "z":
+		for sx in [-1.0, 1.0]:
+			_gate_box_ground(Vector3(c.x + sx * (s.x * 0.5 + 0.12), 0.0, c.y), Vector3(long, 0.20, s.y + 0.24), mat)
+	else:
+		for sz in [-1.0, 1.0]:
+			_gate_box_ground(Vector3(c.x, 0.0, c.y + sz * (s.y * 0.5 + 0.12)), Vector3(s.x + 0.24, 0.20, long), mat)
+
+func _add_gate_box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	mi.material_override = mat
+	mi.position = pos
+	parent.add_child(mi)
+
+func _gate_box_ground(pos: Vector3, size: Vector3, mat: Material) -> void:
+	var node := Node3D.new()
+	node.position = Vector3(pos.x, terrain.height(pos.x, pos.z) + size.y * 0.5, pos.z)
+	add_child(node)
+	_add_gate_box(node, size, Vector3.ZERO, mat)
+
+## Bollards on the gate side of the pad, with a clear 2.8 m gap in the middle for the pedestrian path.
+func _gate_bollards(c: Vector2, s: Vector2, axis: String, gate: Vector2, iron: Material, band: Material) -> void:
+	var dir := (gate - c)
+	var side_sign := 1.0
+	if axis == "z":
+		side_sign = -1.0 if dir.y < 0.0 else 1.0
+		var zedge := c.y + side_sign * s.y * 0.5
+		for xo in [-0.35, -0.12, 0.12, 0.35]:
+			_bollard(Vector2(c.x + xo * s.x, zedge + side_sign * 0.45), iron, band)
+	else:
+		side_sign = -1.0 if dir.x < 0.0 else 1.0
+		var xedge := c.x + side_sign * s.x * 0.5
+		for zo in [-0.35, -0.12, 0.12, 0.35]:
+			_bollard(Vector2(xedge + side_sign * 0.45, c.y + zo * s.y), iron, band)
+
+func _bollard(p: Vector2, iron: Material, band: Material) -> void:
+	var node := Node3D.new()
+	node.position = Vector3(p.x, terrain.height(p.x, p.y), p.y)
+	add_child(node)
+	var post := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.085
+	cyl.bottom_radius = 0.10
+	cyl.height = 0.92
+	post.mesh = cyl
+	post.material_override = iron
+	post.position.y = 0.46
+	node.add_child(post)
+	var ring := MeshInstance3D.new()
+	var ring_mesh := CylinderMesh.new()
+	ring_mesh.top_radius = 0.092
+	ring_mesh.bottom_radius = 0.092
+	ring_mesh.height = 0.07
+	ring.mesh = ring_mesh
+	ring.material_override = band
+	ring.position.y = 0.70
+	node.add_child(ring)
+	var cap := MeshInstance3D.new()
+	var sph := SphereMesh.new()
+	sph.radius = 0.10
+	sph.height = 0.14
+	cap.mesh = sph
+	cap.material_override = iron
+	cap.position.y = 0.93
+	node.add_child(cap)
+
+## A small blue P sign on a galvanised post, with a pedestrian-path strip underneath. It is a code placeholder for
+## the Claude sign-face kit, but it tells the driver where the cars stop and where the walking starts.
+func _parking_sign(c: Vector2, s: Vector2, axis: String, gate: Vector2, iron: Material, blue: Material) -> void:
+	var dir := (gate - c).normalized()
+	var p := c - dir * (minf(s.x, s.y) * 0.55)
+	var node := Node3D.new()
+	node.position = Vector3(p.x, terrain.height(p.x, p.y), p.y)
+	add_child(node)
+	var post := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.035
+	cyl.bottom_radius = 0.045
+	cyl.height = 2.1
+	post.mesh = cyl
+	post.material_override = iron
+	post.position.y = 1.05
+	node.add_child(post)
+	var board := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.85, 0.95, 0.06)
+	board.mesh = bm
+	board.material_override = blue
+	board.position.y = 1.78
+	node.add_child(board)
+	var label := Label3D.new()
+	label.text = "P"
+	label.font_size = 120
+	label.pixel_size = 0.0042
+	label.modulate = Color(0.95, 0.94, 0.86)
+	label.outline_size = 0
+	label.position = Vector3(0, 1.78, 0.04)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	node.add_child(label)
+	var sub := Label3D.new()
+	sub.text = "PEDESTRIAN PATH"
+	sub.font_size = 34
+	sub.pixel_size = 0.0032
+	sub.modulate = Color(0.88, 0.90, 0.85)
+	sub.outline_size = 0
+	sub.position = Vector3(0, 1.22, 0.04)
+	sub.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	node.add_child(sub)
+
 func stats() -> Dictionary:
 	var total := 0.0
 	for k in _lengths:
 		total += float(_lengths[k])
-	return {"routes": _lengths.size(), "km": snappedf(total / 1000.0, 0.01), "lengths": _lengths}
+	return {"routes": _lengths.size(), "km": snappedf(total / 1000.0, 0.01), "lengths": _lengths, "gate_lots": GATE_LOTS.size()}
 
 ## The cemetery walls stand at about x/z +/-238. No road centreline may enter the 248 m square; the gates and their car
 ## parks sit outside it. This is a cheap guard so a future route edit cannot quietly cut through the graves again.

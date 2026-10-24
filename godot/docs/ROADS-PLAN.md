@@ -58,3 +58,13 @@ The minimap now draws the country roads as a dark line with a warm centre under 
 - ROAD3. Is the festival field at (300, 300) in the right place, or should it be somewhere else outside the cemetery?
 - ROAD4. Should the old park path to the chapel remain the only chapel access, or should there be a service track around the outside and a short walking spur?
 - ROAD5. Do you want road signs naming the gates, the farm, the lake and the ridge?
+## Gate parking lots and pedestrian paths (owner decision, 2026-11-15)
+Robert's call: **the road ends at a parking lot at each gate, then a pedestrian path goes in; a car park with bollards is the right language.** The other road questions are answered as follows:
+- **ROAD1:** asphalt ends at the car park, not at the gate. A short driveway connects the last road sample to the pad.
+- **ROAD2:** yes. South, north and west get small gravel car parks; the east car park already exists and now gets the same pedestrian path and bollards. Four bollards sit on the gate side of each pad with a 2.4 m gap for the path, so a car cannot drive through the gate.
+- **ROAD3:** the festival field stays at (300, 300); no move.
+- **ROAD4:** no vehicle service track to the chapel. The chapel stays footpath-only; every gate pad has a pedestrian path through the gate and into the park.
+- **ROAD5:** yes. The existing gate name boards stay, and each pad gets a small blue **P / PEDESTRIAN PATH** sign. Code placeholder signs until Claude's location-sign art lands.
+- **Layout:** south pad 16 x 10 m outside the south wall; north pad 16 x 10 m outside the north wall; west pad 10 x 16 m outside the west wall; east reuses the existing car park. Pads are 6 cm above the terrain, drawn by `game/roads.gd` `_build_gate_parking()`, with white bay lines, kerbs, bollards and a path. The pads and paths are in the road mask, so the meadow does not grow through them.
+- **Audit:** the road centreline audit still reports `inside_cemetery: 0`; the car parks sit outside the 238 m wall, and the pedestrian paths are the only thing that crosses the wall line.
+- **Evidence:** `docs/realism/roads/12_gate_car_park.jpg`. Honest limits: bollards and P signs are code primitives, not Claude models; the east pad is the existing world art and was not rebuilt; no vehicle is parked on the new pads yet; the pads are visual ground surfaces, not rigid-body colliders; kerbs are shallow and the path is a strip, not a kerbed pavement.

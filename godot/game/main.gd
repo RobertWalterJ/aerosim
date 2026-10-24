@@ -1529,6 +1529,12 @@ func _screenshot_mode(arg: String) -> void:
 			quad.reset(sp2.x, terrain.height(sp2.x, sp2.z) + 14.0, sp2.z, 0.0)
 			gimbal_pitch = deg_to_rad(-82.0)
 			_apply_pose()
+		elif c == "gatepark":       # session B dev hook: spawn at the south gate car park
+			print("gatepark roads: ", roads.stats(), " audit: ", roads.audit())
+			travel_to_site("south_gate")
+			quad.reset(34.0, terrain.height(34.0, 260.0) + 18.0, 260.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-32.0)
+			_apply_pose()
 		elif c == "villageshot":    # session B dev hook: the village street and its people
 			quad.reset(420.0, terrain.height(420.0, 292.0) + 2.0, 292.0, deg_to_rad(0.0))
 			gimbal_pitch = deg_to_rad(-4.0)
