@@ -15,6 +15,7 @@ const FESTIVAL := Vector2(300.0, 300.0)
 
 var terrain: Terrain
 var _stats := {}
+var _car_heats: Array[Node3D] = []
 
 static func near_village(x: float, z: float, margin := 5.0) -> bool:
 	return BOUNDS.grow(margin).has_point(Vector2(x, z))
@@ -274,7 +275,14 @@ func _parked_car(pos: Vector2, yaw: float, colour: Color) -> void:
 			node.add_child(wheel)
 	_box(node, Vector3(0.28, 0.12, 0.06), Vector3(-0.56, 0.62, -2.01), _mat(Color(0.92, 0.86, 0.62), 0.4))
 	_box(node, Vector3(0.28, 0.12, 0.06), Vector3(0.56, 0.62, -2.01), _mat(Color(0.92, 0.86, 0.62), 0.4))
+	var heat := ThermalHeat.vehicle(node, Vector3(1.8, 0.62, 4.0), Vector3(1.55, 0.55, 2.0), 0.75)
+	heat.visible = false
+	_car_heats.append(heat)
 	_inc("parked_cars")
+## The thermal camera sees the parked cars' engines and cabins when it is switched on.
+func set_thermal_heat(on: bool) -> void:
+	for m in _car_heats:
+		m.visible = on
 func _hedge(pos: Vector2, yaw: float, length: float) -> void:
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)

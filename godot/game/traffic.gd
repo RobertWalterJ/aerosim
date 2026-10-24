@@ -20,6 +20,7 @@ var terrain: Terrain
 var roads: Roads
 var hud: Hud
 var _vehicles: Array = []
+var _thermal_on := false
 var _mobile := false
 
 func setup(t: Terrain, r: Roads, h: Hud) -> void:
@@ -65,9 +66,11 @@ func _make_vehicle(type: Dictionary, route: String, s: float, dir: float, rng: R
 					var mm := m as StandardMaterial3D
 					if mm.resource_name.to_lower().contains("headlight"):
 						lamps.append(mm)
+			var heat := ThermalHeat.vehicle(node, type["body"], type["cab"], float(type["cab_y"]))
+			heat.visible = _thermal_on
 			return {"node": node, "type": type, "route": route, "s": s, "dir": dir,
 				"speed": float(type["speed"]) * rng.randf_range(0.9, 1.1),
-				"wheels": model_wheels, "wheel_axis": "x", "lamp": null, "lamps": lamps, "model": true}
+				"wheels": model_wheels, "wheel_axis": "x", "lamp": null, "lamps": lamps, "model": true, "heat": heat}
 	var body_mat := StandardMaterial3D.new()
 	body_mat.albedo_color = type["colour"]
 	body_mat.roughness = 0.45
@@ -130,7 +133,9 @@ func _make_vehicle(type: Dictionary, route: String, s: float, dir: float, rng: R
 		lamp_mi.material_override = lamp_mat
 		lamp_mi.position = Vector3(sx * float(type["body"].x) * 0.28, 0.62, -float(type["body"].z) * 0.5)
 		node.add_child(lamp_mi)
-	return {"node": node, "type": type, "route": route, "s": s, "dir": dir, "speed": float(type["speed"]) * rng.randf_range(0.9, 1.1), "wheels": wheels, "wheel_axis": "z", "lamp": lamp_mat, "lamps": [lamp_mat]}
+	var heat := ThermalHeat.vehicle(node, type["body"], type["cab"], float(type["cab_y"]))
+	heat.visible = _thermal_on
+	return {"node": node, "type": type, "route": route, "s": s, "dir": dir, "speed": float(type["speed"]) * rng.randf_range(0.9, 1.1), "wheels": wheels, "wheel_axis": "z", "lamp": lamp_mat, "lamps": [lamp_mat], "heat": heat}
 
 func update(delta: float, hour: float, paused: bool) -> void:
 	if paused:
@@ -182,6 +187,19 @@ func update(delta: float, hour: float, paused: bool) -> void:
 		# brake/tail glow is left off on purpose: no real lights mean no cost on the phone
 
 ## Dev hook: line the vehicles up along the valley highway for a look shot.
+## The thermal camera sees the engine, cabin and exhaust of every moving vehicle. The body stays cool.
+func first_vehicle_position() -> Vector3:
+	if _vehicles.is_empty():
+		return Vector3.ZERO
+	var n: Node3D = _vehicles[0]["node"]
+	return n.global_position
+
+func set_thermal_heat(on: bool) -> void:
+	_thermal_on = on
+	for v in _vehicles:
+		var heat: Node3D = v.get("heat")
+		if heat != null:
+			heat.visible = on
 func debug_line_up() -> void:
 	for i in _vehicles.size():
 		var v: Dictionary = _vehicles[i]

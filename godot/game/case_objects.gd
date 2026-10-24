@@ -29,7 +29,8 @@ var _cabin_lights: Array[OmniLight3D] = []
 var _cabin_windows: Array[MeshInstance3D] = []
 var _cabin_root: Node3D
 var _hiker: Node3D
-var _hiker_heat: MeshInstance3D
+var _hiker_heat: Node3D
+var _dog_heat: Node3D
 var _cabin_on := false
 var _porch_light: OmniLight3D
 
@@ -375,6 +376,8 @@ func _build_dog(parent: Node3D, p: Vector3) -> void:
 		lmi.material_override = fur
 		lmi.position = p + Vector3(sx * 0.2, 0.22, 0.25)
 		parent.add_child(lmi)
+	_dog_heat = ThermalHeat.animal(parent, p + Vector3(0.0, 0.0, 0.05), 0.95, 0.58)
+	_dog_heat.visible = false
 
 # ------------------------------------------------------------------ the old festival bus
 func _build_bus(pos: Vector3) -> void:
@@ -471,6 +474,8 @@ func hiker_world_pos() -> Vector3:
 func set_thermal_marker(on: bool) -> void:
 	if _hiker_heat != null:
 		_hiker_heat.visible = on and _hiker != null and _hiker.visible
+	if _dog_heat != null:
+		_dog_heat.visible = on
 
 func _build_cabin(pos: Vector3) -> void:
 	_cabin_root = Node3D.new()
@@ -694,26 +699,9 @@ func _build_hiker() -> void:
 		lmi.material_override = black_material()
 		lmi.position = Vector3(sx * 0.16, 0.35, 0.0)
 		_hiker.add_child(lmi)
-	# a bright thermal signature, shown only through the thermal camera
-	_hiker_heat = MeshInstance3D.new()
-	var heat := SphereMesh.new()
-	heat.radius = 2.0
-	heat.height = 4.0
-	_hiker_heat.mesh = heat
-	var heat_mat := StandardMaterial3D.new()
-	heat_mat.albedo_color = Color(1.0, 0.55, 0.12)
-	heat_mat.emission_enabled = true
-	heat_mat.emission = Color(1.0, 0.55, 0.12)
-	heat_mat.emission_energy_multiplier = 9.0
-	heat_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	heat_mat.albedo_color = Color(1.0, 0.78, 0.35, 0.90)
-	heat_mat.no_depth_test = true
-	heat_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_hiker_heat.material_override = heat_mat
-	_hiker_heat.position.y = 1.0
+	# a white-hot person signature: torso, head and hands, shown only through the thermal camera
+	_hiker_heat = ThermalHeat.person(_hiker, Vector3.ZERO)
 	_hiker_heat.visible = false
-	_hiker.add_child(_hiker_heat)
-
 func black_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.08, 0.08, 0.09)

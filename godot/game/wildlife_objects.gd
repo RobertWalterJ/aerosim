@@ -4,8 +4,9 @@ extends Node3D
 ## signatures for the thermal camera. Claude's wolf and sheep models will replace these. No collisions and no gore.
 
 var _wolf: Node3D
-var _wolf_heat: MeshInstance3D
-var _sheep_heat: Array[MeshInstance3D] = []
+var _wolf_heat: Node3D
+var _sheep_heat: Array[Node3D] = []
+var _sheep_roots: Array[Node3D] = []
 var _wolf_pos := Vector3.ZERO
 
 func setup(t: Terrain) -> void:
@@ -22,6 +23,9 @@ func setup(t: Terrain) -> void:
 	for m in _sheep_heat:
 		m.visible = false
 	print("wildlife objects: sheep=7 wolf=", _wolf_pos)
+
+func first_sheep_position() -> Vector3:
+	return _sheep_roots[0].global_position if not _sheep_roots.is_empty() else Vector3.ZERO
 
 func wolf_position() -> Vector3:
 	return _wolf_pos
@@ -72,10 +76,10 @@ func _build_sheep(pos: Vector3) -> void:
 		lmi.material_override = face
 		lmi.position = p
 		root.add_child(lmi)
-	var heat := _heat_mesh(0.55, 1.1)
-	heat.position.y = 0.6
-	root.add_child(heat)
+	var heat := ThermalHeat.animal(root, Vector3.ZERO, 1.05, 0.56)
+	heat.visible = false
 	_sheep_heat.append(heat)
+	_sheep_roots.append(root)
 
 func _build_wolf(pos: Vector3) -> void:
 	_wolf = Node3D.new()
@@ -135,9 +139,8 @@ func _build_wolf(pos: Vector3) -> void:
 	tmi.position = Vector3(0.0, 0.62, 0.82)
 	tmi.rotation.x = -0.25
 	_wolf.add_child(tmi)
-	_wolf_heat = _heat_mesh(0.9, 2.0)
-	_wolf_heat.position.y = 0.75
-	_wolf.add_child(_wolf_heat)
+	_wolf_heat = ThermalHeat.animal(_wolf, Vector3.ZERO, 1.55, 0.70)
+	_wolf_heat.visible = false
 
 func _heat_mesh(radius: float, height: float) -> MeshInstance3D:
 	var m := MeshInstance3D.new()

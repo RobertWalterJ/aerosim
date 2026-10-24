@@ -909,6 +909,10 @@ func _process(delta: float) -> void:
 	if _attach_sync > 0.4:
 		_attach_sync = 0.0
 		_sync_attachments()
+	_thermal_sync += delta
+	if _thermal_sync > 0.15:
+		_thermal_sync = 0.0
+		_sync_thermal_heat()
 	if _gallery_cam:
 		return
 	# Q and E tilt a gimbal camera smoothly while held: it speeds up, then eases to a stop when released
@@ -1033,6 +1037,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_Q, KEY_E:
 			if not af["hasGimbal"]: hud.toast("This drone's camera is fixed. Pick the Gimbal Mini or the Cinema drone to tilt it.")
 
+# ------------------------------------------------------------------ thermal heat shells
+func _sync_thermal_heat() -> void:
+	if _heat_debug:
+		return
+	var on := thermal != null and thermal.is_on()
+	if case_objects != null:
+		case_objects.set_thermal_marker(on)
+	if wildlife_objects != null:
+		wildlife_objects.set_thermal_markers(on)
+	if traffic != null:
+		traffic.set_thermal_heat(on)
 # ------------------------------------------------------------------ camera add-ons on the flight screen
 func _toggle_thermal() -> void:
 	if inventory != null and inventory.has_addon("thermal_camera") and thermal != null:
@@ -1057,6 +1072,8 @@ func _on_attachment_requested(id: String) -> void:
 		"night": _toggle_night()
 
 var _attach_sync := 0.0
+var _thermal_sync := 0.0
+var _heat_debug := false
 func _sync_attachments() -> void:
 	if hud == null or inventory == null:
 		return
@@ -1476,6 +1493,56 @@ func _screenshot_mode(arg: String) -> void:
 			finale.debug_cabin()
 		elif c == "cabinworld":   # session B dev hook: the cabin and the cruiser in the storm, normal camera
 			finale.debug_start()
+		elif c == "heatdebug":    # session B dev hook: heat shells without the thermal pass
+			finale.debug_thermal_view()
+			thermal.set_on(false)
+			var hp := CaseObjects.SEARCH_SPOT
+			quad.reset(hp.x, terrain.height(hp.x, hp.y + 10.0) + 3.0, hp.y + 10.0, 0.0)
+			_apply_pose()
+			_heat_debug = true
+			var hm := ThermalHeat.material(ThermalHeat.BODY)
+			var hs := MeshInstance3D.new()
+			var ss := SphereMesh.new(); ss.radius = 3.0; ss.height = 6.0
+			hs.mesh = ss; hs.material_override = hm
+			var sp := CaseObjects.SEARCH_SPOT
+			var cam_fwd := -cam.global_transform.basis.z
+			hs.position = cam.global_position + cam_fwd * 8.0
+			add_child(hs)
+			case_objects.set_thermal_marker(true)
+			wildlife_objects.set_thermal_markers(true)
+			traffic.set_thermal_heat(true)
+		elif c == "thermalsheep":  # session B dev hook: thermal on, standing off the flock
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			wildlife.debug_start()
+			thermal.set_on(true)
+			var sp2 := wildlife_objects.first_sheep_position()
+			quad.reset(sp2.x, terrain.height(sp2.x, sp2.z) + 14.0, sp2.z, 0.0)
+			gimbal_pitch = deg_to_rad(-82.0)
+			_apply_pose()
+		elif c == "thermalvillage":  # session B dev hook: thermal on, looking at the village parked cars
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			thermal.set_on(true)
+			quad.reset(430.0, terrain.height(430.0, 272.0) + 2.0, 272.0, deg_to_rad(180.0))
+			_apply_pose()
+		elif c == "thermalcars":  # session B dev hook: thermal on, behind the first traffic vehicle
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			traffic.debug_line_up()
+			thermal.set_on(true)
+			var vp2 := traffic.first_vehicle_position()
+			quad.reset(vp2.x, terrain.height(vp2.x, vp2.z + 14.0) + 5.0, vp2.z + 14.0, 0.0)
+			_apply_pose()
+		elif c == "thermalwren":  # session B dev hook: thermal on, close to Wren at the treeline
+			finale.debug_thermal_view()
+			var wp := CaseObjects.SEARCH_SPOT
+			quad.reset(wp.x, terrain.height(wp.x, wp.y) + 14.0, wp.y, 0.0)
+			gimbal_pitch = deg_to_rad(-82.0)
+			_apply_pose()
 		elif c == "thermalview":  # session B dev hook: thermal camera on, search still live
 			finale.debug_thermal_view()
 		elif c == "endingdemo":   # session B dev hook: the fade and the credits
@@ -1895,8 +1962,6 @@ func _on_ending_free() -> void:
 		var to_drone: Vector3 = (quad.position() + Vector3(0.0, 0.6, 0.0) - _end_cam_pos).normalized()
 		_end_yaw = atan2(-to_drone.x, -to_drone.z)
 		_end_pitch = asin(clampf(to_drone.y, -0.95, 0.95))
-		print("ENDFREE cam ", _end_cam_pos, " drone ", quad.position(), " yaw ", _end_yaw, " pitch ", _end_pitch, " visible ", drone_view.visible)
-		print("ENDFREE node ", drone_node.global_position, " node_visible ", drone_node.visible, " view_visible ", drone_view.visible, " scale ", drone_view.scale)
 	if hud != null:
 		hud.visible = false
 	if osd != null:

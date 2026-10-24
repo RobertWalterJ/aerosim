@@ -1102,3 +1102,17 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - HUD3. Should the thermal and night buttons sit in one camera tray, or stay as a top-right stack?
   - HUD4. Should the source line use app icons as well as names?
   - HUD5. Should the phone notification banner move so it never covers the top of the flight screen?
+## Thermal camera realism and heat readings (lane/notify, session B, 2026-11-15)
+- **The image:** the thermal shader now uses a white-hot palette with air/water deep indigo, cold ground purple to maroon, warm surfaces red to orange, body cores yellow to white and engines white. Green and blue surfaces are masked down so autumn foliage and water do not read as heat. The small-sensor grain, scanlines, vignette and reticle are kept.
+- **The scale:** a bottom-centre legend in `game/thermal.gd` reads WHITE-HOT / RELATIVE SCALE with AIR 8, GROUND 12, BODY 37 and ENGINE 90+ swatches. This gives every white or orange pixel a reference.
+- **Heat shells:** `game/thermal_heat.gd` owns invisible heat shells that only display with the thermal camera. A person is a warm coat torso, hot head and hot hands. An animal is a body capsule with a hotter head. A vehicle is a hot engine, warm cabin and hot exhaust; the body stays cold. The shells are magenta/red colour codes the shader decodes, so daylight brightness no longer decides temperature.
+- **Who has heat:** traffic vehicles, both village parked cars, the sheep flock, the wolf, Wren and Biscuit the dog. The abandoned Lake Car deliberately has none.
+- **Synchronised:** `main._sync_thermal_heat()` switches the shells with the camera every 0.15 s; the wildlife and finale code also keeps their own markers in step. The camera, HUD and story now agree.
+- **Evidence:** docs/realism/thermal/00_wren.jpg, 01_sheep.jpg, 02_scale.jpg. Docs THERMAL-CAMERA.md.
+- **Honest limits:** the camera is a screen-space false-colour shader plus colour-coded shells, not a radiometer or a real temperature buffer. The scale labels are approximate relative references, not measured temperatures. Heat shells use no depth test so a body can show through thin foliage for fairness; that is not physical. The models are code placeholders. There is no gain, contrast, lens or emissivity control. The base ground temperature still comes from screen luminance tuned to the autumn palette.
+- **Questions for Robert:**
+  - TH1. Is white-hot right, or should the palette be black-hot or ironbow?
+  - TH2. Should the scale show measured-looking temperatures or stay relative?
+  - TH3. Should heat show through trees, or be occluded and make the search harder?
+  - TH4. Should the thermal camera have a gain or contrast control on the flight screen?
+  - TH5. Should cars show engine heat only while moving, or also when parked?
