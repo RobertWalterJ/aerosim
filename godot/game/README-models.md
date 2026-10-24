@@ -221,6 +221,57 @@ The people (Wren, Constable Rennick in 1984, the ghost variant) and the vehicles
 - **Gear:** `thermal_pod_a` (52 x 42 x 62 mm, origin at the mounting face, top flat; node `led`) `thermal_pod_led_a` `_off` `thermal_pod_mount_a`; `lake_buoy_a` `dive_marker_a` (waterline at y 0, line and weight hang below) `anne_photo_a`; `cruiser_plate_a` `cruiser_lightbar_a` (nodes `lightbar_red`, `lightbar_blue`: swap in the `lamp_red` and `lamp_blue` materials to light them) `cruiser_aerial_a` `cruiser_door_lettering_a` `cruiser_boot_kit_a` `cruiser_old_kit_a`; `wren_backpack_a` `wren_phone_a` `wren_torch_a` (node `beam`) `_off` `wren_space_blanket_a` `_b` `wren_water_bottle_a` `wren_hiking_gear_a` `wren_tent_a`; `rennick_hat_a` `rennick_case_file_a` `rennick_portrait_a`; `cabin_thermos_a` `cabin_newspaper_a`.
 - **Textures used:** `docs/realism/models/storm_endgame_final_textures.jpg` (labelled swatches: name, Poly Haven source, author, licence, where used), built by `test/story_textures_sheet.gd`; views of every asset: `storm_endgame_final_views.jpg` (golden hour) and `storm_endgame_final_views_overcast.jpg`.
 
+## Blender 2: people (lane/people)
+
+Loader `game/people_assets.gd` (class `PeopleAssets`). Story names for the endgame people (`wren_standing_phone_a`, `wren_sitting_porch_a`, `wren_walking_torch_a`, `wren_waving_a`, `wren_crouched_a`, `rennick_1984_standing_a`, `rennick_1984_standing_a_notebook`, `rennick_1984_ghost_a`) are served here; the Wren and Rennick props stay in Batch 9.
+
+Rigged, animated, photographed-texture people made in Blender 4.2 by scripts in `godot/tools/blender/` (they regenerate
+everything). They replace the code-built figures of Batch 8 under the same story names; the old builders stay as the
+fallback when a file is missing. Sources and licences: `assets/models/people/README.md`.
+- **Files:** `assets/models/people/<person>.glb` for 19 people: `ellis`, `rennick`, `rennick_uniform`, `rennick_1984`,
+  `wren`, `crowd_m1..m3`, `crowd_f1..f3`, `child_boy`, `child_girl`, `band_singer`, `band_guitar`, `band_fiddle`,
+  `band_drummer`, `pilot`, `bystander`. Clips: `anim_male.glb`, `anim_female.glb`, `anim_child.glb`. Props:
+  `people_props.glb` (root nodes `prop_<name>`).
+- **Frame:** metres, Y up, +Z is the front, origin on the ground between the feet (seated: the ground under the seat).
+- **Nodes:** `<person>/Armature/Skeleton3D/` with skinned meshes `head_LOD0..2` (face, eyes, brows, lashes, hair),
+  `body_LOD0..2` (the skin that shows; skin hidden under clothes is deleted), `clothes_LOD0..2`, and where present
+  `coat_LODn` (Wren's rain jacket) and `backpack_LODn` (Wren), so a thermal mask can pick `head`, `body`, `coat` and
+  `backpack` apart. PeopleAssets sets visibility ranges: LOD0 to 14 m, LOD1 14 to 45 m, LOD2 45 to 400 m.
+- **Triangles** (LOD0 / LOD1 / LOD2): about 8.5k to 9.5k / 3.6k to 4k / 1.2k to 1.4k per person, checked by the test
+  (limits 9.6k / 4.4k / 1.7k).
+- **Skeleton:** one rig for everyone (MakeHuman game_engine rig, 53 bones, renamed to Godot's SkeletonProfileHumanoid names)
+  plus `LeftEye` and `RightEye`: Root, Hips, Spine, Chest, UpperChest, Neck, Head, Left/RightEye,
+  Left/RightShoulder, UpperArm, LowerArm, Hand, ThumbMetacarpal/Proximal/Distal, Index/Middle/Ring/Little
+  Proximal/Intermediate/Distal, UpperLeg, LowerLeg, Foot, Toes. No Jaw bone: the mouth is blend shapes. Limbs are
+  IK-ready chains (UpperArm-LowerArm-Hand, UpperLeg-LowerLeg-Foot) for SkeletonIK3D or TwoBoneIK3D. Weights are the
+  MakeHuman weights, at most 4 per vertex.
+- **Face:** `head_LOD0` has blend shapes `blink`, `smile`, `mouth_open`, `mouth_o`, `mouth_e`, `mouth_mbp`, `brow_up`
+  (made from the MakeHuman expression units). `PeopleFace` (added by PeopleAssets) blinks at random and moves the mouth
+  during `talk` and `sing`.
+- **Clips** (looping, in place, 30 fps): idle, idle_shift, walk, walk_torch, sit_idle, sit_mug, sit_hug_knees, talk, wave,
+  wave_up, look_around, look_up, clap, sway, cheer, point, pockets, hands_hips, crouch, kneel, toolbox_kneel, lie_creeper,
+  clipboard_hold, clipboard_write, notebook_hold, knock, phone_hold, flag_wave, sing, play_guitar, play_fiddle, play_drum,
+  play_cornet. They are keyed on a reference body; PeopleAssets copies them onto each person keeping rotations for every
+  bone and the Hips position scaled to the person's hip height (so they retarget to adults and children alike).
+  Walking is in place: move the node yourself, about 1.3 m/s for the walk clip at speed 1.
+- **API:** `PeopleAssets.place(parent, name, xf)` / `PeopleAssets.instance(name)` for story names;
+  `PeopleAssets.person(person, clip, props, tint, ghost, seed)` for anything else (props are `"mug:R"`, `"clipboard:L"`,
+  `"guitar:C"`, `"camp_chair"` or `"creeper@x,y,z,yaw"`). `StoryAssets.instance()` routes every story people name here
+  first. `PeopleAssets.STORY` is the table of story name -> person, clip, props (the old Ellis, Rennick and crowd names,
+  and Wren and Rennick 1984 names from the endgame brief). `crowd_band_a` builds the four-piece band.
+- **Materials:** the glTF carries PBR materials (skin, eye, brow, lash, hair, cloth). PeopleAssets adds subsurface
+  scattering with transmission to skin (Forward+ only), alpha-to-coverage hair, double-sided cloth with a slight rim;
+  `tint` multiplies the cloth colour for crowd variety. Rennick's ghost uses `game/shaders/people_ghost.gdshader`
+  (translucent, soft rim, slow breath; no shadows).
+- **Regenerate** (Blender 4.2.3 portable in `_tools/blender-4.2.3-windows-x64`, MPFB and the MakeHuman packs in the
+  private user folder `_tools/people/bluser`, set up once by `people_setup.py`): from `godot/tools/blender`,
+  `sh run_people.sh people_build.py -- all` (people), `sh run_people.sh people_anims.py` (clips),
+  `sh run_people.sh people_props.py` (props), `sh run_people.sh people_sheet.py -- --out <dir> --names ellis`
+  (Blender contact sheets). The roster (body sliders, skins, clothes, colours, fabrics) is `people_roster.py`; the clips
+  are `people_clips.py`.
+- **Checks:** `test/people_blender_test.gd` (headless: every person loads, bones, LOD budgets, height, NaN, clips, blend
+  shapes, every story name animates with its props). In the scene: `tools/people_scene.sh <out.png> <names> <hour> <distance>`.
+
 ## Blender 4: drones (lane/drones; `game/drone_assets.gd`, class `DroneAssets`)
 
 The Facade kit drones from session B's request of 2026-11-07, modelled in Blender 4.2 by `tools/blender/build_drones.py` (with `drones_lib.py`, `drones_parts.py`) and exported as glTF 2.0 into `assets/models/drones/`: `<name>.glb`, `<name>_lod1.glb`, `<name>_lod2.glb` and a manifest `<name>.json`. Robert's direction is photoreal, so LOD 0 carries real detail instead of the brief's 2 to 3k triangles (see the honest limits below).

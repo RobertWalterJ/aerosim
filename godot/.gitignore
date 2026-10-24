@@ -7,3 +7,5 @@ build/
 !assets/world/valley_cover.png
 !assets/world/valley_path.png
 !assets/world/lake_mask.png
+# tablet UI kit art is generated source-of-truth for the game; keep it tracked
+!assets/ui/tablet/**/*.png

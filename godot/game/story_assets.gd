@@ -13,6 +13,9 @@ static func path_of(name: String, lod := 0) -> String:
 	return "res://assets/models/story/%s/%s%s.glb" % [NewModels6.group_of(name), name, "" if lod == 0 else "_lod%d" % lod]
 
 static func instance(name: String, lod := 0) -> Node3D:
+	if PeopleAssets.handles(name):     # Blender 2: the rigged Blender people replace the code-built figures when their file is present
+		var pn := PeopleAssets.instance(name)
+		if pn != null: return pn
 	var p := path_of(name, lod)
 	if lod > 0 and not ResourceLoader.exists(p): p = path_of(name, 0)
 	var ps := load(p) as PackedScene if ResourceLoader.exists(p) else null

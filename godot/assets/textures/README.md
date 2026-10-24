@@ -99,6 +99,33 @@ The `.import` files are committed with them.
 ## Leaf cards (`cards/*.png`, models5b)
 Original drawings made by `test/gen_card_textures.gd` (curves painted with a width profile, midrib and veins; no source photographs, no licence issue). They are data textures, not colour: r is the shade, g marks stem, husk or head, b marks the accents (tassel, umbel, silk, flower) and a is the cut-out. `corn_card`, `corn_top` (seen from above), `barley_card_a/b`, `alfalfa_card_a/b`, `weeds_card`. Re-run the script after changing a drawing, then import.
 
+## Fabrics for the people (October 2026, Blender 2, lane people)
+
+Photographed fabrics blended into the clothing of the Blender people (`tools/blender/people_lib.py`,
+`make_garment_textures`). They are not separate files in the game: each garment's MakeHuman texture keeps its folds and
+seams, is recoloured, and gets the fabric's weave (albedo detail), normal map (whiteout blend) and roughness tiled over it;
+the result is packed into one clothes atlas per person and embedded in `assets/models/people/<person>.glb`. Downloaded
+2026-10-24 as Poly Haven 1k JPEGs (`diff`, `nor_gl`, `rough`, from https://api.polyhaven.com/files/<id>) and kept in
+`_tools/people/fabric` (outside the repository). All CC0. Skin, eye, brow, lash and hair textures are MakeHuman's (CC0, see
+`assets/models/people/README.md`).
+
+| Fabric | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `knitted_fleece` | https://polyhaven.com/a/knitted_fleece | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Ellis's jumper, crowd sweaters and scarves |
+| `ribbed_corduroy` | https://polyhaven.com/a/ribbed_corduroy | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Ellis's trousers |
+| `poly_wool_herringbone` | https://polyhaven.com/a/poly_wool_herringbone | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | flat cap, uniform tunic, tweed jacket, peaked cap, trousers |
+| `brown_leather` | https://polyhaven.com/a/brown_leather | Rob Tuytel | CC0 | 0.40 m | boots, duty belt |
+| `caban` | https://polyhaven.com/a/caban | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Rennick's jacket and 1984 tunic, coats |
+| `stretch_poplin` | https://polyhaven.com/a/stretch_poplin | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | Wren's rain jacket (nylon look), shirts |
+| `rough_linen` | https://polyhaven.com/a/rough_linen | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | cargo trousers |
+| `scuba_suede` | https://polyhaven.com/a/scuba_suede | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | Wren's boots |
+| `terlenka` | https://polyhaven.com/a/terlenka | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Wren's backpack (nylon) |
+| `denim_fabric_03` | https://polyhaven.com/a/denim_fabric_03 | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | jeans |
+| `cotton_jersey` | https://polyhaven.com/a/cotton_jersey | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.26 m | T-shirt, polo shirt |
+| `jersey_melange` | https://polyhaven.com/a/jersey_melange | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | the girl's sports top |
+| `wool_boucle` | https://polyhaven.com/a/wool_boucle | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.31 m | crowd_f2's sweater |
+| `polar_fleece` | https://polyhaven.com/a/polar_fleece | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | the pilot's fleece |
+
 ## Drones (lane/drones, Blender 4)
 
 `drones/drone_*.jpg`, 1024 px, made by `tools/blender/drones_prep_textures.py` from the ambientCG 1K-JPG sets (re-saved with PIL;
