@@ -1,0 +1,29 @@
+{
+ "bytes": 1586368,
+ "clip_speeds": {
+  "run": 2.89,
+  "trot": 1.65,
+  "walk": 0.58
+ },
+ "clips": [
+  "idle",
+  "walk",
+  "trot",
+  "run",
+  "graze"
+ ],
+ "height": 0.968,
+ "length": 1.384,
+ "name": "ram_a",
+ "seconds": 82.5,
+ "tris": {
+  "ram_a_LOD0": 9650,
+  "ram_a_LOD1": 3376,
+  "ram_a_LOD2": 964,
+  "ram_a_eye_L": 288,
+  "ram_a_eye_R": 288,
+  "ram_a_lid_L": 146,
+  "ram_a_lid_R": 146
+ },
+ "uv_m": 2.1024
+}

@@ -1,0 +1,29 @@
+{
+ "bytes": 1320656,
+ "clip_speeds": {
+  "run": 2.15,
+  "trot": 1.23,
+  "walk": 0.43
+ },
+ "clips": [
+  "idle",
+  "walk",
+  "trot",
+  "run",
+  "graze"
+ ],
+ "height": 0.511,
+ "length": 0.775,
+ "name": "lamb_a",
+ "seconds": 56.5,
+ "tris": {
+  "lamb_a_LOD0": 6800,
+  "lamb_a_LOD1": 2380,
+  "lamb_a_LOD2": 680,
+  "lamb_a_eye_L": 288,
+  "lamb_a_eye_R": 288,
+  "lamb_a_lid_L": 148,
+  "lamb_a_lid_R": 148
+ },
+ "uv_m": 1.0357
+}

@@ -1,0 +1,27 @@
+{
+ "bytes": 868364,
+ "clip_speeds": {
+  "run": 0.63,
+  "walk": 0.16
+ },
+ "clips": [
+  "idle",
+  "walk",
+  "run",
+  "peck"
+ ],
+ "height": 0.394,
+ "length": 0.384,
+ "name": "chicken_a",
+ "seconds": 63.8,
+ "tris": {
+  "chicken_a_LOD0": 3880,
+  "chicken_a_LOD1": 1474,
+  "chicken_a_LOD2": 463,
+  "chicken_a_eye_L": 288,
+  "chicken_a_eye_R": 288,
+  "chicken_a_lid_L": 146,
+  "chicken_a_lid_R": 146
+ },
+ "uv_m": 0.6228
+}

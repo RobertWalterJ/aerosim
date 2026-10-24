@@ -1,0 +1,29 @@
+{
+ "bytes": 2822776,
+ "clip_speeds": {
+  "run": 3.93,
+  "trot": 2.25,
+  "walk": 0.79
+ },
+ "clips": [
+  "idle",
+  "walk",
+  "trot",
+  "run",
+  "graze"
+ ],
+ "height": 1.472,
+ "length": 2.3,
+ "name": "cow_b",
+ "seconds": 102.3,
+ "tris": {
+  "cow_b_LOD0": 15126,
+  "cow_b_LOD1": 5294,
+  "cow_b_LOD2": 1512,
+  "cow_b_eye_L": 288,
+  "cow_b_eye_R": 288,
+  "cow_b_lid_L": 148,
+  "cow_b_lid_R": 148
+ },
+ "uv_m": 3.2064
+}

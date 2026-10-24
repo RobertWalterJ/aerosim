@@ -56,6 +56,15 @@ uniform float tex_k = 0.3;               // how much of the photograph's light a
 uniform float tex_norm = 0.3;            // and how much of its relief shows in the normal
 uniform float tex_scale = 3.0;           // repeats per metre
 uniform float tex_mean = 0.683;            // the photograph's mean luminance, so the coat keeps its own brightness
+// lane/animals (the Blender animals, game/animal_assets.gd): skinned meshes with baked coat maps. With `maps` on, the coat colour, normal,
+// occlusion and roughness come from the maps on the mesh's UVs, and the strands, tufts and curl are laid out in UV space (uv_m metres
+// per UV unit) instead of on the model's axes, so they stay put on the hide while the bones move. Off by default: NewModels5 is unchanged.
+uniform bool maps = false;
+uniform sampler2D albedo_map : source_color, filter_linear_mipmap_anisotropic;
+uniform sampler2D normal_map : hint_normal, filter_linear_mipmap_anisotropic;
+uniform sampler2D orm_map : hint_default_white, filter_linear_mipmap;
+uniform float uv_m = 3.0;
+uniform vec3 maps_tint = vec3(1.0);       // maps: a tint on the fur (the wool of a flock), not on the bare skin
 
 varying vec3 vPo;                        // the point in the model's frame, before the shell pushes it out
 varying vec3 vNo;                        // the surface normal, model frame
@@ -101,10 +110,12 @@ void vertex() {
 void fragment() {
 	bool hoof = vA < 0.04;
 	bool skin = vA >= 0.04 && vA < 0.1;          // bare skin: a muzzle, a udder
-	vec3 base = vCol;
-	vec3 pos = vPo;
+	vec3 base = maps ? texture(albedo_map, UV).rgb : vCol;
+	if (maps) base *= mix(vec3(1.0), maps_tint, smoothstep(0.3, 0.6, vA));
+	vec3 pos = maps ? vec3(UV * uv_m, 0.0) : vPo;
+	vec3 orm = maps ? texture(orm_map, UV).rgb : vec3(1.0, 0.75, 0.0);
 	// markings
-	if (patch_thr < 0.999) {
+	if (patch_thr < 0.999 && !maps) {
 		float f = fbm(pos * patch_axis + patch_seed) + (vn(pos * 38.0 + patch_seed) - 0.5) * 0.06;
 		float m = 1.0 - smoothstep(patch_thr - patch_soft, patch_thr + patch_soft, f);
 		m *= smoothstep(leg_h * 0.35, leg_h * 0.95, pos.y);
@@ -113,12 +124,15 @@ void fragment() {
 	// the photographed fibre clumps (triplanar on the model's own axes)
 	vec3 tw = pow(abs(normalize(vNo)), vec3(4.0)); tw /= (tw.x + tw.y + tw.z);
 	vec3 tp = pos * tex_scale;
-	vec3 ctex = texture(coat_tex, tp.zy).rgb * tw.x + texture(coat_tex, tp.xz).rgb * tw.y + texture(coat_tex, tp.xy).rgb * tw.z;
-	float tl = dot(ctex, vec3(0.299, 0.587, 0.114));
-	base *= clamp(1.0 + (tl / tex_mean - 1.0) * tex_k * 3.0, 0.4, 1.8);
-	// slow mottling, and for wool the dirt
-	float mott = vn(pos * 6.0 + 3.0);
-	base *= 0.9 + 0.2 * mott;
+	if (!maps) {
+		vec3 ctex = texture(coat_tex, tp.zy).rgb * tw.x + texture(coat_tex, tp.xz).rgb * tw.y + texture(coat_tex, tp.xy).rgb * tw.z;
+		float tl = dot(ctex, vec3(0.299, 0.587, 0.114));
+		base *= clamp(1.0 + (tl / tex_mean - 1.0) * tex_k * 3.0, 0.4, 1.8);
+		// slow mottling (the maps carry their own)
+		float mott = vn(pos * 6.0 + 3.0);
+		base *= 0.9 + 0.2 * mott;
+	}
+	// for wool the dirt
 	if (wool > 0.0) {
 		float d = smoothstep(0.45, 0.8, vn(pos * 9.0 + 2.0)) * dirt;
 		base = mix(base, vec3(0.34, 0.27, 0.19), d * 0.55);
@@ -128,6 +142,7 @@ void fragment() {
 	float tint = 1.0;
 	if (t > 0.0) {
 		if (hoof || skin) discard;
+		if (maps && vA < 0.3) discard;          // maps: short hair (faces, lower legs) is the baked coat alone, no shells
 		// strands
 		vec3 q = pos * density;
 		if (wool > 0.0) {
@@ -143,7 +158,7 @@ void fragment() {
 		if (wool > 0.0) lenvar *= mix(0.45, 1.0, vn(pos * 16.0 + 5.0));              // tufts
 		vec3 jit = (vec3(h31(cell + 3.0), h31(cell + 5.0), h31(cell + 9.0)) - 0.5) * 0.7;
 		vec3 f = fract(q) - 0.5 - jit;
-		vec3 n0 = normalize(vNo);
+		vec3 n0 = maps ? vec3(0.0, 0.0, 1.0) : normalize(vNo);
 		float d = length(f - n0 * dot(f, n0));
 		// seen from afar a strand is far smaller than a pixel: fatten the strands and soften the contrast so it reads as a coat, not noise
 		float far = smoothstep(4.0, 16.0, -VERTEX.z);
@@ -155,34 +170,42 @@ void fragment() {
 		if (wool > 0.0) base = mix(base * vec3(1.06, 0.98, 0.84), base, t);           // lanolin yellow at the root
 	} else {
 		if (hoof) {
-			base = hoof_col;
+			base = maps ? base : hoof_col;
 		} else if (skin) {
 			base = vCol * (0.9 + 0.2 * vn(pos * 40.0));
 		} else if (flat_coat > 0.5) {
 			base *= 0.92 * (0.9 + 0.2 * vn(pos * 70.0));                              // the far level: just the coat's colour with a little grain
+		} else if (maps) {
+			base *= mix(1.0, root_dark, 0.35);                                         // maps: the baked coat is the coat; shells only add the fuzz
 		} else {
 			base *= root_dark * 0.7;                                                   // the skin under the coat: dark
 		}
 	}
 	// a little macro shading of the muscle: slow bumps on the normal
 	vec3 nm = normalize(vNo);
-	vec3 qq = pos * 4.0;
-	float c0 = vn(qq);
-	vec3 g = vec3(vn(qq + vec3(0.4, 0, 0)) - c0, vn(qq + vec3(0, 0.4, 0)) - c0, vn(qq + vec3(0, 0, 0.4)) - c0);
-	vec2 tnx = (texture(coat_nor, tp.zy).xy * 2.0 - 1.0) * tw.x + (texture(coat_nor, tp.xz).xy * 2.0 - 1.0) * tw.y + (texture(coat_nor, tp.xy).xy * 2.0 - 1.0) * tw.z;
-	vec3 tn = vec3(tnx.x, 0.0, tnx.y);
-	nm = normalize(nm + 0.35 * (g - nm * dot(g, nm)) + tex_norm * (tn - nm * dot(tn, nm)));
-	vec3 nview = normalize((VIEW_MATRIX * vec4(mat3(vR0, vR1, vR2) * nm, 0.0)).xyz);
-	NORMAL = nview;
+	vec3 nview;
+	if (maps) {
+		NORMAL_MAP = texture(normal_map, UV).rgb;      // the sculpt's muscles, folds and fibre, baked
+		nview = NORMAL;
+	} else {
+		vec3 qq = pos * 4.0;
+		float c0 = vn(qq);
+		vec3 g = vec3(vn(qq + vec3(0.4, 0, 0)) - c0, vn(qq + vec3(0, 0.4, 0)) - c0, vn(qq + vec3(0, 0, 0.4)) - c0);
+		vec2 tnx = (texture(coat_nor, tp.zy).xy * 2.0 - 1.0) * tw.x + (texture(coat_nor, tp.xz).xy * 2.0 - 1.0) * tw.y + (texture(coat_nor, tp.xy).xy * 2.0 - 1.0) * tw.z;
+		vec3 tn = vec3(tnx.x, 0.0, tnx.y);
+		nm = normalize(nm + 0.35 * (g - nm * dot(g, nm)) + tex_norm * (tn - nm * dot(tn, nm)));
+		nview = normalize((VIEW_MATRIX * vec4(mat3(vR0, vR1, vR2) * nm, 0.0)).xyz);
+		NORMAL = nview;
+	}
 	// weather
 	base *= world_shade(vWorld);
 	base *= mix(1.0, 0.72, g_wet);
 	float snow = g_snow * smoothstep(snow_from, snow_from + 0.3, nm.y) * (wool > 0.0 ? 0.9 : 0.6) * (t > 0.0 ? 1.0 : 0.5);
 	base = mix(base, vec3(0.66, 0.69, 0.76), clamp(snow, 0.0, 1.0));
 	ALBEDO = base;
-	ROUGHNESS = hoof ? 0.35 : (skin ? 0.3 : mix(0.75, 0.55, g_wet));
+	ROUGHNESS = maps && (hoof || skin) ? min(orm.g, 0.42) * mix(1.0, 0.6, g_wet) : (hoof ? 0.35 : (skin ? 0.3 : mix(0.75, 0.55, g_wet)));
 	SPECULAR = (skin || hoof) ? 0.6 : 0.0;                                             // the coat's highlights are ours, in light()
-	AO = t > 0.0 ? mix(0.4, 1.0, t) : 0.5;
+	AO = (t > 0.0 ? mix(0.4, 1.0, t) : 0.5) * (maps ? orm.r : 1.0);
 	AO_LIGHT_AFFECT = 0.5;
 	// the soft glow at grazing angles (a coat catches the sky at its edge)
 	float fres = pow(1.0 - clamp(dot(nview, VIEW), 0.0, 1.0), 3.0);
@@ -193,7 +216,10 @@ void light() {
 	float nl = dot(NORMAL, LIGHT);
 	vec3 lc = LIGHT_COLOR * ATTENUATION;
 	vec3 H = normalize(LIGHT + VIEW);
-	if (SPECULAR_AMOUNT > 0.01) {
+	// SPECULAR_AMOUNT in light() is the light's own specular setting, not the material's SPECULAR, so it cannot tell skin from
+	// coat. In maps mode skin and hoof are told by their roughness (always under 0.45; the coat is 0.55 or more).
+	// (NewModels5 keeps the old test unchanged.)
+	if (maps ? ROUGHNESS < 0.45 : SPECULAR_AMOUNT > 0.01) {
 		// skin and hoof: ordinary wrap diffuse and a glossy highlight
 		DIFFUSE_LIGHT += lc * clamp((nl + 0.3) / 1.3, 0.0, 1.0) / PI;
 		SPECULAR_LIGHT += lc * pow(clamp(dot(NORMAL, H), 0.0, 1.0), 120.0) * 0.8 * clamp(nl * 4.0, 0.0, 1.0);

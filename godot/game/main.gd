@@ -894,6 +894,10 @@ func _screenshot_mode(arg: String) -> void:
 			var sp := c.substr(5).split("_", true, 1)
 			for i in 4: await get_tree().process_frame     # let the pose settle so the row lands where the camera really is
 			StoryAssets.dev_row(self, terrain, cam, float(sp[0]), sp[1].split("+"))
+		elif c.begins_with("animals"):     # lane/animals dev hook: animals<distance>_<clip>_<name>+<name>... the Blender animals in a row ahead of the camera
+			var av2 := c.substr(7).split("_", true, 2)
+			for i in 4: await get_tree().process_frame
+			AnimalAssets.dev_row(self, terrain, cam, float(av2[0]), av2[1], av2[2].split("+"))
 		elif c == "nosmoke":
 			fireworks.set_smoke(false)
 		elif c == "birdsdemo":     # session B dev hook: birds up close, ignoring night, season and weather

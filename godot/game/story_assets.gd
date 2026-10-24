@@ -12,7 +12,16 @@ extends RefCounted
 static func path_of(name: String, lod := 0) -> String:
 	return "res://assets/models/story/%s/%s%s.glb" % [NewModels6.group_of(name), name, "" if lod == 0 else "_lod%d" % lod]
 
+## Biscuit and the lost dog are the rigged Blender dogs when their files exist (lane/animals, game/animal_assets.gd): the story's
+## pose names map to clips. The returned node keeps the story name.
+const ANIMAL_POSES := {"biscuit_sitting_a": ["biscuit_a", "sit"], "biscuit_standing_a": ["biscuit_a", "idle"], "biscuit_lying_a": ["biscuit_a", "lie"],
+	"biscuit_running_a": ["biscuit_a", "run"], "lost_dog_a": ["lost_dog_a", "idle"]}
+
 static func instance(name: String, lod := 0) -> Node3D:
+	if ANIMAL_POSES.has(name) and AnimalAssets.has_file(ANIMAL_POSES[name][0]):
+		var a := AnimalAssets.instance(ANIMAL_POSES[name][0], {"clip": ANIMAL_POSES[name][1]})
+		a.name = name
+		return a
 	var p := path_of(name, lod)
 	if lod > 0 and not ResourceLoader.exists(p): p = path_of(name, 0)
 	var ps := load(p) as PackedScene if ResourceLoader.exists(p) else null

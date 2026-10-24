@@ -1,0 +1,29 @@
+{
+ "bytes": 1462376,
+ "clip_speeds": {
+  "run": 3.07,
+  "trot": 1.76,
+  "walk": 0.61
+ },
+ "clips": [
+  "idle",
+  "walk",
+  "trot",
+  "run",
+  "graze"
+ ],
+ "height": 0.881,
+ "length": 1.425,
+ "name": "calf_a",
+ "seconds": 61.8,
+ "tris": {
+  "calf_a_LOD0": 11016,
+  "calf_a_LOD1": 3854,
+  "calf_a_LOD2": 1100,
+  "calf_a_eye_L": 288,
+  "calf_a_eye_R": 288,
+  "calf_a_lid_L": 146,
+  "calf_a_lid_R": 146
+ },
+ "uv_m": 1.8721
+}

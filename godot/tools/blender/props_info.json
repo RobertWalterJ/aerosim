@@ -1,0 +1,112 @@
+[
+ {
+  "name": "sheep_trough_a",
+  "tris_lod0": 530,
+  "bytes": 330012
+ },
+ {
+  "name": "sheep_hay_rack_a",
+  "tris_lod0": 2104,
+  "bytes": 622288
+ },
+ {
+  "name": "sheep_salt_lick_a",
+  "tris_lod0": 96,
+  "bytes": 114984
+ },
+ {
+  "name": "sheep_bell_a",
+  "tris_lod0": 968,
+  "bytes": 74212
+ },
+ {
+  "name": "wool_on_wire_a",
+  "tris_lod0": 1172,
+  "bytes": 243572
+ },
+ {
+  "name": "wool_on_wire_b",
+  "tris_lod0": 1684,
+  "bytes": 283508
+ },
+ {
+  "name": "wolf_track_a",
+  "tris_lod0": 2,
+  "bytes": 57936
+ },
+ {
+  "name": "wolf_track_b",
+  "tris_lod0": 2,
+  "bytes": 58284
+ },
+ {
+  "name": "sheep_print_a",
+  "tris_lod0": 2,
+  "bytes": 26752
+ },
+ {
+  "name": "sheep_print_b",
+  "tris_lod0": 2,
+  "bytes": 26684
+ },
+ {
+  "name": "night_pen_a",
+  "tris_lod0": 1772,
+  "bytes": 531504
+ },
+ {
+  "name": "night_pen_a_open",
+  "tris_lod0": 1772,
+  "bytes": 530708
+ },
+ {
+  "name": "pen_gate_a",
+  "tris_lod0": 484,
+  "bytes": 117780
+ },
+ {
+  "name": "farm_warning_sign_a",
+  "tris_lod0": 1404,
+  "bytes": 243392
+ },
+ {
+  "name": "hay_bale_small_a",
+  "tris_lod0": 688,
+  "bytes": 282252
+ },
+ {
+  "name": "straw_patch_a",
+  "tris_lod0": 2116,
+  "bytes": 419636
+ },
+ {
+  "name": "sheep_feed_bucket_a",
+  "tris_lod0": 404,
+  "bytes": 232940
+ },
+ {
+  "name": "wolf_ear_tuft_a",
+  "tris_lod0": 360,
+  "bytes": 26516
+ },
+ {
+  "name": "pasture_gate_a",
+  "tris_lod0": 556,
+  "bytes": 223620
+ },
+ {
+  "name": "farm_lantern_a",
+  "tris_lod0": 420,
+  "bytes": 134288
+ },
+ {
+  "name": "wolf_collar_tracker_a",
+  "tris_lod0": 244,
+  "bytes": 20900
+ },
+ {
+  "name": "sheep_shearing_kit_a",
+  "tris_lod0": 488,
+  "bytes": 38544
+ }
+]

@@ -1,0 +1,29 @@
+{
+ "bytes": 1652136,
+ "clip_speeds": {
+  "run": 2.73,
+  "trot": 1.56,
+  "walk": 0.55
+ },
+ "clips": [
+  "idle",
+  "walk",
+  "trot",
+  "run",
+  "graze"
+ ],
+ "height": 0.821,
+ "length": 1.233,
+ "name": "sheep_a",
+ "seconds": 79.7,
+ "tris": {
+  "sheep_a_LOD0": 8880,
+  "sheep_a_LOD1": 3108,
+  "sheep_a_LOD2": 888,
+  "sheep_a_eye_L": 288,
+  "sheep_a_eye_R": 288,
+  "sheep_a_lid_L": 146,
+  "sheep_a_lid_R": 146
+ },
+ "uv_m": 1.5861
+}

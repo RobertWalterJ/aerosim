@@ -1,0 +1,29 @@
+{
+ "bytes": 3089160,
+ "clip_speeds": {
+  "run": 4.33,
+  "trot": 2.48,
+  "walk": 0.87
+ },
+ "clips": [
+  "idle",
+  "walk",
+  "trot",
+  "run",
+  "graze"
+ ],
+ "height": 2.087,
+ "length": 2.652,
+ "name": "horse_b",
+ "seconds": 115.5,
+ "tris": {
+  "horse_b_LOD0": 18248,
+  "horse_b_LOD1": 6386,
+  "horse_b_LOD2": 1824,
+  "horse_b_eye_L": 288,
+  "horse_b_eye_R": 288,
+  "horse_b_lid_L": 148,
+  "horse_b_lid_R": 148
+ },
+ "uv_m": 3.6318
+}

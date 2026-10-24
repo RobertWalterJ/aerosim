@@ -1,0 +1,33 @@
+{
+ "bytes": 1552952,
+ "clip_speeds": {
+  "run": 3.81,
+  "trot": 1.65,
+  "walk": 0.57
+ },
+ "clips": [
+  "idle",
+  "walk",
+  "trot",
+  "run",
+  "sit",
+  "lie",
+  "tail_wag",
+  "bark",
+  "pant"
+ ],
+ "height": 0.655,
+ "length": 1.001,
+ "name": "dog_a",
+ "seconds": 54.2,
+ "tris": {
+  "dog_a_LOD0": 8946,
+  "dog_a_LOD1": 3130,
+  "dog_a_LOD2": 894,
+  "dog_a_eye_L": 288,
+  "dog_a_eye_R": 288,
+  "dog_a_lid_L": 146,
+  "dog_a_lid_R": 146
+ },
+ "uv_m": 1.2213
+}

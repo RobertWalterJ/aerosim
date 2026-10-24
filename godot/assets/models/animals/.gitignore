@@ -1,0 +1,3 @@
+# Godot extracts the textures embedded in each .glb on import; they are rebuilt, not committed
+*.jpg
+*.png

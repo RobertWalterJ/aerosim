@@ -99,3 +99,31 @@ The `.import` files are committed with them.
 ## Leaf cards (`cards/*.png`, models5b)
 Original drawings made by `test/gen_card_textures.gd` (curves painted with a width profile, midrib and veins; no source photographs, no licence issue). They are data textures, not colour: r is the shade, g marks stem, husk or head, b marks the accents (tassel, umbel, silk, flower) and a is the cut-out. `corn_card`, `corn_top` (seen from above), `barley_card_a/b`, `alfalfa_card_a/b`, `weeds_card`. Re-run the script after changing a drawing, then import.
 
+
+## Blender animals and wildlife props (lane/animals, Blender 1)
+
+The animals in `assets/models/animals/*.glb` carry their own baked maps (albedo, OpenGL normal, ORM: r occlusion, g roughness,
+b metal 0), 2048 px for cattle and horses and 1024 px for the rest, made by `tools/blender/build_animal.py`. Each map is baked in
+Blender Cycles from a high-resolution sculpt onto the game mesh. The coat colour and markings (Holstein patches, Hereford white
+face, Jersey shading, bay points, dapple grey, Suffolk black face, sable and white collie, golden retriever, grey agouti wolf,
+brown hen feathers) are painted per vertex on the sculpt by `tools/blender/species.py`, `sp_*.py` (own work, CC0). The fine
+surface of fur, wool and bare skin comes from photographed CC0 sets, projected on the sculpt and baked in at the size below.
+They are downloaded once to `_tools/blender-cache/polyhaven/` (outside the repo) and are not shipped as separate files.
+
+| Detail set | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| coat | Poly Haven `velour_velvet`, https://polyhaven.com/a/velour_velvet (1k diff, nor_gl) | colormass (photography), Rico Cilliers (processing) | CC0 | 0.10 m | short hair: the fine pile in the albedo and normal of cattle, horses, dogs, the wolf, sheep faces and legs |
+| wool | Poly Haven `curly_teddy_natural`, https://polyhaven.com/a/curly_teddy_natural (1k) | colormass, Rico Cilliers | CC0 | 0.12 m | the fleece of the sheep, lamb and ram |
+| skin | Poly Haven `brown_leather`, https://polyhaven.com/a/brown_leather (1k) | Rob Tuytel | CC0 | 0.10 m | bare skin: noses, udders, teats, hooves, horns, the hen's comb, beak and legs |
+
+Generated (own work, CC0): the eye maps (iris streaks and the pupil shape per species: horizontal bar for sheep, oval for
+cattle and horses, round for dogs, the wolf and the hen), the coat patterns, and the track decals of the wildlife set
+(`wolf_track_*`, `sheep_print_*`: a depth map drawn in `tools/blender/build_props.py`, turned into damp-mud albedo with
+alpha and a normal map). Downloaded 2026-10-24.
+
+The wildlife props in `assets/models/wildlife/` (`tools/blender/build_props.py`) reuse sets already in this folder, embedded
+in each .glb at their 1k size: `barnwood_*` (Poly Haven `wood_planks_grey`, Rob Tuytel, CC0) for boards, rails, gates and the
+painted sign board; `postwood_*` (Poly Haven `rough_wood`, Rob Tuytel, CC0) for posts and the stump; `straw_*` (Poly Haven
+`riet_01`, Rob Tuytel, CC0) for hay and straw; `wool_*` (Poly Haven `curly_teddy_natural`, CC0) for wool on the wire;
+`roofsteel_*` (Poly Haven `corrugated_iron`, Dimitrios Savva and Jenelle van Heerden, CC0) for wire and steel straps. Brass,
+zinc, steel, leather, salt, water, paint, glass and the lantern flame are plain PBR values, no texture.
