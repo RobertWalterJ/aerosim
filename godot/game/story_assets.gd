@@ -19,6 +19,9 @@ static func instance(name: String, lod := 0) -> Node3D:
 		var veh := VehicleAssets.instance(name, Color(0, 0, 0, 0), true)
 		VehicleAssets.add_colliders(veh)
 		return veh
+	if PeopleAssets.handles(name):     # Blender 2: the rigged Blender people replace the code-built figures when their file is present
+		var pn := PeopleAssets.instance(name)
+		if pn != null: return pn
 	var p := path_of(name, lod)
 	if lod > 0 and not ResourceLoader.exists(p): p = path_of(name, 0)
 	var ps := load(p) as PackedScene if ResourceLoader.exists(p) else null

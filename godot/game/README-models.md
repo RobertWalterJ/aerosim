@@ -309,3 +309,72 @@ wheels on the ground, front toward -z, triangle budgets, no NaN, winding matches
 outward, the rig really rolls, steers and opens doors, the story names resolve). Sheets: `test/vehicles_blender_sheet.gd` (views,
 lights golden / overcast / backlit / wet, animation strips) and `test/vehicles_textures_sheet.gd` (every material on a sphere with its
 source and licence), written to `docs/realism/models/vehicles_*.jpg`.
+## Blender 2: people (lane/people)
+
+Loader `game/people_assets.gd` (class `PeopleAssets`). Story names for the endgame people (`wren_standing_phone_a`, `wren_sitting_porch_a`, `wren_walking_torch_a`, `wren_waving_a`, `wren_crouched_a`, `rennick_1984_standing_a`, `rennick_1984_standing_a_notebook`, `rennick_1984_ghost_a`) are served here; the Wren and Rennick props stay in Batch 9.
+
+Rigged, animated, photographed-texture people made in Blender 4.2 by scripts in `godot/tools/blender/` (they regenerate
+everything). They replace the code-built figures of Batch 8 under the same story names; the old builders stay as the
+fallback when a file is missing. Sources and licences: `assets/models/people/README.md`.
+- **Files:** `assets/models/people/<person>.glb` for 19 people: `ellis`, `rennick`, `rennick_uniform`, `rennick_1984`,
+  `wren`, `crowd_m1..m3`, `crowd_f1..f3`, `child_boy`, `child_girl`, `band_singer`, `band_guitar`, `band_fiddle`,
+  `band_drummer`, `pilot`, `bystander`. Clips: `anim_male.glb`, `anim_female.glb`, `anim_child.glb`. Props:
+  `people_props.glb` (root nodes `prop_<name>`).
+- **Frame:** metres, Y up, +Z is the front, origin on the ground between the feet (seated: the ground under the seat).
+- **Nodes:** `<person>/Armature/Skeleton3D/` with skinned meshes `head_LOD0..2` (face, eyes, brows, lashes, hair),
+  `body_LOD0..2` (the skin that shows; skin hidden under clothes is deleted), `clothes_LOD0..2`, and where present
+  `coat_LODn` (Wren's rain jacket) and `backpack_LODn` (Wren), so a thermal mask can pick `head`, `body`, `coat` and
+  `backpack` apart. PeopleAssets sets visibility ranges: LOD0 to 14 m, LOD1 14 to 45 m, LOD2 45 to 400 m.
+- **Triangles** (LOD0 / LOD1 / LOD2): about 8.5k to 9.5k / 3.6k to 4k / 1.2k to 1.4k per person, checked by the test
+  (limits 9.6k / 4.4k / 1.7k).
+- **Skeleton:** one rig for everyone (MakeHuman game_engine rig, 53 bones, renamed to Godot's SkeletonProfileHumanoid names)
+  plus `LeftEye` and `RightEye`: Root, Hips, Spine, Chest, UpperChest, Neck, Head, Left/RightEye,
+  Left/RightShoulder, UpperArm, LowerArm, Hand, ThumbMetacarpal/Proximal/Distal, Index/Middle/Ring/Little
+  Proximal/Intermediate/Distal, UpperLeg, LowerLeg, Foot, Toes. No Jaw bone: the mouth is blend shapes. Limbs are
+  IK-ready chains (UpperArm-LowerArm-Hand, UpperLeg-LowerLeg-Foot) for SkeletonIK3D or TwoBoneIK3D. Weights are the
+  MakeHuman weights, at most 4 per vertex.
+- **Face:** `head_LOD0` has blend shapes `blink`, `smile`, `mouth_open`, `mouth_o`, `mouth_e`, `mouth_mbp`, `brow_up`
+  (made from the MakeHuman expression units). `PeopleFace` (added by PeopleAssets) blinks at random and moves the mouth
+  during `talk` and `sing`.
+- **Clips** (looping, in place, 30 fps): idle, idle_shift, walk, walk_torch, sit_idle, sit_mug, sit_hug_knees, talk, wave,
+  wave_up, look_around, look_up, clap, sway, cheer, point, pockets, hands_hips, crouch, kneel, toolbox_kneel, lie_creeper,
+  clipboard_hold, clipboard_write, notebook_hold, knock, phone_hold, flag_wave, sing, play_guitar, play_fiddle, play_drum,
+  play_cornet. They are keyed on a reference body; PeopleAssets copies them onto each person keeping rotations for every
+  bone and the Hips position scaled to the person's hip height (so they retarget to adults and children alike).
+  Walking is in place: move the node yourself, about 1.3 m/s for the walk clip at speed 1.
+- **API:** `PeopleAssets.place(parent, name, xf)` / `PeopleAssets.instance(name)` for story names;
+  `PeopleAssets.person(person, clip, props, tint, ghost, seed)` for anything else (props are `"mug:R"`, `"clipboard:L"`,
+  `"guitar:C"`, `"camp_chair"` or `"creeper@x,y,z,yaw"`). `StoryAssets.instance()` routes every story people name here
+  first. `PeopleAssets.STORY` is the table of story name -> person, clip, props (the old Ellis, Rennick and crowd names,
+  and Wren and Rennick 1984 names from the endgame brief). `crowd_band_a` builds the four-piece band.
+- **Materials:** the glTF carries PBR materials (skin, eye, brow, lash, hair, cloth). PeopleAssets adds subsurface
+  scattering with transmission to skin (Forward+ only), alpha-to-coverage hair, double-sided cloth with a slight rim;
+  `tint` multiplies the cloth colour for crowd variety. Rennick's ghost uses `game/shaders/people_ghost.gdshader`
+  (translucent, soft rim, slow breath; no shadows).
+- **Regenerate** (Blender 4.2.3 portable in `_tools/blender-4.2.3-windows-x64`, MPFB and the MakeHuman packs in the
+  private user folder `_tools/people/bluser`, set up once by `people_setup.py`): from `godot/tools/blender`,
+  `sh run_people.sh people_build.py -- all` (people), `sh run_people.sh people_anims.py` (clips),
+  `sh run_people.sh people_props.py` (props), `sh run_people.sh people_sheet.py -- --out <dir> --names ellis`
+  (Blender contact sheets). The roster (body sliders, skins, clothes, colours, fabrics) is `people_roster.py`; the clips
+  are `people_clips.py`.
+- **Checks:** `test/people_blender_test.gd` (headless: every person loads, bones, LOD budgets, height, NaN, clips, blend
+  shapes, every story name animates with its props). In the scene: `tools/people_scene.sh <out.png> <names> <hour> <distance>`.
+
+## Blender 4: drones (lane/drones; `game/drone_assets.gd`, class `DroneAssets`)
+
+The Facade kit drones from session B's request of 2026-11-07, modelled in Blender 4.2 by `tools/blender/build_drones.py` (with `drones_lib.py`, `drones_parts.py`) and exported as glTF 2.0 into `assets/models/drones/`: `<name>.glb`, `<name>_lod1.glb`, `<name>_lod2.glb` and a manifest `<name>.json`. Robert's direction is photoreal, so LOD 0 carries real detail instead of the brief's 2 to 3k triangles (see the honest limits below).
+
+| Name | What it is | Triangles lod 0 / 1 / 2 |
+|---|---|---|
+| `raptor_race_a` | 5-inch 6S race quad, 550 g class, orange anodised and dark carbon. 5 mm unibody with angular pads and arm slots, 2 mm top plate on orange hex standoffs, camera side plates, a 19 mm FPV camera tilted 40 degrees, an action camera fixed on a printed mount at 25 degrees, a 30 x 30 stack on orange soft-mount grommets (ESC with MOSFETs, flight controller with MCU, gyro, sockets, USB-C, blue status LED), finned VTX, pagoda VTX antenna on a TPU mount, receiver whiskers in orange tubes, 2207 motors (spun-aluminium bell tops with windows onto the copper windings and stator, 14 nickel magnets, sealed top bearing, titanium shaft), tri-blade 5.1 inch props with washer and M5 lock nut, a 6S pack on a rubber pad with a woven strap and buckle, leads and a balance lead, mated XT60s, a low-ESR capacitor, motor leads in heat-shrink, cable ties, button-head screws | 19.6k / 7.0k / 3.0k |
+| `nightowl_a` | quiet 4-inch gimbal ship, 480 g class, navy and black. 4 mm unibody, a navy moulded canopy with side vents showing the stack, carbon battery tray with slotted navy rails and a hinged latch, 4S pack and strap, 2004 navy motors, two-blade wide swept low-noise props (black, blue tips), a compact 3-axis gimbal on four rubber dampers (yaw, roll and pitch motors, camera head with a coated lens), the night-vision pod clipped under the front left, a landing light (reflector, emitter, clear lens), carbon landing legs with rubber feet, paddle aerials, receiver whiskers, a rear status LED bar | 22.8k / 9.6k / 4.1k |
+| `night_vision_pod_a` | clip-on low-light camera, 40 x 34 x 46 mm (beside the 52 x 42 x 62 mm `thermal_pod_a`): dark grey anodised case with cooling fins, clip plate with rails and a knurled thumbscrew, knurled bezel, a fast lens with a green coating, two infrared LEDs, a green status LED, a lead out of the back | 1.9k / 0.9k / 0.3k |
+
+- **Frame in the files:** metres, +Y up, **+Z is the nose**, the model's right is -x, origin on the ground under the middle (the lowest point of the feet or pads). The pod's origin is the middle of its **mounting face (its top)**; it hangs below y = 0, lens towards +Z.
+- **Nodes** (each pivot on its own axis, no rest rotation): `body`, `battery`, `prop_fr` `prop_rr` `prop_rl` `prop_fl` (pivot on the motor shaft at the hub; **fr and rl turn clockwise seen from above, rr and fl anticlockwise**, which is how DroneView spins them), `camera_lens`, `status_led`, `led_fr` `led_rr` `led_rl` `led_fl` (navigation lamps: green front right, red front left, white behind). Raptor: `camera_fpv` (child `camera_lens`), `action_cam` (children `action_cam_lens`, `action_cam_led`). Night Owl: `gimbal_yaw` > `gimbal_roll` > `gimbal_pitch` > `camera_lens` (yaw about y, roll about z, pitch about x, each pivot on its motor axis), `nv_pod` (children `nv_lens`, `nv_led`, and `nv_led_ir` at lod 0), `landing_light`. Pod: `body`, `camera_lens`, `status_led`.
+- **Use:** `DroneAssets.place(parent, name, Transform3D, lod := 0)` or `DroneAssets.instance(name, lod)`. Level of detail: lod 0 inside about 3 m, lod 1 to about 12 m, lod 2 beyond (the importer adds its own automatic LODs too). Lamps are the materials named `lamp_*` (emissive): swap or dim them to switch a lamp.
+- **In flight:** `DroneView.model()` asks `DroneAssets.model_data(airframe id)` first. `DroneAssets.MODEL_FOR` maps the Facade airframes `raptor` and `nightowl` (lane/notify's physics/airframes.gd) to these files; Race and Gimbal Mini keep their own code models. DroneView hangs the file under a holder that turns it into the body frame (`DroneAssets.body_xf`: half a turn about y, the manifest's centre of mass at the origin), spins the file's own prop nodes, adds blur discs from the manifest (radius, chord, blur colours), hides `camera_fpv` (Raptor) or `gimbal_yaw` (Night Owl) in the FPV view, and phones (mobile and compatibility renderers) take lod 1. The drone chooser's picture (DroneThumbs) and drawing (DroneSchematic) come from the same data (the manifest's per-part plan and side outlines). Evidence: `docs/realism/drones/00` to `06`.
+- **Textures:** the files embed their PBR textures (so they stand alone in Blender or elsewhere); the game's import (`gltf/embedded_image_handling=0`; the `.glb.import` files are committed) discards them and `DroneAssets` puts the one shared set from `assets/textures/drones/` back by material name (one material per name for every drone and level of detail). Sources and licences: `assets/textures/README.md` and `docs/realism/models/drones_final_textures.jpg`.
+- **Fallback:** if a file is missing the code placeholder stands in (DroneView's Race for the Raptor, the Mini for the Night Owl, the story `thermal_pod_a` for the pod).
+- **Regenerate:** `python tools/blender/drones_prep_textures.py <folder with the extracted ambientCG 1K-JPG sets>`, then `blender -b -P tools/blender/build_drones.py [-- only=<name>] [stats]`. Checks: `test/drones_blender_test.gd` (headless: files, nodes, materials and shared textures, lamps, base and nose, budgets falling from near to far, props on the motors and twisted the right way for their spin, tip to tip, DroneView builds the Facade drones with four props, blur discs and FPV hiding, Race and Mini untouched), `test/drones_sheet.gd` (views in the game's renderer, golden and overcast), `test/drones_chooser_shot.gd` (needs lane/notify's airframes), `tools/blender/render_drones.py` (Cycles views and the 512 px listing photos in `docs/realism/models/drones_thumbs/`), `tools/blender/drones_sheets.py` (`drones_final_views.jpg`, `drones_final_textures.jpg`). Godot runs go through `tools/blender/godot_locked.sh` (the shared godot-run.lock).
+- **Honest limits:** LOD 0 is 19.6k and 22.8k triangles, above the 8 to 15k aimed at (the motors with magnets and windings, and the screws, cost the most); the ambientCG sets are CC0 but procedural (no CC0 photographed carbon weave exists on Poly Haven or ambientCG); the lens coating sits under opaque glass, so in Godot the lenses read as glossy black with only a faint tint; screw sockets are round recesses, not hexagons; wires are smooth tubes; the gimbal does not move yet (the nodes are ready); the Night Owl is a 4-inch model on lane/notify's 5-inch airframe numbers (R 0.0635), so the chooser's "5.0 in" label and tip-to-tip figure disagree with the drawn discs until the airframe says R 0.0508; its gimbal lens sits about 4.6 cm below and 2 cm ahead of the physics camOffset (the Raptor's FPV lens is within 2 cm).

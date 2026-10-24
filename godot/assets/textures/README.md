@@ -111,3 +111,49 @@ their lower panels. Every other vehicle finish (paint flake, clear coat, glass, 
 | `rust_diff.jpg` | Poly Haven `rust_coarse_01`, https://polyhaven.com/a/rust_coarse_01 | Dimitrios Savva (photography), Rico Cilliers (processing) | CC0 | 1.6 per metre | rust where the paint has rusted through (the Lake Car, the 1984 cruiser, the older pickup, the unrestored bus) |
 | `fabric_nor.jpg` | Poly Haven `fabric_pattern_07` (normal map), https://polyhaven.com/a/fabric_pattern_07 | Rob Tuytel | CC0 | 9 per metre | seat cloth weave |
 | `rubber_nor.jpg` | Poly Haven `rubberized_track` (normal map), https://polyhaven.com/a/rubberized_track | Charlotte Baglioni | CC0 | 6 per metre | fine grain on tyre sidewalls and treads |
+## Fabrics for the people (October 2026, Blender 2, lane people)
+
+Photographed fabrics blended into the clothing of the Blender people (`tools/blender/people_lib.py`,
+`make_garment_textures`). They are not separate files in the game: each garment's MakeHuman texture keeps its folds and
+seams, is recoloured, and gets the fabric's weave (albedo detail), normal map (whiteout blend) and roughness tiled over it;
+the result is packed into one clothes atlas per person and embedded in `assets/models/people/<person>.glb`. Downloaded
+2026-10-24 as Poly Haven 1k JPEGs (`diff`, `nor_gl`, `rough`, from https://api.polyhaven.com/files/<id>) and kept in
+`_tools/people/fabric` (outside the repository). All CC0. Skin, eye, brow, lash and hair textures are MakeHuman's (CC0, see
+`assets/models/people/README.md`).
+
+| Fabric | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `knitted_fleece` | https://polyhaven.com/a/knitted_fleece | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Ellis's jumper, crowd sweaters and scarves |
+| `ribbed_corduroy` | https://polyhaven.com/a/ribbed_corduroy | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Ellis's trousers |
+| `poly_wool_herringbone` | https://polyhaven.com/a/poly_wool_herringbone | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | flat cap, uniform tunic, tweed jacket, peaked cap, trousers |
+| `brown_leather` | https://polyhaven.com/a/brown_leather | Rob Tuytel | CC0 | 0.40 m | boots, duty belt |
+| `caban` | https://polyhaven.com/a/caban | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Rennick's jacket and 1984 tunic, coats |
+| `stretch_poplin` | https://polyhaven.com/a/stretch_poplin | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | Wren's rain jacket (nylon look), shirts |
+| `rough_linen` | https://polyhaven.com/a/rough_linen | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | cargo trousers |
+| `scuba_suede` | https://polyhaven.com/a/scuba_suede | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | Wren's boots |
+| `terlenka` | https://polyhaven.com/a/terlenka | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | Wren's backpack (nylon) |
+| `denim_fabric_03` | https://polyhaven.com/a/denim_fabric_03 | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | jeans |
+| `cotton_jersey` | https://polyhaven.com/a/cotton_jersey | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.26 m | T-shirt, polo shirt |
+| `jersey_melange` | https://polyhaven.com/a/jersey_melange | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.29 m | the girl's sports top |
+| `wool_boucle` | https://polyhaven.com/a/wool_boucle | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.31 m | crowd_f2's sweater |
+| `polar_fleece` | https://polyhaven.com/a/polar_fleece | colormass (Photography), Rico Cilliers (Processing) | CC0 | 0.27 m | the pilot's fleece |
+
+## Drones (lane/drones, Blender 4)
+
+`drones/drone_*.jpg`, 1024 px, made by `tools/blender/drones_prep_textures.py` from the ambientCG 1K-JPG sets (re-saved with PIL;
+roughness remapped into each material's range and packed as ORM: r occlusion 1, g roughness, b metal; normals OpenGL). Blender
+embeds them in the drone .glb files; the game imports these copies (VRAM compressed, mipmapped) and `game/drone_assets.gd`
+puts them back on the drones by material name. Sheet: `docs/realism/models/drones_final_textures.jpg`.
+
+| Files | Source | Author | Licence | One repeat | Used for |
+|---|---|---|---|---|---|
+| `drone_carbon_*` | ambientCG `Fabric004`, https://ambientcg.com/a/Fabric004 (2x2 twill carbon weave), recoloured near black | ambientCG (Lennart Demes), procedural | CC0 | 14 mm | carbon plates, arms, legs |
+| `drone_brushed_*` | ambientCG `Metal009`, https://ambientcg.com/a/Metal009 | ambientCG, procedural | CC0 | 20 mm | anodised parts, bell sides, rails, pod case |
+| `drone_spun_*` | ambientCG `Metal051A`, https://ambientcg.com/a/Metal051A (circular brushing) | ambientCG, procedural | CC0 | one per part, centred | motor bell tops, gimbal rotors |
+| `drone_plastic_*` | ambientCG `Plastic012B`, https://ambientcg.com/a/Plastic012B | ambientCG, procedural | CC0 | 50 mm | camera bodies, canopy, connectors |
+| `drone_rubber_*` | ambientCG `Rubber004`, https://ambientcg.com/a/Rubber004 | ambientCG, procedural | CC0 | 10 to 12 mm | TPU mounts, dampers, feet |
+| `drone_strap_*` | ambientCG `Fabric036`, https://ambientcg.com/a/Fabric036, darkened | ambientCG, procedural | CC0 | 20 mm | battery straps |
+| `drone_wrap_raptor.jpg`, `drone_wrap_nightowl.jpg` | drawn by the prep script (no words, no brands) | own work | CC0 | wraps the pack | battery shrink wraps |
+| `drone_pcb_diff.jpg` | drawn by the prep script | own work | CC0 | one board | flight controller, ESC, VTX boards |
+
+Downloaded 2026-10-24. No photographed CC0 carbon weave was found (Poly Haven has none; the ambientCG sets above are all made procedurally).
