@@ -43,12 +43,11 @@ The bigger place-making signs are in `game/landmark_signs.gd`:
 
 The road network now has explicit turnoffs instead of signs floating beside a through route:
 
-- **east gate drive:** east car park to the east cemetery gate;
-- **south, north and west gate drives:** each gate lane now reaches its own gate;
-- **Toby Farm drive:** a proper turn off the valley and lake junction into the farmyard;
-- the boat launch and festival lanes already existed, and the cabin, camp, garage and lake are reached from the ridge and lake roads.
+- the main lanes approach all four cemetery gates, and the east gate has its car park;
+- the short gate, farm and festival asphalt spurs were removed after they left untidy tongues at the junctions;
+- the boat launch lane remains a real access, and the cabin, camp, garage and lake are reached from the ridge and lake roads.
 
-The small gate, farm and field drives are excluded from the traffic route pool, so vehicles stay on the through roads rather than looping around a 10 m driveway loop. The cemetery audit now uses the actual wall line at 238 m, so gate driveways can reach the gate while the centreline still reports `inside_cemetery: 0`.
+The traffic route pool only uses the through roads, so vehicles do not loop around a 10 m driveway. The cemetery audit uses the actual wall line at 238 m and still reports `inside_cemetery: 0`.
 
 ### Location sign evidence
 
@@ -67,6 +66,16 @@ The final gateway and place-sign art is requested in `docs/CLAUDE-LOCATION-SIGNS
 - The beacons are scenery. Traffic does not stop for them, and there is no signal controller or give-way logic.
 - Evidence: `docs/realism/intersections/00_beacon_at_night.jpg`, `01_east_gate_beacon.jpg`, `02_south_junction.jpg`, `03_stop_ahead.jpg`.
 - Full notes: `docs/INTERSECTIONS.md`; final signal art request: `docs/CLAUDE-INTERSECTION-ASSETS.md`.
+## Junction cleanup
+
+The independent route ribbons used to run over each other at shared junctions, leaving overlapping shoulders and wedges. The fix is two-part:
+
+- the asphalt and gravel shaders discard any fragment inside a junction mask, so no route ribbon or shoulder is drawn across the crossing;
+- `roads.gd` builds a paved junction apron as the convex hull of the approaching carriageway corners. It is one asphalt patch, not a roundabout disc and not stacked ribbons.
+
+The very short gate, farm and festival spurs were removed from the road network because they produced long narrow tongues at the junctions. The gates, farm and festival still have their signs and approaches; they are reached by the lane, car park and park paths rather than by extra asphalt stubs.
+
+The result in the junction overviews is a clean T or corner with one surface, one set of edges and no overlapping shoulder geometry. Evidence: docs/realism/roads/15_junction_clean_east.jpg, 16_junction_clean_south.jpg, 17_junction_clean_farm.jpg.
 
 ### Sign evidence
 
@@ -89,9 +98,9 @@ The final gateway and place-sign art is requested in `docs/CLAUDE-LOCATION-SIGNS
 - There is no road camber, no banking and no deformation; the mesh still follows the terrain as a ribbon.
 - No guardrails, chevron boards, cattle grids or passing places yet. The delineator posts and the new stop, speed and warning signs are the main roadside furniture.
 - The sign art is placeholder: text plates and simple octagons and diamonds, not final reflective sign faces. Stop signs are scenery; traffic does not actually stop at them.
-- The big gateway is placeholder board-and-pillar geometry, not a designed entrance. Its lettering is Label3D, pushed in front of the board to stop z-fighting.
+- The big gateway is placeholder board-and-pillar geometry, not a designed entrance. Its lettering is Label3D, pushed in front of the board to stop z-fighting. The junction aprons are convex hulls of the approach carriageways; they remove overlapping ribbons but are still simple flat polygon patches.
 - Location and business boards are two-sided simple boxes; only the east gate has a large gateway sign.
-- Gate driveways end at the gates without formal parking bays; only the east car park has parked cars.
+- The gate and farm approaches are lanes, car park and park paths now; the short asphalt gate and farm spurs are gone. Only the east car park has formal parking and parked cars.
 - Speed signs show one plate at each route entry rather than a full sign schedule along every road.
 - The grass mask is 1024 px over 4 km, so the exact grass edge at the shoulder is coarse. The shader hides most of it, but a close inspection can find it.
 - The lane-width threshold is a simple width test; a future route can still opt in or out of markings only by changing its width.

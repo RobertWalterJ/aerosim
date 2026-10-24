@@ -52,11 +52,6 @@ const ROUTES := [
 			Vector2(-300.0, 300.0), Vector2(-340.0, 240.0), Vector2(-380.0, 180.0), Vector2(-410.0, 120.0)],
 	},
 	{
-		"id": "festival", "name": "festival lane", "width": 4.5, "shoulder": 1.6, "speed_limit": 10,
-		# short branch from the valley highway to the festival field
-		"points": [Vector2(286.0, 260.0), Vector2(300.0, 300.0)],
-	},
-	{
 		"id": "west_link", "name": "west boundary lane", "width": 5.0, "shoulder": 1.8, "speed_limit": 20,
 		# from the lakeside lane up the outside of the west wall to the west gate
 		"points": [Vector2(-300.0, 300.0), Vector2(-292.0, 200.0), Vector2(-285.0, 100.0), Vector2(-280.0, 0.0),
@@ -67,27 +62,7 @@ const ROUTES := [
 		# the last few metres from the lakeside lane to the boat launch parking apron
 		"points": [Vector2(-410.0, 120.0), Vector2(-432.0, 112.0)],
 	},
-	{
-		"id": "gate_east", "name": "cemetery east gate driveway", "width": 4.2, "shoulder": 1.5, "speed_limit": 10,
-		# from the east car park to the cemetery gate, outside the wall
-		"points": [Vector2(270.0, 42.0), Vector2(255.0, 43.0), Vector2(240.0, 43.0)],
-	},
-	{
-		"id": "gate_south", "name": "cemetery south gate driveway", "width": 3.8, "shoulder": 1.3, "speed_limit": 10,
-		"points": [Vector2(17.0, 250.0), Vector2(17.0, 239.5)],
-	},
-	{
-		"id": "gate_north", "name": "cemetery north gate driveway", "width": 3.8, "shoulder": 1.3, "speed_limit": 10,
-		"points": [Vector2(12.0, -255.0), Vector2(12.0, -239.5)],
-	},
-	{
-		"id": "gate_west", "name": "cemetery west gate driveway", "width": 3.8, "shoulder": 1.3, "speed_limit": 10,
-		"points": [Vector2(-252.0, -4.0), Vector2(-239.5, -4.0)],
-	},
-	{
-		"id": "farm_drive", "name": "Toby Farm driveway", "width": 4.2, "shoulder": 1.5, "speed_limit": 10,
-		"points": [Vector2(215.0, 505.0), Vector2(190.0, 513.0), Vector2(165.0, 522.0)],
-	},
+
 ]
 
 static var _ready := false
@@ -137,6 +112,10 @@ static func near_road(x: float, z: float, margin := TREE_CLEARANCE) -> bool:
 	var want := margin + CLEAR_STEP * 0.6
 	var cell := Vector2i(floori(x / CLEAR_CELL), floori(z / CLEAR_CELL))
 	var p := Vector2(x, z)
+	# keep trees and props off the junction aprons as well as the ribbons
+	for j in JUNCTIONS:
+		if p.distance_to(j) < 13.0 + margin * 0.4:
+			return true
 	for a in range(-1, 2):
 		for b in range(-1, 2):
 			for q in _clear_grid.get(Vector2i(cell.x + a, cell.y + b), []):
@@ -159,6 +138,7 @@ func setup(t: Terrain) -> void:
 	_build_junction_mask()
 	for r in ROUTES:
 		_build_route(r)
+	_build_junction_aprons()
 	print("roads: ", stats(), " audit: ", audit())
 
 ## Rasterise the road corridor into a small mask. Grass reads it and keeps clear of the asphalt and the bare shoulder,
@@ -188,7 +168,21 @@ func _build_road_mask() -> void:
 							(float(zz) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
 						if wp.distance_to(p) <= rad:
 							img.set_pixel(xx, zz, Color.WHITE)
-	# the boat launch parking apron and ramp head are paved too, so no meadow grows through the gravel
+	# the junction aprons are paved, so no meadow grows through the crossing
+	for j in JUNCTIONS:
+		var jx := int((j.x / Terrain.SIZE + 0.5) * MASK_N)
+		var jz := int((j.y / Terrain.SIZE + 0.5) * MASK_N)
+		var jr := int(ceil(13.0 / Terrain.SIZE * MASK_N))
+		for dzz in range(-jr, jr + 1):
+			for dxx in range(-jr, jr + 1):
+				var xxj := jx + dxx
+				var zzj := jz + dzz
+				if xxj < 0 or zzj < 0 or xxj >= MASK_N or zzj >= MASK_N:
+					continue
+				var wj := Vector2((float(xxj) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5,
+					(float(zzj) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
+				if wj.distance_to(j) <= 13.0:
+					img.set_pixel(xxj, zzj, Color.WHITE)	# the boat launch parking apron and ramp head are paved too, so no meadow grows through the gravel
 	var launch := CaseObjects.BOAT_LAUNCH_SPOT
 	var lx := int((launch.x / Terrain.SIZE + 0.5) * MASK_N)
 	var lz := int((launch.y / Terrain.SIZE + 0.5) * MASK_N)
@@ -212,7 +206,7 @@ func _build_junction_mask() -> void:
 	for j in JUNCTIONS:
 		var cx := int((j.x / Terrain.SIZE + 0.5) * MASK_N)
 		var cz := int((j.y / Terrain.SIZE + 0.5) * MASK_N)
-		var pr := int(ceil(13.0 / Terrain.SIZE * MASK_N))
+		var pr := int(ceil(8.5 / Terrain.SIZE * MASK_N))
 		for dzz in range(-pr, pr + 1):
 			for dxx in range(-pr, pr + 1):
 				var xx := cx + dxx
@@ -221,7 +215,7 @@ func _build_junction_mask() -> void:
 					continue
 				var wp := Vector2((float(xx) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5,
 					(float(zz) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
-				if wp.distance_to(j) <= 13.0:
+				if wp.distance_to(j) <= 8.5:
 					img.set_pixel(xx, zz, Color.WHITE)
 	junction_mask = ImageTexture.create_from_image(img)
 ## Rain darkens the roads and lifts a little reflection on the wheel tracks. The weather owns the value; this only
@@ -394,6 +388,7 @@ func _build_route(route: Dictionary) -> void:
 	smat.set_shader_parameter("uAlbedo", _gravel_diff)
 	smat.set_shader_parameter("uNormal", _gravel_nor)
 	smat.set_shader_parameter("uArm", _gravel_arm)
+	smat.set_shader_parameter("uJunctionMask", junction_mask)
 	smat.set_shader_parameter("wetness", maxf(_wetness, 0.0))
 	_materials.append(smat)
 	var smi := MeshInstance3D.new()
@@ -404,6 +399,95 @@ func _build_route(route: Dictionary) -> void:
 	if has_lines:
 		_build_reflector_posts(pts, outer, route)
 
+## A paved junction apron shaped from the approach roads themselves. Each route that reaches the junction contributes
+## the two shoulder corners of its carriageway, and the hull of those corners is filled with asphalt. The route ribbons
+## discard their own asphalt and shoulders inside the junction mask, so the apron is the only surface across the
+## crossing: no overlapping ribbons, no roundabout disc, no spaghetti of shoulders.
+func _build_junction_aprons() -> void:
+	var blank_img := Image.create(2, 2, false, Image.FORMAT_L8)
+	blank_img.fill(Color(0, 0, 0, 1))
+	var blank := ImageTexture.create_from_image(blank_img)
+	for j in JUNCTIONS:
+		var corners: Array[Vector2] = []
+		for id in paths:
+			if float(_lengths.get(str(id), 0.0)) < 80.0:
+				continue
+			var pts: Array = paths[id]
+			var size := _route_size(str(id))
+			for i in pts.size():
+				var p: Vector2 = pts[i]
+				var dd := p.distance_to(j)
+				if dd < 6.0 or dd > 10.0:
+					continue
+				var t: Vector2
+				if i == 0:
+					t = (pts[1] - pts[0]).normalized()
+				elif i == pts.size() - 1:
+					t = (pts[i] - pts[i - 1]).normalized()
+				else:
+					t = (pts[i + 1] - pts[i - 1]).normalized()
+				var side := Vector2(-t.y, t.x)
+				var hw := float(size.x) * 0.5 + 0.35
+				corners.append(p + side * hw)
+				corners.append(p - side * hw)
+		var hull := PackedVector2Array()
+		if corners.size() >= 3:
+			hull = Geometry2D.convex_hull(PackedVector2Array(corners))
+		if hull.size() < 3:
+			# a tiny fallback for a junction with only one mapped approach
+			for i in 24:
+				var a := TAU * float(i) / 24.0
+				hull.append(j + Vector2(cos(a), sin(a)) * 10.0)
+		var center := Vector2.ZERO
+		for p in hull:
+			center += p
+		center /= float(hull.size())
+		var verts := PackedVector3Array()
+		var norms := PackedVector3Array()
+		var uvs := PackedVector2Array()
+		var idx := PackedInt32Array()
+		verts.append(Vector3(center.x, terrain.height(center.x, center.y) + 0.20, center.y))
+		norms.append(Vector3.UP)
+		uvs.append(Vector2(0.5, 0.5))
+		for i in hull.size():
+			var p: Vector2 = hull[i]
+			verts.append(Vector3(p.x, terrain.height(p.x, p.y) + 0.18, p.y))
+			norms.append(Vector3.UP)
+			uvs.append((p - center) / 24.0 + Vector2(0.5, 0.5))
+		for i in hull.size():
+			var a2 := 1 + i
+			var b2 := 1 + (i + 1) % hull.size()
+			idx.append_array([0, b2, a2])
+		var mesh := ArrayMesh.new()
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		arr[Mesh.ARRAY_VERTEX] = verts
+		arr[Mesh.ARRAY_NORMAL] = norms
+		arr[Mesh.ARRAY_TEX_UV] = uvs
+		arr[Mesh.ARRAY_INDEX] = idx
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		var mat := ShaderMaterial.new()
+		mat.shader = load("res://game/shaders/road_asphalt.gdshader")
+		mat.set_shader_parameter("uAlbedo", _asphalt_diff)
+		mat.set_shader_parameter("uNormal", _asphalt_nor)
+		mat.set_shader_parameter("uArm", _asphalt_arm)
+		mat.set_shader_parameter("uJunctionMask", blank)
+		mat.set_shader_parameter("use_junction_mask", 0.0)
+		mat.set_shader_parameter("edge_marks", 0.0)
+		mat.set_shader_parameter("center_line", 0.0)
+		mat.set_shader_parameter("wetness", maxf(_wetness, 0.0))
+		_materials.append(mat)
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+
+func _route_size(id: String) -> Vector2:
+	for r in ROUTES:
+		if str(r["id"]) == id:
+			return Vector2(float(r["width"]), float(r["shoulder"]))
+	return Vector2(5.0, 1.8)
 ## White delineator posts with red reflectors along the wider roads, every 60 m on both sides.
 func _build_reflector_posts(pts: Array, outer: float, _route: Dictionary) -> void:
 	var post_transforms: Array[Transform3D] = []

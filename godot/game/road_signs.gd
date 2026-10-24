@@ -162,7 +162,6 @@ func _build_stop_signs() -> void:
 	# each one is on the minor approach to a junction, facing the oncoming driver
 	var stops := [
 		[Vector2(278.0, 255.0), Vector2(-1.0, 0.0), 4.8],     # south lane approaching the valley highway
-		[Vector2(294.0, 270.0), Vector2(0.707, 0.707), 4.8],   # festival lane approaching the valley highway
 		[Vector2(270.0, 34.0), Vector2(0.0, -1.0), 5.0],      # east lane approaching the east gate junction
 		[Vector2(22.0, -255.0), Vector2(1.0, 0.0), 5.0],      # east lane approaching the north gate junction
 		[Vector2(207.0, 505.0), Vector2(-1.0, 0.0), 4.8],     # lakeside lane approaching the farm junction
@@ -179,7 +178,7 @@ func _build_stop_signs() -> void:
 
 func _stop_line(center: Vector2, face: Vector2, width: float) -> void:
 	var root := Node3D.new()
-	root.position = Vector3(center.x, terrain.height(center.x, center.y) + 0.17, center.y)
+	root.position = Vector3(center.x, terrain.height(center.x, center.y) + 0.26, center.y)
 	root.rotation.y = atan2(face.x, face.y)
 	add_child(root)
 	var bm := BoxMesh.new()
@@ -206,7 +205,6 @@ func _build_speed_signs() -> void:
 		["lake", Vector2(90.0, 470.0), Vector2(-1.0, 0.0)],
 		["west_link", Vector2(-292.0, 200.0), Vector2(0.0, 1.0)],
 		["cabin", Vector2(-60.0, -790.0), Vector2(1.0, 0.0)],
-		["festival", Vector2(293.0, 280.0), Vector2(-0.707, -0.707)],
 		["launch", Vector2(-418.0, 118.0), Vector2(1.0, 0.0)],
 	]
 	for spec in limits:

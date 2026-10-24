@@ -894,3 +894,18 @@ Every app screen now exists, and the story director is a real system rather than
   - INT4. Should STOP AHEAD be on every stop approach, or only the busier ones?
   - INT5. Should any junction become a full three-colour signal, or is flashing red the ceiling for this valley?
   - INT6. Should street-name blades be added at the main junctions?
+
+## Junction cleanup: no more road spaghetti (lane/notify, session B, 2026-11-15)
+- **The problem:** every route was drawn as an independent asphalt ribbon with its own shoulders. Where routes met, the ribbons overlapped into dark wedges, the shoulders crossed, and the short gate, farm and festival spurs produced long narrow tongues that read as spaghetti. The earlier circular junction patch made it worse by looking like a small roundabout.
+- **Shader clipping:** the asphalt and gravel shaders now sample the junction mask and discard fragments inside the apron. No route ribbon or shoulder is drawn across the crossing.
+- **Junction aprons:** `roads.gd` builds one paved apron per junction from the convex hull of the approaching carriageway corners. It is a single asphalt patch shaped by the roads that actually meet, not a circle and not stacked ribbons.
+- **Spurs removed:** the east, south, north and west gate asphalt driveways, the Toby Farm drive and the festival lane were taken out of the route network. They were the main source of the tongues. The main lanes still approach the gates, and the east gate has its car park. The gates are reached by the lanes, the car park and the park paths. The farm and festival stay as signed destinations off the main road rather than extra asphalt stubs. The boat launch lane remains because it is a real access.
+- **Traffic:** the route pool only uses the through roads, so vehicles do not loop around tiny driveways.
+- **Cemetery guard:** the audit still uses the actual wall line at 238 m and reports `inside_cemetery: 0`; no road centreline crosses the cemetery.
+- **Evidence:** `docs/realism/roads/15_junction_clean_east.jpg`, `16_junction_clean_south.jpg`, `17_junction_clean_farm.jpg`; the intersection beacon evidence was retaken at `docs/realism/intersections/`.
+- **Honest limits:** the junction aprons are simple convex polygons, not full kerbed junction geometry. The gates and farm do not have asphalt right up to their thresholds any more; the approach is lane, car park or park path. The hull shape can still look a little faceted from the air. The junction mask is a 1024 px raster. There are no painted turn arrows, stop-ahead road text or lane-use markings. The boat launch lane is still a short stub.
+- **Questions for Robert:**
+  - JUNC1. Is removing the little gate and farm asphalt spurs the right trade for clean junctions, or do you want proper gravel driveways built as separate meshes later?
+  - JUNC2. Should the junction aprons be smaller, larger, or shaped with visible kerbs?
+  - JUNC3. Should the farm and festival get a proper signed entrance road from the main road in a later pass?
+  - JUNC4. Should the gates have a gravel apron and parking bay just outside the wall?

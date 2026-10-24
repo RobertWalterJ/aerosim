@@ -15,6 +15,7 @@ uniform vec3 dirt_col : source_color = vec3(0.29, 0.26, 0.20);
 uniform float edge_marks = 1.0;
 uniform float center_line = 1.0;
 uniform float wetness = 0.0;
+uniform float use_junction_mask = 1.0;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 float noise(vec2 p) {
@@ -58,11 +59,13 @@ void fragment() {
 	float marks = clamp(edge_line * edge_marks + centre * center_line, 0.0, 1.0) * max(wear, 0.72);
 	// no lane paint runs through the middle of a junction
 	vec2 juv = vWorld.xz / 4000.0 + 0.5;
+	float junction = 0.0;
 	if (juv.x > 0.0 && juv.y > 0.0 && juv.x < 1.0 && juv.y < 1.0) {
-		float junction = texture(uJunctionMask, juv).r;
+		junction = texture(uJunctionMask, juv).r;
 		marks *= 1.0 - smoothstep(0.15, 0.65, junction);
 		c = mix(c, c * 0.88, junction * 0.35);
 	}
+	if (use_junction_mask > 0.5 && junction > 0.35) discard;
 	c = mix(c, line_col, marks * 0.92);
 	// rain darkens the asphalt and makes the polished tracks reflect
 	c = mix(c, c * 0.68, wetness * 0.45);
