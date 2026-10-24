@@ -220,3 +220,92 @@ The people (Wren, Constable Rennick in 1984, the ghost variant) and the vehicles
 - **Interior set** (no colliders): `cabin_bed_a` `_stripped` `cabin_table_a` `cabin_chair_a` `_b` `cabin_stove_a` `_lit` (nodes `door`, `flame`) `cabin_shelf_a` `cabin_radio_a` `cabin_radio_handheld_a` `cabin_case_file_a` `cabin_calendar_a` `cabin_uniform_a` `cabin_boots_a` `cabin_lantern_a` `_off` `cabin_kettle_a` (node `steam`) `cabin_drawing_a` `cabin_map_a` `cabin_hiker_gear_a`, and two arrangements: `cabin_interior_set_a` (everything laid out in the cabin, floor at y 0.35) and `cabin_interior_variant_a` (a smaller 4 x 3 m room with its own walls). Things that hang on a wall have their origin at the bottom edge and face +Z.
 - **Gear:** `thermal_pod_a` (52 x 42 x 62 mm, origin at the mounting face, top flat; node `led`) `thermal_pod_led_a` `_off` `thermal_pod_mount_a`; `lake_buoy_a` `dive_marker_a` (waterline at y 0, line and weight hang below) `anne_photo_a`; `cruiser_plate_a` `cruiser_lightbar_a` (nodes `lightbar_red`, `lightbar_blue`: swap in the `lamp_red` and `lamp_blue` materials to light them) `cruiser_aerial_a` `cruiser_door_lettering_a` `cruiser_boot_kit_a` `cruiser_old_kit_a`; `wren_backpack_a` `wren_phone_a` `wren_torch_a` (node `beam`) `_off` `wren_space_blanket_a` `_b` `wren_water_bottle_a` `wren_hiking_gear_a` `wren_tent_a`; `rennick_hat_a` `rennick_case_file_a` `rennick_portrait_a`; `cabin_thermos_a` `cabin_newspaper_a`.
 - **Textures used:** `docs/realism/models/storm_endgame_final_textures.jpg` (labelled swatches: name, Poly Haven source, author, licence, where used), built by `test/story_textures_sheet.gd`; views of every asset: `storm_endgame_final_views.jpg` (golden hour) and `storm_endgame_final_views_overcast.jpg`.
+
+## Blender 3: vehicles (lane/vehicles)
+
+Modelled in Blender 4.2 by headless scripts in `tools/blender/` (regenerate with
+`blender -b --factory-startup --python godot/tools/blender/build_vehicles.py -- [only=a,b] [nobake] [render=<dir>]`), exported as
+rigged glTF 2.0 to `assets/models/vehicles/<name>.glb`, loaded by `game/vehicle_assets.gd` (class `VehicleAssets`). These replace
+the batch 6 code-built vehicles (which stay as the fallback when a file is missing) and give the story its vehicles.
+
+**Frame:** metres, forward **-z**, up +y, right +x, origin on the ground at the middle of the length (the batch 6 frame).
+`VehicleAssets.instance(name, paint, front_plus_z := true)` turns it to the story frame (+z forward); `StoryAssets.instance/place`
+does this for every vehicle name automatically and adds box colliders.
+
+**One file per vehicle:** one armature, three skinned meshes on it, `<name>_LOD0` (near), `_LOD1` (about 35 %), `_LOD2` (far),
+switched by visibility range at 25 m and 80 m. Real modelling: a lofted body with pressed shoulder and belt creases, real panel
+gaps with return flanges, doors, bonnet and tailgate cut out as their own panels, wheel arches cut with wheel wells, lamp units
+(chrome reflector behind a clear lens; tail, brake, indicator and reverse sections), grille, plates in recesses (blank fictional
+plates), handles, mirrors, wipers, exhaust, tyres turned from a real section with tread and sidewall, alloy or steel rims with
+nuts, brake disc and caliper, and an interior (seats, dash, steering wheel, door cards, headliner) seen through transparent glass.
+UVs in metres (box projection), tangents exported, ambient occlusion baked into the vertex colour (red), the finish condition
+in the vertex alpha (1 clean, lower = worn and rusty).
+
+**Material slots** (names are the contract; `VehicleAssets` swaps in `game/shaders/vehicle_pbr.gdshader`, `vehicle_pbr_ds.gdshader`
+(cabin, both sides) and `vehicle_glass.gdshader`, all with rain `g_wet`, snow `g_snow` and the cloud and drone shadows):
+`paint` (the instance's paint colour), `paint2` (livery), `glass`, `glass_tint`, `chrome`, `mirror`, `rubber`, `rim`, `rim_steel`,
+`metal`, `caliper`, `trim`, `trim_grey`, `interior`, `seat`, `dash`, `plate`, `plate_text`, `lettering`, `lettering2`, `primer`,
+`sheet_white`, `canvas`, `wood`, `straw`, `flag_a/b/c`, and the lamps `lamp_front`, `lamp_reflector`, `lamp_tail`, `lamp_brake`,
+`lamp_ind_l`, `lamp_ind_r`, `lamp_reverse`, `lamp_beacon`, `lightbar_red`, `lightbar_blue` (each vehicle gets its own lamp materials
+so its lights switch alone). The shader reads the vertex colour as occlusion and condition; the colour comes from `tint`.
+
+**Bones.** Every pivot bone points along its turning axis, so a part turns about the bone's own +Y. Common to all:
+`root` (on the ground), `body` (child of root: lift, pitch and roll it for suspension; everything on the body follows),
+`wheel_fl wheel_fr wheel_rl wheel_rr` (spin about the axle), `steer_fl steer_fr` (parents of the front wheels; turn about vertical).
+Three-axle trucks add `wheel_m1l wheel_m1r`; the motorcycle has `steer_f wheel_f wheel_r stand`. Twin rear tyres share one bone.
+Doors and panels (children of body): `door_fl door_fr door_rl door_rr` (front-hinged), `bonnet`, `tailgate` or `boot`,
+`door_rear_l door_rear_r` (van barn doors), `door_slide_r` (van sliding door), `bus_door_a bus_door_b` (bus folding leaves),
+`serving_window` (ice cream van), `door_rear` (ice cream van), `shutter` (lorry roller shutter), `tip_bed` (tipping trailer),
+`drawbar`, `hitch` (the trailer eye / tractor hitch point, child of root), `pto` (tractor power take-off), `valve` (milk tanker
+outlet hand wheel), `destination_board` (buses), `wiper_l wiper_r` (or `wiper_f` on the tractor), `steering_wheel`, `handlebar` (quad).
+The manifest (`game/vehicle_manifest.gd`, generated) lists every vehicle's bones, animations, wheels (bone, hub position in the game
+frame, radius, steer), sizes, triangle counts, paints, hinge angles, colliders and its defect checks.
+
+**Animations** (AnimationPlayer, baked from Blender actions): `doors_open doors_close door_driver_open door_driver_close`,
+`bonnet_open/_close`, `tailgate_open/_close` or `boot_open/_close`, `rear_doors_open/_close`, `slide_door_open/_close`, `wipers`
+(one sweep, loopable), `steer_left steer_right` (front wheels to full lock and the steering wheel 1.25 turns), and per vehicle:
+`bus_door_open/_close`, `serving_window_open/_close`, `shutter_open/_close`, `valve_open/_close`, `tip_raise tip_lower`, `pto_spin`,
+`stand_down`. Wheels are not animated: drive them from code.
+
+**Calls:**
+- `VehicleAssets.place(parent, name, Transform3D, paint := Color(0,0,0,0), front_plus_z := false) -> Node3D` (a root named after the
+  vehicle holding `rig`, the imported scene). `instance(...)` the same without adding it. `has(name)`, `names()`, `info(name)`.
+- `VehicleAssets.roll(v, metres)` turns every wheel by -distance / radius; `steer(v, radians)` (+ = left); `bounce(v, lift, pitch, roll)`.
+- `VehicleAssets.play(v, "doors_open")`, `pose(v, "tailgate_open", at := 1.0)` (jump to a point of an animation).
+- `VehicleAssets.set_lights(v, {"head": 1, "tail": 1, "brake": 0, "ind_l": 0, "ind_r": 0, "reverse": 0, "beacon_red": 1, "beacon_blue": 1, "beacon_amber": 0})`.
+- `VehicleAssets.add_colliders(v)` (a StaticBody3D of the manifest boxes), `colliders(name)`.
+- Posed variants by name: `cruiser_1984_a_driver_open`, `cruiser_1984_a_open`, `festival_bus_restored_open`, `lake_car_estate_a_closed`,
+  `festival_ice_cream_van_a_open`.
+
+| Name | What it is | Notes |
+|---|---|---|
+| `car_hatch_a` | 4.0 m three-door supermini, TAMSIN, silver | 185/60R15 alloys |
+| `car_hatch_b` | 4.3 m five-door hatchback, ARDEN, red | 205/55R16 alloys |
+| `car_estate_a` | 4.8 m estate, VELIA, dark grey-green, roof rails | 215/55R17 multi-spoke |
+| `pickup_a` | 5.3 m crew-cab pickup, CORVAN, blue | separate bed with liner and its own `tailgate` (hinged at the bottom) |
+| `pickup_b` | 4.9 m older pickup, BRASK, sun-faded and rusty | chrome front bumper, steel wheels with caps |
+| `van_a` | 5.3 m panel van, white | sliding door, barn doors with windows, cargo lining |
+| `van_b` | 4.4 m small van, blue | blank barn doors |
+| `police_suv_a` | 4.9 m provincial police SUV (fictional HALLOWAY PROVINCIAL POLICE livery) | low lightbar, push bar, lower cladding |
+| `police_saloon_a` | 4.85 m plain grey saloon | low lightbar, thin fictional stripe and door lettering |
+| `lake_car_estate_a` / `_b` | the Lake Car: late-1980s boxy blue estate (BRASK 245) | rust, flat rear tyre, smashed rear window, plates missing, posed with the tailgate open; `_b` has the VOSS & SON tow sticker |
+| `cruiser_1984_a` | 1984 provincial police cruiser: long boxy saloon, white with dark roof and doors | faded HALLOWAY / PROVINCIAL POLICE lettering, 1980s domed lightbar, whip aerial, A-pillar spotlight, rusted sills, chrome bumpers |
+| `bus_a`, `bus_b` | 10.6 / 11.2 m single-deckers (VALLEY LINES cream and red; KESTREL COACHES white and blue) | twin rear tyres, folding door on +x, lit destination board, rows of seats |
+| `festival_bus_restored` | 9 m 1960s green and cream single-decker, HALLOWAY FESTIVAL | split screen, chrome bumpers, roof rack, VOSS & SON maker's sticker |
+| `festival_bus_garage` | the same bus before restoration | faded, rusted, a grey primer panel, a blue tarp half over the roof |
+| `festival_ice_cream_van_a` | 5.75 m coachbuilt soft-serve van, HALLOWAY ICES | sliding serving window, counter, striped awning, menu boards, roof cone and swirl, lit ICES sign, chime horns, soft-serve machine and freezer inside |
+| `lorry_a` | 8.4 m rigid box lorry, MARSH & DAUGHTERS | roller shutter, side guards, fuel tank, exhaust stack |
+| `milk_tanker_a` | 9.4 m three-axle milk tanker, VALLEY DAIRY | stainless tank, walkway and rails, manways, ladder, rear cabinet, hose, `valve` |
+| `tractor_a` | 1990s four-post-cab tractor, HALDEN 6140, blue | 18.4R38 / 14.9R28 lugged tyres with sidewall lettering, cab interior, perforated louvres, exhaust heat shield, three-point linkage with assist rams, PTO, couplers, front weights, beacon, work lamps |
+| `tractor_wheels_a` | the tractor's four wheels alone | |
+| `parade_tractor_a` | 1950s TAMSIN Series 2, red with cream wheels | chrome radiator bars, pan seat, clamshell fenders, festival rosette |
+| `tractor_trailer_a` | 6.6 m tandem tipping trailer | leaf springs, tipping ram, `tip_bed` |
+| `parade_trailer_a` | festival flatbed: timber deck, straw bales, bunting, HALLOWAY FESTIVAL banners | |
+| `motorcycle_a` | naked roadster | |
+| `farm_quad_a` | 450 cc utility quad, KESTREL 450 4x4 | wishbones and coil-over shocks, racks, winch, handlebar on its own bone |
+
+Checks: `test/vehicles_blender_test.gd` (headless: every file loads, bones and animations named in the manifest exist, sizes in metres,
+wheels on the ground, front toward -z, triangle budgets, no NaN, winding matches the normals, no floating parts, painted faces face
+outward, the rig really rolls, steers and opens doors, the story names resolve). Sheets: `test/vehicles_blender_sheet.gd` (views,
+lights golden / overcast / backlit / wet, animation strips) and `test/vehicles_textures_sheet.gd` (every material on a sphere with its
+source and licence), written to `docs/realism/models/vehicles_*.jpg`.

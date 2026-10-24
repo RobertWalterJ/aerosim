@@ -99,3 +99,15 @@ The `.import` files are committed with them.
 ## Leaf cards (`cards/*.png`, models5b)
 Original drawings made by `test/gen_card_textures.gd` (curves painted with a width profile, midrib and veins; no source photographs, no licence issue). They are data textures, not colour: r is the shade, g marks stem, husk or head, b marks the accents (tassel, umbel, silk, flower) and a is the cut-out. `corn_card`, `corn_top` (seen from above), `barley_card_a/b`, `alfalfa_card_a/b`, `weeds_card`. Re-run the script after changing a drawing, then import.
 
+
+## Blender vehicles (lane/vehicles, 2026-10-24)
+Three small detail maps for `game/shaders/vehicle_pbr.gdshader` (the Blender vehicles, `game/vehicle_assets.gd`). Downloaded
+2026-10-24 as the 1k JPEGs from the Poly Haven API (https://api.polyhaven.com/files/<id>) and re-saved at 512 px with Python
+PIL (albedo quality 85, normals 90). All CC0. The cars also reuse `mudtrack_diff.jpg` (above) as the colour of road dirt on
+their lower panels. Every other vehicle finish (paint flake, clear coat, glass, chrome, rubber, lamp lenses) is procedural.
+
+| Files | Source | Author | Licence | Repeats | Used for |
+|---|---|---|---|---|---|
+| `rust_diff.jpg` | Poly Haven `rust_coarse_01`, https://polyhaven.com/a/rust_coarse_01 | Dimitrios Savva (photography), Rico Cilliers (processing) | CC0 | 1.6 per metre | rust where the paint has rusted through (the Lake Car, the 1984 cruiser, the older pickup, the unrestored bus) |
+| `fabric_nor.jpg` | Poly Haven `fabric_pattern_07` (normal map), https://polyhaven.com/a/fabric_pattern_07 | Rob Tuytel | CC0 | 9 per metre | seat cloth weave |
+| `rubber_nor.jpg` | Poly Haven `rubberized_track` (normal map), https://polyhaven.com/a/rubberized_track | Charlotte Baglioni | CC0 | 6 per metre | fine grain on tyre sidewalls and treads |
