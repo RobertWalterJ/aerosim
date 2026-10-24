@@ -29,6 +29,11 @@ const ROUTES := [
 		"points": [Vector2(286.0, 260.0), Vector2(200.0, 255.0), Vector2(100.0, 252.0), Vector2(17.0, 250.0)],
 	},
 	{
+		"id": "village", "name": "village lane", "width": 5.0, "shoulder": 1.4, "speed_limit": 15,
+		# Halloway village, east of the park and south of the festival field
+		"points": [Vector2(286.0, 260.0), Vector2(320.0, 258.0), Vector2(370.0, 262.0), Vector2(420.0, 270.0), Vector2(455.0, 276.0)],
+	},
+	{
 		"id": "east_link", "name": "east boundary lane", "width": 6.0, "shoulder": 2.0, "speed_limit": 30,
 		# east gate car park north along the east wall to the north gate
 		"points": [Vector2(270.0, 42.0), Vector2(276.0, -60.0), Vector2(276.0, -170.0), Vector2(260.0, -245.0),

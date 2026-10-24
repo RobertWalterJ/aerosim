@@ -88,6 +88,7 @@ var road_signs: RoadSigns          # session B: stop signs, speed limits and jun
 var landmark_signs: LandmarkSigns  # session B: the cemetery gateway and the place and business signs
 var intersection_signals: IntersectionSignals  # session B: the flashing red beacons over the junctions
 var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
+var village: Village               # session B: Halloway village, east of the cemetery (game/village.gd)
 var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
 var crew: Crew                     # session B: the six friends, each giving the pilot different information (game/crew.gd)
 var osd: Osd
@@ -507,6 +508,9 @@ func _build_world() -> void:
 	farmland = Farmland.new()
 	add_child(farmland)
 	farmland.setup(terrain)
+	village = Village.new()
+	add_child(village)
+	village.setup(terrain)
 	traffic = Traffic.new()
 	add_child(traffic)
 	traffic.setup(terrain, roads, hud)

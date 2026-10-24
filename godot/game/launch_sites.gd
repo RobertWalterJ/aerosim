@@ -25,6 +25,8 @@ const SITES := [
 		"note": "The camp track at the north end. The railway and the high ridge are close."},
 	{"id": "festival", "name": "Festival field", "pos": Vector2(292.0, 292.0), "yaw": 180.0,
 		"note": "The field gate by the festival ground and the south lane."},
+	{"id": "village", "name": "Halloway village", "pos": Vector2(438.0, 268.0), "yaw": 90.0,
+		"note": "The village lane by the green. The pub, the stores and the garage are a short walk."},
 ]
 
 var active_id := "home"

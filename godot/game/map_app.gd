@@ -200,7 +200,7 @@ class MapCanvas extends Control:
 	var sites: LaunchSites
 	var active_id := "home"
 	var suggested_id := ""
-	var _bounds := Rect2(-540, -1180, 920, 1560)
+	var _bounds := Rect2(-540, -1180, 1100, 1560)
 
 	func set_data(r: Roads, s: LaunchSites, a: String, sug: String) -> void:
 		roads = r
@@ -224,11 +224,11 @@ class MapCanvas extends Control:
 		# faint 100 m grid
 		var gx := -500.0
 		while gx <= 400.0:
-			draw_line(_w2m(Vector2(gx, -1180)), _w2m(Vector2(gx, 380)), Color(0.15, 0.17, 0.13, 0.35), 1.0)
+			draw_line(_w2m(Vector2(gx, -1180)), _w2m(Vector2(gx, 560)), Color(0.15, 0.17, 0.13, 0.35), 1.0)
 			gx += 100.0
 		var gz := -1100.0
 		while gz <= 300.0:
-			draw_line(_w2m(Vector2(-540, gz)), _w2m(Vector2(380, gz)), Color(0.15, 0.17, 0.13, 0.35), 1.0)
+			draw_line(_w2m(Vector2(-540, gz)), _w2m(Vector2(560, gz)), Color(0.15, 0.17, 0.13, 0.35), 1.0)
 			gz += 100.0
 		# lake shape: the western basin, approximated for the road atlas
 		var lake_pts := PackedVector2Array()
@@ -244,6 +244,12 @@ class MapCanvas extends Control:
 		var c1 := _w2m(Vector2(238, 238))
 		draw_rect(Rect2(c0, c1 - c0), Color(0.25, 0.32, 0.22, 0.35), true)
 		draw_rect(Rect2(c0, c1 - c0), Color(0.58, 0.66, 0.48, 0.7), false, 1.2)
+		# the village, east of the park and separate from the cemetery
+		var v0 := _w2m(Vector2(330.0, 226.0))
+		var v1 := _w2m(Vector2(512.0, 318.0))
+		draw_rect(Rect2(v0, v1 - v0), Color(0.40, 0.36, 0.25, 0.35), true)
+		draw_rect(Rect2(v0, v1 - v0), Color(0.70, 0.62, 0.44, 0.55), false, 1.0)
+		draw_string(HudIcons.bold_font(), v0 + Vector2(4.0, -4.0), "HALLOWAY VILLAGE", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.86, 0.80, 0.62, 0.9))
 		# roads
 		if roads != null:
 			for id in roads.paths:

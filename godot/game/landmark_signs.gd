@@ -47,6 +47,7 @@ func _locations() -> void:
 	_business(Vector2(68.0, -596.0), Vector2(-1.0, 0.0), "VOSS AND SON", "MOTOR WORKS   ·   REPAIRS", 4.2)
 	_business(Vector2(-398.0, 132.0), Vector2(1.0, -0.2), "HALLOWAY LAKE", "BOAT LAUNCH   ·   OVERLOOK", 4.2)
 	_business(Vector2(305.0, 294.0), Vector2(-0.8, -0.6), "FESTIVAL FIELD", "HALLOWAY ANNUAL   ·   BUS PARK", 4.2)
+	_business(Vector2(312.0, 252.0), Vector2(-1.0, 0.0), "HALLOWAY VILLAGE", "THE GREEN   ·   STORES   ·   GARAGE", 5.0)
 	_business(Vector2(30.0, -1106.0), Vector2(0.2, 1.0), "RIDGE CAMP", "PRIVATE TRACK   ·   KEEP GATES CLOSED", 3.6)
 	_small_sign(Vector2(-240.0, -812.0), Vector2(1.0, 0.0), "OLD CABIN", "PRIVATE   ·   NO TRESPASSING")
 	_small_sign(Vector2(-416.0, 127.0), Vector2(1.0, 0.0), "BOAT LAUNCH", "SLOW   ·   NO WAKE")

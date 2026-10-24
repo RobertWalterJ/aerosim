@@ -1069,4 +1069,20 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - PIKE3. Should the shotgun warning have a visible shooter and muzzle flash?
   - PIKE4. Should Pike ever appear in a direct message, or stay off the chat entirely?
   - PIKE5. Should the early cemetery beat mention the uncle by name, or stay vague?
-  - FARM1. Are the current field positions and sizes right, or should the farm move farther from the cemetery?`
+  - FARM1. Are the current field positions and sizes right, or should the farm move farther from the cemetery?
+## Halloway village, the town/cemetery split and the asset placement audit (lane/notify, session B, 2026-11-15)
+- **The town exists now:** `game/village.gd` builds Halloway village east of the park, separate from the cemetery. Bounds x330 to x512, z226 to z318; the nearest village bound is 92 m east of the cemetery corner and the nearest building is farther. The cemetery wall, chapel, memorials and graves are untouched.
+- **The lane:** the village lane is a real `Roads` route from the south lane junction (286, 260) east to (455, 276), width 5 m, 15 mph. Grass is masked from it, traffic can use it, and it is on the minimap and the Map app.
+- **The buildings:** nine buildings on two rows. North row: Bramble Cottage (358, 242), stone cottage (392, 243), stone cottage (426, 244), brick cottage (461, 245). South row: cottage (347, 296), The Hollow Crown pub (382, 299), Halloway Stores (414, 301), cottage (443, 303), Halloway Garage (477, 306). The green is at (342, 274) with the real oak asset, two benches, a ring and a label. Phone box, bus shelter, post box, three lamps, hedges, gravel driveways, a garage forecourt and two parked cars.
+- **Placement audit:** the bus shelter, post box and lamps were moved off the road and off cottage gardens. The village does not overlap the festival field (nearest building about 47 m east of the festival bus), the farm fields or the cemetery. World clears trees from the village bounds before planting. `Village.min_cemetery_gap()` reports 92 m; `Farmland.min_cemetery_gap()` remains about 195 m.
+- **Map and launch:** the Map app bounds were extended east, the village outline and label are drawn, and a tenth launch site `village` at (438, 268) lets the pilot drive the kit to the green.
+- **Look:** cottage walls now use limestone, rubble, brick, barnwood and silocrete textures; roofs are slate prisms; windows are dark glass; the green oak is the real tree asset; two parked cars and a gravel forecourt/ driveways add life. The temporary pavement slabs were removed because they read as floating.
+- **Evidence:** docs/realism/village/00_village_aerial.jpg, 01_village_street.jpg, 02_village_cemetery.jpg. Docs VILLAGE-LAYOUT.md, CLAUDE-VILLAGE-ASSETS.md; location-sign brief updated with sign_village; LAUNCH-SITES.md now ten sites.
+- **Honest limits:** the buildings are code-built textured boxes with prism roofs, flat window boxes and simple signs, not final architecture. There are no interiors, collisions, chimney smoke, night lighting beyond the lamp material, bespoke road markings or pavements. The village is a small valley village, not a town with a high street. The final models and textures are requested in CLAUDE-VILLAGE-ASSETS.md.
+- **Questions for Robert:**
+  - VILL1. Is the village far enough east of the cemetery, or should it move another 50 to 100 m?
+  - VILL2. Are nine buildings enough, or should the street get a short terrace and a village hall?
+  - VILL3. Should the pub be The Hollow Crown, or do you have another name?
+  - VILL4. Should the village have a war memorial, a church or a school, or keep those in the cemetery?
+  - VILL5. Should the village lane carry traffic, or stay a quiet no-through lane?
+  - VILL6. Should the pavements come back as proper kerbed footways once Claude's modular set lands?

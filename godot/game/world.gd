@@ -96,6 +96,7 @@ func _trees() -> void:
 		if Roads.near_road(x, z): continue       # session B: keep the country roads clear
 		if CabinTrack.near_track(x, z, 6.0): continue   # session B: the old dirt track to the cabin
 		if Farmland.inside_any(x, z, 3.0): continue   # session B: the farm fields
+		if Village.near_village(x, z, 6.0): continue    # session B: keep the village lots and street clear
 		if CaseObjects.near_evidence(x, z): continue  # session B: the Lake Car evidence landmarks
 		var p := Vector2(x, z)
 		var gk := Vector2i(floori(x / 14.0), floori(z / 14.0))

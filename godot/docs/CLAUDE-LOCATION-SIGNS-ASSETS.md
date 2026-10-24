@@ -16,6 +16,7 @@ Owner of placement and code: session B. Claude handles the art only; integration
 | `sign_garage_voss` | Voss and Son yard | two-post business board, VOSS AND SON / MOTOR WORKS / REPAIRS |
 | `sign_lake_halloway` | lake turn | two-post board, HALLOWAY LAKE / BOAT LAUNCH / OVERLOOK |
 | `sign_festival` | festival field | two-post board, FESTIVAL FIELD / HALLOWAY ANNUAL / BUS PARK |
+| `sign_village` | village lane approach | two-post business board, HALLOWAY VILLAGE / THE GREEN / STORES / GARAGE |
 | `sign_ridge_camp` | ridge camp | two-post board, RIDGE CAMP / PRIVATE TRACK / KEEP GATES CLOSED |
 | `sign_old_cabin` | cabin track | small board, OLD CABIN / PRIVATE / NO TRESPASSING |
 | `sign_boat_launch` | launch junction | small board, BOAT LAUNCH / SLOW / NO WAKE |
