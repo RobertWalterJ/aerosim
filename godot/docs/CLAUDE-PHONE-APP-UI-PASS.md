@@ -51,7 +51,7 @@ Cream or brass, transparent, with a quiet line weight:
 
 - `assets/ui/status_signal.png`, `status_wifi.png`, `status_battery.png`, `status_battery_low.png`, `status_notification.png`, `status_search.png`
 - `assets/ui/nav_home.png`, `nav_back.png`, `nav_recents.png`, `nav_close.png`, `nav_more.png`
-- `assets/ui/badge_dot.png`, `badge_unread.png`, `badge_work.png`
+- `assets/ui/badge_dot.png`, `badge_unread.png`, `badge_work.png`, `badge_guide.png`
 - `assets/ui/page_dot_on.png`, `page_dot_off.png`
 
 These need to read at 18 px. The current code can keep text fallbacks, but the finished system bar should use these glyphs.
@@ -132,9 +132,9 @@ The current job system now has keep-clear, range, framing, retake and pulled sta
 
 The portrait set in `docs/CLAUDE-APP-ASSETS.md` is still missing. The new UI hooks check `assets/ui/avatar_<key>.png`. Priority keys:
 
-- `rennick`, `maya`, `jo`, `riley`, `sam`, `alex`, `wren`, `unknown`, `you`.
+- `rennick`, `maya`, `jo`, `riley`, `sam`, `alex`, `wren`, `unknown`, `you`, `kit`.
 
-The Casebook calls Rennick, Wren, Riley, Maya, Jo and Sam by those exact keys. A portrait at 42 px must still read.
+The Casebook calls Rennick, Wren, Riley, Maya, Jo and Sam by those exact keys. Chat also calls Kit by `avatar_kit.png`; Kit is the DroneBudz support contact who sends the story-mode tips. A portrait at 42 px must still read. Kit needs a calm, practical support persona: headset, notebook, warm olive jacket, no uniform.
 
 ## Priority 1: typography
 

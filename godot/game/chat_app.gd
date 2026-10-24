@@ -198,24 +198,24 @@ func open(channel := "general") -> void:
 func _refresh_sidebar() -> void:
 	for c in _sidebar_channels.get_children():
 		c.queue_free()
-	var has_unknown := not chat.messages("unknown", false).is_empty()
+	var has_dm := not chat.messages("unknown", false).is_empty() or not chat.messages("guide", false).is_empty()
 	var added_group := false
 	var direct_group := false
 	for ch in chat.channels():
 		var id := str(ch["id"])
-		if id == "unknown" and not has_unknown:
+		if chat.is_dm(id) and not has_dm:
 			continue
-		if id == "unknown" and not direct_group:
+		if chat.is_dm(id) and not direct_group:
 			var dg := UniverseUI.small_caps("DIRECT MESSAGES")
 			dg.add_theme_constant_override("margin_top", 6)
 			_sidebar_channels.add_child(dg)
 			direct_group = true
-		elif id != "unknown" and not added_group:
+		elif not chat.is_dm(id) and not added_group:
 			_sidebar_channels.add_child(UniverseUI.small_caps("CHANNELS"))
 			added_group = true
 		var unread := chat.unread(id)
 		var b := Button.new()
-		b.text = ("  DM  " + str(ch["name"]) if id == "unknown" else "  #  " + str(ch["name"])) + (("   %d" % unread) if unread > 0 else "")
+		b.text = ("  DM  " + str(ch["name"]) if chat.is_dm(id) else "  #  " + str(ch["name"])) + (("   %d" % unread) if unread > 0 else "")
 		b.theme_type_variation = "Channel"
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.custom_minimum_size = Vector2(0, 32)
@@ -232,14 +232,14 @@ func _refresh_sidebar() -> void:
 
 func _refresh_channel() -> void:
 	var ch := chat.channel_info(_current)
-	if _current == "unknown":
-		_title.text = "Unknown"
-		_input.placeholder_text = "Message Unknown"
+	if chat.is_dm(_current):
+		_title.text = "Kit" if _current == "guide" else "Unknown"
+		_input.placeholder_text = "Message Kit" if _current == "guide" else "Message Unknown"
 	else:
 		_title.text = "#  " + str(ch.get("name", _current))
 		_input.placeholder_text = "Message #" + str(ch.get("name", _current))
 	_topic.text = str(ch.get("topic", ""))
-	_members.text = "●  DIRECT" if _current == "unknown" else "●  6 CREW"
+	_members.text = "●  DIRECT" if chat.is_dm(_current) else "●  6 CREW"
 	for m in _messages.get_children():
 		m.queue_free()
 	_messages.add_child(_day_label("TODAY"))
@@ -302,9 +302,12 @@ func _message_row(msg: Dictionary) -> Control:
 	var tm := UniverseUI.label(str(msg.get("time", "")), 9, UniverseUI.FAINT)
 	tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	top.add_child(tm)
-	var body := UniverseUI.label(str(msg.get("text", "")), 14, UniverseUI.CREAM_DIM)
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	col2.add_child(body)
+	if bool(msg.get("rich", false)):
+		col2.add_child(_coloured_body(str(msg.get("text", ""))))
+	else:
+		var body := UniverseUI.label(str(msg.get("text", "")), 14, UniverseUI.CREAM_DIM)
+		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		col2.add_child(body)
 	var photo_id := int(msg.get("photo", -1))
 	if photo_id >= 0 and photos != null:
 		var tex := photos.texture_for(photo_id)
@@ -323,6 +326,62 @@ func _message_row(msg: Dictionary) -> Control:
 			col2.add_child(frame)
 	return pad
 
+func _fill_coloured(rich: RichTextLabel, text: String) -> void:
+	var re := RegEx.new()
+	re.compile("(?s)\\[color=#([0-9A-Fa-f]{6})\\](.*?)\\[/color\\]")
+	var pos := 0
+	for m in re.search_all(text):
+		if m.get_start() > pos:
+			rich.add_text(text.substr(pos, m.get_start() - pos))
+		rich.push_color(Color.html(m.get_string(1)))
+		rich.add_text(m.get_string(2))
+		rich.pop()
+		pos = m.get_end()
+	if pos < text.length():
+		rich.add_text(text.substr(pos))
+## The guide words are coloured individually. A label per word is more predictable than a BBCode label here:
+## controls are amber, apps are moss, and places inside an app are lake teal.
+func _coloured_body(text: String) -> Control:
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	for para in text.split("\n"):
+		if para.strip_edges() == "":
+			var gap := Control.new()
+			gap.custom_minimum_size = Vector2(0, 5)
+			col.add_child(gap)
+			continue
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 4)
+		flow.add_theme_constant_override("v_separation", 2)
+		flow.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.add_child(flow)
+		_fill_flow(flow, para)
+	return col
+
+func _fill_flow(flow: HFlowContainer, text: String) -> void:
+	var re := RegEx.new()
+	re.compile("\\[color=#([0-9A-Fa-f]{6})\\](.*?)\\[/color\\]")
+	var pos := 0
+	for m in re.search_all(text):
+		if m.get_start() > pos:
+			_add_words(flow, text.substr(pos, m.get_start() - pos), UniverseUI.CREAM_DIM)
+		_add_words(flow, m.get_string(2), Color.html(m.get_string(1)))
+		pos = m.get_end()
+	if pos < text.length():
+		_add_words(flow, text.substr(pos), UniverseUI.CREAM_DIM)
+
+func _add_words(flow: HFlowContainer, text: String, colour: Color) -> void:
+	for w in text.split(" ", false):
+		if w == "":
+			continue
+		if w.substr(0, 1) in [".", ",", ";", ":", "!", "?", ")", "]", "%"] and flow.get_child_count() > 0:
+			var prev := flow.get_child(flow.get_child_count() - 1) as Label
+			if prev != null:
+				prev.text += w
+				continue
+		var l := UniverseUI.label(w, 14, colour)
+		l.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		flow.add_child(l)
 func _send() -> void:
 	var text := _input.text.strip_edges()
 	if text == "":

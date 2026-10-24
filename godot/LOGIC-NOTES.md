@@ -1020,3 +1020,20 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
   - UIAPP3. Should the system bar show real signal and battery state, or stay a quiet decoration?
   - UIAPP4. Should the app shell use the requested OFL font family and paper texture when Claude delivers them?
   - UIAPP5. Should Home and Put away be the only persistent navigation, or should each app also have a visible app back?
+
+## Kit, the DroneBudz support contact (lane/notify, session B, 2026-11-15)
+- **Contact:** Kit, a new DroneBudz direct message with the role DroneBudz support. Kit is a person in the server, not a tutorial overlay. The chat sidebar treats Kit as a direct message, and Kit's body text is rendered word by word so the guide language can be coloured.
+- **Story-mode only:** `game/guide_coach.gd` sends tips only when `hud.story_mode` is on. It never pauses, scores, fails or gates anything. Every tip is saved in `user://guide_tips.cfg` and is sent once.
+- **Opening and follow-ups:** four seconds after the case starts, Kit explains Tab, DroneBudz, Casebook, Jobs, Facade and Home. If the tablet is not opened after 18 seconds, Kit sends the Home-screen follow-up. If the tablet is opened but DroneBudz is not, Kit sends the app follow-up after 20 seconds. If only #general is read, Kit points at #town, #clips and #jobs after 24 seconds. A tip that asks for an action gets one follow-up, then Kit stops.
+- **Story beats:** act 1 points at Casebook; act 2 explains evidence framing; a job offer explains Jobs and the keep-clear rule; Riley's night pasture with no thermal module explains Facade, Cameras, the channel pot and Your kit; a closed case explains the Map, Ridge trailhead or North gate pull-off and Drive here; the ending choice points back at Casebook; the first photo explains the shutter and Photos; the flight controls explain Takeoff, Land, Return, Esc, Tab and the movement keys.
+- **Colour language:** amber `#E0AB59` for keys and controls (Tab, Drive here, Takeoff), moss `#74A87A` for apps and channels (DroneBudz, Jobs, Facade, Casebook, #town), lake teal `#5C959F` for places inside an app (Home, Overview, Cameras, Ridge trailhead). Punctuation is attached to the previous coloured word so it does not float.
+- **Notifications:** every tip also posts through PhoneNotes, never a modal. Chat unread counts still work.
+- **Evidence:** `docs/realism/guide/00_kit_welcome.jpg`.
+- **Docs:** `docs/GUIDE-CONTACT.md`; `CLAUDE-PHONE-APP-UI-PASS.md` now asks for `avatar_kit.png`, a support portrait and a guide badge.
+- **Honest limits:** Kit reads the phone's current app and chat channel, not every input. The follow-up timers are real seconds, not in-game time. Players who ignore the story will not see the later story-beat tips. The text is canned, not generated from the player's exact frame or position. Kit's portrait is still a coloured initial until Claude delivers `avatar_kit.png`.
+- **Questions for Robert:**
+  - KIT1. Should Kit stay a separate support contact, or be folded into an existing crew member?
+  - KIT2. Should follow-ups wait longer, or arrive sooner?
+  - KIT3. Should Kit also speak in the other story threads, or stay in the direct message?
+  - KIT4. Should the colour language be optional for colour-blind players, with underlines as a second cue?
+  - KIT5. Should Kit ever offer a manual "show me how" choice in the bottom bar?

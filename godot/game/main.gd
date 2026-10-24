@@ -59,6 +59,7 @@ var jobs: Jobs                     # session B: the opt-in DroneBudz jobs and st
 var clips: ClipLibrary             # session B: representative thumbnails from video mode (game/clip_library.gd)
 var chat_data: ChatData            # session B: the DroneBudz Discord-style server (game/chat_data.gd)
 var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
+var guide: GuideCoach              # session B: Kit, the DroneBudz support contact and story-mode tips
 var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks (game/case_objects.gd)
 var story: StoryArc                # session B: the Lake Car story arc (game/story_arc.gd)
 var unknown_thread: UnknownThread  # session B: the unknown direct message thread (game/unknown_thread.gd)
@@ -417,6 +418,9 @@ func _ready() -> void:
 	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips, director, roads, launch_sites, finale, wildlife)
 	phone_os.fly_drone.connect(switch_drone)
 	phone_os.travel_requested.connect(travel_to_site)
+	guide = GuideCoach.new()
+	add_child(guide)
+	guide.setup(hud, chat_data, phone_notes, phone_os, story, director, wildlife, inventory, photo_library, jobs, finale)
 	# a notification's "Open DroneBudz" button goes straight into the chat app
 	phone_notes.app_requested.connect(func(app: String):
 		phone_os.open()
@@ -897,6 +901,8 @@ func _process(delta: float) -> void:
 	_check_home_landing()
 	if jobs != null and not paused:
 		jobs.tick(delta)   # session B: the channel keeps earning views and money between flights
+	if guide != null and not paused:
+		guide.update(delta)   # session B: Kit story-mode tips and nudges
 	if traffic != null and hud != null:
 		traffic.update(delta, float(hud.weather.get("hour", 12.0)), paused)   # session B: life on the roads
 	if roads != null and hud != null:
@@ -1191,6 +1197,18 @@ func _screenshot_mode(arg: String) -> void:
 			print("ROADLAND position %.3f %.3f %.3f, terrain %.3f, surface %.3f, and %.3f m above the surface" % [quad.position().x, quad.position().y, quad.position().z, terrain.height(rx, rz), roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz), quad.position().y - (roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz))])
 		elif c == "phone":        # session B dev hook: the phone home screen
 			phone_os.open()
+		elif c == "guidetip":     # session B dev hook: force Kit tip and open the DM
+			if guide != null:
+				guide.debug_tip("welcome")
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("guide")
+		elif c.begins_with("guidetip="):
+			if guide != null:
+				guide.debug_tip(c.substr(9))
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("guide")
 		elif c == "phonemap":     # session B dev hook: the valley map app
 			phone_os.open()
 			phone_os._open_app("map")

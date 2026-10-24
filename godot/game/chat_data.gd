@@ -20,6 +20,7 @@ const CHANNELS := [
 	{"id": "tech", "name": "tech", "topic": "Gear, drones and honest reviews"},
 	{"id": "jobs", "name": "jobs", "topic": "Paid work for the channel"},
 	{"id": "unknown", "name": "Unknown", "topic": "Direct messages · unknown account"},
+	{"id": "guide", "name": "Kit", "topic": "DroneBudz support · tips, controls and getting around"},
 ]
 const CAST := {
 	"Maya": {"role": "editor and channel owner", "colour": Color(0.78, 0.38, 0.50)},
@@ -30,6 +31,7 @@ const CAST := {
 	"Jo": {"role": "events and bookings", "colour": Color(0.47, 0.35, 0.72)},
 	"Rennick": {"role": "Provincial Police, Halloway", "colour": Color(0.36, 0.46, 0.60)},
 	"Unknown": {"role": "unknown account", "colour": Color(0.42, 0.42, 0.46)},
+	"Kit": {"role": "DroneBudz support", "colour": Color(0.74, 0.62, 0.36)},
 	"You": {"role": "pilot", "colour": Color(0.30, 0.65, 0.45)},
 }
 
@@ -59,14 +61,20 @@ func messages(channel: String, mark_read := true) -> Array:
 		_save()
 	return out
 
-func post(channel: String, from: String, text: String, system := false, mine := false, photo := -1) -> void:
+func post(channel: String, from: String, text: String, system := false, mine := false, photo := -1, rich := false) -> void:
 	if not _dyn.has(channel):
 		_dyn[channel] = []
-	_dyn[channel].append({"from": from, "text": text, "time": _now_label(), "system": system, "mine": mine, "photo": photo})
+	_dyn[channel].append({"from": from, "text": text, "time": _now_label(), "system": system, "mine": mine, "photo": photo, "rich": rich})
 	if channel != _current and not mine:
 		_unread[channel] = int(_unread.get(channel, 0)) + 1
 	_save()
 	posted.emit(channel)
+
+func current_channel() -> String:
+	return _current
+
+func is_dm(channel: String) -> bool:
+	return channel == "unknown" or channel == "guide"
 
 func unread(channel: String) -> int:
 	return int(_unread.get(channel, 0))
