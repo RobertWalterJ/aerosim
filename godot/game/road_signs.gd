@@ -27,6 +27,7 @@ func setup(t: Terrain, r: Roads) -> void:
 	_green = _mat(Color(0.16, 0.32, 0.22), 0.8)
 	_post = _mat(Color(0.35, 0.37, 0.34), 0.6)
 	_build_stop_signs()
+	_build_stop_ahead()
 	_build_speed_signs()
 	_build_warning_signs()
 	_build_fingerpost()
@@ -187,6 +188,13 @@ func _stop_line(center: Vector2, face: Vector2, width: float) -> void:
 	mi.mesh = bm
 	mi.material_override = _white
 	root.add_child(mi)
+
+func _build_stop_ahead() -> void:
+	# a second warning further back from the busier stop approaches
+	_sign(Vector2(250.0, 255.0), Vector2(-1.0, 0.0), 4.8, "warn", "STOP")
+	_sign(Vector2(270.0, 18.0), Vector2(0.0, -1.0), 5.0, "warn", "STOP")
+	_sign(Vector2(185.0, 505.0), Vector2(-1.0, 0.0), 4.8, "warn", "STOP")
+	_sign(Vector2(10.0, -760.0), Vector2(-1.0, 0.0), 4.6, "warn", "STOP")
 
 func _build_speed_signs() -> void:
 	# one speed plate at each route entry, on the side the traffic reads it from

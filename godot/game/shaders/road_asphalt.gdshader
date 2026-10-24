@@ -6,6 +6,8 @@ render_mode diffuse_burley, specular_schlick_ggx, cull_disabled;
 uniform sampler2D uAlbedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D uNormal : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D uArm : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D uJunctionMask : filter_linear, repeat_disable;
+varying vec3 vWorld;
 
 uniform vec3 asphalt : source_color = vec3(0.145, 0.145, 0.155);
 uniform vec3 line_col : source_color = vec3(0.82, 0.82, 0.78);
@@ -18,6 +20,10 @@ float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.545
 float noise(vec2 p) {
 	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+}
+
+void vertex() {
+	vWorld = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 void fragment() {
@@ -50,6 +56,13 @@ void fragment() {
 	float dash = step(fract(v * 0.095), 0.56);
 	float centre = smoothstep(0.0105, 0.0015, abs(u - 0.5)) * dash;
 	float marks = clamp(edge_line * edge_marks + centre * center_line, 0.0, 1.0) * max(wear, 0.72);
+	// no lane paint runs through the middle of a junction
+	vec2 juv = vWorld.xz / 4000.0 + 0.5;
+	if (juv.x > 0.0 && juv.y > 0.0 && juv.x < 1.0 && juv.y < 1.0) {
+		float junction = texture(uJunctionMask, juv).r;
+		marks *= 1.0 - smoothstep(0.15, 0.65, junction);
+		c = mix(c, c * 0.88, junction * 0.35);
+	}
 	c = mix(c, line_col, marks * 0.92);
 	// rain darkens the asphalt and makes the polished tracks reflect
 	c = mix(c, c * 0.68, wetness * 0.45);

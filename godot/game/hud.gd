@@ -94,6 +94,7 @@ var surprise_shows := false        # session B: a show starts by itself on a few
 var birds_on := true               # session B: the flocks over the valley
 ## session B: extreme-weather events and the ring course. game/weather_events.gd reads this dictionary every frame;
 ## any extra keys it adds are harmless. "course" 0 off, 1 easy, 2 lake run, 3 tree slalom, 4 photograph.
+var beacons_on := true   # session B: the flashing red beacons over the junctions (Display > Intersection beacons)
 var events := {"waterspout": false, "tornado": false, "thunderstorm": false, "thermals": false,
 	"dustdevil": false, "fogbank": false, "snowsquall": false, "surprise": false,
 	"far_traffic": false, "park_life": false, "course": 0}
@@ -670,6 +671,8 @@ func _build_display_tab() -> void:
 	_choice(p, "Camera effects", ["Full sensor look", "Simple (phone safe)"], func(): return 1 if simple_on else 0, func(i): simple_on = i == 1; simple_changed.emit(simple_on))
 	_choice(p, "Drifting leaves and dust", ["On", "Off"], func(): return 0 if ambient_on else 1, func(i): ambient_on = i == 0; ambient_changed.emit(ambient_on))
 	_choice(p, "Birds", ["On", "Off"], func(): return 0 if birds_on else 1, func(i): birds_on = i == 0; birds_changed.emit(birds_on))
+	_heading(p, "World")
+	_choice(p, "Intersection beacons", ["On", "Off"], func(): return 0 if beacons_on else 1, func(i): beacons_on = i == 0)
 	_heading(p, "Screen")
 	_action(p, "Full screen", func():
 		var m := DisplayServer.window_get_mode()

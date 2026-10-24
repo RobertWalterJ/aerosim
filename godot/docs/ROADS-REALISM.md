@@ -58,6 +58,16 @@ The small gate, farm and field drives are excluded from the traffic route pool, 
 
 The final gateway and place-sign art is requested in `docs/CLAUDE-LOCATION-SIGNS-ASSETS.md`.
 
+## Intersections and flashing red beacons
+
+- **Five rural flashing-red beacons** hang from cables between two 6.5 m timber poles at the east gate, south junction, Toby Farm junction, north gate and west junction. Each has a yellow diamond backplate, black housing, red lenses on both faces and a pulsing red OmniLight. Lens and light flash together, about 0.68 seconds on and 0.67 off.
+- **Pause switch:** Display > World > Intersection beacons turns the flashing and red light off; the poles and housings remain.
+- **Markings:** every stop sign has a white stop bar, and the asphalt shader fades painted edge and centre lines through a junction mask built in `roads.gd`. No lane line runs straight across an intersection.
+- **Signs:** stop approach signs, STOP AHEAD warning diamonds on the busier approaches and the existing junction warnings.
+- The beacons are scenery. Traffic does not stop for them, and there is no signal controller or give-way logic.
+- Evidence: `docs/realism/intersections/00_beacon_at_night.jpg`, `01_east_gate_beacon.jpg`, `02_south_junction.jpg`, `03_stop_ahead.jpg`.
+- Full notes: `docs/INTERSECTIONS.md`; final signal art request: `docs/CLAUDE-INTERSECTION-ASSETS.md`.
+
 ### Sign evidence
 
 - `docs/realism/road_signs/00_stop_sign.jpg`

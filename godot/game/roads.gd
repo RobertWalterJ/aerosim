@@ -11,6 +11,10 @@ const CLEAR_STEP := 6.0
 const CLEAR_CELL := 24.0
 const TREE_CLEARANCE := 10.0
 const MASK_N := 1024
+const JUNCTIONS := [
+	Vector2(270.0, 42.0), Vector2(286.0, 260.0), Vector2(215.0, 505.0), Vector2(12.0, -255.0),
+	Vector2(-300.0, 300.0), Vector2(-410.0, 120.0), Vector2(45.0, -760.0),
+]
 
 const ROUTES := [
 	{
@@ -102,6 +106,7 @@ var _gravel_diff: Texture2D
 var _gravel_nor: Texture2D
 var _gravel_arm: Texture2D
 var road_mask: ImageTexture       # 1024 px mask of the asphalt and shoulder corridors, for the grass shader
+var junction_mask: ImageTexture   # white at junctions, so lane markings stop through the crossing
 
 # ------------------------------------------------------------------ clearance for the world planting
 static func _ensure_index() -> void:
@@ -151,6 +156,7 @@ func setup(t: Terrain) -> void:
 	for r in ROUTES:
 		paths[str(r["id"])] = _route_points(r)
 	_build_road_mask()
+	_build_junction_mask()
 	for r in ROUTES:
 		_build_route(r)
 	print("roads: ", stats(), " audit: ", audit())
@@ -198,6 +204,26 @@ func _build_road_mask() -> void:
 			if wp2.distance_to(launch) <= 18.0:
 				img.set_pixel(xx2, zz2, Color.WHITE)
 	road_mask = ImageTexture.create_from_image(img)
+## Rasterise the junction aprons. The asphalt shader fades the painted lines through these circles, so a centre line does
+## not run straight across a T junction.
+func _build_junction_mask() -> void:
+	var img := Image.create(MASK_N, MASK_N, false, Image.FORMAT_L8)
+	img.fill(Color(0, 0, 0, 1))
+	for j in JUNCTIONS:
+		var cx := int((j.x / Terrain.SIZE + 0.5) * MASK_N)
+		var cz := int((j.y / Terrain.SIZE + 0.5) * MASK_N)
+		var pr := int(ceil(13.0 / Terrain.SIZE * MASK_N))
+		for dzz in range(-pr, pr + 1):
+			for dxx in range(-pr, pr + 1):
+				var xx := cx + dxx
+				var zz := cz + dzz
+				if xx < 0 or zz < 0 or xx >= MASK_N or zz >= MASK_N:
+					continue
+				var wp := Vector2((float(xx) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5,
+					(float(zz) + 0.5) / MASK_N * Terrain.SIZE - Terrain.SIZE * 0.5)
+				if wp.distance_to(j) <= 13.0:
+					img.set_pixel(xx, zz, Color.WHITE)
+	junction_mask = ImageTexture.create_from_image(img)
 ## Rain darkens the roads and lifts a little reflection on the wheel tracks. The weather owns the value; this only
 ## forwards it to the asphalt and shoulder shaders when it changes.
 func set_wetness(w: float) -> void:
@@ -343,6 +369,7 @@ func _build_route(route: Dictionary) -> void:
 	mat.set_shader_parameter("uAlbedo", _asphalt_diff)
 	mat.set_shader_parameter("uNormal", _asphalt_nor)
 	mat.set_shader_parameter("uArm", _asphalt_arm)
+	mat.set_shader_parameter("uJunctionMask", junction_mask)
 	var has_lines := width >= 6.5
 	mat.set_shader_parameter("edge_marks", 1.0 if has_lines else 0.0)
 	mat.set_shader_parameter("center_line", 1.0 if has_lines else 0.0)

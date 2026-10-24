@@ -878,3 +878,19 @@ Every app screen now exists, and the story director is a real system rather than
   - LOC3. Should the farm sign say TOBY FARM or another name?
   - LOC4. Should Voss and Son, the festival, the camp and the cabin have larger signs, or stay modest roadside boards?
   - LOC5. Should the location signs be lit or reflective for night approaches?
+
+## Intersections, markings and flashing red beacons (lane/notify, session B, 2026-11-15)
+- **Five rural red beacons (`game/intersection_signals.gd`):** east gate, south junction, Toby Farm junction, north gate and west junction. Each has two 6.5 m timber poles, a cable between them, a yellow diamond backplate, a dark housing with a top visor, red lenses on both faces and a red OmniLight. Lens and light flash together, about 0.68 seconds on and 0.67 off. Poles and housings remain when the flash is switched off.
+- **Pause switch:** Display > World > Intersection beacons toggles the flash and the red light, satisfying the rule that every effect has a switch.
+- **Junction markings:** the asphalt shader now samples a 1024 px junction mask built in `roads.gd`; painted edge and centre lines fade through the junction apron instead of running straight across. Every stop sign has a white stop bar, and the busier approaches have STOP AHEAD warning diamonds.
+- **Signage:** the existing junction warning diamonds, stop signs and speed plates remain; the new stop-ahead signs sit on the south lane, east lane, farm approach and cabin approach.
+- **Evidence:** `docs/realism/intersections/00_beacon_at_night.jpg`, `01_east_gate_beacon.jpg`, `02_south_junction.jpg`, `03_stop_ahead.jpg`.
+- **Docs:** `docs/INTERSECTIONS.md`; art brief `docs/CLAUDE-INTERSECTION-ASSETS.md`.
+- **Honest limits:** traffic does not stop for the beacons or stop signs; there is no signal controller, queue detection or give-way logic. The beacon is a single red lamp, not a full three-colour signal. Wires are straight boxes, not catenary curves, and do not sway. Lenses are emissive spheres, not fresnel glass. Stop bars are flat white boxes and do not wear. The junction mask is a 1024 px raster, so the line fade edge is coarse. STOP AHEAD signs are Label3D placeholders. There are no street-name blades yet.
+- **Questions for Robert:**
+  - INT1. Are five beacons the right number, or should more or fewer junctions have one?
+  - INT2. Should they flash together or alternate across the valley?
+  - INT3. Should the cable sag like a real span and sway in the wind?
+  - INT4. Should STOP AHEAD be on every stop approach, or only the busier ones?
+  - INT5. Should any junction become a full three-colour signal, or is flashing red the ceiling for this valley?
+  - INT6. Should street-name blades be added at the main junctions?

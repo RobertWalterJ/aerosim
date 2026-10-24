@@ -74,6 +74,7 @@ var roads: Roads                   # session B: the country highways and lanes l
 var boat_launch: BoatLaunch        # session B: the Halloway Lake boat launch at the end of the launch lane
 var road_signs: RoadSigns          # session B: stop signs, speed limits and junction warnings
 var landmark_signs: LandmarkSigns  # session B: the cemetery gateway and the place and business signs
+var intersection_signals: IntersectionSignals  # session B: the flashing red beacons over the junctions
 var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
 var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
 var crew: Crew                     # session B: the six friends, each giving the pilot different information (game/crew.gd)
@@ -472,6 +473,9 @@ func _build_world() -> void:
 	landmark_signs = LandmarkSigns.new()
 	add_child(landmark_signs)
 	landmark_signs.setup(terrain, roads)
+	intersection_signals = IntersectionSignals.new()
+	add_child(intersection_signals)
+	intersection_signals.setup(terrain, hud)
 	# session B: the farm fields (placeholder planting until Claude's models) and the traffic on the new roads.
 	farmland = Farmland.new()
 	add_child(farmland)
@@ -1448,6 +1452,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("roads: ", roads.stats())
 	print("road signs: ", road_signs.stats())
 	print("landmark signs: ", landmark_signs.stats())
+	print("intersection signals: ", intersection_signals.stats())
 	print("boat launch: placed at ", CaseObjects.BOAT_LAUNCH_SPOT)
 	print("farmland: ", farmland.stats())
 	print("traffic: ", traffic.stats())
