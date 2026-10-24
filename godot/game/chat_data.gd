@@ -88,6 +88,8 @@ func _seed_for(channel: String) -> Array:
 				_msg("Jo", "Festival dates are confirmed. Fireworks on the Saturday, we have press access for the channel."),
 				_msg("Sam", "I will post forecasts in #weather. Nothing dramatic for two days, then it turns."),
 				_msg("Riley", "The park trust asked about footage of the chapel. I said we know a pilot."),
+				_msg("Jo", "The new road out to the farm is open. Makes the festival run a lot easier, and there is a good hard shoulder for the chase car."),
+				_msg("Riley", "Ridge road is open again too. If you follow it low there are some new angles of the valley from the old hedge line."),
 				_msg("Maya", "That is you by the way. Check #jobs when you land, there is paid work on the board."),
 			]
 		"weather":

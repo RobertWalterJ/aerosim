@@ -58,6 +58,7 @@ var photo_library: PhotoLibrary    # session B: the in-game photo gallery (game/
 var jobs: Jobs                     # session B: the opt-in DroneBudz jobs and story layer (game/jobs.gd)
 var chat_data: ChatData            # session B: the DroneBudz Discord-style server (game/chat_data.gd)
 var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
+var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
@@ -386,6 +387,10 @@ func _build_world() -> void:
 	add_child(world)
 	world.build(terrain, touch_dev)
 	home = world.home
+	# session B: the country highways and lanes, laid on the ground after the trees so the cleared corridor reads
+	roads = Roads.new()
+	add_child(roads)
+	roads.setup(terrain)
 	var lake := Lake.new()
 	add_child(lake)
 	lake.build(terrain)
@@ -1105,6 +1110,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("jobs: ", jobs.stats())
 	print("phone: ", phone_os.stats())
 	print("channel: ", {"views": jobs.views(), "videos": jobs.videos().size(), "editor": jobs.editor_friend()})
+	print("roads: ", roads.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:

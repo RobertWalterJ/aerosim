@@ -507,3 +507,18 @@ Robert's direction: the player uploads photos and videos from the camera roll to
   - U4. Should earnings be spendable now (gear, batteries, travel) and should unpaid gear progress against follower milestones?
   - U5. Upload quality is estimated from the photo metadata. Should the player be shown the estimate before publishing (a star or reach preview), or keep it hidden as it is now?
   - U6. Should the edited cut be a separate video in VidTube (it is now), or replace the direct upload as the same video with better numbers?
+
+## Country highways and lanes linking the places (lane/notify, session B, 2026-10-25)
+Robert asked for country highway roads linking some of the places, and for Claude to model rural farm fencing, fields, crops and hay. This pass is the roads; the model request is on the board.
+- **Three routes (`game/roads.gd`):** the valley highway from the start pad past the chapel and down to the farm (828 m), the lakeside lane from the farm round to the lake overlook (764 m), and the ridge road from the pad and the graves north to the far railway (1,695 m). Total 3.29 km, all laid on the terrain height.
+- **Look:** an asphalt ribbon with a dashed centre line and solid edge lines, two darker wheel tracks, grain and wear, and fraying into gravel and dirt at the edges; separate gravel shoulders with loose stone, dirt and grass creeping in at the outer lip. The shaders are `game/shaders/road_asphalt.gdshader` and `road_gravel.gdshader`, both procedural, no textures.
+- **Keep-off for the planting:** the routes are fixed and known before the world is planted, so `World` now skips any near tree, far tree or prop within the corridor (`Roads.near_road`). That gives the roads their cleared verges through the woods and stops a tree standing in the carriageway. The route plan is deliberately not a race track or a gate: the roads are scenery and a way to read the valley from low down.
+- **Evidence (docs/realism/roads/):** 00 the highway at ground level with its markings and shoulders, 01 the junction by the start pad from the air, 02 the valley highway arriving at the farm with the barn, silo and windmill, 03 the lakeside lane along the shore, 04 the ridge road cutting its cleared corridor through the woods, 05 the chapel road on the hill.
+- **Not verified:** grass growing through the asphalt (the grass pass is a separate system and the roads do not currently mask it; it was not visible in the aerial shots but may show at ground level close up), whether any world building or hedge stands in a carriageway (props within 7 m are skipped, larger layout buildings are not), and how the roads sit with the water at the lake overlook.
+- **Questions for Robert:**
+  - R1. Are there enough roads, or do you want a branch to the railway station, a farm driveway, and a loop at the lake car park?
+  - R2. Should the roads be driveable by a ground vehicle later, or stay scenery for the drone?
+  - R3. Are the road widths right (8 m valley and ridge, 5 m lane), and should the ridge road be a smaller lane rather than a highway?
+  - R4. Should there be cattle grids, signs, telegraph poles and fences along them (the fence and field props are in the Claude request), or keep them bare until those models arrive?
+  - R5. Do you want the roads visible in the minimap and as discovery places, or left off both?
+  - R6. Should the sunken lane and the old graves paths connect into the new road network, or stay separate?
