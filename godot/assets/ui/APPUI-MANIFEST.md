@@ -11,28 +11,28 @@ display size; `sizes/<px>/` holds native renders for small slots. Pivot is the i
 | `act_3_last_flight.png` | 384 x 384 | - | act stamp, works at 64-180 px |
 | `act_4_cabin.png` | 384 x 384 | - | act stamp, works at 64-180 px |
 | `act_5_end.png` | 384 x 384 | - | act stamp, works at 64-180 px |
-| `avatar_alex.png` | 512 x 512 | - | Alex, Facade seller: flip-up magnifier band, work shirt |
-| `avatar_jo.png` | 512 x 512 | - | Jo, events: auburn bob, slate shirt, festival lanyard |
-| `avatar_kit.png` | 512 x 512 | - | Kit, DroneBudz support: headset, olive jacket |
-| `avatar_maya.png` | 512 x 512 | - | Maya, editor: long dark hair, rust jumper, headphones round the neck |
-| `avatar_rennick.png` | 512 x 512 | - | Constable Rennick: the in-game model, plain clothes |
-| `avatar_riley.png` | 512 x 512 | - | Riley, park ranger: moss fleece, shoulder radio, no insignia |
-| `avatar_sam.png` | 512 x 512 | - | Sam, crew and fixer: braids, canvas utility jacket, pocket tools |
-| `avatar_tom.png` | 512 x 512 | - | Tom, storm chaser: bucket hat, mustard jacket, camera strap |
-| `avatar_unknown.png` | 512 x 512 | - | Unknown account: backlit, beanie and gaiter, no readable face |
-| `avatar_wren.png` | 512 x 512 | - | Wren, lost hiker: the in-game model, red rain jacket, pack straps |
-| `avatar_you.png` | 512 x 512 | - | You, the pilot: FPV goggles down, neutral |
-| `avatars/cutout/alex.png` | 512 x 512 | - |  |
-| `avatars/cutout/jo.png` | 512 x 512 | - |  |
-| `avatars/cutout/kit.png` | 512 x 512 | - |  |
-| `avatars/cutout/maya.png` | 512 x 512 | - |  |
-| `avatars/cutout/rennick.png` | 512 x 512 | - |  |
-| `avatars/cutout/riley.png` | 512 x 512 | - |  |
-| `avatars/cutout/sam.png` | 512 x 512 | - |  |
-| `avatars/cutout/tom.png` | 512 x 512 | - |  |
-| `avatars/cutout/unknown.png` | 512 x 512 | - |  |
-| `avatars/cutout/wren.png` | 512 x 512 | - |  |
-| `avatars/cutout/you.png` | 512 x 512 | - |  |
+| `avatar_alex.png` | 512 x 512 | - | Alex: gear and spanner, embroidered badge emblem |
+| `avatar_jo.png` | 512 x 512 | - | Jo: festival ticket, sticker emblem |
+| `avatar_kit.png` | 512 x 512 | - | Kit: lifebuoy, flat vector emblem |
+| `avatar_maya.png` | 512 x 512 | - | Maya: clapperboard, cut paper emblem |
+| `avatar_rennick.png` | 512 x 512 | - | Constable Rennick: peaked cap with a lamp, badge emblem |
+| `avatar_riley.png` | 512 x 512 | - | Riley: sheep, flat vector emblem |
+| `avatar_sam.png` | 512 x 512 | - | Sam: windsock, line drawing emblem |
+| `avatar_tom.png` | 512 x 512 | - | Tom: storm cloud and bolt, flat vector emblem |
+| `avatar_unknown.png` | 512 x 512 | - | Unknown account: pixel question mark, pixel emblem |
+| `avatar_wren.png` | 512 x 512 | - | Wren: wren bird in a scarf, hand-drawn doodle emblem |
+| `avatar_you.png` | 512 x 512 | - | You: smiling quadcopter, sticker emblem |
+| `avatars/cutout/alex.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/jo.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/kit.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/maya.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/rennick.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/riley.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/sam.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/tom.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/unknown.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/wren.png` | 512 x 512 | - | emblem only, transparent |
+| `avatars/cutout/you.png` | 512 x 512 | - | emblem only, transparent |
 | `badge_dm.png` | 64 x 64 | - | 32 px nominal |
 | `badge_dot.png` | 32 x 32 | - | 16 px nominal |
 | `badge_edited.png` | 64 x 64 | - | 32 px nominal |
