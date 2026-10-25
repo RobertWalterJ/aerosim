@@ -120,6 +120,7 @@ var _tl_btn: RoundButton
 var _rth_btn: RoundButton
 var _view_btn: RoundButton
 var _pv_btn: RoundButton
+var _brand: Label
 var _shutter: ShutterButton
 var _gimbal: VSlider
 var _toast: Label
@@ -272,6 +273,15 @@ func _build_flight_hud() -> void:
 	_toast_source.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast_source.modulate.a = 0.0
 	_root.add_child(_toast_source)
+	# the flight app's brand, centred in the top bar (AeroLink)
+	_brand = Label.new()
+	_brand.text = "AEROLINK"
+	_brand.add_theme_font_override("font", load("res://assets/ui/fonts_osui/Roboto-Medium.ttf") as Font)
+	_brand.add_theme_font_size_override("font_size", 13)
+	_brand.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
+	_brand.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_brand.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_brand)
 	_build_nav_panel()
 	# photo flash
 	_flash = ColorRect.new()
@@ -391,6 +401,9 @@ func layout_for(frame: Rect2) -> void:
 	var cy := frame.position.y + frame.size.y * 0.5
 	_place(_back_btn, Vector2(frame.position.x + 4.0 * u, frame.position.y - 2.0 * u), 40.0 * u)
 	_place(_gear_btn, Vector2(minf(frame.end.x, vp.x) - 44.0 * u, frame.position.y - 2.0 * u), 40.0 * u)
+	# the AeroLink brand, centred in the top bar
+	_brand.size = Vector2(240.0 * u, 22.0 * u)
+	_brand.position = Vector2((frame.position.x + minf(frame.end.x, vp.x)) * 0.5 - 120.0 * u, frame.position.y + 6.0 * u)
 	# Tablet and notification touch entries. They sit in the right-hand utility column under the camera add-ons, not
 	# beside the pause glyph: the pause row shares the OSD top bar with the ISO/EV/WB readout, and two more discs there
 	# covered the camera data. Under the add-ons they are clear of the OSD, the gimbal scale and the shutter.
