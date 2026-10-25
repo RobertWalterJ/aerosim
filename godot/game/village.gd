@@ -299,9 +299,7 @@ func _parked_car(pos: Vector2, yaw: float, colour: Color) -> void:
 			node.add_child(wheel)
 	_box(node, Vector3(0.28, 0.12, 0.06), Vector3(-0.56, 0.62, -2.01), _mat(Color(0.92, 0.86, 0.62), 0.4))
 	_box(node, Vector3(0.28, 0.12, 0.06), Vector3(0.56, 0.62, -2.01), _mat(Color(0.92, 0.86, 0.62), 0.4))
-	var heat := ThermalHeat.vehicle(node, Vector3(1.8, 0.62, 4.0), Vector3(1.55, 0.55, 2.0), 0.75)
-	heat.visible = false
-	_car_heats.append(heat)
+	# Parked cars are cold: no engine or cabin heat shell. Only moving traffic gets ThermalHeat.vehicle().
 	_inc("parked_cars")
 ## The thermal camera sees the parked cars' engines and cabins when it is switched on.
 func set_thermal_heat(on: bool) -> void:

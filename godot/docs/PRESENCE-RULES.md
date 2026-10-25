@@ -15,6 +15,13 @@ Status: 2026-11-15. The valley is deliberately emptier than the systems that des
 - Wren is the only story human in the world. Her Blender model is revealed for the search from a distance; it is hidden again whenever the drone gets within **48 m**. The thermal marker is the way to find her; the end-beat wave happens at the designed search distance (105 m), not at close range.
 - If a future human model is added, it should follow the same rule: distant reveal, hide inside the keep-out radius, and carry presence through voice/messages/heat rather than a close-up mesh.
 
+## Thermal car rules
+
+- **Moving traffic is hot:** each active vehicle has the `ThermalHeat.vehicle()` shell for its engine, warm cabin and exhaust.
+- **Parked and abandoned cars are cold:** the village parked cars no longer get a heat shell, and the abandoned Lake Car, festival bus and cabin cruiser have none. In the thermal camera they sit at the temperature of their surroundings, with no red engine or pale cabin patch.
+- There is no residual-heat timer; a car that has stopped is treated as cold. If we later want a recently parked car to stay warm for a few minutes, that should be an explicit short-lived heat state on the vehicle, not a permanent shell.
+- **People are not represented by visible bodies**, so there are no human heat silhouettes to read as close-up characters; the thermal story uses the animals and the distance-limited Wren marker.
+
 ## Traffic
 
 - Moving traffic is deliberately sparse: **three vehicles on desktop, two on a phone**.
