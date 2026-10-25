@@ -1251,3 +1251,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - At the cabin approach, `CaseObjects.show_rennick_ghost()` places the latest `rennick_1984_ghost_a` model by the cruiser; it fades with distance and hides inside the 48 m human keep-out.
 - `_arrive_cabin()` starts a timed realization: "You are looking straight through me", "You really cannot see me", "I have been dead since that storm", then she composes herself and directs the thermal search for Wren. Cabin lights/Wren heat are revealed only after that.
 - Dev hook `finalerealize`; `GATE PASS (rennickreveal)`; commit `24918b6`; doc `docs/RENNICK-REVEAL.md`.
+## Traffic road logic (lane/notify, session B, 2026-11-15)
+- Traffic samples the road centreline and offsets to the **right of travel** by `route width * 0.25`, so opposite directions pass with a proper gap.
+- Sparse plan: two town vehicles in opposite directions plus one **night-only** highway vehicle on desktop; one town + one highway on mobile. The night highway car has two real `SpotLight3D` headlights and emissive lamps; the town pair remains in daylight.
+- Right-hand lane helper `Roads.width(id)`; the hidden day highway car is skipped by thermal trace sources; traffic remains collision-free and loop-based.
+- Doc `docs/TRAFFIC-ROAD-LOGIC.md`; `GATE PASS (trafficlogic)`; commit `188739d`.
