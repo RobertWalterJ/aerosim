@@ -1289,3 +1289,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - All code fallbacks remain. Counts are in the runtime logs (`village assets=21`, `pike site assets: 13 / hunters=3`, `boat launch asset models=9`, `cabin track asset models=14`).
 - `GATE PASS (assetslicefinal)`; commit `99ad41a`; doc `docs/ASSET-INTEGRATION-SLICE-2026-11-15.md`.
 - Still not wired: signs/road surfaces (no matching received art found), Claude drone GLBs / DroneView, VehicleAssets runtime, AnimalHerd runtime, story/endgame interiors, clean Pike mast close-up.
+## Shared asset integration round 2 (lane/notify, session B, 2026-11-15)
+- Claude drone GLBs now drive the visible Raptor and Night Owl (`DroneView` loads `raptor_race_a.glb` / `nightowl_a.glb`, centres the model, collects `prop_fl/fr/rl/rr` for the existing motor animation, falls back to code geometry). Evidence `65_raptor_glb.png`.
+- Story/endgame props loaded into CaseObjects: Lake Car evidence (tow sticker, VIN plate, police tape, cone), cabin interior set + bed/chair/lantern/radio/map/case file, camp chair/cooler/firewood/fire ring/stove, cruiser lightbar/plate/old kit. Runtime `story assets=19`.
+- `GATE PASS (assetslice3)`; commit `199ab0b`; doc `docs/ASSET-INTEGRATION-SLICE-2026-11-15.md`.
+- Still open: clean Pike mast close-up, signs/road surfaces (no matching received sign art found), VehicleAssets/AnimalHerd runtimes, remaining interiors and full 453-file accounting.
