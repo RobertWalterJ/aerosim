@@ -11,22 +11,12 @@ signal controls_pressed
 signal quit_pressed
 signal look_chosen(hour: float, sky: int)
 
-const LOOKS := [
-	{"name": "Golden hour", "hour": 17.9, "sky": 1},
-	{"name": "Clear morning", "hour": 9.5, "sky": 0},
-	{"name": "Overcast", "hour": 13.0, "sky": 2},
-	{"name": "Misty dawn", "hour": 6.7, "sky": 3},
-	{"name": "Night", "hour": 22.0, "sky": 0},
-	{"name": "Snow", "hour": 11.0, "sky": 6},
-]
-
 # The field-kit accent (brass), matching Claude's UI direction, used for the one main action instead of cyan.
 const BRASS := Color(0.878, 0.671, 0.349)          # #E0AB59
 const ON_BRASS := Color(0.251, 0.176, 0.0)          # #402D00
 const BRASS_DIM := Color(0.878, 0.671, 0.349, 0.62)
 
 var _drone_label: Label
-var _look_btns: Array[Button] = []
 var _root: Control
 
 func _init() -> void:
@@ -75,7 +65,7 @@ func build(drone_name: String) -> void:
 	title.add_theme_constant_override("shadow_offset_y", 3)
 	col.add_child(title)
 
-	var tagline := Label.new(); tagline.text = "Some stories only surface from the air."
+	var tagline := Label.new(); tagline.text = "Fly to feel free."
 	tagline.add_theme_font_size_override("font_size", 20)
 	tagline.add_theme_color_override("font_color", MenuStyle.MUTED)
 	col.add_child(tagline)
@@ -101,19 +91,6 @@ func build(drone_name: String) -> void:
 		var sig: Signal = item[1]
 		b.pressed.connect(func(): sig.emit())
 		row.add_child(b)
-
-	# time and weather quick looks
-	var lh := Label.new(); lh.text = "TIME AND WEATHER"; lh.add_theme_font_size_override("font_size", 13); lh.add_theme_color_override("font_color", BRASS_DIM)
-	col.add_child(lh)
-	var flow := HFlowContainer.new(); flow.add_theme_constant_override("h_separation", 8); flow.add_theme_constant_override("v_separation", 8)
-	col.add_child(flow)
-	for i in LOOKS.size():
-		var b := Button.new(); b.text = LOOKS[i]["name"]; b.toggle_mode = true; b.custom_minimum_size = Vector2(0, 36)
-		b.add_theme_font_size_override("font_size", 15)
-		b.pressed.connect(func():
-			for j in _look_btns.size(): _look_btns[j].set_pressed_no_signal(j == i)
-			look_chosen.emit(float(LOOKS[i]["hour"]), int(LOOKS[i]["sky"])))
-		flow.add_child(b); _look_btns.append(b)
 
 	var q := Button.new(); q.text = "Quit"; q.theme_type_variation = "Danger"; q.custom_minimum_size = Vector2(0, 40)
 	q.alignment = HORIZONTAL_ALIGNMENT_LEFT
