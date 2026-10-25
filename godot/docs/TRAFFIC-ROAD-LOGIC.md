@@ -1,4 +1,4 @@
-# Traffic and road-direction logic
+﻿# Traffic and road-direction logic
 
 Status: 2026-11-15. Traffic now uses the road centreline and the correct right-hand lane.
 
@@ -30,3 +30,15 @@ Status: 2026-11-15. Traffic now uses the road centreline and the correct right-h
 - `trafficlogic` gate passes.
 - Runtime log confirms the three routes/directions: `village` forward, `village` opposite, `valley` opposite.
 - `TRAFFIC-ROAD-LOGIC.md` is the design note for future changes.
+## Headlight verification (2026-11-15)
+
+The `trafficnight` dev hook freezes the night highway car and frames it from the front. The screenshot
+`docs/realism/traffic/night_highway_headlights.png` confirms:
+
+- the car is on the right-hand side of its direction of travel;
+- two warm headlights are visible on the front;
+- the highway is otherwise empty, with the town pair kept separate.
+
+The headlight set is both an imported lamp material (where present) and two emissive lamp faces plus two
+real `SpotLight3D`s, switched on with darkness. This makes the car readable at night even if a particular
+GLB's lamp material is dull.

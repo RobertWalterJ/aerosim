@@ -22,6 +22,7 @@ var hud: Hud
 var _vehicles: Array = []
 var _thermal_on := false
 var _mobile := false
+var _debug_freeze := false
 
 func setup(t: Terrain, r: Roads, h: Hud) -> void:
 	terrain = t
@@ -152,9 +153,24 @@ func _add_vehicle_lights(node: Node3D, type: Dictionary) -> Array:
 	var out: Array = []
 	var body: Vector3 = type["body"]
 	var front := -body.z * 0.5 - 0.05
+	# extra emissive lamp faces make the headlights unmistakable even where an imported model lamp material is dull.
+	var glow_mat := StandardMaterial3D.new()
+	glow_mat.albedo_color = Color(1.0, 0.94, 0.78)
+	glow_mat.emission_enabled = true
+	glow_mat.emission = Color(1.0, 0.88, 0.62)
+	glow_mat.emission_energy_multiplier = 0.0
+	for sx in [-1.0, 1.0]:
+		var lamp := MeshInstance3D.new()
+		var lm := BoxMesh.new()
+		lm.size = Vector3(0.24, 0.12, 0.05)
+		lamp.mesh = lm
+		lamp.material_override = glow_mat
+		lamp.position = Vector3(sx * body.x * 0.30, 0.72, front - 0.42)
+		node.add_child(lamp)
+		out.append(lamp)
 	for sx in [-1.0, 1.0]:
 		var spot := SpotLight3D.new()
-		spot.position = Vector3(sx * body.x * 0.30, 0.62, front)
+		spot.position = Vector3(sx * body.x * 0.30, 0.70, front - 0.42)
 		spot.spot_range = 48.0
 		spot.spot_angle = 24.0
 		spot.spot_attenuation = 0.55
@@ -181,7 +197,7 @@ func _add_vehicle_lights(node: Node3D, type: Dictionary) -> Array:
 	return out
 
 func update(delta: float, hour: float, paused: bool) -> void:
-	if paused:
+	if paused or _debug_freeze:
 		return
 	var darkness := 0.0
 	if hour < 6.0 or hour > 19.0:
@@ -232,14 +248,29 @@ func update(delta: float, hour: float, paused: bool) -> void:
 			if lamp != null:
 				lamp.emission_energy_multiplier = 2.4 * darkness
 		for light in v.get("lights", []):
-			var spot := light as SpotLight3D
-			if spot != null:
+			if light is SpotLight3D:
+				var spot := light as SpotLight3D
 				spot.visible = darkness > 0.28
 				spot.light_energy = 4.8 * darkness
+			elif light is MeshInstance3D:
+				var lm := (light as MeshInstance3D).material_override as StandardMaterial3D
+				if lm != null:
+					lm.emission_energy_multiplier = 3.2 * darkness
 		# brake/tail glow is left off on purpose: no real lights mean no cost on the phone
 
 ## Dev hook: line the vehicles up along the valley highway for a look shot.
 ## The thermal camera sees the engine, cabin and exhaust of every moving vehicle. The body stays cool.
+func debug_freeze(on: bool) -> void:
+	_debug_freeze = on
+
+func debug_night_vehicle() -> Dictionary:
+	if _vehicles.is_empty():
+		return {}
+	var node: Node3D = _vehicles[_vehicles.size() - 1]["node"]
+	var yaw := node.rotation.y
+	var fwd := Vector3(-sin(yaw), 0.0, -cos(yaw))
+	return {"pos": node.global_position, "yaw": yaw, "fwd": fwd, "visible": node.visible}
+
 func first_vehicle_position() -> Vector3:
 	if _vehicles.is_empty():
 		return Vector3.ZERO

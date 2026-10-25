@@ -1705,6 +1705,19 @@ func _screenshot_mode(arg: String) -> void:
 						car.position = p
 						add_child(car)
 			print("trafficmodels placed in front of camera")
+		elif c == "trafficnight":   # session B dev hook: the night highway car and its headlights, seen head-on
+			traffic.update(1.0 / 60.0, 23.0, false)
+			var tv: Dictionary = traffic.debug_night_vehicle()
+			if not tv.is_empty():
+				var tp: Vector3 = tv["pos"]
+				var tf: Vector3 = tv["fwd"]
+				var cp := tp + tf * 22.0 + Vector3(tf.z, 0.0, -tf.x) * 8.0
+				var look := (tp - cp).normalized()
+				quad.reset(cp.x, terrain.height(cp.x, cp.z) + 3.0, cp.z, atan2(-look.x, -look.z))
+				gimbal_pitch = deg_to_rad(-7.0)
+				_apply_pose()
+				traffic.debug_freeze(true)
+				print("trafficnight pos=", tp, " visible=", tv["visible"])
 		elif c == "trafficcar":     # session B dev hook: a Blender traffic vehicle close up
 			var tp: Vector3 = traffic.first_vehicle_position()
 			print("trafficcar pos=", tp)
