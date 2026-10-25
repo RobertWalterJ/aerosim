@@ -10,6 +10,8 @@ extends Node
 const LENSES := {
 	"standard": {"diag": 84.0, "k1": 0.035, "k2": 0.0, "name": "84° Standard (24 mm)", "ca": 0.0018},
 	"wide": {"diag": 150.0, "k1": 0.30, "k2": 0.16, "name": "150° Wide (SuperView)", "ca": 0.004},
+	"tele": {"diag": 34.0, "k1": 0.004, "k2": 0.0, "name": "34° Telephoto (70 mm)", "ca": 0.0008},
+	"supertele": {"diag": 15.0, "k1": 0.0, "k2": 0.0, "name": "15° Super-Tele (162 mm)", "ca": 0.0004},
 }
 const SHADER_DIR := "res://game/shaders/"
 
@@ -130,6 +132,11 @@ func _tan_half() -> Vector2:
 
 func hfov_deg() -> float:
 	return rad_to_deg(2.0 * atan(_tan_half().x))
+
+## The vertical FOV the scene camera should render with, including the overscan margin the distortion pass
+## needs (it is what _build() writes to camera.fov). The caller reads this so a lens change really zooms.
+func vfov_deg() -> float:
+	return rad_to_deg(2.0 * atan(_tan_half().y * s_over))
 
 # ------------------------------------------------------------------ construction
 func _vp(size: Vector2i, hdr := true) -> SubViewport:

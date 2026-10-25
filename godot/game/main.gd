@@ -732,7 +732,7 @@ func _process(delta: float) -> void:
 			cam.global_transform.basis = Basis(Vector3.UP, heading2) * Basis(Vector3.RIGHT, gimbal_pitch)
 		else:
 			cam.global_transform.basis = Basis(q) * Basis(Vector3.RIGHT, float(af["camTilt"]))
-		cam.fov = 84.0
+		cam.fov = sensor.vfov_deg()   # camera lane: the lens's vertical FOV (standard / wide / tele), not a fixed 84°
 		if not sensor.simple: cam_shake.apply(cam, delta, wind.turb, wind.burst, quad.rates(), af["hasGimbal"])   # wind lane: buffeting (Full camera only)
 	drone_view.visible = true
 	if _landing_on:
