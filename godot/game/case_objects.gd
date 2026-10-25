@@ -18,6 +18,7 @@ const SEARCH_SPOT := Vector2(-70.0, -790.0)
 const SHEEP_SPOT := Vector2(55.0, 585.0)
 const WOLF_SPOT := Vector2(18.0, 552.0)
 const BOAT_LAUNCH_SPOT := Vector2(-430.0, 112.0)
+const GHOST_BODY_SPOT := Vector2(-12.0, 45.0)
 
 var terrain: Terrain
 var _items: Array[Dictionary] = []
@@ -48,7 +49,7 @@ static func prepare(t: Terrain) -> void:
 static func near_evidence(x: float, z: float, margin := 30.0) -> bool:
 	if _car_spot != Vector2.INF and Vector2(x, z).distance_to(_car_spot) < margin:
 		return true
-	for p in [GARAGE_SPOT, CAMP_SPOT, FESTIVAL_SPOT, CABIN_SPOT, CAVE_SPOT, SEARCH_SPOT, SHEEP_SPOT, WOLF_SPOT, BOAT_LAUNCH_SPOT]:
+	for p in [GARAGE_SPOT, CAMP_SPOT, FESTIVAL_SPOT, CABIN_SPOT, CAVE_SPOT, SEARCH_SPOT, SHEEP_SPOT, WOLF_SPOT, BOAT_LAUNCH_SPOT, GHOST_BODY_SPOT]:
 		if Vector2(x, z).distance_to(p) < margin:
 			return true
 	return false

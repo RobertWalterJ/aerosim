@@ -77,6 +77,8 @@ var launch_yaw := 150.0
 var director: StoryDirector        # session B: the one player-facing route through all the story arcs
 var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
 var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
+var ghost_flight: GhostFlight      # session B: the ghost drift after the card (game/ghost_flight.gd)
+var ghost_on := false
 var end_sequence := false         # session B: the slow end wash and the end card
 var end_walk := false             # session B: free look and walk after the card, before flying again
 var _end_cam_pos := Vector3.ZERO
@@ -452,6 +454,10 @@ func _ready() -> void:
 	ending.setup(jobs)
 	ending.began.connect(_on_ending_began)
 	ending.card_finished.connect(_on_ending_free)
+	ghost_flight = GhostFlight.new()
+	add_child(ghost_flight)
+	ghost_flight.setup(terrain)
+	ghost_flight.finished.connect(_on_ghost_finished)
 	finale = Finale.new()
 	add_child(finale)
 	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife, launch_sites)
@@ -946,6 +952,7 @@ func _apply_pose() -> void:
 
 func _process(delta: float) -> void:
 	if quad == null or not _loaded: return
+	if ghost_on: return
 	_attach_sync += delta
 	if _attach_sync > 0.4:
 		_attach_sync = 0.0
@@ -1067,6 +1074,7 @@ func _process(delta: float) -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
+	if ghost_on: return
 	if not (event is InputEventKey and event.pressed and not event.echo): return
 	match event.keycode:
 		KEY_MINUS: sensor.ev_comp = clampf(sensor.ev_comp - 0.33, -3.0, 3.0)
@@ -1555,6 +1563,14 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os.open()
 			phone_os._open_app("chat")
 			phone_os._chat_app.open("town")
+		elif c == "ghostdemo":      # session B dev hook: the ghost drift, reveal compressed to a few seconds
+			_start_ghost_flight(true)
+		elif c == "ghostworld":     # session B dev hook: ghost camera with the overlay off, for a camera sanity check
+			_start_ghost_flight(true)
+			ghost_flight.debug_overlay_visible(false)
+		elif c == "ghostwake":      # session B dev hook: skip the drift and wake immediately
+			_start_ghost_flight(true)
+			ghost_flight.debug_wake()
 		elif c == "finalerealize": # session B dev hook: the Rennick realization sequence, not yet bypassed
 			finale.debug_realization()
 		elif c == "finalecabin":  # session B dev hook: the cabin, Wren on foot and thermal on
@@ -2151,6 +2167,41 @@ func _on_ending_began() -> void:
 		story.mark_completed()
 
 func _on_ending_free() -> void:
+	if ghost_flight != null:
+		_start_ghost_flight()
+	else:
+		_begin_post_story_walk()
+
+func _start_ghost_flight(debug_fast := false) -> void:
+	end_sequence = false
+	end_walk = false
+	ghost_on = true
+	if ending != null:
+		ending.hide_prompt()
+		ending.visible = false
+	if hud != null:
+		hud.visible = false
+	if osd != null:
+		osd.visible = false
+	if phone_notes != null:
+		phone_notes.visible = false
+	if phone_os != null:
+		phone_os.close()
+	if quad != null and ghost_flight != null:
+		ghost_flight.begin(cam, quad.position(), _end_yaw, debug_fast)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _on_ghost_finished() -> void:
+	ghost_on = false
+	if quad != null and ghost_flight != null:
+		var p: Vector3 = ghost_flight.wake_position()
+		quad.reset(p.x, terrain.height(p.x, p.z) + 0.35, p.z, _end_yaw)
+		quad.armed = false
+		quad.motor_cut = true
+		quad.cmd.fill(0.0)
+	_begin_post_story_walk()
+
+func _begin_post_story_walk() -> void:
 	end_sequence = false
 	end_walk = true
 	if sensor != null:
@@ -2242,6 +2293,8 @@ func _resume_after_ending() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _input(event: InputEvent) -> void:
+	if ghost_on:
+		return
 	if not end_walk:
 		return
 	if event is InputEventMouseMotion:
