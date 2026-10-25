@@ -32,6 +32,8 @@ var _hiker: Node3D
 var _hiker_anim: AnimationPlayer
 var _hiker_heat: Node3D
 var _hiker_revealed := false
+var _rennick_ghost: Node3D
+var _rennick_revealed := false
 const HIKER_KEEP_OUT := 48.0
 var _dog_heat: Node3D
 var _cabin_on := false
@@ -515,6 +517,33 @@ func show_hiker() -> void:
 		_hiker_anim.play("idle")
 	elif _hiker is CharacterActor:
 		(_hiker as CharacterActor).set_animation("stand")
+
+func show_rennick_ghost() -> void:
+	if _rennick_ghost == null:
+		_rennick_ghost = PeopleAssets.instance("rennick_1984_ghost_a")
+		if _rennick_ghost == null:
+			return
+		add_child(_rennick_ghost)
+		var p := Vector3(CABIN_SPOT.x + 7.0, terrain.height(CABIN_SPOT.x + 7.0, CABIN_SPOT.y - 3.0), CABIN_SPOT.y - 3.0)
+		_rennick_ghost.position = p
+		_rennick_ghost.rotation.y = -0.6
+		PeopleAssets.set_ghost_fade(_rennick_ghost, 0.92, 0.34)
+	_rennick_revealed = true
+	_rennick_ghost.visible = true
+
+func update_rennick_ghost(drone_pos: Vector3) -> void:
+	if _rennick_ghost == null or not _rennick_revealed:
+		return
+	var d := Vector2(_rennick_ghost.position.x - drone_pos.x, _rennick_ghost.position.z - drone_pos.z).length()
+	_rennick_ghost.visible = d > HIKER_KEEP_OUT
+	if _rennick_ghost.visible:
+		var fade := clampf((d - HIKER_KEEP_OUT) / 32.0, 0.08, 1.0)
+		PeopleAssets.set_ghost_fade(_rennick_ghost, 0.92 * fade, 0.34 + 0.25 * (1.0 - fade))
+
+func rennick_world_pos() -> Vector3:
+	if _rennick_ghost != null:
+		return _rennick_ghost.position
+	return Vector3(CABIN_SPOT.x + 7.0, 0.0, CABIN_SPOT.y - 3.0)
 
 func hiker_trace_source() -> Dictionary:
 	if _hiker == null or not _hiker_revealed:

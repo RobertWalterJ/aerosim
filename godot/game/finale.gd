@@ -31,6 +31,10 @@ var _hint: Label
 var _auto_timer := 0.0
 var _last_waypoint := -1
 var _found_announced := false
+var _rennick_realized := false
+var _rennick_done := false
+var _rennick_t := 0.0
+var _rennick_index := 0
 var _debug_frozen := false
 var _missing_prompt := ""
 
@@ -104,6 +108,22 @@ func update(delta: float, drone_pos: Vector3) -> void:
 		stage = 3
 		_arrive_cabin()
 	if stage == 3 and not ended:
+		if not _rennick_done:
+			_rennick_t += delta
+			if _rennick_t > 1.8:
+				_rennick_t = 0.0
+				var lines := [
+					"Lou? I am standing by the cruiser, by the driver door. You are looking straight through me.",
+					"Oh. You really cannot see me, can you. I have been standing here since the storm. I did not know.",
+					"Forty years. I have been dead since that storm. I thought I was still on duty. I am sorry.",
+					"All right. I have got myself together. Wren is east of the cabin, near the treeline. Use the thermal camera and find them.",
+				]
+				if _rennick_index < lines.size():
+					_ghost(str(lines[_rennick_index]), "Rennick")
+					_rennick_index += 1
+				else:
+					_rennick_comes_to()
+			return
 		var hiker := objects.hiker_world_pos()
 		var hd := drone_pos.distance_to(hiker)
 		if thermal.is_on() and hd <= HIKER_FIND:
@@ -130,13 +150,28 @@ func _prompt_missing(kind: String) -> void:
 		notes.post_text("Rennick", "Launch from the trailhead", "Drive the kit up to the ridge trailhead or the north gate pull-off. I need you to start the last flight from there.", 1)
 
 func _arrive_cabin() -> void:
-	objects.set_cabin_lights(true)
-	objects.show_hiker()
-	hud.toast("The cabin lights are on. Wren has set out again on foot.", false, "DRONEBUDZ")
+	if _rennick_realized:
+		return
+	_rennick_realized = true
+	if objects != null:
+		objects.show_rennick_ghost()
+	_ghost("The cabin is ahead. I am by the cruiser. Lou, can you see me from there?", "Rennick")
+	notes.post_text("Rennick", "The cabin", "I am by the cruiser outside the cabin. Can you see me from there?", 0)
+	_set_objective("Look for Rennick by the cruiser", "The cabin is ahead. The thermal camera may show more than the eye does.")
+
+func _rennick_comes_to() -> void:
+	if _rennick_done:
+		return
+	_rennick_done = true
+	if objects != null:
+		objects.set_cabin_lights(true)
+		objects.show_hiker()
+	if hud != null:
+		hud.toast("The cabin lights are on. Wren has set out again on foot.", false, "DRONEBUDZ")
 	_nav_to(objects.hiker_world_pos(), "HEAT")
-	_ghost("The cabin is ahead. Wren set out again on foot, east of the cabin near the treeline. I cannot see them from here. Use the thermal camera.", "Rennick")
-	notes.post_text("Rennick", "The cabin", "Wren is on foot east of the cabin, near the treeline. I cannot see them from here. Use the thermal camera and search the trees.", 0)
+	notes.post_text("Rennick", "The cabin", "Wren is on foot east of the cabin, near the treeline. Use the thermal camera and search the trees.", 0)
 	_set_objective("Search east of the cabin for Wren", "Press T for the thermal camera. Warm bodies show white and orange.")
+	_print_reveal()
 
 func _found() -> void:
 	if _found_announced:
@@ -185,15 +220,6 @@ func start() -> void:
 	if thermal != null:
 		thermal.install()
 	_ghost("Pike's jammer is off us now. His hunter drones are not. Do not slow down over the trees.", "Rennick")
-	# The reveal. The officer the player has been talking to died forty years ago.
-	_ghost("I have to tell you something I should have told you at the start.", "Rennick")
-	_ghost("I am not the new constable. I died out here forty years ago, on the old plot past the north shore.", "Rennick")
-	_ghost("A woman went missing on the lake road in a storm. A pilot saw lights and called it in. I went out to look for her. My cruiser is still outside the cabin.", "Rennick")
-	_ghost("The person messaging you is Wren. They are lost. They were in the cabin watching your videos to work out where they were. I have been borrowing their phone.", "Rennick")
-	_ghost("I am sorry I lied. Please find Wren. Then I can go.", "Rennick")
-	chat.post("unknown", "Unknown", "please hurry. the lights in the cabin are not mine.", false)
-	notes.post_text("Rennick", "One more ask", "Hey, buddy. I appreciate everything you have done for me. I have one more ask: fly north to the old cabin and find Wren. Please.", 1)
-	_print_reveal()
 
 func _ghost(text: String, from: String) -> void:
 	chat.post("town", from, text, false)
@@ -242,11 +268,26 @@ func debug_start() -> void:
 		sites.set_active("cabin_track")
 	start()
 
+func debug_realization() -> void:
+	if not started:
+		debug_start()
+	stage = 3
+	_last_waypoint = 2
+	objects.set_cabin_lights(true)
+	if thermal != null:
+		thermal.install()
+		thermal.set_on(true)
+		objects.set_thermal_marker(true)
+	_arrive_cabin()
+
 func debug_cabin() -> void:
 	if not started:
 		start()
 	stage = 3
 	_last_waypoint = 2
+	_rennick_realized = true
+	_rennick_done = true
+	objects.show_rennick_ghost()
 	objects.set_cabin_lights(true)
 	objects.show_hiker()
 	if thermal != null:
@@ -267,7 +308,10 @@ func debug_thermal_view() -> void:
 	if not started:
 		start()
 	stage = 2
+	_rennick_realized = true
+	_rennick_done = true
 	_debug_frozen = true
+	objects.show_rennick_ghost()
 	objects.set_cabin_lights(true)
 	objects.show_hiker()
 	if thermal != null:

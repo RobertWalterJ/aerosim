@@ -1555,6 +1555,8 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os.open()
 			phone_os._open_app("chat")
 			phone_os._chat_app.open("town")
+		elif c == "finalerealize": # session B dev hook: the Rennick realization sequence, not yet bypassed
+			finale.debug_realization()
 		elif c == "finalecabin":  # session B dev hook: the cabin, Wren on foot and thermal on
 			finale.debug_cabin()
 		elif c == "cabinworld":   # session B dev hook: the cabin and the cruiser in the storm, normal camera
