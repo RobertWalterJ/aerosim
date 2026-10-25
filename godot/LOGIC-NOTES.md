@@ -1269,3 +1269,7 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - `Wind.drive` now reads the woodland cover at the drone itself and a local ring, not just upwind; village cottages/pub/shop/garage and the story cabin/garage/camp/festival/boat-launch register shelter sources.
 - Full shelter cuts mean wind up to 68%, turbulence up to 62%, gust puffs up to 55% and eddy torque up to 62%, so a Mini can hold a stable hover under the treeline and a cinema drone shakes much less behind buildings. Relief fades between 7 m and 34 m AGL.
 - Dev hook `shelterprobe`; probe: village shelter .58 / turb .22 / wind .2, forest shelter 1.0 / turb .13 / wind .2 versus open .0/.35/.4. `GATE PASS (windshelter)`; commit `ff9b21d`; doc `docs/WIND-SHELTER.md`.
+## Wolf close-range behaviour (lane/notify, session B, 2026-11-15)
+- Removed the old `WOLF_HIDE`/`SHEEP_HIDE` model disappearance. Animals stay visible when the drone closes.
+- Wolf states: wary >42 m; hostile warning (faces drone, slow step) 42-10 m; after 10 m or 2.2 s it flees at 8.8 m/s; calms after 140 m. Toasts and Riley copy explain it. Heat and traces follow the animal.
+- Dev hook `wolfclose`; `wolfclose end` shows `state=flee visible=true`; `GATE PASS (wildlifeclose)`; doc `docs/WILDLIFE-CLOSE.md`.
