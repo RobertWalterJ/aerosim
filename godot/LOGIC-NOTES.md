@@ -1265,3 +1265,7 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - `PhoneOS` now gates apps: DroneBudz/Photos/Jobs/Map always; VidTube Studio after first photo/clip; Casebook and Facade when the Rennick story starts.
 - A newly available app runs a one-time `DOWNLOADING` panel (1.15 s) before it appears on home/dock/drawer; first open of Casebook/Map/Studio/Facade shows a short `OPENING` panel. Direct/debug `_open_app()` bypasses the launcher gate.
 - Hooks `appdownload`, `appload`; `GATE PASS (appavailability)`; doc `docs/APP-AVAILABILITY.md`.
+## Wind shelter under canopy and buildings (lane/notify, session B, 2026-11-15)
+- `Wind.drive` now reads the woodland cover at the drone itself and a local ring, not just upwind; village cottages/pub/shop/garage and the story cabin/garage/camp/festival/boat-launch register shelter sources.
+- Full shelter cuts mean wind up to 68%, turbulence up to 62%, gust puffs up to 55% and eddy torque up to 62%, so a Mini can hold a stable hover under the treeline and a cinema drone shakes much less behind buildings. Relief fades between 7 m and 34 m AGL.
+- Dev hook `shelterprobe`; probe: village shelter .58 / turb .22 / wind .2, forest shelter 1.0 / turb .13 / wind .2 versus open .0/.35/.4. `GATE PASS (windshelter)`; commit `ff9b21d`; doc `docs/WIND-SHELTER.md`.
