@@ -1,8 +1,8 @@
 class_name Landing
 extends CanvasLayer
-## The landing screen: the real valley behind a slowly circling camera, framed like a film title card. A soft vignette,
-## top and bottom letterbox bars, and a shaded left edge hold the words; the title and menu ease in over the world.
-## Nothing here is a separate scene: the world behind it is the game itself, so it costs almost nothing.
+## The landing screen: the real valley behind a slowly circling camera, framed like a film title card. The wordmark
+## sits upper-left, the menu lower-left, leaving the valley and the drone the middle of the frame. Roboto (Claude's OS
+## font), a brass pill for the one main action, a soft vignette and letterbox bars, and the whole thing eases in.
 
 signal fly_pressed
 signal drone_pressed
@@ -19,8 +19,11 @@ const INK := Color(0.01, 0.02, 0.04)
 
 var _drone_label: Label
 var _root: Control
+var _title_col: Control
+var _title_base_top := 0.0
 var _fade_in: Array[CanvasItem] = []
 var _fade := 0.0
+var _t := 0.0
 
 func _init() -> void:
 	layer = 5          # under the pause menu (layer 10), over the video
@@ -33,15 +36,17 @@ func build(drone_name: String) -> void:
 	# Claude's OS font (Roboto) so the landing feels part of the same system
 	var roboto := load("res://assets/ui/fonts_osui/Roboto-Regular.ttf") as Font
 	var roboto_med := load("res://assets/ui/fonts_osui/Roboto-Medium.ttf") as Font
+	var roboto_bold := load("res://assets/ui/fonts_osui/Roboto-Bold.ttf") as Font
 	t.default_font = roboto
 	t.default_font_size = 19
-	# recolor the one main action to brass and give it an OS pill shape
-	MenuStyle._button(t, "Primary",
-		MenuStyle.box(BRASS, 31, Color(0, 0, 0, 0), 0, 26.0, 12.0),
-		MenuStyle.box(BRASS.lightened(0.08), 31, Color(0, 0, 0, 0), 0, 26.0, 12.0),
-		MenuStyle.box(BRASS.darkened(0.08), 31, Color(0, 0, 0, 0), 0, 26.0, 12.0),
-		MenuStyle.box(BRASS.darkened(0.08), 31, Color(0, 0, 0, 0), 0, 26.0, 12.0),
-		ON_BRASS, ON_BRASS)
+	# the one main action: a brass pill with a little elevation
+	var fly_normal := MenuStyle.box(BRASS, 36, Color(0, 0, 0, 0), 0, 26.0, 12.0)
+	var fly_hover := MenuStyle.box(BRASS.lightened(0.08), 36, Color(0, 0, 0, 0), 0, 26.0, 12.0)
+	var fly_down := MenuStyle.box(BRASS.darkened(0.08), 36, Color(0, 0, 0, 0), 0, 26.0, 12.0)
+	for b in [fly_normal, fly_hover, fly_down]:
+		(b as StyleBoxFlat).shadow_color = Color(0, 0, 0, 0.35)
+		(b as StyleBoxFlat).shadow_size = 8
+	MenuStyle._button(t, "Primary", fly_normal, fly_hover, fly_down, fly_down, ON_BRASS, ON_BRASS)
 	t.set_font_size("font_size", "Primary", 30)
 	_root.theme = t
 	add_child(_root)
@@ -57,87 +62,100 @@ func build(drone_name: String) -> void:
 	shade.anchor_right = 0.58; shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(shade)
 
-	# --- the menu column -----------------------------------------------------
-	var col := VBoxContainer.new(); col.add_theme_constant_override("separation", 7)
-	col.anchor_left = 0.06; col.anchor_right = 0.44; col.anchor_top = 0.0; col.anchor_bottom = 1.0
-	col.alignment = BoxContainer.ALIGNMENT_CENTER
-	_root.add_child(col)
+	# --- the wordmark, upper-left --------------------------------------------
+	_title_col = VBoxContainer.new()
+	_title_col.anchor_left = 0.06; _title_col.anchor_right = 0.66
+	_title_col.anchor_top = 0.0; _title_col.anchor_bottom = 0.45
+	_title_col.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_title_col.add_theme_constant_override("separation", 4)
+	_title_base_top = 72.0
+	_title_col.offset_top = _title_base_top
+	_root.add_child(_title_col)
 
 	var overline := Label.new(); overline.text = "HALLOWAY VALLEY"
-	overline.add_theme_font_size_override("font_size", 18)
+	overline.add_theme_font_size_override("font_size", 16)
 	overline.add_theme_color_override("font_color", BRASS_DIM)
 	var fv := FontVariation.new(); fv.base_font = roboto_med; fv.spacing_glyph = 12
 	overline.add_theme_font_override("font", fv)
-	col.add_child(overline)
+	_title_col.add_child(overline)
 
 	var title := Label.new(); title.text = "AeroSim"
-	title.add_theme_font_override("font", roboto_med)
-	title.add_theme_font_size_override("font_size", 96)
+	title.add_theme_font_override("font", roboto_bold)
+	title.add_theme_font_size_override("font_size", 110)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
-	title.add_theme_constant_override("shadow_offset_x", 2)
-	title.add_theme_constant_override("shadow_offset_y", 4)
-	col.add_child(title)
+	title.add_theme_constant_override("shadow_offset_x", 3)
+	title.add_theme_constant_override("shadow_offset_y", 5)
+	_title_col.add_child(title)
 
 	var tagline := Label.new(); tagline.text = "Fly to feel free."
-	tagline.add_theme_font_size_override("font_size", 24)
+	tagline.add_theme_font_size_override("font_size", 26)
 	tagline.add_theme_color_override("font_color", MenuStyle.MUTED)
-	col.add_child(tagline)
+	_title_col.add_child(tagline)
 
-	var gap := Control.new(); gap.custom_minimum_size = Vector2(0, 14); col.add_child(gap)
+	# --- the menu, lower-left ------------------------------------------------
+	var menu := VBoxContainer.new()
+	menu.anchor_left = 0.06; menu.anchor_right = 0.44
+	menu.anchor_top = 0.5; menu.anchor_bottom = 1.0
+	menu.offset_bottom = -52
+	menu.alignment = BoxContainer.ALIGNMENT_END
+	menu.add_theme_constant_override("separation", 8)
+	_root.add_child(menu)
 
-	var fly := Button.new(); fly.text = "Fly"; fly.theme_type_variation = "Primary"; fly.custom_minimum_size = Vector2(0, 62)
-	fly.add_theme_font_override("font", roboto_med)
-	fly.add_theme_font_size_override("font_size", 32)
+	var fly := Button.new(); fly.text = "Fly"; fly.theme_type_variation = "Primary"; fly.custom_minimum_size = Vector2(0, 74)
+	fly.add_theme_font_override("font", roboto_bold)
+	fly.add_theme_font_size_override("font_size", 34)
 	fly.pressed.connect(func(): fly_pressed.emit())
-	col.add_child(fly)
+	menu.add_child(fly)
 
 	_drone_label = Label.new(); _drone_label.text = drone_name
 	_drone_label.add_theme_font_size_override("font_size", 18)
 	_drone_label.add_theme_color_override("font_color", MenuStyle.MUTED)
-	col.add_child(_drone_label)
+	menu.add_child(_drone_label)
 
-	# secondary actions in a quiet row
 	var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 10)
-	col.add_child(row)
+	menu.add_child(row)
 	for item in [["Choose a drone", drone_pressed], ["Settings", settings_pressed], ["Controls", controls_pressed]]:
-		var b := Button.new(); b.text = item[0]; b.theme_type_variation = "Ghost"; b.custom_minimum_size = Vector2(0, 42)
+		var b := Button.new(); b.text = item[0]; b.theme_type_variation = "Ghost"; b.custom_minimum_size = Vector2(0, 44)
 		b.add_theme_font_size_override("font_size", 18)
 		var sig: Signal = item[1]
 		b.pressed.connect(func(): sig.emit())
 		row.add_child(b)
 
-	var q := Button.new(); q.text = "Quit"; q.theme_type_variation = "Danger"; q.custom_minimum_size = Vector2(0, 40)
+	var q := Button.new(); q.text = "Quit"; q.theme_type_variation = "Danger"; q.custom_minimum_size = Vector2(0, 42)
 	q.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	q.add_theme_font_size_override("font_size", 16)
 	q.pressed.connect(func(): quit_pressed.emit())
-	col.add_child(q)
+	menu.add_child(q)
 
 	# --- the corners ---------------------------------------------------------
 	var hint := Label.new(); hint.text = "Esc opens the menu while you fly."
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.42))
 	hint.anchor_left = 0.0; hint.anchor_top = 1.0; hint.anchor_right = 0.6; hint.anchor_bottom = 1.0
-	hint.offset_left = 42; hint.offset_top = -34; hint.offset_right = 0; hint.offset_bottom = -14
+	hint.offset_left = 42; hint.offset_top = -30; hint.offset_right = 0; hint.offset_bottom = -12
 	_root.add_child(hint)
 
 	var ver := Label.new(); ver.text = "Halloway Valley"
 	ver.add_theme_font_size_override("font_size", 13)
 	ver.add_theme_color_override("font_color", Color(1, 1, 1, 0.42))
 	ver.anchor_left = 1.0; ver.anchor_top = 1.0; ver.anchor_right = 1.0; ver.anchor_bottom = 1.0
-	ver.offset_left = -220; ver.offset_top = -34; ver.offset_right = -42; ver.offset_bottom = -14
+	ver.offset_left = -220; ver.offset_top = -30; ver.offset_right = -42; ver.offset_bottom = -12
 	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_root.add_child(ver)
 
-	# fade the menu and corners in over the world
-	_fade_in = [col, hint, ver]
+	# fade the wordmark, menu and corners in over the world
+	_fade_in = [_title_col, menu, hint, ver]
 	for item in _fade_in: item.modulate.a = 0.0
 
 func _process(delta: float) -> void:
-	if _fade >= 1.0 or _fade_in.is_empty(): return
-	_fade = minf(1.0, _fade + delta * 1.6)
-	var a := 1.0 - pow(1.0 - _fade, 3.0)     # ease-out cubic
-	for item in _fade_in: item.modulate.a = a
+	_t += delta
+	if _fade < 1.0:
+		_fade = minf(1.0, _fade + delta * 1.6)
+		var a := 1.0 - pow(1.0 - _fade, 3.0)     # ease-out cubic
+		for item in _fade_in: item.modulate.a = a
+	if _title_col != null:
+		_title_col.offset_top = _title_base_top + sin(_t * 0.5) * 4.0   # a very slow idle float
 
 func set_drone_name(n: String) -> void:
 	if _drone_label: _drone_label.text = n
