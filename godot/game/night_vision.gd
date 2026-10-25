@@ -5,6 +5,8 @@ extends CanvasLayer
 
 var _on := false
 var _rect: ColorRect
+var _mat: ShaderMaterial
+var _gain := 1.0
 
 func _ready() -> void:
 	layer = 8
@@ -16,8 +18,10 @@ func _ready() -> void:
 	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://game/shaders/night_vision.gdshader")
+	_mat = mat
 	_rect.material = mat
 	add_child(_rect)
+	set_gain(1.0)
 
 func is_on() -> bool:
 	return _on
@@ -25,6 +29,14 @@ func is_on() -> bool:
 func set_on(on: bool) -> void:
 	_on = on
 	visible = on
+
+func set_gain(g: float) -> void:
+	_gain = clampf(g, 0.6, 5.0)
+	if _mat != null:
+		_mat.set_shader_parameter("gain", _gain)
+
+func get_gain() -> float:
+	return _gain
 
 func toggle() -> void:
 	set_on(not _on)

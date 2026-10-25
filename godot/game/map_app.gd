@@ -261,9 +261,12 @@ class MapCanvas extends Control:
 					pts.append(_w2m(p))
 				draw_polyline(pts, Color(0.06, 0.055, 0.045, 0.9), 4.0)
 				draw_polyline(pts, Color(0.62, 0.56, 0.42, 0.75), 1.0)
-		# site pins
+		# site pins; labels are placed greedily so the sites around the village and the gate car parks do not
+		# cover each other on a small map.
 		if sites != null:
 			var font := HudIcons.bold_font()
+			var placed: Array[Rect2] = []
+			var candidates := [Vector2(10, -14), Vector2(10, 6), Vector2(-10, -14), Vector2(-10, 6), Vector2(10, 22), Vector2(10, -30), Vector2(-10, 22), Vector2(-10, -30)]
 			for s in sites.list():
 				var id := str(s["id"])
 				var p := _w2m(s["pos"])
@@ -272,8 +275,33 @@ class MapCanvas extends Control:
 				draw_circle(p, 5.0, col)
 				draw_circle(p, 1.8, UniverseUI.NIGHT)
 				var txt := str(s["name"])
-				var w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
-				draw_string(font, p + Vector2(9, 4), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.92, 0.89, 0.78, 0.9))
+				var tw := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+				var best := Vector2(10, -14)
+				var best_rect := Rect2(p + Vector2(10, -16), Vector2(tw, 14))
+				var found := false
+				for off in candidates:
+					var cand := Vector2(off.x, off.y)
+					if cand.x < 0:
+						cand.x = -tw - 10
+					var r := Rect2(p + cand + Vector2(0, -2), Vector2(tw, 14))
+					var clear := true
+					for other in placed:
+						if r.intersects(other.grow(2)):
+							clear = false
+							break
+					if clear:
+						best = cand
+						best_rect = r
+						found = true
+						break
+				if not found:
+					best = Vector2(10, -30)
+					best_rect = Rect2(p + best + Vector2(0, -2), Vector2(tw, 14))
+				placed.append(best_rect)
+				var label_p := p + best
+				if absf(best.x) > 12.0 or absf(best.y) > 20.0:
+					draw_line(p, label_p + Vector2(0, 4), Color(0.72, 0.68, 0.52, 0.55), 1.0)
+				draw_string(font, label_p + Vector2(0, 10), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.92, 0.89, 0.78, 0.9))
 			# a soft line from the current site to the suggested one
 			if suggested_id != "" and suggested_id != active_id:
 				var a2 := _w2m(sites.pos(active_id))

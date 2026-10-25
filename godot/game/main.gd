@@ -66,6 +66,7 @@ var story: StoryArc                # session B: the Lake Car story arc (game/sto
 var unknown_thread: UnknownThread  # session B: the unknown direct message thread (game/unknown_thread.gd)
 var thermal: ThermalCamera         # session B: the heat camera for the last flight (game/thermal.gd)
 var night_vision: NightVision      # session B: the Facade night vision add-on (game/night_vision.gd)
+var _moonless_test := false        # dev hook: force a moonless night for the low-light check
 var inventory: Inventory           # session B: the pilot's bought kit (game/inventory.gd)
 var wildlife_objects: WildlifeObjects  # session B: the sheep and the wolf in the west pasture
 var wildlife: WildlifeCase         # session B: Riley's night tracking favour and the thermal tutorial
@@ -177,6 +178,33 @@ func _apply_simple(on: bool) -> void:
 	hud.toast("Plain camera" if on else "Full sensor camera")
 
 ## The drone's shadow is sized to this airframe.
+## The light fitted to the current airframe. Cinema = soft film light; Night Owl = flood; racers = narrow spot;
+## wing = landing light. The HUD "Drone light" switch still turns it on and off.
+func _apply_drone_light_profile() -> void:
+	if drone_light == null:
+		return
+	var profile := {
+		"range": 70.0, "angle": 30.0, "energy": 14.0, "colour": Color(1.0, 0.96, 0.88), "atten": 0.5,
+	}
+	match airframe_id:
+		"cinema":
+			profile = {"range": 58.0, "angle": 48.0, "energy": 9.0, "colour": Color(1.0, 0.93, 0.82), "atten": 0.65}
+		"cinewhoop":
+			profile = {"range": 52.0, "angle": 52.0, "energy": 8.0, "colour": Color(1.0, 0.94, 0.84), "atten": 0.68}
+		"nightowl":
+			profile = {"range": 120.0, "angle": 38.0, "energy": 26.0, "colour": Color(0.82, 0.90, 1.0), "atten": 0.42}
+		"raptor", "race":
+			profile = {"range": 78.0, "angle": 18.0, "energy": 20.0, "colour": Color(0.96, 0.98, 1.0), "atten": 0.45}
+		"wing":
+			profile = {"range": 105.0, "angle": 24.0, "energy": 15.0, "colour": Color(1.0, 0.95, 0.86), "atten": 0.5}
+		"freestyle":
+			profile = {"range": 72.0, "angle": 28.0, "energy": 16.0, "colour": Color(1.0, 0.96, 0.88), "atten": 0.5}
+	drone_light.spot_range = float(profile["range"])
+	drone_light.spot_angle = float(profile["angle"])
+	drone_light.light_energy = float(profile["energy"])
+	drone_light.light_color = profile["colour"]
+	drone_light.spot_attenuation = float(profile["atten"])
+
 func _after_drone_built() -> void:
 	if terrain: drone_shadow.setup(af, terrain)
 
@@ -267,7 +295,11 @@ func _ready() -> void:
 	hud.mode_changed.connect(func(m: String): fc.mode = m; fc.reset_state())
 	hud.camera_changed.connect(func(c: bool): chase = c)
 	hud.weather_changed.connect(apply_weather)
-	hud.light_changed.connect(func(on: bool): drone_light.visible = on)
+	hud.light_changed.connect(func(on: bool):
+		drone_light.visible = on
+		if on:
+			var light_name := "Floodlight" if airframe_id == "nightowl" else ("Film light" if airframe_id in ["cinema", "cinewhoop"] else "Drone light")
+			hud.toast(light_name + " on", false, "CAMERA"))
 	hud.grass_changed.connect(func(on: bool): grass.visible = on)
 	hud.ambient_changed.connect(func(on: bool): ambient.set_enabled(on))
 	hud.simple_changed.connect(_apply_simple)
@@ -1105,6 +1137,10 @@ func _screenshot_mode(arg: String) -> void:
 			var av := c.substr(3).split("_")
 			if av.size() == 3: _air_test = Vector3(float(av[0]), float(av[1]), float(av[2]))
 		if c == "simple": hud.simple_on = true; _apply_simple(true)
+		if c == "moonless":
+			_moonless_test = true
+			_update_celestial()
+			_apply_weather_state(0.0, true)
 		if c.begins_with("clock"):     # test hook: freeze the clock at that hour (clock7.5), on the date picked with date1..4
 			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather, true); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)
 		if c.begins_with("date"):
