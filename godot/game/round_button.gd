@@ -16,8 +16,23 @@ var disabled := false               # greyed out and does not fire
 var _down := false
 var _finger := -1
 
+# Claude's HUD glyphs (Material-style PNGs) for the drone-app look. When a kind maps to a glyph it is drawn
+# instead of the code-drawn line icon; the code-drawn icons stay as a fallback when a PNG is missing.
+const GLYPH_DIR := "res://assets/ui/osui/hud/glyph/"
+const KIND_GLYPH := {
+	"back": "back", "gear": "more", "more": "more",
+	"takeoff": "takeoff", "land": "land", "home": "rth", "rth_cancel": "rth_cancel",
+	"eye": "view_fpv", "chase": "view_chase",
+	"camera": "photo_video", "video": "video",
+	"thermal": "thermal", "night": "night",
+	"N": "mode_N", "C": "mode_C", "S": "mode_S", "M": "mode_M", "A": "mode_A",
+}
+var glyph: Texture2D = null          # the PNG glyph, if any
+var _glyph_tinted := true            # white glyphs are tinted by state; coloured mode chips are not
+
 func _init(k := "gear", diameter := 56.0) -> void:
 	kind = k
+	_update_glyph()
 	custom_minimum_size = Vector2(diameter, diameter)
 	size = Vector2(diameter, diameter)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -60,7 +75,11 @@ func _draw() -> void:
 		draw_circle(c, r, Color(1, 1, 1, 0.18), true, -1.0, true)
 	var box := d * (0.56 if bare else 0.5)
 	if _down: box *= 0.92
-	if HudIcons.MODE_TINT.has(kind) or kind.length() == 1:
+	if glyph != null:
+		var gs := box * 0.92
+		var mod := icol if _glyph_tinted else (HudIcons.DISABLED if disabled else Color.WHITE)
+		draw_texture_rect(glyph, Rect2(c - Vector2(gs, gs) * 0.5, Vector2(gs, gs)), false, mod)
+	elif HudIcons.MODE_TINT.has(kind) or kind.length() == 1:
 		# the flight mode chip keeps its own colour; greyed out when disabled
 		var chip := HudIcons.DISABLED if disabled else HudIcons.mode_tint(kind)
 		HudIcons.mode_chip(self, kind, c, d * 0.52 * (0.92 if _down else 1.0), chip)
@@ -79,7 +98,19 @@ func _draw() -> void:
 func set_kind(k: String) -> void:
 	if k != kind:
 		kind = k
+		_update_glyph()
 		queue_redraw()
+
+## Load the PNG glyph for this button's kind, or clear it when there is none (code-drawn fallback).
+func _update_glyph() -> void:
+	var name: String = KIND_GLYPH.get(kind, "")
+	if name == "":
+		glyph = null
+		return
+	var size: int = 24 if kind in ["back", "gear", "more"] else 48
+	var p: String = GLYPH_DIR + str(size) + "/" + name + ".png"
+	glyph = load(p) if ResourceLoader.exists(p) else null
+	_glyph_tinted = not (kind.length() == 1 or HudIcons.MODE_TINT.has(kind))
 
 ## Grey the button out: it still shows, but a tap does nothing.
 func set_disabled(on: bool) -> void:
