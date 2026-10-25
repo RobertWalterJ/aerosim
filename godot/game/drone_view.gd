@@ -21,6 +21,11 @@ var _wing_radius := 0.127
 # (for the technical drawing in the drone chooser). Building the same drone again only places nodes.
 static var _cache := {}
 
+const GLB_AIRFRAMES := {
+	"raptor": "res://assets/models/drones/raptor_race_a.glb",
+	"nightowl": "res://assets/models/drones/nightowl_a.glb",
+}
+
 const DUCT_GAP := 0.0025          # cinewhoop: clearance from prop tip to duct wall, m
 const DUCT_WALL := 0.0086         # cinewhoop: duct wall and lip, m
 
@@ -51,6 +56,11 @@ func build(af: Dictionary, _record := false) -> void:
 		_build_wing(af)
 		set_fpv(_fpv)
 		return
+	if GLB_AIRFRAMES.has(str(af["id"])) and ResourceLoader.exists(str(GLB_AIRFRAMES[str(af["id"])])):
+		print("drone GLB branch: ", af["id"], " ", GLB_AIRFRAMES[str(af["id"])])
+		if _build_glb(af, str(GLB_AIRFRAMES[str(af["id"])])):
+			set_fpv(_fpv)
+			return
 	var md := model(af)
 	var body := MeshInstance3D.new(); body.mesh = md["body"]; add_child(body)
 	_gimbal = Node3D.new()
@@ -87,6 +97,63 @@ func build(af: Dictionary, _record := false) -> void:
 		led.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(led)
 	set_fpv(_fpv)
+
+## Claude drone assets: use the high-detail GLB for the purchased Raptor and Night Owl, with the prop nodes
+## collected so the existing motor animation still turns them. Falls back to the code model if the file is absent.
+func _build_glb(af: Dictionary, path: String) -> bool:
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return false
+	var inst := packed.instantiate() as Node3D
+	if inst == null:
+		return false
+	# centre the model on the drone view origin; the authored files are either COM- or ground-origin
+	var bounds := AABB()
+	var first := true
+	for mi: MeshInstance3D in inst.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		var bb: AABB = mi.get_aabb()
+		var xf: Transform3D = mi.transform
+		for corner in [bb.position, bb.position + Vector3(bb.size.x, 0, 0), bb.position + Vector3(0, bb.size.y, 0), bb.position + Vector3(0, 0, bb.size.z), bb.position + bb.size]:
+			var p: Vector3 = xf * corner
+			if first:
+				bounds = AABB(p, Vector3.ZERO)
+				first = false
+			else:
+				bounds = bounds.expand(p)
+	if not first:
+		inst.position = -bounds.get_center()
+	add_child(inst)
+	var prop_names := ["prop_fl", "prop_fr", "prop_rl", "prop_rr"]
+	var shader: Shader = load("res://game/shaders/prop_blur.gdshader")
+	for nm in prop_names:
+		var prop := inst.find_child(nm, true, false) as Node3D
+		if prop == null:
+			continue
+		_props.append(prop)
+		var disc := MeshInstance3D.new()
+		var dm := CylinderMesh.new()
+		dm.top_radius = float(af["R"])
+		dm.bottom_radius = float(af["R"])
+		dm.height = 0.001
+		dm.radial_segments = 32
+		var dmat := ShaderMaterial.new()
+		dmat.shader = shader
+		dmat.set_shader_parameter("radius", float(af["R"]))
+		dmat.set_shader_parameter("n_blades", float(af["nBlades"]))
+		dmat.set_shader_parameter("chord", 0.02)
+		dmat.set_shader_parameter("body_col", Color(0.16, 0.18, 0.20))
+		dmat.set_shader_parameter("tip_col", Color(0.90, 0.92, 0.94))
+		disc.mesh = dm
+		disc.material_override = dmat
+		disc.position = prop.position
+		disc.visible = false
+		add_child(disc)
+		_discs.append(disc)
+	_gimbal = inst.find_child("gimbal_yaw", true, false) as Node3D
+	print("drone asset loaded: ", path.get_file())
+	return true
 
 ## The FPV plane model comes from NewModels.plane(): one pusher prop that spins about +Z.
 func _build_wing(af: Dictionary) -> void:

@@ -37,6 +37,7 @@ var _rennick_ghost: Node3D
 var _rennick_revealed := false
 const HIKER_KEEP_OUT := 48.0
 var _dog_heat: Node3D
+var _story_assets := 0
 var _cabin_on := false
 var _porch_light: OmniLight3D
 
@@ -53,6 +54,23 @@ static func near_evidence(x: float, z: float, margin := 30.0) -> bool:
 		if Vector2(x, z).distance_to(p) < margin:
 			return true
 	return false
+
+func _story_asset(parent: Node3D, name: String, pos := Vector3.ZERO, yaw := 0.0, scale := 1.0) -> Node3D:
+	var path := "res://assets/models/story/%s.glb" % name
+	if not ResourceLoader.exists(path):
+		return null
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return null
+	var inst := packed.instantiate() as Node3D
+	if inst == null:
+		return null
+	inst.position = pos
+	inst.rotation.y = yaw
+	inst.scale = Vector3.ONE * scale
+	parent.add_child(inst)
+	_story_assets += 1
+	return inst
 
 func setup(t: Terrain) -> void:
 	terrain = t
@@ -74,7 +92,7 @@ func setup(t: Terrain) -> void:
 	_build_cabin(_items[4]["pos"])
 	_build_cruiser(_items[5]["pos"])
 	_build_hiker()
-	print("case objects: ", positions())
+	print("case objects: ", positions(), "  story assets=", _story_assets)
 
 ## Move the old festival bus from the garage yard to the festival field, for the last chapter.
 func move_bus_to_festival() -> void:
@@ -172,6 +190,10 @@ func _build_car(pos: Vector3) -> void:
 	if _try_lake_car_asset(root):
 		root.rotation.y = 0.92
 		root.rotation.z = 0.035
+		_story_asset(root, "evidence/car_tow_sticker_a", Vector3(0.0, 0.55, -2.2), 0.0)
+		_story_asset(root, "evidence/car_vin_plate_a", Vector3(0.0, 0.55, 1.9), 0.0)
+		_story_asset(root, "evidence/police_tape_strip_a", Vector3(3.0, 0.02, 0.0), 1.1)
+		_story_asset(root, "evidence/police_cone_a", Vector3(-2.4, 0.0, 2.2), 0.0)
 		return
 	var faded := StandardMaterial3D.new()
 	faded.albedo_color = Color(0.30, 0.36, 0.44)
@@ -332,6 +354,11 @@ func _build_camp(pos: Vector3) -> void:
 	var canvas := StandardMaterial3D.new()
 	canvas.albedo_color = Color(0.24, 0.30, 0.24)
 	canvas.roughness = 0.95
+	_story_asset(root, "camp/camp_chair_a", Vector3(2.0, 0.0, 1.2), -0.4)
+	_story_asset(root, "camp/camp_cooler_a", Vector3(2.8, 0.0, -0.4), 0.3)
+	_story_asset(root, "camp/camp_firewood_a", Vector3(-2.2, 0.0, 1.5), 0.1)
+	_story_asset(root, "camp/camp_fire_ring_a_cold", Vector3(0.0, 0.0, 2.2), 0.0)
+	_story_asset(root, "camp/camp_stove_a_cold", Vector3(-1.0, 0.0, -0.6), 0.4)
 	var tarp_mat := StandardMaterial3D.new()
 	tarp_mat.albedo_color = Color(0.20, 0.30, 0.38)
 	tarp_mat.roughness = 0.9
@@ -599,6 +626,13 @@ func _build_cabin(pos: Vector3) -> void:
 	if _try_story_model(_cabin_root, "res://assets/models/story/cabin/cabin_abandoned_a_broken_roof.glb", 0.0):
 		_cabin_root.rotation.y = -0.3
 		_cabin_asset_lights()
+		_story_asset(_cabin_root, "cabin/cabin_interior_set_a", Vector3(0.0, 0.05, 0.0))
+		_story_asset(_cabin_root, "cabin/cabin_bed_a_stripped", Vector3(-2.6, 0.1, 1.7), 0.2)
+		_story_asset(_cabin_root, "cabin/cabin_chair_a", Vector3(1.8, 0.1, 1.2), -0.8)
+		_story_asset(_cabin_root, "cabin/cabin_lantern_a", Vector3(0.0, 0.9, 0.0), 0.0)
+		_story_asset(_cabin_root, "cabin/cabin_radio_a", Vector3(1.6, 0.7, -0.8), 0.5)
+		_story_asset(_cabin_root, "cabin/cabin_map_a", Vector3(-1.2, 0.75, -1.4), 0.3)
+		_story_asset(_cabin_root, "cabin/cabin_case_file_a", Vector3(0.9, 0.7, 1.8), 0.0)
 		return
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.30, 0.24, 0.17)
@@ -730,6 +764,9 @@ func _build_cruiser(pos: Vector3) -> void:
 	add_child(root)
 	if _try_story_model(root, "res://assets/models/vehicles/cruiser_1984_a.glb", PI):
 		root.rotation.y = 0.9
+		_story_asset(root, "gear/cruiser_lightbar_a", Vector3(0.0, 1.6, -0.3), 0.0)
+		_story_asset(root, "gear/cruiser_plate_a", Vector3(0.0, 0.55, 2.25), 0.0)
+		_story_asset(root, "gear/cruiser_old_kit_a", Vector3(0.0, 0.0, 1.4), 0.0)
 		return
 	var white := StandardMaterial3D.new()
 	white.albedo_color = Color(0.78, 0.78, 0.74)

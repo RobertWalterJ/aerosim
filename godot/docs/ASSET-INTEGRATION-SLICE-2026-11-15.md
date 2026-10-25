@@ -1,4 +1,4 @@
-# Shared-asset integration slice — 2026-11-15
+﻿# Shared-asset integration slice — 2026-11-15
 
 This slice wires the highest-story-impact categories that were still code-only or on the old fleet. It does **not** claim the whole shared library is wired.
 
@@ -84,3 +84,9 @@ Right-hand lane offsets, town passing pair, night-only highway car and headlight
 2. Wire the Claude drone GLBs into `DroneView`/thumbnails.
 3. Sign/road-surface assets if a matching art set is confirmed.
 4. Story/endgame interior props and remaining vehicle runtime.
+## Round 2 additions (2026-11-15)
+
+- **Claude drone GLBs are now the visible player drone for the purchased Raptor and Night Owl.** `DroneView` loads `raptor_race_a.glb` and `nightowl_a.glb`, centres the model on the chase origin, collects the four prop nodes for the existing motor animation, and falls back to the code drone if a file is missing. Evidence: `65_raptor_glb.png`.
+- **Story/endgame props are now loaded**: Lake Car evidence props (tow sticker, VIN plate, police tape, cone), cabin interior set plus bed/chair/lantern/radio/map/case file, camp chair/cooler/firewood/fire ring/stove, and cruiser lightbar/plate/old kit. Runtime: `case objects ... story assets=19`.
+- `GATE PASS (assetslice3)`.
+- Still open: clean Pike mast framing, sign/road-surface art, VehicleAssets/AnimalHerd runtimes, remaining interiors.
