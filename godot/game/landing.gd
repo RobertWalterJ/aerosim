@@ -73,20 +73,24 @@ func build(drone_name: String) -> void:
 	_root.add_child(_title_col)
 
 	var overline := Label.new(); overline.text = "HALLOWAY VALLEY"
-	overline.add_theme_font_size_override("font_size", 16)
+	overline.add_theme_font_size_override("font_size", 15)
 	overline.add_theme_color_override("font_color", BRASS_DIM)
-	var fv := FontVariation.new(); fv.base_font = roboto_med; fv.spacing_glyph = 12
+	var fv := FontVariation.new(); fv.base_font = roboto_med; fv.spacing_glyph = 14
 	overline.add_theme_font_override("font", fv)
 	_title_col.add_child(overline)
 
-	var title := Label.new(); title.text = "AeroSim"
-	title.add_theme_font_override("font", roboto_bold)
-	title.add_theme_font_size_override("font_size", 110)
-	title.add_theme_color_override("font_color", Color.WHITE)
-	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
-	title.add_theme_constant_override("shadow_offset_x", 3)
-	title.add_theme_constant_override("shadow_offset_y", 5)
-	_title_col.add_child(title)
+	# a two-tone wordmark: the name in white, "Sim" in the field-kit brass
+	var wordmark := HBoxContainer.new(); wordmark.add_theme_constant_override("separation", 0)
+	_title_col.add_child(wordmark)
+	for part in [["Aero", Color.WHITE], ["Sim", BRASS]]:
+		var wp := Label.new(); wp.text = part[0]
+		wp.add_theme_font_override("font", roboto_bold)
+		wp.add_theme_font_size_override("font_size", 110)
+		wp.add_theme_color_override("font_color", part[1])
+		wp.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
+		wp.add_theme_constant_override("shadow_offset_x", 3)
+		wp.add_theme_constant_override("shadow_offset_y", 5)
+		wordmark.add_child(wp)
 
 	var tagline := Label.new(); tagline.text = "Fly to feel free."
 	tagline.add_theme_font_size_override("font_size", 26)
@@ -102,7 +106,7 @@ func build(drone_name: String) -> void:
 	menu.add_theme_constant_override("separation", 8)
 	_root.add_child(menu)
 
-	var fly := Button.new(); fly.text = "Fly"; fly.theme_type_variation = "Primary"; fly.custom_minimum_size = Vector2(0, 74)
+	var fly := Button.new(); fly.text = "\u25b6  Fly"; fly.theme_type_variation = "Primary"; fly.custom_minimum_size = Vector2(0, 74)
 	fly.add_theme_font_override("font", roboto_bold)
 	fly.add_theme_font_size_override("font_size", 34)
 	fly.pressed.connect(func(): fly_pressed.emit())
