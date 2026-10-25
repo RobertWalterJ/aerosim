@@ -1246,3 +1246,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - The dive van and lake wreck are placed at the boat launch; avatars are live in the phone and Casebook; village cottages get ground plinths; animal models try their idle/graze clips.
 - This is an **asset integration**, not a full `main` merge: our story/profile/thermal/UI systems stay. The high-end `VehicleAssets` runtime (armatures, doors, LOD/wreck shaders) and `AnimalHerd` are still in other lanes and not merged.
 - Evidence `docs/realism/models/claude_avatars_chat.png`; docs `CLAUDE-ASSET-INTEGRATION.md`; `GATE PASS (claudequality2)`; commits `56cf2dc`, `100425e`.
+## Rennick death realization (lane/notify, session B, 2026-11-15)
+- `Finale.start()` no longer reveals Rennick's death. She directs Lou to the cabin normally.
+- At the cabin approach, `CaseObjects.show_rennick_ghost()` places the latest `rennick_1984_ghost_a` model by the cruiser; it fades with distance and hides inside the 48 m human keep-out.
+- `_arrive_cabin()` starts a timed realization: "You are looking straight through me", "You really cannot see me", "I have been dead since that storm", then she composes herself and directs the thermal search for Wren. Cabin lights/Wren heat are revealed only after that.
+- Dev hook `finalerealize`; `GATE PASS (rennickreveal)`; commit `24918b6`; doc `docs/RENNICK-REVEAL.md`.
