@@ -1225,3 +1225,10 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **Parked and abandoned cars are now cold in the thermal camera.** The village parked cars no longer get `ThermalHeat.vehicle()` shells; the lake car, festival bus and cabin cruiser already had none. Moving traffic remains the only source of engine/cabin/exhaust heat shells.
 - There is no residual-heat timer; if a recently parked car should stay warm later, it needs an explicit short-lived heat state, not a permanent shell.
 - Evidence: `spook`/`cold_parked` thermal screenshot in `%LOCALAPPDATA%\Temp\shots`; `GATE PASS (coldcars)`; commit `9b4760b`.
+## Camera, night and launch audit (lane/notify, session B, 2026-11-15)
+- **Render order:** video layer 1; NightVision 8; ThermalCamera 9; HUD 10; PhoneOS 28; PhoneNotes 34; Ending 60; loading 100. Thermal/night are lower CanvasLayers using `hint_screen_texture`, so the HUD is not tinted/scanlined/false-coloured. Evidence `docs/realism/cameras/thermal_hud.png` and `night_vision.png`.
+- **Night:** night ambient floor and sky background now follow the moon; moonless/overcast nights are much darker. Night vision gain adapts to darkness and remains below the HUD. Added `moonless` dev hook for the low-light test.
+- **Drone lights:** per-airframe profiles: cinema/cinewhoop soft film light, Night Owl flood, Raptor/race narrow spot, mini/freestyle general, wing landing light. HUD Drone light switch and toast name the type.
+- **Launch audit:** map lists all 12 sites; travel refuses airborne armed flight, updates launch site/yaw/minimap, respawns kit, closes phone and toasts. Tested map → Festival field → North gate pull-off. Fixed overlapping map pin labels with greedy placement and leader lines.
+- **Gates:** `GATE PASS (cameraaudit)`; commit `a89d3f8`; evidence under `docs/realism/cameras/`.
+- **Open limits:** all sites unlocked from start; move is implied not driven; map is a schematic; no-moon test is a dev hook, not a UI preset.
