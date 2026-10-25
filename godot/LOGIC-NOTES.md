@@ -1284,3 +1284,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 ## Rennick's search recollections (lane/notify, session B, 2026-11-15)
 - After the realization and the first Wren direction, Rennick keeps sending timed beats while the player searches: cabin lights/winter night, snowed in for days, trapped/fire, sleeping after the fire died, storm stillness, hearing nothing until the hiker, the hiker's phone and unexplained contact with Lou, realising the time passed, refusing to dwell on her own plight until Wren is safe, and a final "keep looking".
 - `_search_beats` in `finale.gd`; 2.1 s spacing; stops on found. `GATE PASS (rennickrecollect)`; doc `docs/RENNICK-REVEAL.md`.
+## Shared asset integration slice (lane/notify, session B, 2026-11-15)
+- Wired the high-story asset categories: village now loads town bakery/police house/chip shop/village hall plus benches, lamps, bus shelter, post box, noticeboard, bin and garage props (21 asset models); Pike loads 13 site assets + 3 hunter GLBs and a mast wreck on jammer-down; boat launch loads 9 site models (gravel, ramp, dock, sign/notice, bollards); cabin track loads 14 cave/track models; traffic now uses the latest vehicle GLBs (hatch A/B, pickup, van, tractor).
+- All code fallbacks remain. Counts are in the runtime logs (`village assets=21`, `pike site assets: 13 / hunters=3`, `boat launch asset models=9`, `cabin track asset models=14`).
+- `GATE PASS (assetslicefinal)`; commit `99ad41a`; doc `docs/ASSET-INTEGRATION-SLICE-2026-11-15.md`.
+- Still not wired: signs/road surfaces (no matching received art found), Claude drone GLBs / DroneView, VehicleAssets runtime, AnimalHerd runtime, story/endgame interiors, clean Pike mast close-up.
