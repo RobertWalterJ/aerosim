@@ -1273,3 +1273,7 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - Removed the old `WOLF_HIDE`/`SHEEP_HIDE` model disappearance. Animals stay visible when the drone closes.
 - Wolf states: wary >42 m; hostile warning (faces drone, slow step) 42-10 m; after 10 m or 2.2 s it flees at 8.8 m/s; calms after 140 m. Toasts and Riley copy explain it. Heat and traces follow the animal.
 - Dev hook `wolfclose`; `wolfclose end` shows `state=flee visible=true`; `GATE PASS (wildlifeclose)`; doc `docs/WILDLIFE-CLOSE.md`.
+## Night vision, moonlight, fireworks and laser (lane/notify, session B, 2026-11-15)
+- Moon is now a real directional light with phase/elevation/cloud scaling; `_moonless_test` removes it and `_night_dark` drives sensor exposure and NV. NV gets `moon_light`/`night_dark`, subtracts a black floor and adds grain, so a moonless scene stays dark and a moonlit one shows real detail.
+- `SensorPipeline.burst_uvs()` exposes firework screen positions; `NightVision.set_scene()` adds a hot core/halo/wash at those UVs, so a burst overwhelms the intensifier from the flash point.
+- Pike laser is now an opaque warm-white full-frame camera blind above NV for 2.2 s, with HUD readable; `laserdemo` hook. `GATE PASS (nightflash)`; commit `e331bc0`; doc `docs/NIGHT-VISION-LASER.md`.
