@@ -1261,3 +1261,7 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - Ghost drift is a collision-free fast camera (WASD, mouse, Space/C, Shift) rendered through its own SubViewport because the main viewport has 3D disabled by the sensor pipeline.
 - At 90 s the camera turns to the cemetery; a warm beacon over the sleeping body + small drone appears; click/Esc wakes. The drone is placed at the body and the existing post-story walk resumes.
 - Body area kept clear by `CaseObjects.GHOST_BODY_SPOT`. Hooks `ghostdemo`, `ghostworld`, `ghostwake`; `GATE PASS (ghostepilogue)`; doc `docs/GHOST-EPILOGUE.md`.
+## Phone app availability/download/load (lane/notify, session B, 2026-11-15)
+- `PhoneOS` now gates apps: DroneBudz/Photos/Jobs/Map always; VidTube Studio after first photo/clip; Casebook and Facade when the Rennick story starts.
+- A newly available app runs a one-time `DOWNLOADING` panel (1.15 s) before it appears on home/dock/drawer; first open of Casebook/Map/Studio/Facade shows a short `OPENING` panel. Direct/debug `_open_app()` bypasses the launcher gate.
+- Hooks `appdownload`, `appload`; `GATE PASS (appavailability)`; doc `docs/APP-AVAILABILITY.md`.
