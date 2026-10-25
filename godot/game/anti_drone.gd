@@ -400,11 +400,14 @@ func _make_hunter(home: Vector3, i: int) -> void:
 	var node := Node3D.new()
 	node.position = home
 	add_child(node)
+	# a hunter drone runs hot in the thermal camera: warm body, four hot motors
+	var heat := ThermalHeat.drone(node, Vector3.ZERO)
+	heat.visible = false
 	var names := ["hunter_drone_a", "hunter_drone_b", "hunter_drone_c"]
 	var asset := _asset(str(names[i % names.size()]), node, Vector3.ZERO, PI) if ResourceLoader.exists("res://assets/models/antidrone/%s.glb" % str(names[i % names.size()])) else null
 	if asset != null:
 		# The Claude hunter has its own red eye and rotor geometry. Keep the node for the chase logic.
-		_hunters.append({"node": node, "vel": Vector3.ZERO, "home": home, "phase": float(i) * 2.1})
+		_hunters.append({"node": node, "vel": Vector3.ZERO, "home": home, "phase": float(i) * 2.1, "heat": heat})
 		return
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.10, 0.11, 0.10)
@@ -444,7 +447,13 @@ func _make_hunter(home: Vector3, i: int) -> void:
 	eye.material_override = eye_mat
 	eye.position = Vector3(0.0, 0.02, 0.42)
 	node.add_child(eye)
-	_hunters.append({"node": node, "vel": Vector3.ZERO, "home": home, "phase": float(i) * 2.1})
+	_hunters.append({"node": node, "vel": Vector3.ZERO, "home": home, "phase": float(i) * 2.1, "heat": heat})
+
+func set_thermal_heat(on: bool) -> void:
+	for h in _hunters:
+		var heat: Node3D = h.get("heat")
+		if heat != null and is_instance_valid(heat):
+			heat.visible = on
 
 func _set_beacon(on: bool) -> void:
 	if _beacon_mat == null:

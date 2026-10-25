@@ -1131,6 +1131,8 @@ func _sync_thermal_heat() -> void:
 		traffic.set_thermal_heat(on)
 	if village != null:
 		village.set_thermal_heat(on)
+	if anti_drone != null:
+		anti_drone.set_thermal_heat(on)
 	if ground_traces != null:
 		ground_traces.set_thermal(on)
 # ------------------------------------------------------------------ camera add-ons on the flight screen
