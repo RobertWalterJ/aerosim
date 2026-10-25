@@ -129,6 +129,10 @@ func jammer_down_now() -> void:
 		notes.post_text("Rennick", "The north is open", "Pike's jammer is down. The hunter drones are still up. Keep high and fast, and do not stop.", 1)
 		hud.toast("Rennick: Pike jammer is down. Keep high and fast.", true, "DRONEBUDZ")
 
+func debug_laser_burn() -> void:
+	if _blind != null:
+		_blind.burn(2.2, 1.0)
+
 func _build_laser() -> void:
 	_laser_mat = StandardMaterial3D.new()
 	_laser_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -167,7 +171,7 @@ func _update_laser(delta: float, drone_p: Vector3, flat: Vector2, dist: float) -
 	if _laser_charge > 0.30 and _blind_cd <= 0.0:
 		_blind_cd = 3.2
 		if _blind != null:
-			_blind.burn(1.5, 1.0)
+			_blind.burn(2.2, 1.0)
 		if not _laser_warned:
 			_laser_warned = true
 			_warn("PIKE LASER   Â·   CAMERA BURN", 2.8)

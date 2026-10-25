@@ -46,6 +46,8 @@ var _hour_write_t := 0.0
 var _moon_el := -20.0
 var _moon_dir := Vector3(0, -1, 0)
 var _moon_illum := 0.5
+var _moon_f := 0.0
+var _night_dark := 0.0
 var _daylight := 1.0
 var _last_wet_applied := -1.0
 var snow_fx: GPUParticles3D
@@ -755,6 +757,8 @@ func _update_celestial() -> void:
 	sun.light_temperature = 3300.0 + 1200.0 * smoothstep(5.0, 22.0, _sun_el) + 1500.0 * smoothstep(22.0, 60.0, _sun_el)
 	var phase := Solar.moon_phase(_unix + (_clock - 12.0) * 3600.0)
 	_moon_illum = Solar.moon_illumination(phase)
+	if _moonless_test:
+		_moon_illum = 0.0
 	var mp := Solar.moon_position(_doy, _clock, phase, _utc_off)
 	_moon_el = mp.x
 	_moon_dir = Solar.direction(mp.x, mp.y)
@@ -770,7 +774,14 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sun.shadow_opacity = clampf(0.25 + 3.0 * float(c["sun"]), 0.0, 1.0)
 	# the moon: its light scales with how much of it is lit and how high it stands, and cloud dims it
 	var moon_f := _moon_illum * smoothstep(-2.0, 8.0, _moon_el) * (1.0 - _daylight)
-	moon.light_energy = 0.14 * pow(_moon_illum, 1.3) * smoothstep(-2.0, 8.0, _moon_el) * (1.0 - _daylight) * (0.25 + 0.75 * float(c["sun"]))
+	_moon_f = moon_f
+	_moon_illum = 0.0 if _moonless_test else _moon_illum
+	# real moonlight is weak but directional: enough to pick out the grass, trees and roofs without turning night into day
+	moon.light_energy = 0.34 * pow(_moon_illum, 1.3) * smoothstep(-2.0, 8.0, _moon_el) * (1.0 - _daylight) * (0.25 + 0.75 * float(c["sun"]))
+	_night_dark = clampf((1.0 - _daylight) * (1.0 - clampf(_moon_f * 1.45, 0.0, 1.0)), 0.0, 1.0)
+	var sensor_night := sensor
+	if sensor_night != null:
+		sensor_night.night_dark = _night_dark
 	moon.visible = moon.light_energy > 0.002
 	sun.visible = _sun_el > -3.0
 	var night_amb := 0.012 + 0.10 * moon_f
@@ -1076,6 +1087,8 @@ func _process(delta: float) -> void:
 	ambient.update(delta, cam, wind.toward() * wind.speed, wind.gust, _sun_el, _sun_dir, _daylight, wx, quad.position(), quad.armed and not quad.motor_cut, _wash_now, float(af["armD"]))
 
 	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
+	if night_vision != null:
+		night_vision.set_scene(sensor, _moon_f, _night_dark)
 	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
 	if weather_events: weather_events.update(delta, cam, quad.position(), quad.velocity(), _sun_el, _daylight, paused)   # session B: events and courses
 	if phone_notes: phone_notes.update(delta, paused)   # session B: the DroneBudz notification bundle
@@ -1843,6 +1856,8 @@ func _screenshot_mode(arg: String) -> void:
 			finale.debug_found()
 		elif c == "hudtoast":      # session B dev hook: a camera app notice
 			hud.toast("Photo taken", false, "CAMERA")
+		elif c == "laserdemo":     # session B dev hook: Pike laser camera burn, for the blind-frame check
+			anti_drone.debug_laser_burn()
 		elif c == "pikezone":      # session B dev hook: drop into the jammer field
 			var jp := Vector2(-260.0, -807.0)
 			quad.reset(jp.x, terrain.height(jp.x, jp.y) + 8.0, jp.y, deg_to_rad(0.0))

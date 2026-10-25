@@ -61,6 +61,24 @@ func event_dim(strength: float) -> void:
 
 ## A firework burst seen by this camera: a short lens flash, a streak and a ghost, and it nudges the auto exposure.
 ## `strength` 0..1.6 (a big shell is about 1.0). The effect fades over about 1.2 s. Called from game/fireworks.gd.
+## The active firework bursts as screen-space flash sources, for the night-vision intensifier. Each entry is
+## {uv: Vector2, k: strength, c: Colour}; off-screen bursts are omitted.
+func burst_uvs() -> Array:
+	var out: Array = []
+	if camera == null:
+		return out
+	for i in BURST_N:
+		if _burst_k[i] <= 0.001:
+			continue
+		var p: Vector2 = _project(_burst_p[i])
+		if p.x < -1.8 or p.x > 1.8 or p.y < -1.8 or p.y > 1.8:
+			continue
+		out.append({"uv": p * 0.5 + Vector2(0.5, 0.5), "k": _burst_k[i], "c": _burst_c[i]})
+	return out
+
+func burst_wash() -> float:
+	return _burst_wash
+
 func burst_glare(world_pos: Vector3, colour: Color, strength: float) -> void:
 	var slot := 0
 	var weakest := 1e9

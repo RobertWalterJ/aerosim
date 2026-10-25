@@ -18,7 +18,7 @@ func _ready() -> void:
 	_rect.color = Color(0.0, 0.0, 0.0, 0.0)
 	add_child(_rect)
 
-func burn(duration := 1.6, strength := 1.0) -> void:
+func burn(duration := 2.0, strength := 1.0) -> void:
 	_duration = maxf(duration, 0.2)
 	_strength = clampf(strength, 0.2, 1.0)
 	_peak = _strength
@@ -29,10 +29,11 @@ func _process(delta: float) -> void:
 	if not visible:
 		return
 	_t += delta
-	var k := clampf(_t / maxf(_duration * 0.18, 0.05), 0.0, 1.0)
-	var fade := clampf(1.0 - (_t - _duration * 0.50) / maxf(_duration * 0.50, 0.05), 0.0, 1.0)
+	var k := clampf(_t / maxf(_duration * 0.08, 0.03), 0.0, 1.0)
+	var fade := clampf(1.0 - (_t - _duration * 0.62) / maxf(_duration * 0.38, 0.05), 0.0, 1.0)
 	var a := _peak * k * fade
-	_rect.color = Color(1.0, 0.72, 0.55, a * 0.82)
+	# A camera dazzler is not a red tint: at peak the whole feed is gone, white with only a warm afterimage.
+	_rect.color = Color(1.0, 0.96, 0.88, a)
 	if _t >= _duration:
 		visible = false
 		_rect.color = Color(0, 0, 0, 0)

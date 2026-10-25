@@ -35,6 +35,29 @@ func set_gain(g: float) -> void:
 	if _mat != null:
 		_mat.set_shader_parameter("gain", _gain)
 
+func set_scene(sensor: Object, moon_light: float, night_dark: float) -> void:
+	if _mat == null:
+		return
+	var uvs := PackedVector2Array()
+	var ks := PackedFloat32Array()
+	var cs := PackedVector3Array()
+	if sensor != null and sensor.has_method("burst_uvs"):
+		for b in sensor.burst_uvs():
+			uvs.append(b["uv"])
+			ks.append(float(b["k"]))
+			var c: Color = b["c"]
+			cs.append(Vector3(c.r, c.g, c.b))
+	while uvs.size() < 4:
+		uvs.append(Vector2(0.5, 0.5))
+		ks.append(0.0)
+		cs.append(Vector3.ZERO)
+	_mat.set_shader_parameter("burst_uv", uvs)
+	_mat.set_shader_parameter("burst_k", ks)
+	_mat.set_shader_parameter("burst_c", cs)
+	_mat.set_shader_parameter("burst_wash", sensor.burst_wash() if sensor != null and sensor.has_method("burst_wash") else 0.0)
+	_mat.set_shader_parameter("moon_light", clampf(moon_light, 0.0, 1.0))
+	_mat.set_shader_parameter("night_dark", clampf(night_dark, 0.0, 1.0))
+
 func get_gain() -> float:
 	return _gain
 
