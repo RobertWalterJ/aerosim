@@ -1294,3 +1294,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - Story/endgame props loaded into CaseObjects: Lake Car evidence (tow sticker, VIN plate, police tape, cone), cabin interior set + bed/chair/lantern/radio/map/case file, camp chair/cooler/firewood/fire ring/stove, cruiser lightbar/plate/old kit. Runtime `story assets=19`.
 - `GATE PASS (assetslice3)`; commit `199ab0b`; doc `docs/ASSET-INTEGRATION-SLICE-2026-11-15.md`.
 - Still open: clean Pike mast close-up, signs/road surfaces (no matching received sign art found), VehicleAssets/AnimalHerd runtimes, remaining interiors and full 453-file accounting.
+## Shared asset integration round 3 (lane/notify, session B, 2026-11-15)
+- Festival/storm props added through CaseObjects: stage, banner, bunting, flags, barrier, lamp string, sign; storm branch, plank, roof sheet, lantern. Story assets now **32**.
+- `town_sign_halloway_a` at the village entrance (assets=22); `pike_warning_sign` at the ridge (assets=14 + 3 hunters). Pike mast verified at (-260.0, 133.7624, -807.7).
+- `GATE PASS (assetslice4)`; commit `8415e19`; evidence `67_pike_verify.png`, `68_festival_assets.png`; doc updated.
+- Still open: VehicleAssets runtime, AnimalHerd runtime, road-surface art, some signs, remaining interiors and full 453-file accounting. Goal remains active/incomplete.
