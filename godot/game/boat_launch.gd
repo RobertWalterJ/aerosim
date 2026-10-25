@@ -16,6 +16,8 @@ const RAMP_WIDTH := 6.4
 func setup(t: Terrain) -> void:
 	terrain = t
 	_build_parking()
+	_build_dive_van()
+	_build_wreck()
 	_build_ramp()
 	_build_dock()
 	_build_boat()
@@ -68,6 +70,35 @@ func _build_parking() -> void:
 		bi.material_override = track
 		bi.position = Vector3(0.0, 0.05, z)
 		root.add_child(bi)
+
+func _try_vehicle_model(root: Node3D, name: String, yaw: float) -> bool:
+	var path := "res://assets/models/vehicles/%s.glb" % name
+	if not ResourceLoader.exists(path):
+		return false
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return false
+	var inst := packed.instantiate() as Node3D
+	if inst == null:
+		return false
+	inst.rotation.y = yaw
+	root.add_child(inst)
+	return true
+
+## The dive team and the lake wreck (lane/wreckvan): the high-detail vehicles now exist in the shared library.
+func _build_dive_van() -> void:
+	var root := Node3D.new()
+	root.position = Vector3(-424.0, terrain.height(-424.0, 120.0) + 0.08, 120.0)
+	root.rotation.y = -1.35
+	add_child(root)
+	_try_vehicle_model(root, "police_dive_van_a", -1.35)
+
+func _build_wreck() -> void:
+	var root := Node3D.new()
+	root.position = Vector3(-470.0, Lake.LEVEL - 0.65, 108.0)
+	root.rotation.y = 0.7
+	add_child(root)
+	_try_vehicle_model(root, "anne_car_wreck_a", 0.7)
 
 func _build_ramp() -> void:
 	var steps := 9

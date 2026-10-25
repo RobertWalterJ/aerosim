@@ -224,6 +224,13 @@ func _load_animal_model(name: String) -> Node3D:
 	if packed == null:
 		return null
 	var inst := packed.instantiate() as Node3D
+	if inst != null:
+		var ap := inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if ap != null:
+			for clip in ["idle", "graze", "walk"]:
+				if ap.has_animation(clip):
+					ap.play(clip)
+					break
 	return inst
 
 func _heat_mesh(radius: float, height: float) -> MeshInstance3D:

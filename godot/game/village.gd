@@ -98,6 +98,7 @@ func _cottage(pos: Vector2, yaw: float, w: float, d: float, h: float, wall: Stan
 	add_child(node)
 	_box(node, Vector3(w, h, d), Vector3(0.0, h * 0.5, 0.0), wall)
 	_solid(node, Vector3(w, h, d), Vector3(0.0, h * 0.5, 0.0))
+	_plinth(node, w, d, wall)
 	_roof(node, w, d, h, roof)
 	_door(node, Vector3(0.0, 1.05, -d * 0.5 - 0.07), 1.05, 2.1, trim)
 	_window(node, Vector3(-w * 0.30, h * 0.58, -d * 0.5 - 0.07), 1.0, 1.1, glass)
@@ -327,6 +328,16 @@ func _forecourt(pos: Vector2, w: float, d: float, mat: StandardMaterial3D) -> vo
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y) + 0.035, pos.y)
 	add_child(node)
 	_box(node, Vector3(w, 0.07, d), Vector3.ZERO, mat)
+
+## A plinth from the lowest ground under the footprint up to the wall base, so cottages do not hang over a slope.
+func _plinth(node: Node3D, w: float, d: float, mat: StandardMaterial3D) -> void:
+	var lowest := node.position.y
+	for i in 5:
+		for j in 5:
+			var p := node.transform * Vector3((float(i) / 4.0 - 0.5) * w, 0.0, (float(j) / 4.0 - 0.5) * d)
+			lowest = minf(lowest, terrain.height(p.x, p.z))
+	var depth := node.position.y - lowest + 0.15
+	_box(node, Vector3(w + 0.1, depth, d + 0.1), Vector3(0.0, -depth * 0.5, 0.0), mat)
 
 func _roof(parent: Node3D, w: float, d: float, h: float, mat: StandardMaterial3D) -> void:
 	var roof := MeshInstance3D.new()

@@ -18,11 +18,34 @@ const LOD_END := [14.0, 45.0, 400.0]
 
 ## Which library each person uses.
 const BODY := {
-	"ellis": "male", "rennick": "female", "rennick_uniform": "female", "rennick_1984": "female", "wren": "female",
+	"ellis": "male", "rennick": "female", "rennick_uniform": "female", "rennick_1984": "female", "rennick_1984_ghost": "female",
+	"wren": "female",
 	"crowd_m1": "male", "crowd_m2": "male", "crowd_m3": "male", "crowd_f1": "female", "crowd_f2": "female", "crowd_f3": "female",
 	"child_boy": "child", "child_girl": "child", "band_singer": "female", "band_guitar": "male", "band_fiddle": "male",
 	"band_drummer": "male", "pilot": "male", "bystander": "female",
+	# lane/antidrone: the village cast of the character brief, the DroneBudz crew and the other people the story names
+	"ifeoma_okafor": "female", "mei_lin": "female", "ravi_patel": "male", "grace_adeyemi": "female", "hana_sato": "female",
+	"priya_nair": "female", "daniel_whitlock": "male", "arthur_bell": "male",
+	"maya": "female", "jo": "female", "riley": "male", "tom": "male", "alex": "male", "sam": "female", "kit": "male",
+	"harlan_pike": "male", "farmer": "male", "nora_pike": "female", "councillor_bain": "male",
 }
+
+## Display names and village ids (village.gd, character_data) -> person file, so code can ask by the name it already uses.
+const ALIASES := {
+	"Ifeoma Okafor": "ifeoma_okafor", "Ada Okafor": "ifeoma_okafor", "Mei Lin": "mei_lin", "Ravi Patel": "ravi_patel",
+	"Grace Adeyemi": "grace_adeyemi", "Hana Sato": "hana_sato", "Priya Nair": "priya_nair",
+	"Daniel Whitlock": "daniel_whitlock", "Arthur Bell": "arthur_bell", "Wren": "wren", "Maya": "maya", "Jo": "jo",
+	"Riley": "riley", "Tom": "tom", "Alex": "alex", "Sam": "sam", "Kit": "kit", "Harlan Pike": "harlan_pike",
+	"Nora Pike": "nora_pike", "Councillor Bain": "councillor_bain", "Ellis Voss": "ellis", "Ellis": "ellis",
+	"Rennick": "rennick", "Constable Ada Rennick": "rennick_1984",
+}
+
+## The person file for a display name, id or file name ("" if none).
+static func resolve(name: String) -> String:
+	if BODY.has(name): return name
+	if ALIASES.has(name): return ALIASES[name]
+	var k := name.to_lower().replace(" ", "_")
+	return k if BODY.has(k) else ""
 
 ## Story asset name -> person, clip, props ("name:L" / "name:R" in a hand, "name:C" on the chest, "name" on the ground,
 ## "name@x,y,z,yaw" on the ground with an offset in the person's frame), optional cloth tint and ghost.
@@ -45,7 +68,7 @@ const STORY := {
 	"rennick_uniform_a_writing": {"p": "rennick_uniform", "a": "clipboard_write", "props": ["clipboard:L", "pen:R"]},
 	"rennick_1984_standing_a": {"p": "rennick_1984", "a": "idle"},
 	"rennick_1984_standing_a_notebook": {"p": "rennick_1984", "a": "notebook_hold", "props": ["notebook:L"]},
-	"rennick_1984_ghost_a": {"p": "rennick_1984", "a": "idle", "ghost": true},
+	"rennick_1984_ghost_a": {"p": "rennick_1984_ghost", "a": "idle", "ghost": true},
 	"wren_standing_phone_a": {"p": "wren", "a": "phone_hold", "props": ["phone:R"]},
 	"wren_sitting_porch_a": {"p": "wren", "a": "sit_hug_knees"},
 	"wren_walking_torch_a": {"p": "wren", "a": "walk_torch", "props": ["torch:R"]},
@@ -87,7 +110,7 @@ static var _mats := {}
 static var _ghost: ShaderMaterial = null
 
 static func handles(name: String) -> bool:
-	return STORY.has(name) or name == "crowd_band_a" or BODY.has(name)
+	return STORY.has(name) or name == "crowd_band_a" or BODY.has(name) or ALIASES.has(name)
 
 static func available(person_name: String) -> bool:
 	return ResourceLoader.exists(DIR + person_name + ".glb")
@@ -96,12 +119,22 @@ static func available(person_name: String) -> bool:
 static func instance(name: String) -> Node3D:
 	if name == "crowd_band_a":
 		return band()
-	if BODY.has(name):
-		return person(name, "idle")
+	if BODY.has(name) or ALIASES.has(name):
+		return person(resolve(name), "idle")
 	if not STORY.has(name):
 		return null
 	var s: Dictionary = STORY[name]
-	var n := person(s["p"], s["a"], s.get("props", []), s.get("tint", Color(1, 1, 1)), s.get("ghost", false), hash(name))
+	var pn: String = s["p"]
+	var drain := false
+	if pn == "rennick_1984_ghost" and not available(pn):
+		pn = "rennick_1984"          # the shader drains her instead if only the living file is present
+		drain = true
+	var n := person(pn, s["a"], s.get("props", []), s.get("tint", Color(1, 1, 1)), s.get("ghost", false), hash(name))
+	if n != null and drain:
+		for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+			for k in (mi.mesh.get_surface_count() if mi.mesh != null else 0):
+				var gm := mi.get_surface_override_material(k) as ShaderMaterial
+				if gm != null: gm.set_shader_parameter("drain", 1.0)
 	if n != null:
 		n.name = name
 	return n
@@ -251,7 +284,7 @@ static func _setup_meshes(root: Node, tint: Color, ghost: bool) -> void:
 		for s in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(s)
 			if ghost:
-				mi.set_surface_override_material(s, ghost_material())
+				mi.set_surface_override_material(s, ghost_material(m))
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				continue
 			if m == null:
@@ -292,7 +325,7 @@ static func _fix_material(m: Material) -> Material:
 		sm.rim_enabled = true
 		sm.rim = 0.3
 		sm.rim_tint = 0.8
-		sm.roughness = 0.62
+		sm.roughness = maxf(sm.roughness, 0.62)   # coily hair (Rennick) keeps its 0.74
 	elif k.begins_with("brow") or k.begins_with("lash"):
 		sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
 		sm.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -316,6 +349,11 @@ static func _tinted(m: StandardMaterial3D, tint: Color) -> StandardMaterial3D:
 	_mats[key] = t
 	return t
 
+## Rennick's ghost (lane/rennick): the pale textures baked into rennick_1984_ghost.glb, a soft cool rim, a little self-light
+## and a dithered fade (game/shaders/people_ghost.gdshader). Opaque, so no inner layer shows through. One material per
+## source material and per figure, so each ghost can fade on its own. With no source (or one without a texture) the
+## shader still gives a plain pale figure. If the living file is used instead of the ghost file, the albedo is drained
+## by the shader's tint only, so prefer rennick_1984_ghost.glb.
 ## A per-instance skin tone pass for story characters: deep rich brown or light tan without rebuilding the GLB.
 static func tint_skin(root: Node, tone: Color) -> void:
 	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
@@ -328,13 +366,40 @@ static func tint_skin(root: Node, tone: Color) -> void:
 				t.albedo_color = (m as StandardMaterial3D).albedo_color * tone
 				t.subsurf_scatter_strength = 0.20
 				mi.set_surface_override_material(s, t)
-
-## Rennick's ghost: pale, translucent, a soft rim, no hard edges (game/shaders/people_ghost.gdshader).
-static func ghost_material() -> ShaderMaterial:
+static func ghost_material(src: Material = null) -> ShaderMaterial:
 	if _ghost == null:
 		_ghost = ShaderMaterial.new()
 		_ghost.shader = load("res://game/shaders/people_ghost.gdshader")
-	return _ghost
+	var g := _ghost.duplicate() as ShaderMaterial
+	if src is StandardMaterial3D:
+		var sm := src as StandardMaterial3D
+		var k := String(sm.resource_name)
+		if sm.albedo_texture != null:
+			g.set_shader_parameter("albedo_tex", sm.albedo_texture)
+		if sm.normal_enabled and sm.normal_texture != null and k.begins_with("cloth"):
+			g.set_shader_parameter("normal_tex", sm.normal_texture)
+			g.set_shader_parameter("use_normal", true)
+		g.set_shader_parameter("alpha_cut", k.begins_with("hair") or k.begins_with("brow") or k.begins_with("lash"))
+		if k.begins_with("eye"):
+			g.set_shader_parameter("roughness_v", 0.15)
+			g.set_shader_parameter("glow", 0.08)
+			g.set_shader_parameter("rim_strength", 0.0)       # no glowing eyes
+	return g
+
+## Fade a ghost figure in or out (0 = gone, 1 = fully there); translucency (0..0.6) lets the scene through the middle of
+## the figure while the rim stays. Works on anything built with ghost = true (e.g. "rennick_1984_ghost_a").
+static func set_ghost_fade(root: Node, fade: float, translucency := -1.0) -> void:
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var m := mi.get_surface_override_material(s) as ShaderMaterial
+			if m == null or m.shader == null or not String(m.shader.resource_path).ends_with("people_ghost.gdshader"):
+				continue
+			m.set_shader_parameter("fade", clampf(fade, 0.0, 1.0))
+			if translucency >= 0.0:
+				m.set_shader_parameter("translucency", clampf(translucency, 0.0, 0.8))
+		mi.visible = fade > 0.001
 
 # ------------------------------------------------------------------------------------------------ props
 static func _prop_mesh(pname: String) -> Node3D:

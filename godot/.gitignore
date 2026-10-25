@@ -9,3 +9,4 @@ build/
 !assets/world/lake_mask.png
 !assets/ui/tablet/**/*.png
 !assets/ui/tablet/**/*.woff2
+!assets/ui/avatar_*.png
