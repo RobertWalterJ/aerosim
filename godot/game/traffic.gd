@@ -28,24 +28,33 @@ func setup(t: Terrain, r: Roads, h: Hud) -> void:
 	roads = r
 	hud = h
 	_mobile = OS.has_feature("mobile")
-	var n := 2 if _mobile else 3
-	var all_routes: Array = roads.route_ids()
-	var routes: Array = []
-	for id in all_routes:
-		# keep the tiny gate driveways and field spurs for the player to read; traffic belongs on the real roads
-		if float(roads._lengths.get(str(id), 0.0)) >= 100.0:
-			routes.append(id)
-	if routes.is_empty():
-		routes = all_routes
+	# Sparse, deliberate traffic. Two vehicles pass each other through the village; one car works the
+	# empty highway. This keeps the town livelier than the open road and lets headlights carry the night.
+	var plan: Array = [
+		{"route": "village", "dir": 1.0, "type": 0, "s": 0.16},
+		{"route": "village", "dir": -1.0, "type": 3, "s": 0.70},
+		{"route": "valley", "dir": -1.0, "type": 2, "s": 0.42, "night": 1},
+	]
+	if _mobile:
+		plan = [
+			{"route": "village", "dir": 1.0, "type": 0, "s": 0.16},
+			{"route": "valley", "dir": -1.0, "type": 2, "s": 0.42, "night": 1},
+		]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4451
-	for i in n:
-		var type: Dictionary = TYPES[i % TYPES.size()]
-		var route := str(routes[i % routes.size()])
+	var all_routes: Array = roads.route_ids()
+	for p in plan:
+		var route := str(p["route"])
+		if not route in all_routes:
+			if all_routes.is_empty():
+				continue
+			route = str(all_routes[0])
 		var length: float = float(roads._lengths.get(route, 1.0))
-		_vehicles.append(_make_vehicle(type, route, rng.randf() * length, 1.0 if i % 2 == 0 else -1.0, rng))
+		var type: Dictionary = TYPES[int(p["type"]) % TYPES.size()]
+		var v: Dictionary = _make_vehicle(type, route, float(p["s"]) * length, float(p["dir"]), rng)
+		v["night_only"] = bool(p.get("night", 0))
+		_vehicles.append(v)
 	print("traffic: ", stats())
-
 func _make_vehicle(type: Dictionary, route: String, s: float, dir: float, rng: RandomNumberGenerator) -> Dictionary:
 	var node := Node3D.new()
 	add_child(node)
@@ -68,9 +77,10 @@ func _make_vehicle(type: Dictionary, route: String, s: float, dir: float, rng: R
 						lamps.append(mm)
 			var heat := ThermalHeat.vehicle(node, type["body"], type["cab"], float(type["cab_y"]))
 			heat.visible = _thermal_on
+			var lights := _add_vehicle_lights(node, type)
 			return {"node": node, "type": type, "route": route, "s": s, "dir": dir,
 				"speed": float(type["speed"]) * rng.randf_range(0.9, 1.1),
-				"wheels": model_wheels, "wheel_axis": "x", "lamp": null, "lamps": lamps, "model": true, "heat": heat}
+				"wheels": model_wheels, "wheel_axis": "x", "lamp": null, "lamps": lamps, "lights": lights, "model": true, "heat": heat}
 	var body_mat := StandardMaterial3D.new()
 	body_mat.albedo_color = type["colour"]
 	body_mat.roughness = 0.45
@@ -135,7 +145,40 @@ func _make_vehicle(type: Dictionary, route: String, s: float, dir: float, rng: R
 		node.add_child(lamp_mi)
 	var heat := ThermalHeat.vehicle(node, type["body"], type["cab"], float(type["cab_y"]))
 	heat.visible = _thermal_on
-	return {"node": node, "type": type, "route": route, "s": s, "dir": dir, "speed": float(type["speed"]) * rng.randf_range(0.9, 1.1), "wheels": wheels, "wheel_axis": "z", "lamp": lamp_mat, "lamps": [lamp_mat], "heat": heat}
+	var lights := _add_vehicle_lights(node, type)
+	return {"node": node, "type": type, "route": route, "s": s, "dir": dir, "speed": float(type["speed"]) * rng.randf_range(0.9, 1.1), "wheels": wheels, "wheel_axis": "z", "lamp": lamp_mat, "lamps": [lamp_mat], "lights": lights, "heat": heat}
+
+func _add_vehicle_lights(node: Node3D, type: Dictionary) -> Array:
+	var out: Array = []
+	var body: Vector3 = type["body"]
+	var front := -body.z * 0.5 - 0.05
+	for sx in [-1.0, 1.0]:
+		var spot := SpotLight3D.new()
+		spot.position = Vector3(sx * body.x * 0.30, 0.62, front)
+		spot.spot_range = 48.0
+		spot.spot_angle = 24.0
+		spot.spot_attenuation = 0.55
+		spot.light_color = Color(1.0, 0.93, 0.78)
+		spot.light_energy = 0.0
+		spot.shadow_enabled = false
+		spot.visible = false
+		node.add_child(spot)
+		out.append(spot)
+	# a small red tail glow, so a car going away reads as a car and not a dark box
+	var tail_mat := StandardMaterial3D.new()
+	tail_mat.albedo_color = Color(0.75, 0.04, 0.02)
+	tail_mat.emission_enabled = true
+	tail_mat.emission = Color(1.0, 0.04, 0.01)
+	tail_mat.emission_energy_multiplier = 0.0
+	for sx in [-1.0, 1.0]:
+		var tail := MeshInstance3D.new()
+		var tm := BoxMesh.new()
+		tm.size = Vector3(0.22, 0.10, 0.05)
+		tail.mesh = tm
+		tail.material_override = tail_mat
+		tail.position = Vector3(sx * body.x * 0.30, 0.62, body.z * 0.5 + 0.03)
+		node.add_child(tail)
+	return out
 
 func update(delta: float, hour: float, paused: bool) -> void:
 	if paused:
@@ -166,11 +209,15 @@ func update(delta: float, hour: float, paused: bool) -> void:
 			continue
 		var pos: Vector2 = smp["pos"]
 		var tangent: Vector2 = smp["dir"] * float(v["dir"])
+		# Drive on the right: each direction keeps to its own side of the centreline. For a 5 m lane
+		# that is 1.25 m from the centre, so opposing cars pass with a real gap instead of sharing a line.
 		var side := Vector2(-tangent.y, tangent.x)
-		var lane := pos + side * 1.85
+		var lane_off := maxf(1.0, roads.width(route) * 0.25)
+		var lane := pos + side * lane_off
 		var y := terrain.height(lane.x, lane.y) + 0.05
 		var node: Node3D = v["node"]
 		node.global_position = Vector3(lane.x, y, lane.y)
+		node.visible = not bool(v.get("night_only", false)) or darkness > 0.35
 		node.rotation.y = atan2(-tangent.x, -tangent.y)
 		var wheels: Array = v["wheels"]
 		var spin := speed * delta / 0.34
@@ -184,6 +231,11 @@ func update(delta: float, hour: float, paused: bool) -> void:
 			var lamp := lm as StandardMaterial3D
 			if lamp != null:
 				lamp.emission_energy_multiplier = 2.4 * darkness
+		for light in v.get("lights", []):
+			var spot := light as SpotLight3D
+			if spot != null:
+				spot.visible = darkness > 0.28
+				spot.light_energy = 4.8 * darkness
 		# brake/tail glow is left off on purpose: no real lights mean no cost on the phone
 
 ## Dev hook: line the vehicles up along the valley highway for a look shot.
@@ -198,7 +250,7 @@ func trace_sources() -> Array:
 	var out: Array = []
 	for i in _vehicles.size():
 		var node: Node3D = _vehicles[i]["node"]
-		if node != null:
+		if node != null and node.visible:
 			out.append({"key": i, "pos": node.global_position, "yaw": node.rotation.y, "kind": "vehicle"})
 	return out
 
@@ -216,4 +268,9 @@ func debug_line_up() -> void:
 		v["dir"] = 1.0
 
 func stats() -> Dictionary:
-	return {"vehicles": _vehicles.size(), "mobile": _mobile}
+	var routes: Array = []
+	var dirs: Array = []
+	for v in _vehicles:
+		routes.append(str(v["route"]))
+		dirs.append(float(v["dir"]))
+	return {"vehicles": _vehicles.size(), "mobile": _mobile, "routes": routes, "directions": dirs}

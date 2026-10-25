@@ -348,6 +348,12 @@ func set_wetness(w: float) -> void:
 func route_ids() -> Array:
 	return paths.keys()
 
+func width(id: String) -> float:
+	for r in ROUTES:
+		if str(r["id"]) == id:
+			return float(r["width"])
+	return 5.0
+
 func speed_limit(id: String) -> float:
 	for r in ROUTES:
 		if str(r["id"]) == id:
