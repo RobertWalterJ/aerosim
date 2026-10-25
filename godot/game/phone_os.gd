@@ -58,6 +58,21 @@ var _field_case: Label
 var _drone_budz_badge: Label
 var _studio_badge: Label
 var _badges := {}                    # app key -> red Android count badge on the home icon
+var _app_cells := {}                 # app key -> home grid cell
+var _dock_cells := {}                # app key -> dock button
+var _app_installed := {}             # app key -> available on this tablet
+var _app_loaded := {}                # app key -> first-open load already shown this session
+var _app_installing := {}            # app key -> download in progress or queued
+var _install_queue: Array[String] = []
+var _install_key := ""
+var _busy: ColorRect
+var _busy_title: Label
+var _busy_name: Label
+var _busy_bar: ProgressBar
+var _busy_kind := ""
+var _busy_t := 0.0
+var _busy_app := ""
+var _app_sync_t := 0.0
 var _wind_dial: TabletDial
 var _battery_dial: TabletDial
 var _credit: Label
@@ -300,8 +315,9 @@ func _build() -> void:
 			badge.visible = false
 			btn.add_child(badge)
 			_badges[key] = badge
-		btn.pressed.connect(func(): _open_app(key))
+		btn.pressed.connect(func(): _launch_app(key))
 		cell.add_child(btn)
+		_app_cells[key] = cell
 		var lab := UniverseUI.label(str(a["name"]), 12, UniverseUI.CREAM_DIM)
 		lab.add_theme_font_size_override("font_size", int(round(12.0 * _u)))
 		lab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -378,8 +394,9 @@ func _build() -> void:
 		var dicon := UniverseUI.app_icon(der, 56.0 * _u, UniverseUI.app_colour(der))
 		dicon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		dock_btn.add_child(dicon)
-		dock_btn.pressed.connect(func(): _open_app(der))
+		dock_btn.pressed.connect(func(): _launch_app(der))
 		drow.add_child(dock_btn)
+		_dock_cells[der] = dock_btn
 	# app host: below the status bar, above the navigation bar (Android system insets)
 	_apps = Control.new()
 	_apps.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -443,6 +460,8 @@ func _build() -> void:
 	_build_drawer()
 	_build_system_nav()
 	_add_device_frame()
+	_build_busy()
+	_sync_apps(true)
 	get_viewport().size_changed.connect(_resize_insets)
 	visible = false
 
@@ -450,6 +469,7 @@ func open() -> void:
 	_open = true
 	visible = true
 	_resize_insets()
+	_sync_apps()
 	_show_home()
 	_refresh()
 
@@ -592,7 +612,7 @@ func _build_drawer() -> void:
 		var icon := UniverseUI.app_icon(key, 64.0 * _u, UniverseUI.app_colour(key))
 		icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		btn.add_child(icon)
-		btn.pressed.connect(func(): _open_app(key))
+		btn.pressed.connect(func(): _launch_app(key))
 		cell.add_child(btn)
 		var lab := UniverseUI.label(str(entry[1]), 13, UniverseUI.CREAM_DIM)
 		lab.add_theme_font_size_override("font_size", int(round(13.0 * _u)))
@@ -918,6 +938,126 @@ func _app_letter(key: String) -> String:
 		"map": return "MP"
 	return "?"
 
+## ------------------------------------------------------------------ app availability, download and launch
+## The tablet starts with the apps that make sense on day one: DroneBudz, Photos, Jobs and the Map. The Casebook and
+## Facade arrive when the story starts, and VidTube Studio arrives after the first photo or published clip. New apps
+## are downloaded on the tablet once, with a short progress panel, then launched through the normal app host.
+func _app_ready(key: String) -> bool:
+	match key:
+		"casebook", "market":
+			return story != null and story.started
+		"studio":
+			var has_photo := photos != null and photos.count() > 0
+			var has_video := jobs != null and jobs.videos().size() > 0
+			return has_photo or has_video
+		_:
+			return true
+
+func _launch_app(key: String) -> void:
+	if not bool(_app_installed.get(key, false)):
+		return
+	if _busy != null and _busy.visible:
+		return
+	if not bool(_app_loaded.get(key, false)) and key in ["casebook", "map", "studio", "market"]:
+		_begin_busy("load", key)
+		return
+	_open_app(key)
+
+func _sync_apps(initial := false) -> void:
+	if _app_cells.is_empty():
+		return
+	for key in ["chat", "studio", "photos", "jobs", "casebook", "market", "map"]:
+		var ready := _app_ready(key)
+		if ready and not bool(_app_installed.get(key, false)):
+			if initial or not _open:
+				_app_installed[key] = true
+			elif not bool(_app_installing.get(key, false)) and key != _install_key:
+				_app_installing[key] = true
+				_install_queue.append(key)
+		var on := bool(_app_installed.get(key, false)) and ready
+		var cell: Control = _app_cells.get(key, null)
+		if cell != null:
+			cell.visible = on
+			cell.modulate.a = 1.0 if on else 0.0
+		var dock: Control = _dock_cells.get(key, null)
+		if dock != null:
+			dock.visible = on
+			dock.modulate.a = 1.0 if on else 0.0
+	for cell in _drawer_cells:
+		if cell == null:
+			continue
+		var dk := str(cell.get_meta("app_key", ""))
+		cell.visible = bool(_app_installed.get(dk, false)) and _app_ready(dk)
+	_start_next_install()
+
+func _start_next_install() -> void:
+	if _install_key != "" or _install_queue.is_empty():
+		return
+	if _busy != null and _busy.visible:
+		return
+	_install_key = _install_queue.pop_front()
+	_begin_busy("install", _install_key)
+
+func _build_busy() -> void:
+	_busy = ColorRect.new()
+	_busy.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_busy.color = Color(0.035, 0.045, 0.038, 0.97)
+	_busy.mouse_filter = Control.MOUSE_FILTER_STOP
+	_busy.z_index = 80
+	_busy.visible = false
+	_root.add_child(_busy)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_busy.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", UniverseUI.box(Color(0.075, 0.090, 0.078, 1.0), 18, UniverseUI.LINE_STRONG, 1, 30.0, 24.0))
+	center.add_child(panel)
+	var col := VBoxContainer.new()
+	col.custom_minimum_size = Vector2(330.0 * _u, 0)
+	col.add_theme_constant_override("separation", 8)
+	panel.add_child(col)
+	_busy_title = UniverseUI.label("DOWNLOADING", 11, UniverseUI.AMBER)
+	col.add_child(_busy_title)
+	_busy_name = UniverseUI.label("", 24, UniverseUI.CREAM)
+	col.add_child(_busy_name)
+	var note := UniverseUI.label("This will only take a moment.", 12, UniverseUI.MUTED)
+	col.add_child(note)
+	_busy_bar = ProgressBar.new()
+	_busy_bar.custom_minimum_size = Vector2(330.0 * _u, 8.0 * _u)
+	_busy_bar.max_value = 1.0
+	_busy_bar.show_percentage = false
+	col.add_child(_busy_bar)
+
+func _begin_busy(kind: String, key: String) -> void:
+	_busy_kind = kind
+	_busy_app = key
+	_busy_t = 0.0
+	_busy_title.text = "DOWNLOADING" if kind == "install" else "OPENING"
+	_busy_name.text = _app_title(key)
+	_busy_bar.value = 0.0
+	_busy.visible = true
+
+func _tick_busy(delta: float) -> void:
+	if _busy == null or not _busy.visible:
+		return
+	_busy_t += delta
+	var dur := 1.15 if _busy_kind == "install" else 0.42
+	_busy_bar.value = clampf(_busy_t / dur, 0.0, 1.0)
+	if _busy_t < dur:
+		return
+	var key := _busy_app
+	_busy.visible = false
+	if _busy_kind == "install":
+		_app_installed[key] = true
+		_app_installing.erase(key)
+		_install_key = ""
+		if hud != null:
+			hud.toast(str(_app_title(key)) + " downloaded to the tablet", false, "TABLET")
+		_sync_apps()
+		_start_next_install()
+	else:
+		_app_loaded[key] = true
+		_open_app(key)
 func _open_app(key: String) -> void:
 	_switcher.visible = false
 	_drawer_shown = false
@@ -1056,8 +1196,13 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _process(_delta: float) -> void:
+	_tick_busy(_delta)
 	if _open:
 		_refresh()
+		_app_sync_t += _delta
+		if _app_sync_t > 0.6:
+			_app_sync_t = 0.0
+			_sync_apps()
 
 func stats() -> Dictionary:
 	return {"open": _open, "app": _current_app, "chat": chat.stats(), "followers": jobs.followers() if jobs else 0}

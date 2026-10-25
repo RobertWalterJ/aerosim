@@ -1328,6 +1328,15 @@ func _screenshot_mode(arg: String) -> void:
 			print("ROADLAND position %.3f %.3f %.3f, terrain %.3f, surface %.3f, and %.3f m above the surface" % [quad.position().x, quad.position().y, quad.position().z, terrain.height(rx, rz), roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz), quad.position().y - (roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz))])
 		elif c == "phone":        # session B dev hook: the phone home screen
 			phone_os.open()
+		elif c == "appdownload":   # session B dev hook: force a fresh download of the Casebook and Facade
+			phone_os.open()
+			phone_os._app_installed["casebook"] = false
+			phone_os._app_installed["market"] = false
+			phone_os._sync_apps()
+		elif c == "appload":       # session B dev hook: the first-open app loading panel
+			phone_os.open()
+			phone_os._app_loaded.erase("map")
+			phone_os._launch_app("map")
 		elif c == "phonedrawer":  # session B dev hook: the Android app drawer with its search pill
 			phone_os.open()
 			phone_os._show_drawer()
