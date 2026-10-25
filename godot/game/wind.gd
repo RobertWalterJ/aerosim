@@ -18,6 +18,8 @@ var from_deg := 250.0
 ## Callable(pos: Vector3) -> Vector3. Registered by game/weather_events.gd through add_field(), so an event never has to
 ## edit this file again.
 var fields: Array[Callable] = []
+## Extra shelter sources (buildings, village, cabins): each Callable(pos: Vector3, agl: float) -> float 0..1.
+var shelter_sources: Array[Callable] = []
 var _noise := FastNoiseLite.new()
 const Z0 := 0.05
 const KAPPA := 0.4
@@ -70,6 +72,10 @@ func add_field(call: Callable) -> void:
 	if not fields.has(call):
 		fields.append(call)
 
+func add_shelter_source(call: Callable) -> void:
+	if not shelter_sources.has(call):
+		shelter_sources.append(call)
+
 func sample(pos: Vector3, agl: float, t: float) -> Vector3:
 	var prof := profile(agl)
 	var ti := intensity(agl)
@@ -102,13 +108,25 @@ func drive(quad, terrain: Terrain, pos: Vector3, agl: float, dt: float) -> void:
 		w += 0.40 * terrain.cover_at(pos.x + up.x * 8.0, pos.z + up.z * 8.0).x
 		w += 0.35 * terrain.cover_at(pos.x + up.x * 20.0, pos.z + up.z * 20.0).x
 		w += 0.25 * terrain.cover_at(pos.x + up.x * 40.0, pos.z + up.z * 40.0).x
-		shelter = clampf(w, 0.0, 1.0) * (1.0 - smoothstep(8.0, 40.0, agl))
+		# woodland directly above the drone is the strongest case: under the canopy, not merely downwind of it.
+		var local := terrain.cover_at(pos.x, pos.z).x
+		var around := 0.0
+		around += terrain.cover_at(pos.x + 6.0, pos.z).x
+		around += terrain.cover_at(pos.x - 6.0, pos.z).x
+		around += terrain.cover_at(pos.x, pos.z + 6.0).x
+		around += terrain.cover_at(pos.x, pos.z - 6.0).x
+		around *= 0.25
+		var built := 0.0
+		for source in shelter_sources:
+			built = maxf(built, clampf(float(source.call(pos, agl)), 0.0, 1.0))
+		var cover := clampf(w * 0.55 + local * 0.90 + around * 0.35 + built, 0.0, 1.0)
+		shelter = cover * (1.0 - smoothstep(7.0, 34.0, agl))
 	# in the lee: less mean wind, rougher air
 	if shelter > 0.0:
-		quad.wind.x *= 1.0 - 0.35 * shelter
-		quad.wind.z *= 1.0 - 0.35 * shelter
+		quad.wind.x *= 1.0 - 0.68 * shelter
+		quad.wind.z *= 1.0 - 0.68 * shelter
 	var u_mean := profile(agl)
-	sigma = intensity(agl) * u_mean * (1.0 + 1.0 * shelter)
+	sigma = intensity(agl) * u_mean * (1.0 - 0.62 * shelter)
 	# smooth unit noise: two first-order stages per axis, exact for any dt (correlation about 0.15 s)
 	var a := exp(-dt / 0.15)
 	var b := sqrt(maxf(1.0 - a * a, 0.0))
@@ -128,7 +146,7 @@ func drive(quad, terrain: Terrain, pos: Vector3, agl: float, dt: float) -> void:
 	var af: Dictionary = quad.af
 	# light airframes are thrown about more than heavy ones (the owner's direction): 1.36 for the Mini, 0.74 for the Cinema
 	var susc := clampf(pow(0.6 / float(af["mass"]), 0.35), 0.7, 1.4)
-	var gs := GUST_H * sigma / (1.0 + sigma / 6.0) * spell * susc
+	var gs := GUST_H * sigma / (1.0 + sigma / 6.0) * spell * susc * (1.0 - 0.55 * shelter)
 	quad.wind += Vector3(_gh.x * gs, 0.3 * _gh.y * gs, _gh.z * gs)
 	# eddy torque: pressure fluctuation (relative airspeed x turbulence), soft-limited so a storm stays flyable
 	var vrel: Vector3 = quad.velocity() - quad.wind
@@ -150,6 +168,8 @@ func drive(quad, terrain: Terrain, pos: Vector3, agl: float, dt: float) -> void:
 	var vb := qi * vrel
 	var vh := sqrt(vb.x * vb.x + vb.z * vb.z)
 	tau.y += 0.5 * quad.rho * dcd.x * da.x * vh * vb.x * VANE_L * arm
+	# the lee is stable air: a drone under the canopy or behind a building is not thrown about like one in the open
+	tau *= (1.0 - 0.62 * shelter)
 	quad.gust_tau = tau * (1.0 if quad.armed else 0.3)   # props stopped: only the body catches the wind
 	turb = clampf(sigma / 3.0, 0.0, 1.0)
 	if _log: _log_tick(quad, dt)

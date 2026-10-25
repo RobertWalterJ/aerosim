@@ -17,6 +17,7 @@ var terrain: Terrain
 var _stats := {}
 var _car_heats: Array[Node3D] = []
 var _people: Array[CharacterActor] = []
+var _buildings: Array = []       # {pos: Vector2, w, d, h, yaw} for the lee of the village buildings
 
 static func near_village(x: float, z: float, margin := 5.0) -> bool:
 	return BOUNDS.grow(margin).has_point(Vector2(x, z))
@@ -92,6 +93,7 @@ func _build() -> void:
 	_stats["people"] = _people.size()
 
 func _cottage(pos: Vector2, yaw: float, w: float, d: float, h: float, wall: StandardMaterial3D, roof: StandardMaterial3D, trim: StandardMaterial3D, glass: StandardMaterial3D, name: String) -> void:
+	_record_building(pos, w, d, h, yaw)
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
@@ -110,6 +112,7 @@ func _cottage(pos: Vector2, yaw: float, w: float, d: float, h: float, wall: Stan
 		_label(node, name, Vector3(0.0, h + 0.12, -d * 0.5 - 0.10), 34, trim, 0.004)
 
 func _pub(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMaterial3D, trim: StandardMaterial3D, cream: StandardMaterial3D, glass: StandardMaterial3D, lamp: StandardMaterial3D) -> void:
+	_record_building(pos, 15.0, 10.0, 6.2, yaw)
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
@@ -139,6 +142,7 @@ func _pub(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMate
 	_inc("pub")
 
 func _shop(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMaterial3D, trim: StandardMaterial3D, glass: StandardMaterial3D) -> void:
+	_record_building(pos, 11.0, 8.0, 4.6, yaw)
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
@@ -159,6 +163,7 @@ func _shop(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMat
 	_inc("shop")
 
 func _garage(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardMaterial3D, trim: StandardMaterial3D, glass: StandardMaterial3D) -> void:
+	_record_building(pos, 14.0, 9.0, 4.8, yaw)
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
@@ -176,6 +181,28 @@ func _garage(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardM
 	_label(node, "HALLOWAY GARAGE", Vector3(0.0, 5.05, -4.60), 44, trim, 0.005)
 	_footpath(node, Vector3(0.0, 0.02, -5.5), 3.0, 2.4)
 	_inc("garage")
+
+func _record_building(pos: Vector2, w: float, d: float, h: float, yaw: float) -> void:
+	_buildings.append({"pos": pos, "w": w, "d": d, "h": h, "yaw": yaw})
+
+## 0..1 shelter from the lee of the village buildings, strongest at rooftop height and below.
+func shelter_at(pos: Vector3, agl: float) -> float:
+	var p := Vector2(pos.x, pos.z)
+	var best := 0.0
+	for b in _buildings:
+		var bp: Vector2 = b["pos"]
+		var rel := p - bp
+		var yaw := float(b["yaw"])
+		var c := cos(-yaw)
+		var s := sin(-yaw)
+		var lx := rel.x * c - rel.y * s
+		var lz := rel.x * s + rel.y * c
+		var hw := float(b["w"]) * 0.5 + 5.0
+		var hd := float(b["d"]) * 0.5 + 5.0
+		if absf(lx) < hw and absf(lz) < hd:
+			var edge := maxf(absf(lx) / hw, absf(lz) / hd)
+			best = maxf(best, 0.74 * (1.0 - 0.30 * edge))
+	return best * (1.0 - smoothstep(6.0, 20.0, agl))
 
 func _green(pos: Vector2, bench_mat: StandardMaterial3D) -> void:
 	var node := Node3D.new()

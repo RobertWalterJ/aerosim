@@ -565,6 +565,9 @@ func _build_world() -> void:
 	case_objects = CaseObjects.new()
 	add_child(case_objects)
 	case_objects.setup(terrain)
+	# the lee of buildings and the cabin gives the same relief as the canopy: low, close air is calmer
+	wind.add_shelter_source(Callable(village, "shelter_at"))
+	wind.add_shelter_source(Callable(case_objects, "shelter_at"))
 	ground_traces = GroundTraces.new()
 	add_child(ground_traces)
 	ground_traces.setup(terrain, village, traffic, case_objects)
@@ -1572,6 +1575,31 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os.open()
 			phone_os._open_app("chat")
 			phone_os._chat_app.open("town")
+		elif c == "shelterprobe":   # session B dev hook: read the shelter at the village and in the forest
+			wind.speed = 8.0
+			wind.gust = 0.8
+			var vp := Vector3(382.0, 0.0, 306.0)
+			vp.y = terrain.height(vp.x, vp.z) + 2.0
+			quad.reset(vp.x, vp.y, vp.z, 0.0)
+			for i in 4:
+				wind.drive(quad, terrain, vp, 2.0, 0.1)
+			print("village buildings=", village._buildings.size())
+			print("shelter village=", snappedf(wind.shelter, 0.01), " turb=", snappedf(wind.turb, 0.01), " wind=", snappedf(quad.wind.length(), 0.1))
+			var fp := Vector3.ZERO
+			var found := false
+			for x in range(-460, 460, 20):
+				for z in range(-460, 460, 20):
+					if terrain.cover_at(float(x), float(z)).x > 0.85:
+						fp = Vector3(float(x), terrain.height(float(x), float(z)) + 2.0, float(z))
+						found = true
+						break
+				if found:
+					break
+			if found:
+				quad.reset(fp.x, fp.y, fp.z, 0.0)
+				for i in 4:
+					wind.drive(quad, terrain, fp, 2.0, 0.1)
+				print("shelter forest=", snappedf(wind.shelter, 0.01), " turb=", snappedf(wind.turb, 0.01), " wind=", snappedf(quad.wind.length(), 0.1), " pos=", fp)
 		elif c == "ghostdemo":      # session B dev hook: the ghost drift, reveal compressed to a few seconds
 			_start_ghost_flight(true)
 		elif c == "ghostworld":     # session B dev hook: ghost camera with the overlay off, for a camera sanity check

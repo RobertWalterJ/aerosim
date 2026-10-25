@@ -138,6 +138,14 @@ func _find_shore() -> Vector2:
 		_car_spot = _compute_shore(terrain)
 	return _car_spot
 
+func shelter_at(pos: Vector3, agl: float) -> float:
+	var best := 0.0
+	for p in [CABIN_SPOT, GARAGE_SPOT, CAMP_SPOT, FESTIVAL_SPOT, BOAT_LAUNCH_SPOT]:
+		var d := Vector2(pos.x, pos.z).distance_to(p)
+		if d < 14.0:
+			best = maxf(best, 0.60 * (1.0 - d / 14.0))
+	return best * (1.0 - smoothstep(6.0, 18.0, agl))
+
 func positions() -> Dictionary:
 	var out := {}
 	for it in _items:
