@@ -1236,3 +1236,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **GroundTraces:** thermal-only paired human footprints from the invisible village cast and Wren (55 s), animal hoof marks from sheep/wolf (42 s), and two tyre strips from moving traffic (32 s). Hidden in normal view, shown only when thermal is on, sampled near the drone, fade and free themselves, 280-trace cap.
 - **Pike laser:** an armed drone within 118 m of the mast gets a red laser line; after lock the camera feed burns red-white (~1.5 s) below the HUD, with a CAMERA BURN warning. Holding within 58 m forces a return. The laser is disabled when the jammer drops for the finale.
 - **Evidence:** `docs/GROUND-TRACES-AND-LASER.md`, `docs/realism/cameras/traces_vehicle_heat.png`, `traces_village_heat.png`, `laser_burn.png`; `GATE PASS (traceslaser)`; commit `b2d9877`.
+## Player renamed Lou (lane/notify, session B, 2026-11-15)
+- The player character is now **Lou** everywhere: DroneBudz identity (`You · Lou`, `LO` avatar), Casebook pilot card, Rennick greeting, ending note and chat references. The welcome screen name field is fixed to Lou.
+- `PlayerProfile.PLAYER_NAME` is the single source; old profile callsigns are ignored/migrated on load. Computer-account detection and the optional real name remain unchanged for the one festival volunteer.
+- References in ChatData were changed from generic pilot phrasing to Lou where they point at the player.
+- `GATE PASS (lou)`; commit `4718519`; screenshot evidence `lou_landing.png`, `lou_phonechat.png`.
