@@ -37,4 +37,4 @@ This is a warning/keep-out hazard, not a damage system.
 - Footprints are simplified heat quads, not textured boot or paw prints.
 - Human prints come from the invisible cast routes and Wren; no extra human models are drawn.
 - There is no wind/rain erasure beyond the lifetime fade, and no persistence across a reload.
-- Traces are sampled only near the drone, so a track laid far away may not exist when the pilot arrives.
+- Records are kept only near the drone at the time of laying (430 m) and are not saved across a reload. The history is in-memory for the session.
