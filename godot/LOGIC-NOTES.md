@@ -1221,3 +1221,7 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **Traffic:** reduced to three moving vehicles on desktop and two on mobile; a moving vehicle should be an event, not wallpaper.
 - **Evidence:** `docs/PRESENCE-RULES.md`; close-range shots show the flock scattering and Wren hidden at 41 m. Gate `presence` passed; commit `de27f28`.
 - **Save caveat:** story/profile tests still left the live save in a test state; preserve/restore is a user decision.
+## Thermal car correction (lane/notify, session B, 2026-11-15)
+- **Parked and abandoned cars are now cold in the thermal camera.** The village parked cars no longer get `ThermalHeat.vehicle()` shells; the lake car, festival bus and cabin cruiser already had none. Moving traffic remains the only source of engine/cabin/exhaust heat shells.
+- There is no residual-heat timer; if a recently parked car should stay warm later, it needs an explicit short-lived heat state, not a permanent shell.
+- Evidence: `spook`/`cold_parked` thermal screenshot in `%LOCALAPPDATA%\Temp\shots`; `GATE PASS (coldcars)`; commit `9b4760b`.
