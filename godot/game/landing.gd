@@ -30,14 +30,19 @@ func build(drone_name: String) -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var t := MenuStyle.make_theme()
-	# recolor the one main action to brass (the settings pages keep their own accent)
+	# Claude's OS font (Roboto) so the landing feels part of the same system
+	var roboto := load("res://assets/ui/fonts_osui/Roboto-Regular.ttf") as Font
+	var roboto_med := load("res://assets/ui/fonts_osui/Roboto-Medium.ttf") as Font
+	t.default_font = roboto
+	t.default_font_size = 19
+	# recolor the one main action to brass and give it an OS pill shape
 	MenuStyle._button(t, "Primary",
-		MenuStyle.box(BRASS, 14, Color(0, 0, 0, 0), 0, 26.0, 12.0),
-		MenuStyle.box(BRASS.lightened(0.08), 14, Color(0, 0, 0, 0), 0, 26.0, 12.0),
-		MenuStyle.box(BRASS.darkened(0.08), 14, Color(0, 0, 0, 0), 0, 26.0, 12.0),
-		MenuStyle.box(BRASS.darkened(0.08), 14, Color(0, 0, 0, 0), 0, 26.0, 12.0),
+		MenuStyle.box(BRASS, 31, Color(0, 0, 0, 0), 0, 26.0, 12.0),
+		MenuStyle.box(BRASS.lightened(0.08), 31, Color(0, 0, 0, 0), 0, 26.0, 12.0),
+		MenuStyle.box(BRASS.darkened(0.08), 31, Color(0, 0, 0, 0), 0, 26.0, 12.0),
+		MenuStyle.box(BRASS.darkened(0.08), 31, Color(0, 0, 0, 0), 0, 26.0, 12.0),
 		ON_BRASS, ON_BRASS)
-	t.set_font_size("font_size", "Primary", 24)
+	t.set_font_size("font_size", "Primary", 30)
 	_root.theme = t
 	add_child(_root)
 
@@ -59,38 +64,36 @@ func build(drone_name: String) -> void:
 	_root.add_child(col)
 
 	var overline := Label.new(); overline.text = "HALLOWAY VALLEY"
-	overline.add_theme_font_size_override("font_size", 15)
+	overline.add_theme_font_size_override("font_size", 18)
 	overline.add_theme_color_override("font_color", BRASS_DIM)
-	var fv := FontVariation.new(); fv.base_font = ThemeDB.fallback_font; fv.spacing_glyph = 10
+	var fv := FontVariation.new(); fv.base_font = roboto_med; fv.spacing_glyph = 12
 	overline.add_theme_font_override("font", fv)
 	col.add_child(overline)
 
 	var title := Label.new(); title.text = "AeroSim"
-	title.add_theme_font_size_override("font_size", 70)
+	title.add_theme_font_override("font", roboto_med)
+	title.add_theme_font_size_override("font_size", 96)
 	title.add_theme_color_override("font_color", Color.WHITE)
 	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
 	title.add_theme_constant_override("shadow_offset_x", 2)
 	title.add_theme_constant_override("shadow_offset_y", 4)
 	col.add_child(title)
 
-	var rule := ColorRect.new(); rule.color = BRASS_DIM
-	rule.custom_minimum_size = Vector2(46, 2)
-	col.add_child(rule)
-
 	var tagline := Label.new(); tagline.text = "Fly to feel free."
-	tagline.add_theme_font_size_override("font_size", 19)
+	tagline.add_theme_font_size_override("font_size", 24)
 	tagline.add_theme_color_override("font_color", MenuStyle.MUTED)
 	col.add_child(tagline)
 
 	var gap := Control.new(); gap.custom_minimum_size = Vector2(0, 14); col.add_child(gap)
 
 	var fly := Button.new(); fly.text = "Fly"; fly.theme_type_variation = "Primary"; fly.custom_minimum_size = Vector2(0, 62)
-	fly.add_theme_font_size_override("font_size", 28)
+	fly.add_theme_font_override("font", roboto_med)
+	fly.add_theme_font_size_override("font_size", 32)
 	fly.pressed.connect(func(): fly_pressed.emit())
 	col.add_child(fly)
 
 	_drone_label = Label.new(); _drone_label.text = drone_name
-	_drone_label.add_theme_font_size_override("font_size", 16)
+	_drone_label.add_theme_font_size_override("font_size", 18)
 	_drone_label.add_theme_color_override("font_color", MenuStyle.MUTED)
 	col.add_child(_drone_label)
 
@@ -99,14 +102,14 @@ func build(drone_name: String) -> void:
 	col.add_child(row)
 	for item in [["Choose a drone", drone_pressed], ["Settings", settings_pressed], ["Controls", controls_pressed]]:
 		var b := Button.new(); b.text = item[0]; b.theme_type_variation = "Ghost"; b.custom_minimum_size = Vector2(0, 42)
-		b.add_theme_font_size_override("font_size", 16)
+		b.add_theme_font_size_override("font_size", 18)
 		var sig: Signal = item[1]
 		b.pressed.connect(func(): sig.emit())
 		row.add_child(b)
 
 	var q := Button.new(); q.text = "Quit"; q.theme_type_variation = "Danger"; q.custom_minimum_size = Vector2(0, 40)
 	q.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	q.add_theme_font_size_override("font_size", 15)
+	q.add_theme_font_size_override("font_size", 16)
 	q.pressed.connect(func(): quit_pressed.emit())
 	col.add_child(q)
 
