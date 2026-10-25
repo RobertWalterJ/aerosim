@@ -1277,3 +1277,7 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - Moon is now a real directional light with phase/elevation/cloud scaling; `_moonless_test` removes it and `_night_dark` drives sensor exposure and NV. NV gets `moon_light`/`night_dark`, subtracts a black floor and adds grain, so a moonless scene stays dark and a moonlit one shows real detail.
 - `SensorPipeline.burst_uvs()` exposes firework screen positions; `NightVision.set_scene()` adds a hot core/halo/wash at those UVs, so a burst overwhelms the intensifier from the flash point.
 - Pike laser is now an opaque warm-white full-frame camera blind above NV for 2.2 s, with HUD readable; `laserdemo` hook. `GATE PASS (nightflash)`; commit `e331bc0`; doc `docs/NIGHT-VISION-LASER.md`.
+## Long-lived thermal ground history (lane/notify, session B, 2026-11-15)
+- `GroundTraces` is now a thermal **history**, not a seconds-long effect. Human prints up to 6 h, animal prints 5 h, tyre tracks 8 h; brightness decays with `pow(1 - age/life, 2.15)` so fresh marks are bright, one-hour marks are clear, several-hour marks are faint scars.
+- It keeps up to 20,000 sparse records and renders at most 520 meshes near the drone (430 m). Leaving an area frees meshes, not history; returning recreates aged marks. Tracks are laid with the thermal camera off too; the thermal layer only controls visibility.
+- Tyre history is one 20 m strip per wheel per 18 m to stay cheap. `stats` now reports records/live traces. `GATE PASS (thermaltraces)`; doc updated.
