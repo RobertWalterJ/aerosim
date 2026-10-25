@@ -17,6 +17,8 @@ const SHOTGUN_RADIUS := 92.0
 const SHOTGUN_AGL := 15.0
 const HUNTER_SPEED := 13.2
 const HUNTER_RANGE := 280.0
+const LASER_RANGE := 118.0
+const LASER_HOLD := 58.0
 
 var hud: Hud
 var chat: ChatData
@@ -40,6 +42,12 @@ var _hunters: Array = []
 var _warn_layer: CanvasLayer
 var _warn_label: Label
 var _warn_panel: PanelContainer
+var _laser_line: MeshInstance3D
+var _laser_mat: StandardMaterial3D
+var _blind: LaserBlind
+var _laser_charge := 0.0
+var _blind_cd := 0.0
+var _laser_warned := false
 
 func setup(h: Hud, c: ChatData, n: PhoneNotes, st: StoryArc, d: StoryDirector, f: Finale, q, t: Terrain) -> void:
 	hud = h
@@ -53,6 +61,7 @@ func setup(h: Hud, c: ChatData, n: PhoneNotes, st: StoryArc, d: StoryDirector, f
 	_load()
 	_build_site()
 	_build_warning()
+	_build_laser()
 	if jammer_down:
 		_set_beacon(false)
 
@@ -76,6 +85,7 @@ func update(delta: float) -> void:
 	var p: Vector3 = quad.position()
 	var flat := Vector2(p.x, p.z)
 	var dist := flat.distance_to(JAMMER_SPOT)
+	_update_laser(delta, p, flat, dist)
 	if not jammer_down and dist < JAMMER_RADIUS:
 		if _t - _warn_next > 3.0:
 			_warn("HARLAN PIKE JAMMER   ·   LINK FAILING", 2.8)
@@ -106,6 +116,11 @@ func jammer_down_now() -> void:
 		return
 	jammer_down = true
 	_set_beacon(false)
+	if _laser_line != null:
+		_laser_line.visible = false
+	_laser_charge = 0.0
+	if _blind != null:
+		_blind.visible = false
 	_save()
 	if hud != null and hud.story_mode:
 		chat.post("town", "Rennick", "Pike's jammer mast came down in the storm last night. The north frequency is clear. His hunter drones are still flying. Keep high and keep moving.", false)
@@ -113,6 +128,53 @@ func jammer_down_now() -> void:
 		chat.post("tech", "Alex", "The jammer is off. You will have a signal. Do not stop to look at the cabin.", false)
 		notes.post_text("Rennick", "The north is open", "Pike's jammer is down. The hunter drones are still up. Keep high and fast, and do not stop.", 1)
 		hud.toast("Rennick: Pike jammer is down. Keep high and fast.", true, "DRONEBUDZ")
+
+func _build_laser() -> void:
+	_laser_mat = StandardMaterial3D.new()
+	_laser_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_laser_mat.albedo_color = Color(1.0, 0.04, 0.02)
+	_laser_mat.emission_enabled = true
+	_laser_mat.emission = Color(1.0, 0.02, 0.01)
+	_laser_mat.emission_energy_multiplier = 5.0
+	_laser_mat.no_depth_test = true
+	_laser_line = MeshInstance3D.new()
+	_laser_line.mesh = ImmediateMesh.new()
+	_laser_line.material_override = _laser_mat
+	_laser_line.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_laser_line.visible = false
+	add_child(_laser_line)
+	_blind = LaserBlind.new()
+	add_child(_blind)
+
+func _update_laser(delta: float, drone_p: Vector3, flat: Vector2, dist: float) -> void:
+	_blind_cd = maxf(_blind_cd - delta, 0.0)
+	if _laser_line == null:
+		return
+	if jammer_down or quad == null or not quad.armed or dist > LASER_RANGE:
+		_laser_charge = 0.0
+		_laser_line.visible = false
+		return
+	_laser_charge += delta
+	_laser_line.visible = true
+	var from := Vector3(JAMMER_SPOT.x, terrain.height(JAMMER_SPOT.x, JAMMER_SPOT.y) + 22.0, JAMMER_SPOT.y)
+	var to := drone_p
+	var im := _laser_line.mesh as ImmediateMesh
+	im.clear_surfaces()
+	im.surface_begin(Mesh.PRIMITIVE_LINES, _laser_mat)
+	im.surface_add_vertex(from)
+	im.surface_add_vertex(to)
+	im.surface_end()
+	if _laser_charge > 0.30 and _blind_cd <= 0.0:
+		_blind_cd = 3.2
+		if _blind != null:
+			_blind.burn(1.5, 1.0)
+		if not _laser_warned:
+			_laser_warned = true
+			_warn("PIKE LASER   Â·   CAMERA BURN", 2.8)
+		if hud != null:
+			hud.toast("Pike laser is on the camera. Break line of sight.", true, "LINK")
+	if dist < LASER_HOLD and _laser_charge > 2.2:
+		_force_return("laser")
 
 func _maybe_introduce() -> void:
 	if intro_done or hud == null or not hud.story_mode or story == null:

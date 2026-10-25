@@ -62,6 +62,7 @@ var phone_os: PhoneOS              # session B: the in-game phone with its apps 
 var guide: GuideCoach              # session B: Kit, the DroneBudz support contact and story-mode tips
 var anti_drone: AntiDrone          # session B: Harlan Pike, the north ridge jammer and hunter drones
 var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks (game/case_objects.gd)
+var ground_traces: GroundTraces  # session B: thermal-only recent footprints and tyre tracks
 var story: StoryArc                # session B: the Lake Car story arc (game/story_arc.gd)
 var unknown_thread: UnknownThread  # session B: the unknown direct message thread (game/unknown_thread.gd)
 var thermal: ThermalCamera         # session B: the heat camera for the last flight (game/thermal.gd)
@@ -441,6 +442,8 @@ func _ready() -> void:
 	wildlife_objects = WildlifeObjects.new()
 	add_child(wildlife_objects)
 	wildlife_objects.setup(terrain)
+	if ground_traces != null:
+		ground_traces.set_animal_source(wildlife_objects)
 	wildlife = WildlifeCase.new()
 	add_child(wildlife)
 	wildlife.setup(hud, chat_data, phone_notes, story, inventory, thermal, wildlife_objects)
@@ -556,6 +559,9 @@ func _build_world() -> void:
 	case_objects = CaseObjects.new()
 	add_child(case_objects)
 	case_objects.setup(terrain)
+	ground_traces = GroundTraces.new()
+	add_child(ground_traces)
+	ground_traces.setup(terrain, village, traffic, case_objects)
 	var lake := Lake.new()
 	add_child(lake)
 	lake.build(terrain)
@@ -979,8 +985,16 @@ func _process(delta: float) -> void:
 		unknown_thread.update(delta)   # session B: the unknown account's direct messages
 	if wildlife != null and not paused:
 		wildlife.update(delta, quad.position())   # session B: the night pasture thermal favour
+	if wildlife_objects != null and not paused:
+		wildlife_objects.update(delta, quad.position())   # animals spook and run from a close drone
+	if ground_traces != null and not paused:
+		ground_traces.update(delta, quad.position())   # thermal-only recent footprints and tyre tracks
+	if case_objects != null:
+		case_objects.update_hiker(quad.position())   # never show a close-up human model
 	if finale != null and not paused:
 		finale.update(delta, quad.position())   # session B: the last flight, the storm search and the ending
+	if anti_drone != null and not paused:
+		anti_drone.update(delta)   # session B: Pike's jammer field, laser and hunters
 	if director != null:
 		director.update(delta)   # session B: the act and next step for the Casebook
 	_celestial_t -= delta
@@ -1085,6 +1099,8 @@ func _sync_thermal_heat() -> void:
 		traffic.set_thermal_heat(on)
 	if village != null:
 		village.set_thermal_heat(on)
+	if ground_traces != null:
+		ground_traces.set_thermal(on)
 # ------------------------------------------------------------------ camera add-ons on the flight screen
 func _toggle_thermal() -> void:
 	if inventory != null and inventory.has_addon("thermal_camera") and thermal != null:
@@ -1728,6 +1744,11 @@ func _screenshot_mode(arg: String) -> void:
 			quad.reset(wp.x, terrain.height(wp.x, wp.y) + 14.0, wp.y, 0.0)
 			gimbal_pitch = deg_to_rad(-82.0)
 			_apply_pose()
+		elif c == "tracedebug":   # session B dev hook: a large thermal footprint on the ground ahead
+			var tdq: Vector3 = -get_viewport().get_camera_3d().global_transform.basis.z
+			tdq.y = 0.0
+			tdq = tdq.normalized()
+			ground_traces.debug_spawn_at(quad.position() + tdq * 8.0)
 		elif c == "thermalview":  # session B dev hook: thermal camera on, search still live
 			finale.debug_thermal_view()
 		elif c == "endingdemo":   # session B dev hook: the fade and the credits
@@ -1869,6 +1890,7 @@ func _screenshot_mode(arg: String) -> void:
 	print("cabin track: placed at ", CaseObjects.CABIN_SPOT)
 	print("farmland: ", farmland.stats())
 	print("traffic: ", traffic.stats())
+	if ground_traces != null: print("ground traces: ", ground_traces.stats())
 	print("crew: ", crew.stats())
 	print("story: ", story.stats())
 	print("unknown: ", unknown_thread.stats())

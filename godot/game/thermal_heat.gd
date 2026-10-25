@@ -21,6 +21,14 @@ static func material(code: Color) -> StandardMaterial3D:
 	m.disable_receive_shadows = true
 	return m
 
+## A fading ground trace: a heat code that can blend with the grass or road. Shown only while the thermal camera is on.
+static func trace_material(code: Color, alpha: float) -> StandardMaterial3D:
+	var m := material(code)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(code.r, code.g, code.b, clampf(alpha, 0.05, 0.95))
+	m.no_depth_test = false
+	return m
+
 static func shell(parent: Node3D, mesh: Mesh, xf: Transform3D, code: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh

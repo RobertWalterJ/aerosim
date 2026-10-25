@@ -71,6 +71,16 @@ func update(delta: float, drone_pos: Vector3) -> void:
 		else:
 			_wolf.visible = true
 
+func trace_sources() -> Array:
+	var out: Array = []
+	for i in _sheep_roots.size():
+		var root: Node3D = _sheep_roots[i]
+		if root != null and root.visible:
+			out.append({"key": "sheep_%d" % i, "pos": root.global_position, "yaw": root.rotation.y, "kind": "animal"})
+	if _wolf != null and _wolf_shown and _wolf.visible:
+		out.append({"key": "wolf", "pos": _wolf.global_position, "yaw": _wolf.rotation.y, "kind": "animal"})
+	return out
+
 func first_sheep_position() -> Vector3:
 	return _sheep_roots[0].global_position if not _sheep_roots.is_empty() else Vector3.ZERO
 

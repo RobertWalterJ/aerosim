@@ -469,7 +469,8 @@ func _build_bus(pos: Vector3) -> void:
 		w.rotation = Vector3(0.0, 0.0, PI * 0.5)
 		_bus_root.add_child(w)
 	var bus_label := Label3D.new()
-	bus_label.text = "HALLOWAY\nFESTIVAL"
+	bus_label.text = "HALLOWAY
+FESTIVAL"
 	bus_label.font_size = 64
 	bus_label.pixel_size = 0.012
 	bus_label.modulate = Color(0.88, 0.80, 0.55)
@@ -514,6 +515,11 @@ func show_hiker() -> void:
 		_hiker_anim.play("idle")
 	elif _hiker is CharacterActor:
 		(_hiker as CharacterActor).set_animation("stand")
+
+func hiker_trace_source() -> Dictionary:
+	if _hiker == null or not _hiker_revealed:
+		return {}
+	return {"key": "wren", "pos": _hiker.global_position, "yaw": _hiker.rotation.y, "kind": "human"}
 
 func update_hiker(drone_pos: Vector3) -> void:
 	if _hiker == null or not _hiker_revealed:
@@ -742,7 +748,8 @@ func _build_cruiser(pos: Vector3) -> void:
 	bmi2.position = Vector3(0.0, 1.62, -0.1)
 	root.add_child(bmi2)
 	var label := Label3D.new()
-	label.text = "PROVINCIAL\nPOLICE"
+	label.text = "PROVINCIAL
+POLICE"
 	label.font_size = 42
 	label.pixel_size = 0.009
 	label.modulate = Color(0.12, 0.15, 0.22)

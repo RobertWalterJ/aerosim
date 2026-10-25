@@ -356,6 +356,14 @@ func _footpath(parent: Node3D, pos: Vector3, w: float, d: float) -> void:
 ## The village cast is deliberately ordinary and deliberately varied. These are the visible Black and Asian
 ## characters in the valley, alongside white and mixed-heritage neighbours; the roles are jobs, not tokens.
 ## Wren is the central hiker in case_objects.gd and uses the same actor.
+func people_positions() -> Array:
+	var out: Array = []
+	for p in _people:
+		if p == null:
+			continue
+		out.append({"key": p.get_instance_id(), "pos": p.global_position, "yaw": p.global_rotation.y})
+	return out
+
 func _build_people() -> void:
 	_person({"name": "Ifeoma Okafor", "skin": 0, "hair": "braids", "hair_color": 0,
 		"outfit": Color(0.14, 0.36, 0.34), "trousers": Color(0.13, 0.16, 0.16), "scarf": Color(0.76, 0.46, 0.16),

@@ -194,6 +194,14 @@ func first_vehicle_position() -> Vector3:
 	var n: Node3D = _vehicles[0]["node"]
 	return n.global_position
 
+func trace_sources() -> Array:
+	var out: Array = []
+	for i in _vehicles.size():
+		var node: Node3D = _vehicles[i]["node"]
+		if node != null:
+			out.append({"key": i, "pos": node.global_position, "yaw": node.rotation.y, "kind": "vehicle"})
+	return out
+
 func set_thermal_heat(on: bool) -> void:
 	_thermal_on = on
 	for v in _vehicles:
