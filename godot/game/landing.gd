@@ -1,8 +1,8 @@
 class_name Landing
 extends CanvasLayer
-## The landing screen: the real valley seen from a slowly circling camera around the drone, with the title,
-## a one-line invitation, and the menu on the left. Nothing here is a separate scene: the world behind it is
-## the game itself, so it costs almost nothing. Fly starts the flight; the rest open the pause-menu pages.
+## The landing screen: the real valley behind a slowly circling camera, framed like a film title card. A soft vignette,
+## top and bottom letterbox bars, and a shaded left edge hold the words; the title and menu ease in over the world.
+## Nothing here is a separate scene: the world behind it is the game itself, so it costs almost nothing.
 
 signal fly_pressed
 signal drone_pressed
@@ -15,9 +15,12 @@ signal look_chosen(hour: float, sky: int)
 const BRASS := Color(0.878, 0.671, 0.349)          # #E0AB59
 const ON_BRASS := Color(0.251, 0.176, 0.0)          # #402D00
 const BRASS_DIM := Color(0.878, 0.671, 0.349, 0.62)
+const INK := Color(0.01, 0.02, 0.04)
 
 var _drone_label: Label
 var _root: Control
+var _fade_in: Array[CanvasItem] = []
+var _fade := 0.0
 
 func _init() -> void:
 	layer = 5          # under the pause menu (layer 10), over the video
@@ -38,47 +41,56 @@ func build(drone_name: String) -> void:
 	_root.theme = t
 	add_child(_root)
 
-	# a soft shade on the left so the words read on any picture
-	var shade := TextureRect.new()
-	var g := Gradient.new(); g.set_color(0, Color(0.01, 0.02, 0.04, 0.86)); g.set_color(1, Color(0.01, 0.02, 0.04, 0.0))
+	# --- the cinematic frame -------------------------------------------------
+	_root.add_child(_vignette())          # edges fall away
+	_root.add_child(_letterbox(true))     # top bar
+	_root.add_child(_letterbox(false))    # bottom bar
+	var shade := TextureRect.new()        # soft shade on the left so the words read on any picture
+	var g := Gradient.new(); g.set_color(0, Color(INK.r, INK.g, INK.b, 0.86)); g.set_color(1, Color(INK.r, INK.g, INK.b, 0.0))
 	var gt := GradientTexture2D.new(); gt.gradient = g; gt.fill_from = Vector2(0, 0.5); gt.fill_to = Vector2(1, 0.5); gt.width = 512; gt.height = 8
 	shade.texture = gt; shade.stretch_mode = TextureRect.STRETCH_SCALE; shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-	shade.anchor_right = 0.60; shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.anchor_right = 0.58; shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(shade)
 
-	var col := VBoxContainer.new(); col.add_theme_constant_override("separation", 8)
-	col.anchor_left = 0.05; col.anchor_right = 0.42; col.anchor_top = 0.0; col.anchor_bottom = 1.0
+	# --- the menu column -----------------------------------------------------
+	var col := VBoxContainer.new(); col.add_theme_constant_override("separation", 7)
+	col.anchor_left = 0.06; col.anchor_right = 0.44; col.anchor_top = 0.0; col.anchor_bottom = 1.0
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	_root.add_child(col)
 
-	# title block: a quiet overline, the name, and a one-line invitation
 	var overline := Label.new(); overline.text = "HALLOWAY VALLEY"
 	overline.add_theme_font_size_override("font_size", 15)
 	overline.add_theme_color_override("font_color", BRASS_DIM)
+	var fv := FontVariation.new(); fv.base_font = ThemeDB.fallback_font; fv.spacing_glyph = 10
+	overline.add_theme_font_override("font", fv)
 	col.add_child(overline)
 
 	var title := Label.new(); title.text = "AeroSim"
-	title.add_theme_font_size_override("font_size", 64)
+	title.add_theme_font_size_override("font_size", 70)
 	title.add_theme_color_override("font_color", Color.WHITE)
-	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.45))
+	title.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.5))
 	title.add_theme_constant_override("shadow_offset_x", 2)
-	title.add_theme_constant_override("shadow_offset_y", 3)
+	title.add_theme_constant_override("shadow_offset_y", 4)
 	col.add_child(title)
 
+	var rule := ColorRect.new(); rule.color = BRASS_DIM
+	rule.custom_minimum_size = Vector2(46, 2)
+	col.add_child(rule)
+
 	var tagline := Label.new(); tagline.text = "Fly to feel free."
-	tagline.add_theme_font_size_override("font_size", 20)
+	tagline.add_theme_font_size_override("font_size", 19)
 	tagline.add_theme_color_override("font_color", MenuStyle.MUTED)
 	col.add_child(tagline)
 
-	var gap := Control.new(); gap.custom_minimum_size = Vector2(0, 16); col.add_child(gap)
+	var gap := Control.new(); gap.custom_minimum_size = Vector2(0, 14); col.add_child(gap)
 
-	var fly := Button.new(); fly.text = "Fly"; fly.theme_type_variation = "Primary"; fly.custom_minimum_size = Vector2(0, 60)
+	var fly := Button.new(); fly.text = "Fly"; fly.theme_type_variation = "Primary"; fly.custom_minimum_size = Vector2(0, 62)
 	fly.add_theme_font_size_override("font_size", 28)
 	fly.pressed.connect(func(): fly_pressed.emit())
 	col.add_child(fly)
 
 	_drone_label = Label.new(); _drone_label.text = drone_name
-	_drone_label.add_theme_font_size_override("font_size", 17)
+	_drone_label.add_theme_font_size_override("font_size", 16)
 	_drone_label.add_theme_color_override("font_color", MenuStyle.MUTED)
 	col.add_child(_drone_label)
 
@@ -98,12 +110,70 @@ func build(drone_name: String) -> void:
 	q.pressed.connect(func(): quit_pressed.emit())
 	col.add_child(q)
 
+	# --- the corners ---------------------------------------------------------
 	var hint := Label.new(); hint.text = "Esc opens the menu while you fly."
-	hint.add_theme_font_size_override("font_size", 14); hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
-	col.add_child(hint)
+	hint.add_theme_font_size_override("font_size", 13)
+	hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.42))
+	hint.anchor_left = 0.0; hint.anchor_top = 1.0; hint.anchor_right = 0.6; hint.anchor_bottom = 1.0
+	hint.offset_left = 42; hint.offset_top = -34; hint.offset_right = 0; hint.offset_bottom = -14
+	_root.add_child(hint)
+
+	var ver := Label.new(); ver.text = "Halloway Valley"
+	ver.add_theme_font_size_override("font_size", 13)
+	ver.add_theme_color_override("font_color", Color(1, 1, 1, 0.42))
+	ver.anchor_left = 1.0; ver.anchor_top = 1.0; ver.anchor_right = 1.0; ver.anchor_bottom = 1.0
+	ver.offset_left = -220; ver.offset_top = -34; ver.offset_right = -42; ver.offset_bottom = -14
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_root.add_child(ver)
+
+	# fade the menu and corners in over the world
+	_fade_in = [col, hint, ver]
+	for item in _fade_in: item.modulate.a = 0.0
+
+func _process(delta: float) -> void:
+	if _fade >= 1.0 or _fade_in.is_empty(): return
+	_fade = minf(1.0, _fade + delta * 1.6)
+	var a := 1.0 - pow(1.0 - _fade, 3.0)     # ease-out cubic
+	for item in _fade_in: item.modulate.a = a
 
 func set_drone_name(n: String) -> void:
 	if _drone_label: _drone_label.text = n
+
+# --- frame helpers -----------------------------------------------------------
+func _vignette() -> TextureRect:
+	var r := TextureRect.new()
+	var g := Gradient.new()
+	g.set_color(0.0, Color(0, 0, 0, 0.0))
+	g.set_color(0.68, Color(0, 0, 0, 0.10))
+	g.set_color(1.0, Color(0, 0, 0, 0.34))
+	var gt := GradientTexture2D.new(); gt.gradient = g
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5); gt.fill_to = Vector2(1.0, 0.5)
+	gt.width = 512; gt.height = 512
+	r.texture = gt; r.stretch_mode = TextureRect.STRETCH_SCALE
+	r.set_anchors_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
+func _letterbox(top: bool) -> TextureRect:
+	var r := TextureRect.new()
+	var g := Gradient.new()
+	if top:
+		g.set_color(0.0, Color(0, 0, 0, 0.45)); g.set_color(1.0, Color(0, 0, 0, 0.0))
+	else:
+		g.set_color(0.0, Color(0, 0, 0, 0.0)); g.set_color(1.0, Color(0, 0, 0, 0.45))
+	var gt := GradientTexture2D.new(); gt.gradient = g
+	gt.fill_from = Vector2(0.5, 0.0); gt.fill_to = Vector2(0.5, 1.0)
+	gt.width = 8; gt.height = 256
+	r.texture = gt; r.stretch_mode = TextureRect.STRETCH_SCALE
+	if top:
+		r.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		r.anchor_bottom = 0.20
+	else:
+		r.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		r.anchor_top = 0.80
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
 
 ## Where the camera is while the landing screen is up: a slow circle around the drone, a little above it, looking at it.
 static func orbit(centre: Vector3, t: float, ground_h: float, arm: float) -> Transform3D:
