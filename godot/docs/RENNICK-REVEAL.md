@@ -1,4 +1,4 @@
-# Rennick realization sequence
+﻿# Rennick realization sequence
 
 Status: 2026-11-15. The last flight no longer opens with Rennick announcing that she died. The player is guided north normally, and the realization happens when the drone reaches the cabin.
 
@@ -28,3 +28,18 @@ The ghost model is hidden if the drone comes within the same 48 m keep-out used 
 
 - `finalerealize` dev hook: starts the sequence, shows the timed messages and then the Wren search state.
 - `GATE PASS (rennickreveal)` is the final gate for this pass.
+## Search recollections
+
+After Rennick composes herself and gives Lou the thermal search direction, she keeps talking while the player searches. The beats are deliberately interleaved with the search, not another cutscene:
+
+- the cabin lights on the winter night;
+- being snowed in for days, the road and track disappearing;
+- being trapped, lighting the fire and waiting;
+- falling asleep after the fire died, into the storm's stillness and silence;
+- hearing nothing until the hiker came through on a similar night;
+- the hiker's phone, and the unexplained certainty that she could reach Lou;
+- the realisation of how much time has passed;
+- refusing to think about her own plight until Wren is rescued;
+- one last "keep looking" direction east of the cabin.
+
+The found beat still interrupts the sequence cleanly; nothing is queued after it.

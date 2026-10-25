@@ -35,8 +35,21 @@ var _rennick_realized := false
 var _rennick_done := false
 var _rennick_t := 0.0
 var _rennick_index := 0
+var _search_t := 0.0
+var _search_index := 0
 var _debug_frozen := false
 var _missing_prompt := ""
+var _search_beats := [
+	"The cabin. The lights were on that night. I keep going back to them.",
+	"A winter storm came down and I was snowed in for days. The road disappeared, then the track did too.",
+	"I was trapped. I lit the fire and waited. There was nothing else to do.",
+	"I fell asleep after the fire burned down. In the thick of the storm the whole world went still and silent.",
+	"I did not hear anything until that hiker came through. A night like this one. I think that was Wren.",
+	"There was a phone. Their phone. I knew how to reach you, Lou. I cannot explain it. I just knew.",
+	"But that was... that was a long time ago, was it not.",
+	"Do not think about all that now. There will be time enough for my part after we get Wren out.",
+	"Keep looking. East of the cabin, near the trees. A warm body. You will see them.",
+]
 
 const CABIN_CLOSE := 190.0
 const HIKER_FIND := 105.0
@@ -124,6 +137,12 @@ func update(delta: float, drone_pos: Vector3) -> void:
 				else:
 					_rennick_comes_to()
 			return
+		if not _found_announced and _search_index < _search_beats.size():
+			_search_t += delta
+			if _search_t > 2.1:
+				_search_t = 0.0
+				_ghost(_search_beats[_search_index], "Rennick")
+				_search_index += 1
 		var hiker := objects.hiker_world_pos()
 		var hd := drone_pos.distance_to(hiker)
 		if thermal.is_on() and hd <= HIKER_FIND:
@@ -163,6 +182,8 @@ func _rennick_comes_to() -> void:
 	if _rennick_done:
 		return
 	_rennick_done = true
+	_search_t = 0.0
+	_search_index = 0
 	if objects != null:
 		objects.set_cabin_lights(true)
 		objects.show_hiker()
@@ -242,6 +263,24 @@ func _ghost(text: String, from: String) -> void:
 		title = "The cabin lights"
 	elif text.contains("jammer is off"):
 		title = "The ridge"
+	elif text.contains("winter storm"):
+		title = "Snowed in"
+	elif text.contains("I was trapped"):
+		title = "The fire"
+	elif text.contains("still and silent"):
+		title = "The stillness"
+	elif text.contains("that hiker"):
+		title = "The hiker"
+	elif text.contains("There was a phone"):
+		title = "The phone"
+	elif text.contains("long time ago"):
+		title = "How long"
+	elif text.contains("time enough for my part"):
+		title = "Wren first"
+	elif text.contains("Keep looking"):
+		title = "Keep looking"
+	elif text.contains("The cabin. The lights"):
+		title = "The cabin lights"
 	elif text.contains("You found them"):
 		title = "Found"
 	notes.post_text(from, title, text, 0)
