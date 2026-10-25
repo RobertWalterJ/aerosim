@@ -88,6 +88,7 @@ var _gimbal_rate := 0.0
 var landing: Landing
 var _landing_on := false
 var _landing_t := 0.0
+var _herd: AnimalHerd = null         # dev hook: `herd<distance>_<name>+...` a grazing herd that flees the drone
 
 ## The welcome screen: the valley behind a slowly circling camera, with a short menu. Fly starts the flight.
 func _show_landing() -> void:
@@ -760,6 +761,7 @@ func _process(delta: float) -> void:
 	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
 	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
 	if weather_events: weather_events.update(delta, cam, quad.position(), quad.velocity(), _sun_el, _daylight, paused)   # session B: events and courses
+	if _herd: _herd.threat = quad.position()   # session A: the animals flee the drone
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
@@ -898,6 +900,23 @@ func _screenshot_mode(arg: String) -> void:
 			var av2 := c.substr(7).split("_", true, 2)
 			for i in 4: await get_tree().process_frame
 			AnimalAssets.dev_row(self, terrain, cam, float(av2[0]), av2[1], av2[2].split("+"))
+		elif c.begins_with("herd"):     # animal herd dev hook: herd<distance>_<name>+<name>... a grazing herd that flees the drone
+			var hv := c.substr(4).split("_", true, 1)
+			for i in 4: await get_tree().process_frame
+			var herd := AnimalHerd.new(terrain)
+			add_child(herd)
+			var f := -cam.global_transform.basis.z; f.y = 0.0; f = f.normalized()
+			var r := f.cross(Vector3.UP).normalized()
+			var origin := cam.global_position + f * float(hv[0])
+			var names := hv[1].split("+")
+			var total := 0.0
+			for nm in names: total += float(AnimalInfo.INFO.get(nm, {}).get("length", 2.0)) * 0.8 + 0.7
+			var x := -total * 0.5
+			for nm in names:
+				var w := float(AnimalInfo.INFO.get(nm, {}).get("length", 2.0)) * 0.8 + 0.7
+				herd.add(nm, origin + r * (x + w * 0.5))
+				x += w
+			_herd = herd
 		elif c == "nosmoke":
 			fireworks.set_smoke(false)
 		elif c == "birdsdemo":     # session B dev hook: birds up close, ignoring night, season and weather
