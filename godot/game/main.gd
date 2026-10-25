@@ -1080,7 +1080,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 		"battPct": quad.battery.soc * 100.0, "cellV": quad.battery.cell_v(), "battA": quad.battery.current,
 		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "ev": sensor.ev_comp, "wb": int(round(sensor.wb_kelvin / 100.0)) * 100,
 		"pitch": asin(clampf(fwd.y, -1.0, 1.0)), "roll": -asin(clampf(cb.x.y, -1.0, 1.0)),
-		"heading": atan2(dfwd.x, -dfwd.z), "velBody": vcam, "fov": cam.fov, "aglM": agl, "mslM": dpos.y,
+		"heading": atan2(dfwd.x, -dfwd.z), "velBody": vcam, "fov": cam.fov, "zoom": sensor.zoom_x(), "aglM": agl, "mslM": dpos.y,
 		"gs": sqrt(quad.s[3] * quad.s[3] + quad.s[5] * quad.s[5]), "vs": quad.s[4], "as": _plane_as,
 		"homeDist": sqrt((dpos.x - home.x) * (dpos.x - home.x) + (dpos.z - home.y) * (dpos.z - home.y)),
 		"gimbalDeg": rad_to_deg(gimbal_pitch) if af["hasGimbal"] else rad_to_deg(float(af["camTilt"])),

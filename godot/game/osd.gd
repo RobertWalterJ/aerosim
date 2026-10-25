@@ -172,7 +172,10 @@ func _draw() -> void:
 	draw_circle(Vector2(sin(hb), -cos(hb)) * rr * 0.72, 4 * u, Color("ffcc44"))
 	draw_set_transform(Vector2(x0, y0), 0.0, Vector2.ONE)
 	# ---- left info and warnings
-	var info := [str(t["lensName"]), str(t["airframe"]), "AUDIO: %s" % str(t["audio"]), "%d fps sensor" % int(t["fps"])]
+	var zx := float(t.get("zoom", 1.0))
+	var lens_txt := str(t["lensName"])
+	if absf(zx - 1.0) > 0.05: lens_txt += "  \u00d7%.1f" % zx   # camera lane: show the magnification when it is not the standard lens
+	var info := [lens_txt, str(t["airframe"]), "AUDIO: %s" % str(t["audio"]), "%d fps sensor" % int(t["fps"])]
 	for i in info.size(): _text(info[i], Vector2(m + 70 * u, 62 * u + i * 16 * u), 12 * u, Color(1, 1, 1, 0.85))
 	var mission: Array = t.get("mission", [])
 	for i in mission.size(): _text(str(mission[i]), Vector2(m + 70 * u, 62 * u + 84 * u + i * 17 * u), 13 * u, Color("ffe14d") if i == 0 else white, 0, true)

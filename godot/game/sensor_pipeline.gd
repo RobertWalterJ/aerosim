@@ -138,6 +138,12 @@ func hfov_deg() -> float:
 func vfov_deg() -> float:
 	return rad_to_deg(2.0 * atan(_tan_half().y * s_over))
 
+## Magnification relative to the standard lens: 1.0 = standard, > 1 zooms in (tele / super-tele), < 1 is the wide lens.
+func zoom_x() -> float:
+	var std := tan(deg_to_rad(float(LENSES["standard"]["diag"])) * 0.5)
+	var cur := tan(deg_to_rad(float(LENSES[lens]["diag"])) * 0.5)
+	return std / cur
+
 # ------------------------------------------------------------------ construction
 func _vp(size: Vector2i, hdr := true) -> SubViewport:
 	var vp := SubViewport.new()
