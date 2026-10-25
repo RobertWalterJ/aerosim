@@ -51,11 +51,17 @@ void fragment() {
 	float body_heat = pink * 0.88;
 	float engine_heat = red_code * 0.96;
 	float heat = max(max(base, body_heat), engine_heat);
+	// A cyan shell is a negative/cold body (the ghost): colder than the valley, so it gets a radiant cold glow.
+	float cold_code = clamp((min(c.g, c.b) - c.r) * 1.1, 0.0, 1.0);
 
 	// Isotherm bands: keep the false-colour steps readable instead of a smooth, gamey gradient.
 	float t = heat * gain;
 	t = floor(t * 42.0 + 0.5) / 42.0;
 	vec3 pal = thermal_ramp(t);
+	// The negative cold body glows a bright cyan-blue, a strong contrast to the warm world around it.
+	if (cold_code > 0.02) {
+		pal = mix(pal, vec3(0.30, 0.85, 1.0), cold_code * 0.9);
+	}
 
 	float scan = 1.0 - scan_strength * (0.5 + 0.5 * sin(uv.y * 940.0));
 	float grain = (hash(uv * 720.0 + vec2(TIME * 13.0, TIME * 19.0)) - 0.5) * grain_amount;

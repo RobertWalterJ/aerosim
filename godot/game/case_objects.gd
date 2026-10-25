@@ -34,6 +34,7 @@ var _hiker_anim: AnimationPlayer
 var _hiker_heat: Node3D
 var _hiker_revealed := false
 var _rennick_ghost: Node3D
+var _rennick_cold: Node3D
 var _rennick_revealed := false
 const HIKER_KEEP_OUT := 48.0
 var _dog_heat: Node3D
@@ -566,6 +567,9 @@ func show_rennick_ghost() -> void:
 		_rennick_ghost.position = p
 		_rennick_ghost.rotation.y = -0.6
 		PeopleAssets.set_ghost_fade(_rennick_ghost, 0.92, 0.34)
+		# a completely cold, negative signature with a radiant cold halo (strong contrast to every warm body)
+		_rennick_cold = ThermalHeat.ghost(_rennick_ghost, Vector3.ZERO)
+		_rennick_cold.visible = false
 	_rennick_revealed = true
 	_rennick_ghost.visible = true
 
@@ -620,6 +624,8 @@ func set_thermal_marker(on: bool) -> void:
 		_hiker_heat.visible = on and _hiker != null and _hiker.visible
 	if _dog_heat != null:
 		_dog_heat.visible = on
+	if _rennick_cold != null:
+		_rennick_cold.visible = on and _rennick_ghost != null and _rennick_ghost.visible
 
 func _build_cabin(pos: Vector3) -> void:
 	_cabin_root = Node3D.new()

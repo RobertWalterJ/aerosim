@@ -9,6 +9,7 @@ const BODY := Color(0.75, 0.0, 1.0)
 const ENGINE := Color(1.0, 0.0, 0.25)
 const WARM := Color(1.0, 0.50, 1.0)
 const ANIMAL := Color(0.58, 0.0, 1.0)
+const COLD := Color(0.0, 0.62, 1.0)   # cyan = a negative/cold body, decoded by the shader as a radiant cold glow
 
 static func material(code: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -86,4 +87,35 @@ static func vehicle(parent: Node3D, body: Vector3, cab: Vector3, cab_y: float) -
 	shell(root, box(Vector3(body.x * 0.60, 0.34, 0.55)), Transform3D(Basis(), Vector3(0.0, 0.58, -body.z * 0.34)), ENGINE)
 	shell(root, box(Vector3(cab.x * 0.76, cab.y * 0.52, cab.z * 0.66)), Transform3D(Basis(), Vector3(0.0, cab_y + 0.20, -0.25)), WARM)
 	shell(root, box(Vector3(0.24, 0.16, 0.26)), Transform3D(Basis(), Vector3(body.x * 0.24, 0.36, body.z * 0.46)), ENGINE)
+	return root
+
+## A ghost: a completely cold figure with a radiant negative halo. The body reads colder than the valley around it,
+## a strong cold contrast to every living warm body.
+static func ghost(parent: Node3D, pos: Vector3, scale := 1.0) -> Node3D:
+	var root := Node3D.new()
+	root.position = pos
+	root.scale = Vector3.ONE * scale
+	parent.add_child(root)
+	shell(root, capsule(0.24, 0.52), Transform3D(Basis(), Vector3(0.0, 1.16, 0.0)), COLD)
+	shell(root, sphere(0.115), Transform3D(Basis(), Vector3(0.0, 1.58, 0.0)), COLD)
+	for sx in [-1.0, 1.0]:
+		shell(root, sphere(0.050), Transform3D(Basis(), Vector3(sx * 0.272, 0.83, -0.02)), COLD)
+	var halo := MeshInstance3D.new()
+	halo.mesh = capsule(0.68, 1.6)
+	halo.material_override = trace_material(COLD, 0.30)
+	halo.transform = Transform3D(Basis(), Vector3(0.0, 1.2, 0.0))
+	halo.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(halo)
+	return root
+
+## A drone: a warm body and four hot motors.
+static func drone(parent: Node3D, pos: Vector3, scale := 1.0) -> Node3D:
+	var root := Node3D.new()
+	root.position = pos
+	root.scale = Vector3.ONE * scale
+	parent.add_child(root)
+	shell(root, box(Vector3(0.34, 0.12, 0.42)), Transform3D(Basis(), Vector3(0.0, 0.10, 0.0)), WARM)
+	for sx in [-0.28, 0.28]:
+		for sz in [-0.28, 0.28]:
+			shell(root, sphere(0.055), Transform3D(Basis(), Vector3(sx * 0.55, 0.15, sz * 0.55)), ENGINE)
 	return root

@@ -312,28 +312,22 @@ func _build_flight_hud() -> void:
 # ------------------------------------------------------------------ camera add-ons and navigation
 func _build_attachment_buttons() -> void:
 	for id in ["thermal", "night"]:
-		var b := Button.new()
+		var b := RoundButton.new(id, 40)   # Claude's camera add-on glyphs (thermal / night)
 		b.visible = false
-		b.focus_mode = Control.FOCUS_NONE
-		b.add_theme_font_size_override("font_size", 12)
 		b.pressed.connect(func(): attachment_requested.emit(str(id)))
 		_root.add_child(b)
 		_attach_btns[id] = b
 
 func set_attachment_state(id: String, available: bool, on: bool, label: String, key: String) -> void:
-	var b: Button = _attach_btns.get(id)
+	var b: RoundButton = _attach_btns.get(id)
 	if b == null:
 		return
 	b.visible = available and not paused and not landing_mode
 	if not available:
 		return
-	b.text = "%s%s  ·  %s" % [label, " ON" if on else "", key]
+	b.set_active(on)
+	b.label = key
 	b.tooltip_text = ("Turn off " + label.to_lower()) if on else ("Turn on " + label.to_lower())
-	var sb := _box(Color(0.10, 0.12, 0.10, 0.88), Color(0.72, 0.62, 0.34) if on else Color(1, 1, 1, 0.22), 8, 7)
-	b.add_theme_stylebox_override("normal", sb)
-	b.add_theme_stylebox_override("hover", _box(Color(0.16, 0.18, 0.14, 0.92), Color(0.86, 0.74, 0.42), 8, 7))
-	b.add_theme_stylebox_override("pressed", sb)
-	b.add_theme_color_override("font_color", Color(0.98, 0.82, 0.46) if on else Color(0.82, 0.86, 0.82))
 
 func _build_nav_panel() -> void:
 	_nav_panel = PanelContainer.new()
@@ -430,9 +424,9 @@ func layout_for(frame: Rect2) -> void:
 	_toast_source.size = Vector2(vp.x, 14.0)
 	_toast_source.position = Vector2(0, frame.position.y + bar + 4.0 * u)
 	for id in _attach_btns:
-		var b: Button = _attach_btns[id]
-		b.size = Vector2(154.0 * u, 30.0 * u)
-		b.position = Vector2(right - 168.0 * u, frame.position.y + bar + (8.0 + (34.0 if id == "night" else 0.0)) * u)
+		var b: RoundButton = _attach_btns[id]
+		b.size = Vector2(40.0 * u, 40.0 * u)
+		b.position = Vector2(right - 168.0 * u, frame.position.y + bar + (8.0 + (44.0 if id == "night" else 0.0)) * u)
 	_crash_box.position = Vector2(vp.x * 0.5 - 160.0, vp.y * 0.5 - 10.0)
 	_flash.size = vp
 
