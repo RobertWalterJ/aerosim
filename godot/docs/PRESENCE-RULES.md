@@ -4,9 +4,9 @@ Status: 2026-11-15. The valley is deliberately emptier than the systems that des
 
 ## Animals spook
 
-- Sheep: start moving away when the drone is within **58 m**; flee at **4.6 m/s**; the model is hidden inside **25 m**.
-- Wolf: starts moving away within **85 m**; flees at **7.2 m/s**; hidden inside **30 m**.
-- The flee directions are away from the drone, and the heat signature goes with the animal. Inside the hide radius there is no close-up animal model to inspect.
+- Sheep: start moving away when the drone is within **58 m**; flee at **4.6 m/s**; they stay visible even at close range.
+- Wolf: starts watching at **42 m**, faces the drone and gives a short warning charge, then breaks away at **8.8 m/s** if the drone closes to about 10 m. It never blinks out of existence in front of the player.
+- The flee directions are away from the drone, and the heat signature goes with the animal. The animal is still the thing you track, not a model that is removed to protect the camera.
 - The flock and wolf still exist for the thermal-camera story; they are found from a respectful distance, not by flying into them.
 
 ## People
@@ -35,5 +35,5 @@ The models are readable at distance but not close-up. Hiding the mesh before the
 
 - Village shot with no human figures: `docs/realism/android_os` is unrelated; the check was `%LOCALAPPDATA%\Temp\shots\spook2_villageshot.png`.
 - Wren at 41 m is hidden: `spook2_wrenshow.png`.
-- Sheep at close range scatter and disappear: `spook_wildmodels.png`.
+- Sheep at close range scatter and stay visible; the wolf warns and then flees.
 - Traffic log after the change: `traffic: { "vehicles": 3, "mobile": false }`.

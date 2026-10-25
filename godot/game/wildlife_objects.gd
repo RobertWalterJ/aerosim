@@ -10,12 +10,19 @@ var _sheep_roots: Array[Node3D] = []
 var _wolf_pos := Vector3.ZERO
 var _terrain: Terrain
 var _wolf_shown := false
+var _wolf_anim: AnimationPlayer
+var _wolf_state := "wary"          # wary -> hostile -> flee -> wary
+var _wolf_hostile_t := 0.0
+signal wolf_hostile
+signal wolf_broke_away
 const SHEEP_SPOOK := 58.0
 const SHEEP_HIDE := 25.0
 const SHEEP_FLEE := 4.6
 const WOLF_SPOOK := 85.0
-const WOLF_HIDE := 30.0
-const WOLF_FLEE := 7.2
+const WOLF_WARN := 42.0
+const WOLF_CHARGE := 14.0
+const WOLF_HOSTILE_TIME := 2.2
+const WOLF_FLEE := 8.8
 
 func setup(t: Terrain) -> void:
 	_terrain = t
@@ -51,25 +58,53 @@ func update(delta: float, drone_pos: Vector3) -> void:
 			if _terrain != null:
 				root.position.y = _terrain.height(root.position.x, root.position.z)
 			root.rotation.y = atan2(-away.x, -away.y)
-			root.visible = d > SHEEP_HIDE
+			# Sheep run, but they never blink out of existence in front of the player.
+			root.visible = true
 		else:
 			root.visible = true
 	if _wolf != null and _wolf_shown:
+		_wolf.visible = true          # never vanish in front of the player
 		var flat := Vector2(_wolf.position.x, _wolf.position.z)
 		var d := flat.distance_to(p)
-		if d < WOLF_SPOOK:
-			var away := flat - p
-			if away.length_squared() < 0.001:
-				away = Vector2.LEFT
-			away = away.normalized()
-			_wolf.position.x += away.x * WOLF_FLEE * delta
-			_wolf.position.z += away.y * WOLF_FLEE * delta
+		var toward := p - flat
+		if toward.length_squared() < 0.001:
+			toward = Vector2.RIGHT
+		toward = toward.normalized()
+		if _wolf_state == "flee":
+			# run directly away, fast enough to read as an animal deciding the drone is dangerous
+			_wolf.position.x -= toward.x * WOLF_FLEE * delta
+			_wolf.position.z -= toward.y * WOLF_FLEE * delta
 			if _terrain != null:
 				_wolf.position.y = _terrain.height(_wolf.position.x, _wolf.position.z)
-			_wolf.rotation.y = atan2(-away.x, -away.y)
-			_wolf.visible = d > WOLF_HIDE
+			_wolf.rotation.y = atan2(toward.x, toward.y)
+			_set_wolf_clip("run")
+			if d > 140.0:
+				_wolf_state = "wary"
+				_wolf_hostile_t = 0.0
+				_set_wolf_clip("walk")
+		elif d < WOLF_WARN:
+			# first a warning: face the drone, stiffen, take a short step toward it
+			if _wolf_state != "hostile":
+				_wolf_state = "hostile"
+				_wolf_hostile_t = 0.0
+				_set_wolf_clip("walk")
+				wolf_hostile.emit()
+			_wolf_hostile_t += delta
+			_wolf.rotation.y = atan2(toward.x, toward.y)
+			if d > WOLF_CHARGE:
+				_wolf.position.x += toward.x * 1.7 * delta
+				_wolf.position.z += toward.y * 1.7 * delta
+				if _terrain != null:
+					_wolf.position.y = _terrain.height(_wolf.position.x, _wolf.position.z)
+			if _wolf_hostile_t >= WOLF_HOSTILE_TIME or (d < 10.0 and _wolf_hostile_t > 0.45):
+				_wolf_state = "flee"
+				_wolf_hostile_t = 0.0
+				_set_wolf_clip("run")
+				wolf_broke_away.emit()
 		else:
-			_wolf.visible = true
+			_wolf_state = "wary"
+			_wolf_hostile_t = 0.0
+			_set_wolf_clip("walk")
 
 func trace_sources() -> Array:
 	var out: Array = []
@@ -86,6 +121,9 @@ func first_sheep_position() -> Vector3:
 
 func wolf_position() -> Vector3:
 	return _wolf.global_position if _wolf != null else _wolf_pos
+
+func wolf_state() -> Dictionary:
+	return {"state": _wolf_state, "visible": _wolf.visible if _wolf != null else false, "showing": _wolf_shown, "pos": wolf_position()}
 
 func show_wolf() -> void:
 	_wolf_shown = true
@@ -157,6 +195,8 @@ func _build_wolf(pos: Vector3) -> void:
 	if model != null:
 		model.rotation.y = PI
 		_wolf.add_child(model)
+		_wolf_anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		_set_wolf_clip("walk")
 		_wolf_heat = ThermalHeat.animal(_wolf, Vector3.ZERO, 1.55, 0.70)
 		_wolf_heat.visible = false
 		return
@@ -215,6 +255,15 @@ func _build_wolf(pos: Vector3) -> void:
 	_wolf.add_child(tmi)
 	_wolf_heat = ThermalHeat.animal(_wolf, Vector3.ZERO, 1.55, 0.70)
 	_wolf_heat.visible = false
+
+func _set_wolf_clip(clip: String) -> void:
+	if _wolf_anim == null:
+		return
+	for c in [clip, "walk", "idle", "run"]:
+		if _wolf_anim.has_animation(c):
+			if _wolf_anim.current_animation != c:
+				_wolf_anim.play(c)
+			return
 
 func _load_animal_model(name: String) -> Node3D:
 	var path := "res://assets/models/animals/%s.glb" % name

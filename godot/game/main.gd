@@ -444,6 +444,12 @@ func _ready() -> void:
 	wildlife_objects = WildlifeObjects.new()
 	add_child(wildlife_objects)
 	wildlife_objects.setup(terrain)
+	wildlife_objects.wolf_hostile.connect(func():
+		if hud != null:
+			hud.toast("The wolf has turned to face the drone. It is warning you away, not attacking yet.", false, "WILDLIFE"))
+	wildlife_objects.wolf_broke_away.connect(func():
+		if hud != null:
+			hud.toast("The wolf has broken away into the trees. It is still there; let it go.", false, "WILDLIFE"))
 	if ground_traces != null:
 		ground_traces.set_animal_source(wildlife_objects)
 	wildlife = WildlifeCase.new()
@@ -1575,6 +1581,20 @@ func _screenshot_mode(arg: String) -> void:
 			phone_os.open()
 			phone_os._open_app("chat")
 			phone_os._chat_app.open("town")
+		elif c == "wolfclose":      # session B dev hook: approach the wolf closely for the hostile-then-flee behaviour
+			wildlife_objects.show_wolf()
+			var wp: Vector3 = wildlife_objects.wolf_position()
+			var cp := Vector3(wp.x + 8.0, terrain.height(wp.x + 8.0, wp.z + 8.0) + 2.5, wp.z + 8.0)
+			var to_wolf := wp - cp
+			quad.reset(cp.x, cp.y, cp.z, atan2(-to_wolf.x, -to_wolf.z))
+			gimbal_pitch = deg_to_rad(-18.0)
+			_apply_pose()
+			if hud != null:
+				hud.toast("Wolf close: the animal should face the drone, then break away without vanishing.", false, "WILDLIFE")
+			print("wolfclose start=", wildlife_objects.wolf_state())
+			for i in 150:
+				await get_tree().process_frame
+			print("wolfclose end=", wildlife_objects.wolf_state())
 		elif c == "shelterprobe":   # session B dev hook: read the shelter at the village and in the forest
 			wind.speed = 8.0
 			wind.gust = 0.8
