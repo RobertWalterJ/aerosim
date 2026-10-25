@@ -1256,3 +1256,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - Sparse plan: two town vehicles in opposite directions plus one **night-only** highway vehicle on desktop; one town + one highway on mobile. The night highway car has two real `SpotLight3D` headlights and emissive lamps; the town pair remains in daylight.
 - Right-hand lane helper `Roads.width(id)`; the hidden day highway car is skipped by thermal trace sources; traffic remains collision-free and loop-based.
 - Doc `docs/TRAFFIC-ROAD-LOGIC.md`; `GATE PASS (trafficlogic)`; commit `188739d`.
+## Ghost epilogue (lane/notify, session B, 2026-11-15)
+- After the end card, `Main._on_ending_free()` starts `GhostFlight` instead of the old immediate free walk. HUD/phone/notes/ending hide; a cold glitch overlay (`ghost_glitch.gdshader`) opens from black with `SIGNAL LOST · RECONNECTING`.
+- Ghost drift is a collision-free fast camera (WASD, mouse, Space/C, Shift) rendered through its own SubViewport because the main viewport has 3D disabled by the sensor pipeline.
+- At 90 s the camera turns to the cemetery; a warm beacon over the sleeping body + small drone appears; click/Esc wakes. The drone is placed at the body and the existing post-story walk resumes.
+- Body area kept clear by `CaseObjects.GHOST_BODY_SPOT`. Hooks `ghostdemo`, `ghostworld`, `ghostwake`; `GATE PASS (ghostepilogue)`; doc `docs/GHOST-EPILOGUE.md`.
