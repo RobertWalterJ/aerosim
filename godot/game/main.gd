@@ -1830,6 +1830,12 @@ func _screenshot_mode(arg: String) -> void:
 			thermal.set_on(true)
 			quad.reset(430.0, terrain.height(430.0, 272.0) + 2.0, 272.0, deg_to_rad(180.0))
 			_apply_pose()
+		elif c == "thermalon":     # session B dev hook: fit and switch on the thermal camera without moving the camera
+			if inventory != null and not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			if thermal != null:
+				thermal.install()
+				thermal.set_on(true)
 		elif c == "thermalcars":  # session B dev hook: thermal on, behind the first traffic vehicle
 			if not inventory.has_addon("thermal_camera"):
 				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
