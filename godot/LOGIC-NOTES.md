@@ -1241,3 +1241,8 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - `PlayerProfile.PLAYER_NAME` is the single source; old profile callsigns are ignored/migrated on load. Computer-account detection and the optional real name remain unchanged for the one festival volunteer.
 - References in ChatData were changed from generic pilot phrasing to Lou where they point at the player.
 - `GATE PASS (lou)`; commit `4718519`; screenshot evidence `lou_landing.png`, `lou_phonechat.png`.
+## Latest Claude asset integration (lane/notify, session B, 2026-11-15)
+- Pulled the latest Claude-authored art from `AeroSim` main and the active lanes: rebuilt people (Wren, Rennick, 19 story characters) and the latest PeopleAssets/ghost shader, avatar portraits for DroneBudz/Casebook, the latest vehicle library including Anne Voss wreck and police dive van, latest animal GLBs, drone material textures, and the village plinth fix.
+- The dive van and lake wreck are placed at the boat launch; avatars are live in the phone and Casebook; village cottages get ground plinths; animal models try their idle/graze clips.
+- This is an **asset integration**, not a full `main` merge: our story/profile/thermal/UI systems stay. The high-end `VehicleAssets` runtime (armatures, doors, LOD/wreck shaders) and `AnimalHerd` are still in other lanes and not merged.
+- Evidence `docs/realism/models/claude_avatars_chat.png`; docs `CLAUDE-ASSET-INTEGRATION.md`; `GATE PASS (claudequality2)`; commits `56cf2dc`, `100425e`.
