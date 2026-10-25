@@ -45,7 +45,7 @@ var _search_beats := [
 	"I was trapped. I lit the fire and waited. There was nothing else to do.",
 	"I fell asleep after the fire burned down. In the thick of the storm the whole world went still and silent.",
 	"I did not hear anything until that hiker came through. A night like this one. I think that was Wren.",
-	"There was a phone. Their phone. I knew how to reach you, Lou. I cannot explain it. I just knew.",
+	"There was a phone. The hiker's phone. That device. I knew how to reach you, Lou. I cannot explain it. I just knew.",
 	"But that was... that was a long time ago, was it not.",
 	"Do not think about all that now. There will be time enough for my part after we get Wren out.",
 	"Keep looking. East of the cabin, near the trees. A warm body. You will see them.",
