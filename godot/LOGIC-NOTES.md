@@ -1232,3 +1232,7 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **Launch audit:** map lists all 12 sites; travel refuses airborne armed flight, updates launch site/yaw/minimap, respawns kit, closes phone and toasts. Tested map → Festival field → North gate pull-off. Fixed overlapping map pin labels with greedy placement and leader lines.
 - **Gates:** `GATE PASS (cameraaudit)`; commit `a89d3f8`; evidence under `docs/realism/cameras/`.
 - **Open limits:** all sites unlocked from start; move is implied not driven; map is a schematic; no-moon test is a dev hook, not a UI preset.
+## Thermal traces and Pike laser (lane/notify, session B, 2026-11-15)
+- **GroundTraces:** thermal-only paired human footprints from the invisible village cast and Wren (55 s), animal hoof marks from sheep/wolf (42 s), and two tyre strips from moving traffic (32 s). Hidden in normal view, shown only when thermal is on, sampled near the drone, fade and free themselves, 280-trace cap.
+- **Pike laser:** an armed drone within 118 m of the mast gets a red laser line; after lock the camera feed burns red-white (~1.5 s) below the HUD, with a CAMERA BURN warning. Holding within 58 m forces a return. The laser is disabled when the jammer drops for the finale.
+- **Evidence:** `docs/GROUND-TRACES-AND-LASER.md`, `docs/realism/cameras/traces_vehicle_heat.png`, `traces_village_heat.png`, `laser_burn.png`; `GATE PASS (traceslaser)`; commit `b2d9877`.
