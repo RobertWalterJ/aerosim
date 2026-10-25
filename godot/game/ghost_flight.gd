@@ -135,7 +135,7 @@ func _reveal() -> void:
 	_prompt.text = "CLICK TO WAKE"
 	# bring the ghost to a quiet overlook of the cemetery, so the body and its light are actually readable
 	var bp := _body.global_position
-	_pos = bp + Vector3(11.0, 7.0, 26.0)
+	_pos = bp + Vector3(7.0, 4.5, 14.0)
 	_vel = Vector3.ZERO
 	var to_body := bp + Vector3(0.0, 1.2, 0.0) - _pos
 	_yaw = atan2(-to_body.x, -to_body.z)
