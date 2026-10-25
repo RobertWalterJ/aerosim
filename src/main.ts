@@ -5,6 +5,10 @@ import { Colliders } from './world/Colliders';
 import { FoliageInstancer } from './world/FoliageInstancer';
 import { MemorialParkAssets } from './world/MemorialParkAssets';
 import { DroneModel } from './world/DroneModel';
+import { EnvironmentInstancer } from './world/EnvironmentInstancer';
+import { DroneView } from './world/drones/DroneView';
+import { Aerobatics } from './game/Aerobatics';
+import { Pilot } from './world/PilotFigure';
 import { FoliageUniforms } from './world/FoliageMaterials';
 import { Atmosphere } from './rendering/Atmosphere';
 import { SensorPipeline } from './rendering/SensorPipeline';
@@ -58,6 +62,13 @@ async function boot() {
   setMsg('carving granite monuments, chapel, lamps…', 0.65); await tick();
   const park = new MemorialParkAssets(terrain, colliders);
   scene.add(park.group); foliage.grass.forEach(g => g.setExclusions([[WORLD.home.x - WORLD.home.clearR, WORLD.home.z - WORLD.home.clearR, WORLD.home.x + WORLD.home.clearR, WORLD.home.z + WORLD.home.clearR], ...park.exclusions]));
+  // procedural environment assets (meadow, hedges, walls, railings, clutter, memorial section, snags, rocks, cars); ?env=0 disables
+  let envAssets: EnvironmentInstancer | null = null;
+  if (params.get('env') !== '0') {
+    setMsg('planting meadow, hedges and walls, parking cars…', 0.7); await tick();
+    envAssets = new EnvironmentInstancer(terrain, colliders, Q, { trees: foliage.trees, exclusions: [[WORLD.home.x - WORLD.home.clearR, WORLD.home.z - WORLD.home.clearR, WORLD.home.x + WORLD.home.clearR, WORLD.home.z + WORLD.home.clearR] as [number, number, number, number], ...park.exclusions], chapelPos: park.chapelPos, monumentPos: park.monumentPos }, f => setMsg('planting meadow, hedges and walls, parking cars…', 0.7 + f * 0.08));
+    scene.add(envAssets.group);
+  }
   const missions = new Missions(terrain, park.monumentPos.clone().setY(terrain.height(park.monumentPos.x, park.monumentPos.z)));
   scene.add(missions.group);
   // shadows + CSM wiring for every lit material (preserve our own onBeforeCompile patches)
@@ -73,34 +84,68 @@ async function boot() {
   // ---------- physics
   let af: Airframe = AIRFRAMES[(params.get('airframe') as 'mini' | 'freestyle') || 'mini'];
   const quad = new Quadcopter6DOF(af); const fc = new FlightController(af, quad); const gimbal = new Gimbal();
+  const aero = new Aerobatics(fc, quad, af); // aerobatics mode (key 4): horizon self-levelling + one-button tricks
   const wind = new WindField((x, z) => terrain.height(x, z)); wind.addObstacles(foliage.windObstacles());
+  // wind level (Z key, WIND touch button, ?wind=calm|light|breezy|strong). Reference speed at 30 m AGL; light is the default.
+  const WIND_LEVELS = [{ name: 'calm', ref: 1.0, gust: 0.45 }, { name: 'light', ref: 3.0, gust: 0.65 }, { name: 'breezy', ref: 5.0, gust: 0.85 }, { name: 'strong', ref: 7.5, gust: 1.0 }];
+  let windIdx = WIND_LEVELS.findIndex(l => l.name === params.get('wind')); if (windIdx < 0) windIdx = 1;
+  const setWind = (i: number) => { windIdx = (i + WIND_LEVELS.length) % WIND_LEVELS.length; const L = WIND_LEVELS[windIdx]!; WORLD.windRefSpeed = L.ref; wind.uStar = (L.ref * wind.kappa) / Math.log(WORLD.windRefHeight / wind.z0); wind.gustiness = L.gust; return L.name; };
+  setWind(windIdx);
   const home = new THREE.Vector3(WORLD.home.x, 0, WORLD.home.z); home.y = terrain.height(home.x, home.z);
+  // the pilot stands 3 m behind and 1 m left of the launch point, watching the drone (?pilot=0 hides him)
+  let pilot: Pilot | null = null;
+  if (params.get('pilot') !== '0') {
+    const h = 150 * DEG, fx = -Math.sin(h), fz = -Math.cos(h), rx = Math.cos(h), rz = -Math.sin(h);
+    // first clear spot behind the launch point (no tree crown within 1.5 m of his head)
+    const spots: [number, number][] = [[3, -1], [3, 1.2], [4.5, 0], [2.5, -2.5], [2.5, 2.5], [5.5, -2], [5.5, 2], [1.5, -4], [1.5, 4]];
+    const clear = (x: number, z: number) => foliage.trees.every(t => Math.hypot(t.x - x, t.z - z) > t.crownR + 1.5);
+    let px = home.x - fx * 3 - rx * 1, pz = home.z - fz * 3 - rz * 1;
+    for (const [back, side] of spots) { const x = home.x - fx * back + rx * side, z = home.z - fz * back + rz * side; if (clear(x, z)) { px = x; pz = z; break; } }
+    pilot = new Pilot(qName === 'low' ? 1 : 0); pilot.place(px, terrain.height(px, pz), pz, h); scene.add(pilot.group);
+    if (params.get('pilot') !== 'simple') void pilot.loadDetailed('./models/pilot.glb', qName === 'low' ? 30 : 60); // Blender model; procedural figure is the far LOD
+    colliders.addCyl({ x: px, z: pz, r: 0.28, y0: terrain.height(px, pz), y1: terrain.height(px, pz) + 1.82, kind: 'small' });
+  }
   const windVec: V3 = [0, 0, 0]; const push = [0, 0, 0];
   const env = {
     wind: windVec, groundH: (x: number, z: number) => terrain.height(x, z), groundN: (x: number, z: number, o: number[]) => terrain.normal(x, z, o),
     obstacleHit: (x: number, y: number, z: number, r: number, p: number[]) => colliders.hit(x, y, z, r, p),
   };
   void push;
-  const drone = new DroneModel(af); drone.group.visible = false; scene.add(drone.group);
+  // chase-camera drone: new procedural models (DroneView); ?drone=legacy restores the old DroneModel
+  const legacyDrone = params.get('drone') === 'legacy';
+  const drone: DroneModel | DroneView = legacyDrone ? new DroneModel(af) : new DroneView(af, Q.env.droneLod, quad.spin);
+  drone.group.visible = false; scene.add(drone.group);
+  const gimbalRel = new THREE.Quaternion();
+  let touch: TouchControls | null = null;
   const spawn = (x: number, z: number, yawDeg: number, agl = 0.04, hover = false) => {
     quad.af = af; const y = terrain.height(x, z) + agl; quad.reset(x, y, z, yawDeg * DEG); fc.resetState();
     const wh = af.omegaMax * Math.sqrt(1 / af.twr); if (hover) for (let i = 0; i < 4; i++) { quad.s[13 + i] = wh; quad.cmd[i] = wh; }
-    gimbal.pitch = -0.35; gimbal.pv = 0; gimbal.roll = 0; gimbal.rv = 0; fc.mode = 'N'; fc.heading = yawDeg * DEG; missions.reset();
+    gimbal.pitch = -0.35; gimbal.pv = 0; gimbal.roll = 0; gimbal.rv = 0; aero.setActive(false, af); fc.mode = 'N'; fc.heading = yawDeg * DEG; missions.reset(); touch?.showTricks(false); touch?.refreshMode();
   };
   const tp = params.get('teleport');
-  if (tp) { const [x, y, z, h, g] = tp.split(',').map(Number); spawn(x, z, h || 0, y - terrain.height(x, z), true); input_gimbalInit = (g ?? -15) * DEG; } else spawn(home.x, home.z, 150);
-  var input_gimbalInit = -20 * DEG; // hoisted for the teleport branch
+  if (tp === 'pilot' && pilot) { // debug/screenshot view: hover 3.2 m in front of the pilot, facing him
+    const P = pilot.group.position, h = 150 * DEG, x = P.x - Math.sin(h) * 3.2, z = P.z - Math.cos(h) * 3.2;
+    spawn(x, z, (h + Math.PI) / DEG, 1.7, true); input_gimbalInit = -4 * DEG;
+  } else if (tp) { const [x, y, z, h, g] = tp.split(',').map(Number); spawn(x, z, h || 0, y - terrain.height(x, z), true); input_gimbalInit = (g ?? -15) * DEG; } else spawn(home.x, home.z, 150);
+  var input_gimbalInit: number; if (input_gimbalInit! === undefined) input_gimbalInit = -20 * DEG; // hoisted; the teleport branch may have set it already
   // ---------- UI / input / audio
   const osdCanvas = $('osd') as HTMLCanvasElement; const osd = new TelemetryOSD(osdCanvas);
-  let chase = false, fps = 60, audioName = 'Cinematic Hybrid', lensName = pipeline.lenses.standard.name;
+  let chase = params.has('chase'), fps = 60, audioName = 'Cinematic Hybrid', lensName = pipeline.lenses.standard.name;
   let audio: DroneSynthDSP | null = null, eco: EcologyAudioEngine | null = null;
   const initAudio = async () => { if (audio) { await audio.start(); return; } try { audio = new DroneSynthDSP(); await audio.start(); eco = new EcologyAudioEngine(audio.ctx, audio.envBus, foliage.trees); eco.onFlush = (e) => { missions.flushes++; scatterBirds(e); }; audioName = audio.perspective; } catch (e) { console.warn('audio unavailable', e); } };
   const birds: { s: THREE.Sprite; v: THREE.Vector3; t: number; ph: number }[] = []; const birdTex = [0, 1].map(k => { const c = document.createElement('canvas'); c.width = 64; c.height = 32; const g = c.getContext('2d')!; g.fillStyle = '#121212'; g.beginPath(); g.moveTo(32, 18); g.quadraticCurveTo(16, k ? 2 : 24, 2, k ? 8 : 20); g.quadraticCurveTo(18, k ? 12 : 16, 32, 20); g.quadraticCurveTo(46, k ? 12 : 16, 62, k ? 8 : 20); g.quadraticCurveTo(48, k ? 2 : 24, 32, 18); g.fill(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; });
   const scatterBirds = (e: { x: number; y: number; z: number }) => { for (let i = 0; i < 9; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: birdTex[0], transparent: true, depthWrite: true, fog: true })); s.scale.set(0.42, 0.21, 1); s.position.set(e.x, e.y, e.z); const a = Math.random() * 6.28; const v = new THREE.Vector3(Math.cos(a) * 7, 2 + Math.random() * 3, Math.sin(a) * 7); scene.add(s); birds.push({ s, v, t: 0, ph: Math.random() * 6 }); } };
+  // tricks need aerobatics mode and some height
+  const startTrick = (k: 'flip' | 'roll' | 'loop' | 'pirouette', dir: number) => {
+    if (!aero.active) return;
+    const agl = quad.s[1] - terrain.height(quad.s[0], quad.s[2]);
+    if (agl < (k === 'pirouette' ? 1.5 : 4)) return;
+    aero.start(k, input.sticks, dir);
+  };
   const input = new InputManagerHID(canvas, {
-    onMode: m => { fc.mode = m; fc.resetState(); }, onAudio: () => { initAudio().then(() => { if (audio) audioName = audio.cyclePerspective(); }); }, onLens: () => { const l = pipeline.lens === 'standard' ? 'wide' : 'standard'; pipeline.setLens(l, 0); lensName = pipeline.lenses[l].name; },
+    onMode: m => { aero.setActive(false, af); fc.mode = m; fc.resetState(); }, onAero: () => aero.setActive(true, af), onTrick: (k, dir) => startTrick(k, dir), onWind: () => { setWind(windIdx + 1); }, onAudio: () => { initAudio().then(() => { if (audio) audioName = audio.cyclePerspective(); }); }, onLens: () => { const l = pipeline.lens === 'standard' ? 'wide' : 'standard'; pipeline.setLens(l, 0); lensName = pipeline.lenses[l].name; },
     onOSD: () => { osd.visible = !osd.visible; }, onReset: () => spawn(home.x, home.z, 150), onChase: () => { chase = !chase; }, onFps: () => { fps = fps === 60 ? 30 : 60; },
-    onAirframe: () => { af = af.id === 'mini' ? AIRFRAMES.freestyle : AIRFRAMES.mini; quad.af = af; Object.assign(quad, { rotor: new (quad.rotor.constructor as any)(af) }); (quad as any).battery = new (quad.battery.constructor as any)(af.cells, af.capacityAh, af.rInt); (quad as any).rpos = [[af.armD, 0, -af.armD], [af.armD, 0, af.armD], [-af.armD, 0, af.armD], [-af.armD, 0, -af.armD]]; fc.setAirframe(af); drone.setAirframe(af); spawn(home.x, home.z, 150); },
+    onAirframe: () => { aero.setActive(false, af); af = af.id === 'mini' ? AIRFRAMES.freestyle : AIRFRAMES.mini; quad.af = af; Object.assign(quad, { rotor: new (quad.rotor.constructor as any)(af) }); (quad as any).battery = new (quad.battery.constructor as any)(af.cells, af.capacityAh, af.rInt); (quad as any).rpos = [[af.armD, 0, -af.armD], [af.armD, 0, af.armD], [-af.armD, 0, af.armD], [-af.armD, 0, -af.armD]]; fc.setAirframe(af); drone.setAirframe(af); spawn(home.x, home.z, 150); },
     onSun: d => { atmo.setSun(atmo.azimuth, atmo.elevation + d); atmo.refreshMaterials(); }, onEv: d => { pipeline.evComp = clamp(pipeline.evComp + d, -3, 3); }, onPhoto: () => { photoReq = true; }, onQuality: () => { }, onBloom: () => { pipeline.bloomOn = !pipeline.bloomOn; },
   });
   input.gimbalCmd = input_gimbalInit;
@@ -109,6 +154,7 @@ async function boot() {
   let paused = false, installable = false; pwa.onInstallable(ok => { installable = ok; });
   const snow = new SnowFall(qName === 'low' ? 6000 : qName === 'medium' ? 10000 : 16000, Q.renderHeight); scene.add(snow.points);
   const switchAirframe = (next: Airframe) => {
+    aero.setActive(false, af);
     af = next; quad.af = af; Object.assign(quad, { rotor: new (quad.rotor.constructor as any)(af) }); (quad as any).battery = new (quad.battery.constructor as any)(af.cells, af.capacityAh, af.rInt);
     (quad as any).rpos = [[af.armD, 0, -af.armD], [af.armD, 0, af.armD], [-af.armD, 0, af.armD], [-af.armD, 0, -af.armD]]; fc.setAirframe(af); drone.setAirframe(af); spawn(home.x, home.z, 150);
   };
@@ -142,11 +188,11 @@ async function boot() {
       { type: 'action', label: 'Install app', run: () => { pwa.promptInstall(); }, show: () => installable },
     ],
   }, p => { paused = p; });
-  let touch: TouchControls | null = null;
   if (touchMode) {
-    const next: Record<string, 'N' | 'S' | 'M'> = { N: 'S', S: 'M', M: 'N' };
+    const next: Record<string, 'N' | 'S' | 'M' | 'A'> = { N: 'S', S: 'M', M: 'A', A: 'N' };
     touch = new TouchControls({
-      mode: () => fc.mode, cycleMode: () => { fc.mode = next[fc.mode] ?? 'N'; fc.resetState(); },
+      mode: () => aero.active ? 'A' : fc.mode, cycleMode: () => { const n = next[aero.active ? 'A' : fc.mode] ?? 'N'; if (n === 'A') aero.setActive(true, af); else { aero.setActive(false, af); fc.mode = n; fc.resetState(); } touch?.showTricks(aero.active); },
+      wind: () => setWind(windIdx + 1), windName: () => WIND_LEVELS[windIdx]!.name, trick: k => startTrick(k, 0), gimbalPreset: p => input.gimbalPreset(p),
       chase: () => { chase = !chase; }, photo: () => { photoReq = true; }, reset: () => spawn(home.x, home.z, 150),
       lens: () => { const l = pipeline.lens === 'standard' ? 'wide' : 'standard'; pipeline.setLens(l, 0); lensName = pipeline.lenses[l].name; },
       osd: () => { osd.visible = !osd.visible; }, audio: () => { initAudio().then(() => { if (audio) audioName = audio.cyclePerspective(); }); },
@@ -179,6 +225,7 @@ async function boot() {
     });
   }
   $('loading').style.opacity = '0'; setTimeout(() => $('loading').remove(), 900);
+  if (drone instanceof DroneView) setTimeout(() => drone.prewarm(), 2500); // build the chase model while the help card is up
   setTimeout(() => pwa.maybePrompt(), 6000);
 
   // ---------- state for per-frame use
@@ -191,7 +238,7 @@ async function boot() {
     simT = t;
     if ((stepN++ % 10) === 0) wind.sample(quad.s[0], quad.s[1], quad.s[2], t, windVec);
     fc.onGround = quad.groundContact;
-    fc.update(dt, input.sticks);
+    fc.update(dt, aero.active ? aero.shape(dt, input.sticks) : input.sticks);
     quad.step(dt, env);
     // gimbal (fixed 1 kHz)
     const f: V3 = [0, 0, 0]; qrot(quad.s, 6, [0, 0, -1], f); const bodyPitch = Math.asin(clamp(f[1], -1, 1));
@@ -231,12 +278,17 @@ async function boot() {
     const bq = bodyPose.quat; const fwd: V3 = [0, 0, 0]; qrot(bq, 0, [0, 0, -1], fwd);
     const heading = Math.atan2(-fwd[0], -fwd[2]);
     let cq: number[];
-    if (af.hasGimbal) cq = qeuler(heading + gimbal.yawErr, gimbal.pitch, gimbal.roll, tmpQ);
-    else cq = qmul(bq, qaxis(1, 0, 0, af.camTilt, [0, 0, 0, 1]), [0, 0, 0, 1]);
+    // FPV airframes: Q/E (or the slider) sets the camera uptilt instead of a gimbal angle
+    const fpvTilt = clamp(af.camTilt + (input.gimbalCmd + 20 * DEG) * 0.4, 0, 55 * DEG);
+    if (af.hasGimbal) cq = qeuler(heading + gimbal.yawErr + input.gimbalPan, gimbal.pitch, gimbal.roll, tmpQ);
+    else cq = qmul(bq, qaxis(1, 0, 0, fpvTilt, [0, 0, 0, 1]), [0, 0, 0, 1]);
     const off: V3 = [0, 0, 0]; qrot(bq, 0, af.camOffset, off);
     camera.position.set(bodyPose.pos.x + off[0], bodyPose.pos.y + off[1], bodyPose.pos.z + off[2]); camQ.set(cq[0], cq[1], cq[2], cq[3]); camera.quaternion.copy(camQ);
     drone.group.position.copy(bodyPose.pos); drone.group.quaternion.set(bq[0], bq[1], bq[2], bq[3]);
-    drone.update(quad.motorOmega, simT, af.hasGimbal ? gimbal.pitch - Math.asin(clamp(fwd[1], -1, 1)) : af.camTilt);
+    if (drone instanceof DroneView) {
+      if (af.hasGimbal) gimbalRel.set(bq[0], bq[1], bq[2], bq[3]).invert().multiply(camQ);
+      drone.update({ omega: quad.motorOmega, dt: dtF, time: now / 1000, armed: quad.armed, soc: quad.battery.soc, gimbalRel: af.hasGimbal ? gimbalRel : undefined, visible: chase });
+    } else drone.update(quad.motorOmega, simT, af.hasGimbal ? gimbal.pitch - Math.asin(clamp(fwd[1], -1, 1)) : fpvTilt);
     drone.group.visible = chase;
     if (chase) { const back = tmpV.set(-fwd[0], 0, -fwd[2]).normalize().multiplyScalar(5.5); camera.position.set(bodyPose.pos.x + back.x, bodyPose.pos.y + 1.6, bodyPose.pos.z + back.z); camera.lookAt(bodyPose.pos); camQ.copy(camera.quaternion); }
     // foliage / grass uniforms
@@ -245,6 +297,8 @@ async function boot() {
     FoliageUniforms.uWash.value = clamp(fc.thrustFraction * 1.8, 0, 1) * 0.55 * (1 - smoothstep(2.5, 8, agl)) * (quad.armed ? 1 : 0);
     const cw: V3 = [0, 0, 0]; wind.canopyWind(quad.s[0], quad.s[2], simT, cw); FoliageUniforms.uWind.value.set(cw[0], cw[1], cw[2]); snow.update(camera.position, dtF, windVec);
     foliage.update(camera.position, now / 1000);
+    envAssets?.update(camera.position);
+    pilot?.update(bodyPose.pos, dtF, camera);
     missions.update(dtF, camera.position, missionsAirborne());
     for (let i = birds.length - 1; i >= 0; i--) { const b = birds[i]; b.t += dtF; b.s.position.addScaledVector(b.v, dtF); b.v.y += (b.t < 1.5 ? 1.2 : -0.1) * dtF; b.s.material.map = birdTex[Math.floor((b.t * 11 + b.ph) % 2)]; if (b.t > 9) { scene.remove(b.s); b.s.material.dispose(); birds.splice(i, 1); } }
     // audio
@@ -276,10 +330,10 @@ async function boot() {
     const body = new THREE.Quaternion(bq[0], bq[1], bq[2], bq[3]); const vb = new THREE.Vector3(quad.s[3], quad.s[4], quad.s[5]).applyQuaternion(body.clone().invert());
     const camE = new THREE.Euler().setFromQuaternion(camQ, 'YXZ'); const hb = Math.atan2(home.x - quad.s[0], -(home.z - quad.s[2]));
     const tel: Telemetry = {
-      mode: fc.mode, sats: rfState.sats, rfDbm: rfState.dbm, rfBars: clamp(Math.round((rfState.dbm + 100) / 12), 0, 5), battPct: quad.battery.soc * 100, cellV: quad.battery.cellV, battA: quad.battery.current,
+      mode: aero.active ? 'A' : fc.mode, sats: rfState.sats, rfDbm: rfState.dbm, rfBars: clamp(Math.round((rfState.dbm + 100) / 12), 0, 5), battPct: quad.battery.soc * 100, cellV: quad.battery.cellV, battA: quad.battery.current,
       iso: pipeline.isoShown, shutter: pipeline.shutterShown, ev: pipeline.evComp, pitch: camE.x, roll: camE.z, heading: heading, velWorld: [quad.s[3], quad.s[4], quad.s[5]], velBody: [vb.x, vb.y, vb.z],
       aglM: agl, mslM: quad.s[1], gs: Math.hypot(quad.s[3], quad.s[5]), vs: quad.s[4], homeDist: Math.hypot(quad.s[0] - home.x, quad.s[2] - home.z), gimbalDeg: (af.hasGimbal ? gimbal.pitch : af.camTilt) / DEG,
-      histogram: pipeline.histogram, lensName, airframe: af.name + (chase ? '  [CHASE]' : ''), audio: audio ? audio.perspective : 'click to enable', fps: Math.min(fps, fpsSmooth), crashed: quad.crashed || !quad.armed ? quad.crashReason : '', armed: quad.armed, touch: touchMode, mission: missions.lines(), windMs: Math.hypot(windVec[0], windVec[2]), homeBearing: hb, droneBearing: 0, sunVis: 0, stopHit: gimbal.stopHit, eco: eco ? `birds flushed: ${eco.flushes}` : '',
+      histogram: pipeline.histogram, lensName, airframe: af.name + (chase ? '  [CHASE]' : ''), audio: audio ? audio.perspective : 'click to enable', fps: Math.min(fps, fpsSmooth), crashed: quad.crashed || !quad.armed ? quad.crashReason : '', armed: quad.armed, touch: touchMode, mission: missions.lines(), windMs: Math.hypot(windVec[0], windVec[2]), windLevel: WIND_LEVELS[windIdx]!.name, aero: aero.label(), homeBearing: hb, droneBearing: 0, sunVis: 0, stopHit: gimbal.stopHit, eco: eco ? `birds flushed: ${eco.flushes}` : '',
     };
     osd.draw(tel, { x: (s.x - fw) / 2, y: (s.y - fh) / 2, w: fw, h: fh });
     requestAnimationFrame(loop);
@@ -288,7 +342,7 @@ async function boot() {
 
   // test/automation hooks
   (window as any).__aerosim = {
-    ready: true, quality: qName, quad, fc, gimbal, terrain, atmo, pipeline, scene, camera, renderer, foliage, park, colliders, wind, input, rf: rfState,
+    ready: true, quality: qName, quad, fc, gimbal, terrain, atmo, pipeline, scene, camera, renderer, foliage, park, envAssets, pilot, aero, colliders, wind, input, rf: rfState,
     sticks: (t: number, y: number, p: number, r: number) => { input.sticks.throttle = t; input.sticks.yaw = y; input.sticks.pitch = p; input.sticks.roll = r; input.poll = () => input.sticks; },
     stats: () => ({ fps: fpsSmooth, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, programs: renderer.info.programs?.length, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries }),
   };

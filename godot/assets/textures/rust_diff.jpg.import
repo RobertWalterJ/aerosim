@@ -3,15 +3,17 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dn8p7rd7h032r"
-path="res://.godot/imported/rust_diff.jpg-a4751d73db1a8af31f8e29db6014de9c.ctex"
+path.s3tc="res://.godot/imported/rust_diff.jpg-a4751d73db1a8af31f8e29db6014de9c.s3tc.ctex"
+path.etc2="res://.godot/imported/rust_diff.jpg-a4751d73db1a8af31f8e29db6014de9c.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/rust_diff.jpg"
-dest_files=["res://.godot/imported/rust_diff.jpg-a4751d73db1a8af31f8e29db6014de9c.ctex"]
+dest_files=["res://.godot/imported/rust_diff.jpg-a4751d73db1a8af31f8e29db6014de9c.s3tc.ctex", "res://.godot/imported/rust_diff.jpg-a4751d73db1a8af31f8e29db6014de9c.etc2.ctex"]
 
 [params]
 

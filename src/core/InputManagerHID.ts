@@ -2,12 +2,18 @@ import type { Sticks, FlightMode } from '../physics/FlightControllerPID';
 import { clamp } from '../util/math';
 import type { TouchControls } from '../ui/TouchControls';
 
-export interface InputEvents { onMode?(m: FlightMode): void; onAudio?(): void; onLens?(): void; onOSD?(): void; onReset?(): void; onChase?(): void; onAirframe?(): void; onSun?(d: number): void; onPhoto?(): void; onFps?(): void; onEv?(d: number): void; onQuality?(): void; onBloom?(): void }
+export type TrickKey = 'flip' | 'roll' | 'loop' | 'pirouette';
+export interface InputEvents { onMode?(m: FlightMode): void; onAero?(): void; onTrick?(k: TrickKey, dir: number): void; onWind?(): void; onAudio?(): void; onLens?(): void; onOSD?(): void; onReset?(): void; onChase?(): void; onAirframe?(): void; onSun?(d: number): void; onPhoto?(): void; onFps?(): void; onEv?(d: number): void; onQuality?(): void; onBloom?(): void }
 
 /** Keyboard + mouse virtual stick + Gamepad API (RC transmitters appear as HID gamepads). */
 export class InputManagerHID {
   sticks: Sticks = { throttle: 0, yaw: 0, pitch: 0, roll: 0 };
   gimbalCmd = -20 * Math.PI / 180;     // absolute (horizon) pitch, radians
+  /** camera pan relative to the nose (radians, + = left), gimballed airframes */
+  gimbalPan = 0;
+  private gimbalGoal: number | null = null; private panGoal: number | null = null;
+  private padPrev: boolean[] = [];
+  static readonly PAN_MAX = 60 * Math.PI / 180;
   usingPad = false; mouseStick = false; touch: TouchControls | null = null;
   private keys = new Set<string>(); private mx = 0; private my = 0;
   private kb = { throttle: 0, yaw: 0, pitch: 0, roll: 0 };
@@ -15,14 +21,17 @@ export class InputManagerHID {
   constructor(private el: HTMLElement, private ev: InputEvents) {
     addEventListener('keydown', e => this.key(e, true)); addEventListener('keyup', e => this.key(e, false));
     el.addEventListener('mousemove', e => { const r = el.getBoundingClientRect(); this.mx = ((e.clientX - r.left) / r.width) * 2 - 1; this.my = ((e.clientY - r.top) / r.height) * 2 - 1; });
-    el.addEventListener('wheel', e => { this.wheel += -Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
+    el.addEventListener('wheel', e => { if (e.shiftKey) { this.gimbalPan = clamp(this.gimbalPan - Math.sign(e.deltaY || e.deltaX) * 0.06, -InputManagerHID.PAN_MAX, InputManagerHID.PAN_MAX); this.panGoal = null; } else this.wheel += -Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
     el.addEventListener('mousedown', e => { if (e.button === 0) this.mouseStick = true; }); addEventListener('mouseup', () => { this.mouseStick = false; });
   }
   private key(e: KeyboardEvent, down: boolean) {
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     if (down) {
       if (!e.repeat) {
-        if (k === '1') this.ev.onMode?.('N'); else if (k === '2') this.ev.onMode?.('S'); else if (k === '3') this.ev.onMode?.('M');
+        if (k === '1') this.ev.onMode?.('N'); else if (k === '2') this.ev.onMode?.('S'); else if (k === '3') this.ev.onMode?.('M'); else if (k === '4') this.ev.onAero?.();
+        else if (e.shiftKey && k.startsWith('Arrow')) this.ev.onTrick?.(k === 'ArrowUp' || k === 'ArrowDown' ? 'flip' : 'roll', k === 'ArrowUp' || k === 'ArrowRight' ? 1 : -1);
+        else if (k === 'j') this.ev.onTrick?.('flip', 0); else if (k === 'k') this.ev.onTrick?.('roll', 0); else if (k === 'n') this.ev.onTrick?.('loop', 0); else if (k === 'm') this.ev.onTrick?.('pirouette', 0);
+        else if (k === 't') this.gimbalPreset('level'); else if (k === 'y') this.gimbalPreset('down'); else if (k === 'z') this.ev.onWind?.();
         else if (k === 'v') this.ev.onAudio?.(); else if (k === 'l') this.ev.onLens?.(); else if (k === 'h') this.ev.onOSD?.(); else if (k === 'r') this.ev.onReset?.();
         else if (k === 'c') this.ev.onChase?.(); else if (k === 'f') this.ev.onAirframe?.(); else if (k === 'p') this.ev.onPhoto?.(); else if (k === 'g') this.ev.onFps?.(); else if (k === 'b') this.ev.onBloom?.();
         else if (k === '[') this.ev.onSun?.(-2); else if (k === ']') this.ev.onSun?.(2); else if (k === '-') this.ev.onEv?.(-0.33); else if (k === '=') this.ev.onEv?.(0.33); else if (k === 'u') this.ev.onQuality?.();
@@ -52,15 +61,38 @@ export class InputManagerHID {
       if (g.mapping === 'standard') { y = g.axes[0] ?? 0; t = -(g.axes[1] ?? 0); r = g.axes[2] ?? 0; p = -(g.axes[3] ?? 0); const lt = g.buttons[6]?.value ?? 0, rt = g.buttons[7]?.value ?? 0; this.gimbalCmd = clamp(this.gimbalCmd + (rt - lt) * 0.9 * dt, -Math.PI / 2, 20 * Math.PI / 180); }
       else { r = g.axes[0] ?? 0; p = -(g.axes[1] ?? 0); t = -(g.axes[2] ?? 0); y = g.axes[3] ?? 0; if (g.axes[4] !== undefined) this.gimbalCmd = clamp(-Math.PI / 4 + g.axes[4] * (Math.PI / 2.4), -Math.PI / 2, 20 * Math.PI / 180); }
     }
+    const GMIN = -Math.PI / 2, GMAX = 20 * Math.PI / 180, PM = InputManagerHID.PAN_MAX;
+    const manualTilt = K.has('q') || K.has('e') || this.wheel !== 0;
+    if (manualTilt) this.gimbalGoal = null;
+    if (K.has(',') || K.has('.')) { this.panGoal = null; this.gimbalPan = clamp(this.gimbalPan + ((K.has(',') ? 1 : 0) - (K.has('.') ? 1 : 0)) * 0.8 * dt, -PM, PM); }
+    if (pads.length && pads[0]!.mapping === 'standard') {
+      const g = pads[0]!, b = (i: number): boolean => !!g.buttons[i]?.pressed;
+      const edge = (i: number): boolean => { const was = this.padPrev[i] ?? false, now = b(i); this.padPrev[i] = now; return now && !was; };
+      if (edge(0)) this.ev.onTrick?.('flip', 0); if (edge(1)) this.ev.onTrick?.('roll', 0); if (edge(2)) this.ev.onTrick?.('loop', 0);
+      if (edge(3)) this.gimbalPreset('level'); if (edge(13)) this.gimbalPreset('down');
+      if (b(4) || b(5)) { this.panGoal = null; this.gimbalPan = clamp(this.gimbalPan + ((b(4) ? 1 : 0) - (b(5) ? 1 : 0)) * 0.8 * dt, -PM, PM); }
+    }
+    // presets slew smoothly instead of snapping the gimbal
+    const slew = (cur: number, goal: number, rate: number): number => cur + clamp(goal - cur, -rate * dt, rate * dt);
+    if (this.gimbalGoal !== null) { this.gimbalCmd = slew(this.gimbalCmd, this.gimbalGoal, 1.6); if (Math.abs(this.gimbalCmd - this.gimbalGoal) < 1e-3) this.gimbalGoal = null; this.touch?.syncGimbal(this.gimbalCmd); }
+    if (this.panGoal !== null) { this.gimbalPan = slew(this.gimbalPan, this.panGoal, 1.6); if (Math.abs(this.gimbalPan - this.panGoal) < 1e-3) this.panGoal = null; }
+    void GMIN; void GMAX;
     if (K.has('q')) this.gimbalCmd = clamp(this.gimbalCmd + 0.7 * dt, -Math.PI / 2, 20 * Math.PI / 180);
     if (K.has('e')) this.gimbalCmd = clamp(this.gimbalCmd - 0.7 * dt, -Math.PI / 2, 20 * Math.PI / 180);
     if (this.wheel) { this.gimbalCmd = clamp(this.gimbalCmd + this.wheel * 0.05, -Math.PI / 2, 20 * Math.PI / 180); this.wheel = 0; }
     if (this.touch) {
       const ts = this.touch.state;
       if (ts.active) { t = clamp(t + ts.throttle, -1, 1); y = clamp(y + ts.yaw, -1, 1); p = clamp(p + ts.pitch, -1, 1); r = clamp(r + ts.roll, -1, 1); }
-      const g = this.touch.takeGimbal(); if (g !== null) this.gimbalCmd = g;
+      const g = this.touch.takeGimbal(); if (g !== null) { this.gimbalCmd = g; this.gimbalGoal = null; }
+      const pn = this.touch.takePan(); if (pn !== null) { this.gimbalPan = clamp(pn, -PM, PM); this.panGoal = null; }
+      this.touch.syncPan(this.gimbalPan);
     }
     this.sticks.throttle = t; this.sticks.yaw = y; this.sticks.pitch = p; this.sticks.roll = r;
     return this.sticks;
+  }
+  /** 'level': camera to the horizon and centred; 'down': straight down (top-down shots). */
+  gimbalPreset(p: 'level' | 'down'): void {
+    this.gimbalGoal = p === 'level' ? 0 : -Math.PI / 2 + 0.01;
+    if (p === 'level') this.panGoal = 0;
   }
 }

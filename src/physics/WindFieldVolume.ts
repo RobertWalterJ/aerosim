@@ -56,6 +56,7 @@ export class WindField {
     // leeward eddy volumes
     const ci = Math.floor(x / this.cell), cj = Math.floor(z / this.cell);
     const cv = [0, 0, 0];
+    let wSum = 0; // overlapping wakes share one budget instead of stacking (they used to add up to several times the free-stream speed)
     for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) {
       const arr = this.grid.get(this.key(ci + a, cj + b)); if (!arr) continue;
       for (const o of arr) {
@@ -71,10 +72,11 @@ export class WindField {
         const wLat = Math.exp(-Math.pow(cross / width, 2));
         const wLong = Math.exp(-Math.pow(Math.max(along - o.r, 0) / (L * 0.5), 2));
         const wVert = 1 - smoothstep(0.7, 1.5, hAgl / o.h);
-        const wgt = wLat * wLong * wVert;
+        const wgt = Math.min(wLat * wLong * wVert, 1 - wSum);
         if (wgt < 0.01) continue;
+        wSum += wgt;
         curl3(x * 0.35 - adv * 0.2 * this.dirX, y * 0.35 + t * 0.4, z * 0.35 - adv * 0.2 * this.dirZ, cv);
-        const amp = u * 1.6 * wgt;
+        const amp = u * 1.0 * wgt;
         // wake deficit + turbulent curl + downdraft behind canopy
         const deficit = 0.55 * wgt;
         wx = wx * (1 - deficit) + cv[0] * amp; wz = wz * (1 - deficit) + cv[2] * amp;

@@ -105,10 +105,19 @@ export type Quality = 'low' | 'medium' | 'high' | 'ultra';
 export interface QualityPreset {
   renderHeight: number; shadowMap: number; cascades: number; grassNear: number; grassMid: number;
   nearTrees: number; farTrees: number; msaa: number; bloom: boolean;
+  env: EnvQuality;
+}
+/** Procedural environment assets (EnvironmentInstancer) and drone model detail per preset. */
+export interface EnvQuality {
+  density: number;      // instance count multiplier (meadow, clutter, shrubs, rocks)
+  lodScale: number;     // multiplies every LOD switch and cull distance
+  variants: number;     // fraction of designed variants used (fewer = fewer draw calls)
+  shadows: 'large' | 'all';  // 'large': only walls, fences, hedges, snags, rocks, vehicles cast shadows
+  droneLod: 0 | 1;      // chase-camera drone model detail
 }
 export const QUALITY: Record<Quality, QualityPreset> = {
-  low:    { renderHeight: 540,  shadowMap: 1024, cascades: 3, grassNear: 30000,  grassMid: 40000,  nearTrees: 500,  farTrees: 6000,   msaa: 0, bloom: true },
-  medium: { renderHeight: 810,  shadowMap: 2048, cascades: 4, grassNear: 80000,  grassMid: 100000, nearTrees: 1200, farTrees: 25000,  msaa: 2, bloom: true },
-  high:   { renderHeight: 1080, shadowMap: 4096, cascades: 4, grassNear: 120000, grassMid: 150000, nearTrees: 2200, farTrees: 60000,  msaa: 4, bloom: true },
-  ultra:  { renderHeight: 1440, shadowMap: 4096, cascades: 4, grassNear: 200000, grassMid: 250000, nearTrees: 3000, farTrees: 100000, msaa: 4, bloom: true },
+  low:    { renderHeight: 540,  shadowMap: 1024, cascades: 3, grassNear: 30000,  grassMid: 40000,  nearTrees: 500,  farTrees: 6000,   msaa: 0, bloom: true, env: { density: 0.3, lodScale: 0.6, variants: 0.4, shadows: 'large', droneLod: 1 } },
+  medium: { renderHeight: 810,  shadowMap: 2048, cascades: 4, grassNear: 80000,  grassMid: 100000, nearTrees: 1200, farTrees: 25000,  msaa: 2, bloom: true, env: { density: 0.55, lodScale: 0.8, variants: 0.6, shadows: 'large', droneLod: 0 } },
+  high:   { renderHeight: 1080, shadowMap: 4096, cascades: 4, grassNear: 120000, grassMid: 150000, nearTrees: 2200, farTrees: 60000,  msaa: 4, bloom: true, env: { density: 0.8, lodScale: 1.0, variants: 0.85, shadows: 'all', droneLod: 0 } },
+  ultra:  { renderHeight: 1440, shadowMap: 4096, cascades: 4, grassNear: 200000, grassMid: 250000, nearTrees: 3000, farTrees: 100000, msaa: 4, bloom: true, env: { density: 1.0, lodScale: 1.3, variants: 1.0, shadows: 'all', droneLod: 0 } },
 };

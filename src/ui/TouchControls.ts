@@ -3,9 +3,13 @@ import { clamp } from '../util/math';
 export interface TouchActions {
   mode(): string; cycleMode(): void; chase(): void; photo(): void; reset(): void; lens(): void;
   osd(): void; audio(): void; fps(): void; fullscreen(): void; install?(): void;
+  /** cycle the wind level, returns its name */
+  wind?(): string; windName?(): string;
+  trick?(k: 'flip' | 'roll' | 'loop' | 'pirouette'): void;
+  gimbalPreset?(p: 'level' | 'down'): void;
 }
 
-export interface TouchState { active: boolean; throttle: number; yaw: number; pitch: number; roll: number; gimbalCmd: number | null }
+export interface TouchState { active: boolean; throttle: number; yaw: number; pitch: number; roll: number; gimbalCmd: number | null; panCmd: number | null }
 
 const GIMBAL_MIN = -Math.PI / 2, GIMBAL_MAX = 20 * Math.PI / 180;
 
@@ -21,10 +25,13 @@ export function isTouchDevice(params: URLSearchParams): boolean {
  * Left thumb: throttle (up/down) and yaw (left/right). The stick springs to centre, so
  * throttle is a climb-rate command, the same as the keyboard.
  * Right thumb: pitch (up = forward) and roll (left/right).
- * Far right slider: camera gimbal tilt. Top row: action buttons.
+ * Far right slider: camera gimbal tilt (drag sideways to pan); LVL and DOWN presets under it.
+ * Top row: action buttons. Bottom centre (aerobatics mode only): trick buttons.
  */
 export class TouchControls {
-  state: TouchState = { active: false, throttle: 0, yaw: 0, pitch: 0, roll: 0, gimbalCmd: null };
+  state: TouchState = { active: false, throttle: 0, yaw: 0, pitch: 0, roll: 0, gimbalCmd: null, panCmd: null };
+  private panStart = { x: 0, pan: 0 }; private pan = 0;
+  private trickRow!: HTMLDivElement;
   private root: HTMLDivElement;
   private sticks = new Map<number, { side: 'L' | 'R'; ox: number; oy: number; base: HTMLDivElement; knob: HTMLDivElement }>();
   private gimbalEl!: HTMLDivElement; private gimbalKnob!: HTMLDivElement; private gimbalPointer = -1;
@@ -49,6 +56,10 @@ export class TouchControls {
       #touch .crashreset{position:absolute;left:50%;top:58%;transform:translateX(-50%);display:none;pointer-events:auto;font-size:18px;padding:16px 34px;border-radius:14px;color:#fff;background:rgba(200,40,40,.85);border:2px solid #fff;letter-spacing:.1em}
       #touch .crashreset.show{display:block}
       #touch button:active{background:rgba(120,230,255,.35)}
+      #touch .gp{position:absolute;right:6px;top:calc(26% + 48% + 8px);display:flex;flex-direction:column;gap:5px;pointer-events:auto}
+      #touch .gp button{width:52px;padding:6px 0}
+      #touch .tricks{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:none;gap:6px;pointer-events:auto}
+      #touch .tricks button{padding:10px 12px;font-size:11px;border-color:rgba(255,200,120,.6)}
     `;
     document.head.appendChild(css);
     const root = this.root = document.createElement('div'); root.id = 'touch';
@@ -56,6 +67,8 @@ export class TouchControls {
       <div class="zone L"><div class="hint">THROTTLE / YAW</div></div>
       <div class="zone R"><div class="hint">PITCH / ROLL</div></div>
       <div class="gimbal"><div class="gl" style="top:6px">UP</div><div class="gl" style="bottom:6px">DOWN</div><div class="gk"></div></div>
+      <div class="gp"></div>
+      <div class="tricks"></div>
       <div class="row"></div>`;
     document.body.appendChild(root);
     this.gimbalEl = root.querySelector('.gimbal') as HTMLDivElement; this.gimbalKnob = root.querySelector('.gk') as HTMLDivElement;
@@ -65,6 +78,12 @@ export class TouchControls {
     cr.addEventListener('click', e => { e.stopPropagation(); actions.reset(); }); cr.addEventListener('pointerdown', e => e.stopPropagation()); root.appendChild(cr);
     this.modeBtn = btn('MODE ' + actions.mode(), () => { actions.cycleMode(); this.modeBtn.textContent = 'MODE ' + actions.mode(); });
     btn('CAM', actions.chase); btn('PHOTO', actions.photo); // lens, reset, display, sound, frame rate and full screen live in the pause window
+    if (actions.wind) { const wb = btn('WIND ' + (actions.windName?.() ?? ''), () => { wb.textContent = 'WIND ' + actions.wind!(); }); }
+    const mk = (parent: HTMLElement, label: string, fn: () => void) => { const b = document.createElement('button'); b.textContent = label; b.addEventListener('click', e => { e.stopPropagation(); fn(); }); b.addEventListener('pointerdown', e => e.stopPropagation()); parent.appendChild(b); return b; };
+    const gp = root.querySelector('.gp') as HTMLDivElement;
+    if (actions.gimbalPreset) { mk(gp, 'LVL', () => actions.gimbalPreset!('level')); mk(gp, 'DOWN', () => actions.gimbalPreset!('down')); }
+    this.trickRow = root.querySelector('.tricks') as HTMLDivElement;
+    if (actions.trick) for (const [l, k] of [['FLIP', 'flip'], ['ROLL', 'roll'], ['LOOP', 'loop'], ['SPIN', 'pirouette']] as const) mk(this.trickRow, l, () => actions.trick!(k));
     if (actions.install) { this.installBtn = btn('INSTALL', actions.install); this.installBtn.style.display = 'none'; }
 
     for (const side of ['L', 'R'] as const) {
@@ -72,8 +91,8 @@ export class TouchControls {
       z.addEventListener('pointerdown', e => this.down(e, side, z));
     }
     addEventListener('pointermove', e => this.move(e)); addEventListener('pointerup', e => this.up(e)); addEventListener('pointercancel', e => this.up(e));
-    this.gimbalEl.addEventListener('pointerdown', e => { this.gimbalPointer = e.pointerId; this.gimbalEl.setPointerCapture(e.pointerId); this.gimbalSet(e.clientY); });
-    this.gimbalEl.addEventListener('pointermove', e => { if (e.pointerId === this.gimbalPointer) this.gimbalSet(e.clientY); });
+    this.gimbalEl.addEventListener('pointerdown', e => { this.gimbalPointer = e.pointerId; this.gimbalEl.setPointerCapture(e.pointerId); this.panStart = { x: e.clientX, pan: this.pan }; this.gimbalSet(e.clientY); });
+    this.gimbalEl.addEventListener('pointermove', e => { if (e.pointerId === this.gimbalPointer) { this.gimbalSet(e.clientY); const dx = e.clientX - this.panStart.x; if (Math.abs(dx) > 12) { this.pan = this.panStart.pan - (dx - Math.sign(dx) * 12) * 0.008; this.state.panCmd = this.pan; } } });
     const gEnd = (e: PointerEvent) => { if (e.pointerId === this.gimbalPointer) this.gimbalPointer = -1; };
     this.gimbalEl.addEventListener('pointerup', gEnd); this.gimbalEl.addEventListener('pointercancel', gEnd);
     for (const ev of ['contextmenu', 'gesturestart', 'dblclick']) addEventListener(ev, e => e.preventDefault());
@@ -90,6 +109,12 @@ export class TouchControls {
   syncGimbal(cmd: number) { const f = (GIMBAL_MAX - cmd) / (GIMBAL_MAX - GIMBAL_MIN); this.gimbalKnob.style.top = (f * 100).toFixed(1) + '%'; }
   /** Called each frame: returns a new gimbal command once when the slider moved, else null. */
   takeGimbal(): number | null { const g = this.state.gimbalCmd; this.state.gimbalCmd = null; return g; }
+  /** Pan command from a sideways drag on the gimbal slider (radians, + = left), once per change. */
+  takePan(): number | null { const p = this.state.panCmd; this.state.panCmd = null; return p; }
+  /** keep the slider's pan origin in step with the real pan (presets, keyboard) */
+  syncPan(pan: number) { this.pan = pan; }
+  /** trick buttons are only shown in aerobatics mode */
+  showTricks(on: boolean) { this.trickRow.style.display = on ? 'flex' : 'none'; }
 
   private gimbalSet(clientY: number) {
     const r = this.gimbalEl.getBoundingClientRect(); const f = clamp((clientY - r.top) / r.height, 0, 1);

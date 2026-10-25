@@ -3,3 +3,5 @@ dist
 tests/out
 _obsolete
 *.zip
+__pycache__
+assets/blender/pilot_work

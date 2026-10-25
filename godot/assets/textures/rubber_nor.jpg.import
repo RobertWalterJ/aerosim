@@ -3,15 +3,17 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cmptqei84x6ql"
-path="res://.godot/imported/rubber_nor.jpg-88f4360c8901172c93f7db139df9fe76.ctex"
+path.s3tc="res://.godot/imported/rubber_nor.jpg-88f4360c8901172c93f7db139df9fe76.s3tc.ctex"
+path.etc2="res://.godot/imported/rubber_nor.jpg-88f4360c8901172c93f7db139df9fe76.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/textures/rubber_nor.jpg"
-dest_files=["res://.godot/imported/rubber_nor.jpg-88f4360c8901172c93f7db139df9fe76.ctex"]
+dest_files=["res://.godot/imported/rubber_nor.jpg-88f4360c8901172c93f7db139df9fe76.s3tc.ctex", "res://.godot/imported/rubber_nor.jpg-88f4360c8901172c93f7db139df9fe76.etc2.ctex"]
 
 [params]
 

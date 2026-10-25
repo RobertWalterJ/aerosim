@@ -7,12 +7,16 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:physics": "tsx tests/physics.test.ts"
+    "test:physics": "tsx tests/physics.test.ts",
+    "test:assets": "tsx tests/assets.test.ts",
+    "test": "npm run test:physics && npm run test:aero && npm run test:assets",
+    "test:aero": "tsx tests/aero.test.ts"
   },
   "dependencies": {
     "three": "0.170.0"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.12",
     "@types/node": "^26.6.5",
     "@types/three": "^0.170.0",
     "playwright-core": "*",

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { mulberry32 } from '../util/noise';
 
 /** Tileable value noise on an integer lattice (period p) */
-function lattice(seed: number, p: number) {
+export function lattice(seed: number, p: number) {
   const r = mulberry32(seed); const g = new Float32Array(p * p); for (let i = 0; i < g.length; i++) g[i] = r();
   return (x: number, y: number) => {
     const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
@@ -15,10 +15,10 @@ function lattice(seed: number, p: number) {
 function fbmT(n: (x: number, y: number) => number, x: number, y: number, oct: number, per: number) {
   let s = 0, a = 0.5, f = 1, t = 0; for (let i = 0; i < oct; i++) { s += a * n(x * f, y * f); t += a; a *= 0.5; f *= 2; } return s / t;
 }
-function mkCanvas(w: number, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+export function mkCanvas(w: number, h = w) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 
 /** Height field -> tangent-space normal map (OpenGL convention, wraps). */
-function normalFromHeight(h: Float32Array, w: number, ht: number, strength: number): HTMLCanvasElement {
+export function normalFromHeight(h: Float32Array, w: number, ht: number, strength: number): HTMLCanvasElement {
   const c = mkCanvas(w, ht), ctx = c.getContext('2d')!, img = ctx.createImageData(w, ht);
   for (let y = 0; y < ht; y++) for (let x = 0; x < w; x++) {
     const xl = (x + w - 1) % w, xr = (x + 1) % w, yu = (y + ht - 1) % ht, yd = (y + 1) % ht;
@@ -29,7 +29,7 @@ function normalFromHeight(h: Float32Array, w: number, ht: number, strength: numb
   }
   ctx.putImageData(img, 0, 0); return c;
 }
-function tex(c: HTMLCanvasElement, srgb: boolean, repeat = true): THREE.CanvasTexture {
+export function tex(c: HTMLCanvasElement, srgb: boolean, repeat = true): THREE.CanvasTexture {
   const t = new THREE.CanvasTexture(c);
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;

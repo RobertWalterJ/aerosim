@@ -1,9 +1,13 @@
 import { DEG } from '../util/math';
 
 export interface Telemetry {
-  mode: 'N' | 'S' | 'M'; sats: number; rfDbm: number; rfBars: number; battPct: number; cellV: number; battA: number; iso: number; shutter: number; ev: number;
+  mode: 'N' | 'S' | 'M' | 'A'; sats: number; rfDbm: number; rfBars: number; battPct: number; cellV: number; battA: number; iso: number; shutter: number; ev: number;
   pitch: number; roll: number; heading: number; velWorld: [number, number, number]; velBody: [number, number, number]; aglM: number; mslM: number; gs: number; vs: number; homeDist: number; gimbalDeg: number;
   histogram: Float32Array; lensName: string; airframe: string; audio: string; fps: number; crashed: string; armed: boolean; touch?: boolean; mission: string[]; windMs: number; homeBearing: number; droneBearing: number; sunVis: number; stopHit: number; eco: string;
+  /** wind level name shown next to the wind speed (optional) */
+  windLevel?: string;
+  /** aerobatics status line (optional) */
+  aero?: string;
 }
 
 /** Crisp vector OSD drawn on a 2D canvas over the video feed. */
@@ -23,9 +27,9 @@ export class TelemetryOSD {
     const m = 18 * u;
     // ---- top bar
     c.fillStyle = 'rgba(0,0,0,0.28)'; c.fillRect(0, 0, w, 36 * u);
-    const mcol = t.mode === 'N' ? '#8ff' : t.mode === 'S' ? '#fc6' : '#f88';
+    const mcol = t.mode === 'N' ? '#8ff' : t.mode === 'S' ? '#fc6' : t.mode === 'A' ? '#f8f' : '#f88';
     F(15, true); c.strokeStyle = mcol; c.strokeRect(m, 8 * u, 26 * u, 20 * u); text(t.mode, m + 13 * u, 24 * u, 'center', mcol);
-    F(13); text(t.armed ? (t.mode === 'M' ? 'MANUAL' : t.mode === 'S' ? 'SPORT' : 'NORMAL') : t.crashed || 'DISARMED', m + 36 * u, 24 * u, 'left', t.armed ? '#fff' : '#f66');
+    F(13); text(t.armed ? (t.mode === 'A' ? 'AEROBATIC' : t.mode === 'M' ? 'MANUAL' : t.mode === 'S' ? 'SPORT' : 'NORMAL') : t.crashed || 'DISARMED', m + 36 * u, 24 * u, 'left', t.armed ? '#fff' : '#f66');
     const gx = w * 0.30; text('GPS', gx, 24 * u); for (let i = 0; i < 5; i++) { c.fillStyle = i < Math.round(t.sats / 4) ? '#7f7' : 'rgba(255,255,255,0.3)'; c.fillRect(gx + 34 * u + i * 5 * u, 24 * u - (4 + i * 3) * u, 3 * u, (4 + i * 3) * u); } text(String(t.sats), gx + 66 * u, 24 * u);
     const rx = w * 0.43; text('RF', rx, 24 * u); for (let i = 0; i < 5; i++) { c.fillStyle = i < t.rfBars ? (t.rfBars <= 1 ? '#f66' : '#7f7') : 'rgba(255,255,255,0.3)'; c.fillRect(rx + 22 * u + i * 5 * u, 24 * u - (4 + i * 3) * u, 3 * u, (4 + i * 3) * u); } text(`${t.rfDbm.toFixed(0)} dBm`, rx + 52 * u, 24 * u);
     const bx = w * 0.60; const bc = t.battPct < 20 ? '#f66' : t.battPct < 40 ? '#fc6' : '#fff'; c.strokeStyle = bc; c.strokeRect(bx, 12 * u, 28 * u, 14 * u); c.fillStyle = bc; c.fillRect(bx + 2 * u, 14 * u, 24 * u * t.battPct / 100, 10 * u); c.fillRect(bx + 28 * u, 15 * u, 2 * u, 8 * u);
@@ -49,7 +53,7 @@ export class TelemetryOSD {
     F(12, true); text(`${t.gimbalDeg.toFixed(0)}°`, sx + 6 * u, sy1 + 18 * u, 'center', '#ffe14d');
     // ---- bottom bar
     c.fillStyle = 'rgba(0,0,0,0.30)'; c.fillRect(0, h - 56 * u, w, 56 * u);
-    const items: [string, string][] = [['H', `${t.homeDist.toFixed(0)} m`], ['AGL', `${t.aglM.toFixed(1)} m`], ['MSL', `${t.mslM.toFixed(0)} m`], ['H.S', `${t.gs.toFixed(1)} m/s  ${(t.gs * 3.6).toFixed(0)} km/h`], ['V.S', `${t.vs >= 0 ? '+' : ''}${t.vs.toFixed(1)} m/s`], ['WIND', `${t.windMs.toFixed(1)} m/s`]];
+    const items: [string, string][] = [['H', `${t.homeDist.toFixed(0)} m`], ['AGL', `${t.aglM.toFixed(1)} m`], ['MSL', `${t.mslM.toFixed(0)} m`], ['H.S', `${t.gs.toFixed(1)} m/s  ${(t.gs * 3.6).toFixed(0)} km/h`], ['V.S', `${t.vs >= 0 ? '+' : ''}${t.vs.toFixed(1)} m/s`], ['WIND', `${t.windMs.toFixed(1)} m/s${t.windLevel ? ' ' + t.windLevel : ''}`]];
     let bxp = m; items.forEach(([k, v]) => { F(11); text(k, bxp, h - 34 * u, 'left', '#bcd'); F(17, true); text(v, bxp, h - 14 * u); bxp += (c.measureText(v).width) + 34 * u; });
     // ---- bottom-right: histogram + radar compass
     const hx = w - 214 * u, hy = h - 150 * u, hw = 180 * u, hh = 70 * u; c.fillStyle = 'rgba(0,0,0,0.38)'; c.fillRect(hx, hy, hw, hh); const hmax = Math.max(0.0001, ...Array.from(t.histogram));
@@ -63,6 +67,7 @@ export class TelemetryOSD {
     // ---- left info
     F(12); const info = [t.lensName, t.airframe, `AUDIO: ${t.audio}`, `${t.fps.toFixed(0)} fps sensor`]; info.forEach((s, i) => text(s, m, 62 * u + i * 16 * u, 'left', 'rgba(255,255,255,0.85)'));
     if (t.mission.length) { F(13, true); t.mission.forEach((s, i) => text(s, m, 62 * u + 84 * u + i * 17 * u, 'left', i === 0 ? '#ffe14d' : '#fff')); }
+    if (t.aero) { F(13, true); text(t.aero, w / 2, 62 * u, 'center', '#f8f'); }
     if (t.eco) { F(12); text(t.eco, m, h - 70 * u, 'left', '#9f9'); }
     if (t.crashed) { F(30, true); text(t.crashed.toUpperCase(), cx, cy - 60 * u, 'center', '#ff5555'); F(15); text(t.touch ? 'TAP RESET' : 'PRESS R TO RESET', cx, cy - 34 * u, 'center'); }
     if (t.rfDbm < -85) { F(16, true); text('VIDEO LINK WEAK', cx, 70 * u, 'center', '#ff7766'); }
