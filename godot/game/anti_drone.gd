@@ -302,6 +302,8 @@ func _build_site() -> void:
 	# The code-built pieces below remain as the fallback when a file is missing.
 	_asset("pike_clearing_patch", root, Vector3(0, 0.02, 0))
 	_mast_asset = _asset("pike_jammer_mast", root, Vector3(0, 0, -0.7))
+	if _mast_asset != null:
+		print("pike mast asset at ", _mast_asset.global_position, " aabb_children=", _mast_asset.get_child_count())
 	_asset("pike_generator", root, Vector3(-3.4, 0, 2.1), 0.5)
 	_asset("pike_floodlight", root, Vector3(3.0, 0, -1.2), -0.6)
 	_asset("pike_fence", root, Vector3(-8.0, 0, 7.0), 0.0)
@@ -309,6 +311,7 @@ func _build_site() -> void:
 	_asset("pike_fence_folk", root, Vector3(-8.0, 0, -5.0), 1.2)
 	_asset("pike_chair", root, Vector3(4.2, 0, 3.2), -0.4)
 	_asset("pike_cable_run", root, Vector3(0, 0, 0))
+	_asset("pike_warning_sign", root, Vector3(5.2, 0, 4.2), -0.5)
 	_asset("pike_beacon", root, Vector3(0, 24.5, -0.7))
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.12, 0.13, 0.11)

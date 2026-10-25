@@ -90,3 +90,13 @@ Right-hand lane offsets, town passing pair, night-only highway car and headlight
 - **Story/endgame props are now loaded**: Lake Car evidence props (tow sticker, VIN plate, police tape, cone), cabin interior set plus bed/chair/lantern/radio/map/case file, camp chair/cooler/firewood/fire ring/stove, and cruiser lightbar/plate/old kit. Runtime: `case objects ... story assets=19`.
 - `GATE PASS (assetslice3)`.
 - Still open: clean Pike mast framing, sign/road-surface art, VehicleAssets/AnimalHerd runtimes, remaining interiors.
+## Round 3 additions (2026-11-15)
+
+- **Festival and storm props** now load through `CaseObjects`: festival stage, banner, bunting, flags, barrier, lamp string and sign; storm branch, plank, roof sheet and lantern around the cabin. Story assets count rose from 19 to **32**.
+- **Village sign** (`town_sign_halloway_a`) added at the entrance; village asset count is now **22**.
+- **Pike warning sign** added at the ridge site; Pike site assets are now **14** plus 3 hunters.
+- **Pike mast position verified** at the authored site: `pike mast asset at (-260.0, 133.7624, -807.7)`.
+- `GATE PASS (assetslice4)`.
+- Evidence: `67_pike_verify.png`, `68_festival_assets.png`.
+
+Still open after three rounds: VehicleAssets runtime, AnimalHerd runtime, road-surface art, some signs, remaining interiors and full 453-file accounting. The goal has not been marked complete.

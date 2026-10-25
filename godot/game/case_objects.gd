@@ -92,6 +92,8 @@ func setup(t: Terrain) -> void:
 	_build_cabin(_items[4]["pos"])
 	_build_cruiser(_items[5]["pos"])
 	_build_hiker()
+	_build_festival_props()
+	_build_storm_debris()
 	print("case objects: ", positions(), "  story assets=", _story_assets)
 
 ## Move the old festival bus from the garage yard to the festival field, for the last chapter.
@@ -832,6 +834,29 @@ POLICE"
 	label.rotation = Vector3(0.0, PI * 0.5, 0.0)
 	root.add_child(label)
 	root.rotation.y = 0.9
+
+func _build_festival_props() -> void:
+	var root := Node3D.new()
+	root.position = Vector3(FESTIVAL_SPOT.x, terrain.height(FESTIVAL_SPOT.x, FESTIVAL_SPOT.y), FESTIVAL_SPOT.y)
+	add_child(root)
+	_story_asset(root, "festival/festival_stage_a", Vector3(0, 0, -5), 0.0)
+	_story_asset(root, "festival/festival_banner_a", Vector3(0, 0, -11), 0.0)
+	_story_asset(root, "festival/festival_bunting_a", Vector3(-7, 2.5, -2), 0.0)
+	_story_asset(root, "festival/festival_bunting_a_b", Vector3(7, 2.5, -2), 0.0)
+	_story_asset(root, "festival/festival_flag_a", Vector3(-10, 0, 2), 0.0)
+	_story_asset(root, "festival/festival_flag_a_b", Vector3(10, 0, 2), 0.0)
+	_story_asset(root, "festival/festival_barrier_a", Vector3(-4, 0, 5), 0.0)
+	_story_asset(root, "festival/festival_lamp_string_a", Vector3(0, 3.4, 1), 0.0)
+	_story_asset(root, "festival/festival_sign_a", Vector3(0, 0, 7), PI)
+
+func _build_storm_debris() -> void:
+	var root := Node3D.new()
+	root.position = Vector3(CABIN_SPOT.x, terrain.height(CABIN_SPOT.x, CABIN_SPOT.y), CABIN_SPOT.y)
+	add_child(root)
+	_story_asset(root, "storm/storm_debris_branch_a", Vector3(-7, 0, -4), 0.3)
+	_story_asset(root, "storm/storm_debris_plank_a", Vector3(6, 0, -2), -0.6)
+	_story_asset(root, "storm/storm_debris_roof_sheet_a", Vector3(-5, 0, 6), 1.1)
+	_story_asset(root, "storm/storm_lantern_a_off", Vector3(4, 0, 5), 0.0)
 
 func _build_hiker() -> void:
 	var person := PeopleAssets.person("wren", "idle")

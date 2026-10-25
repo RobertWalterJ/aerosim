@@ -90,6 +90,7 @@ func _build() -> void:
 	_prop("garage_engine_hoist_a", Vector2(461.0, 307.0), 1.2)
 	_prop("garage_toolbox_a", Vector2(472.0, 302.0), 0.0)
 	_prop("town_noticeboard_a", Vector2(401.0, 270.0), 0.0)
+	_prop("town_sign_halloway_a", Vector2(330.0, 270.0), -1.57)
 	_prop("town_bin_a", Vector2(352.0, 282.0), 0.0)
 	# a gravel forecourt for the garage and the stores
 	_forecourt(Vector2(470.0, 294.0), 18.0, 9.0, _tex("gravel", Color(0.72, 0.68, 0.60), 0.97, 0.7))
