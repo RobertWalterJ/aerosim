@@ -37,6 +37,7 @@ static func near_track(x: float, z: float, margin := 7.0) -> bool:
 	return false
 
 var terrain: Terrain
+var _site_assets := 0
 
 func setup(t: Terrain) -> void:
 	terrain = t
@@ -48,7 +49,8 @@ func setup(t: Terrain) -> void:
 	_build_rocks(Vector2(-232.0, -818.0), -0.4)
 	_build_cave_apron()
 	_build_cave()
-	print("cabin track: old road with 2 fallen trees, 2 rockfalls and a cave")
+	_build_cave_props()
+	print("cabin track: old road with 2 fallen trees, 2 rockfalls and a cave  asset models=", _site_assets)
 
 func _build_track() -> void:
 	_ensure_samples()
@@ -170,6 +172,7 @@ func _try_site_model(root: Node3D, name: String, yaw: float) -> bool:
 		return false
 	inst.rotation.y = yaw
 	root.add_child(inst)
+	_site_assets += 1
 	return true
 
 func _build_fall(x: float, z: float, yaw: float, length: float) -> void:
@@ -248,10 +251,23 @@ func _build_rocks(center: Vector2, _yaw: float) -> void:
 		ri.rotation = Vector3(0.0, float(i) * 0.6, 0.0)
 		root.add_child(ri)
 
+func _build_cave_props() -> void:
+	var root := Node3D.new()
+	root.position = Vector3(CAVE.x, terrain.height(CAVE.x, CAVE.y), CAVE.y)
+	add_child(root)
+	for nm in ["cave_outcrop", "cave_boulder_arch", "cave_fallen_slab", "cave_scree", "cave_chalk_mark", "cave_damp_stain", "cave_warning_board", "cave_old_lantern"]:
+		_try_site_model(root, nm, 0.0)
+	var fallen := Node3D.new()
+	fallen.position = Vector3(-76.0, terrain.height(-76.0, -789.0), -789.0)
+	add_child(fallen)
+	_try_site_model(fallen, "fallen_log_old", 0.0)
+
 func _build_cave_apron() -> void:
 	var root := Node3D.new()
 	root.position = Vector3(CAVE.x, terrain.height(CAVE.x, CAVE.y) + 0.10, CAVE.y)
 	add_child(root)
+	if _try_site_model(root, "cave_apron", 0.0):
+		return
 	var seg := 24
 	var radius := 8.0
 	var verts := PackedVector3Array()

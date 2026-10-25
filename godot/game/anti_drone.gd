@@ -48,6 +48,11 @@ var _blind: LaserBlind
 var _laser_charge := 0.0
 var _blind_cd := 0.0
 var _laser_warned := false
+var _site_root: Node3D
+var _mast_code: Node3D
+var _mast_asset: Node3D
+var _wreck_asset: Node3D
+var _asset_count := 0
 
 func setup(h: Hud, c: ChatData, n: PhoneNotes, st: StoryArc, d: StoryDirector, f: Finale, q, t: Terrain) -> void:
 	hud = h
@@ -60,6 +65,7 @@ func setup(h: Hud, c: ChatData, n: PhoneNotes, st: StoryArc, d: StoryDirector, f
 	terrain = t
 	_load()
 	_build_site()
+	print("pike site assets: ", _asset_count, " / hunters=", _hunters.size())
 	_build_warning()
 	_build_laser()
 	if jammer_down:
@@ -116,6 +122,13 @@ func jammer_down_now() -> void:
 		return
 	jammer_down = true
 	_set_beacon(false)
+	if _site_root != null:
+		if _mast_asset != null:
+			_mast_asset.visible = false
+		if _mast_code != null:
+			_mast_code.visible = false
+		if _wreck_asset == null:
+			_wreck_asset = _asset("pike_mast_wreck", _site_root, Vector3(0, 0, -0.7))
 	if _laser_line != null:
 		_laser_line.visible = false
 	_laser_charge = 0.0
@@ -263,10 +276,40 @@ func _build_warning() -> void:
 	_warn_panel.visible = false
 	_warn_layer.add_child(_warn_panel)
 
+func _asset(name: String, parent: Node3D, pos := Vector3.ZERO, yaw := 0.0, scale := 1.0) -> Node3D:
+	var path := "res://assets/models/antidrone/%s.glb" % name
+	if not ResourceLoader.exists(path):
+		return null
+	var packed := load(path) as PackedScene
+	if packed == null:
+		return null
+	var inst := packed.instantiate() as Node3D
+	if inst == null:
+		return null
+	inst.position = pos
+	inst.rotation.y = yaw
+	inst.scale = Vector3.ONE * scale
+	parent.add_child(inst)
+	_asset_count += 1
+	return inst
+
 func _build_site() -> void:
 	var root := Node3D.new()
 	root.position = Vector3(JAMMER_SPOT.x, terrain.height(JAMMER_SPOT.x, JAMMER_SPOT.y), JAMMER_SPOT.y)
 	add_child(root)
+	_site_root = root
+	# The Claude Pike set gives the site its high-detail mast, fence, generator, floodlight, cabling and chair.
+	# The code-built pieces below remain as the fallback when a file is missing.
+	_asset("pike_clearing_patch", root, Vector3(0, 0.02, 0))
+	_mast_asset = _asset("pike_jammer_mast", root, Vector3(0, 0, -0.7))
+	_asset("pike_generator", root, Vector3(-3.4, 0, 2.1), 0.5)
+	_asset("pike_floodlight", root, Vector3(3.0, 0, -1.2), -0.6)
+	_asset("pike_fence", root, Vector3(-8.0, 0, 7.0), 0.0)
+	_asset("pike_fence_8m", root, Vector3(8.0, 0, 7.0), 0.0)
+	_asset("pike_fence_folk", root, Vector3(-8.0, 0, -5.0), 1.2)
+	_asset("pike_chair", root, Vector3(4.2, 0, 3.2), -0.4)
+	_asset("pike_cable_run", root, Vector3(0, 0, 0))
+	_asset("pike_beacon", root, Vector3(0, 24.5, -0.7))
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.12, 0.13, 0.11)
 	dark.roughness = 0.9
@@ -300,6 +343,9 @@ func _build_site() -> void:
 	mast.material_override = dark
 	mast.position = Vector3(0.0, 12.5, -0.7)
 	root.add_child(mast)
+	_mast_code = mast
+	if _mast_asset != null:
+		mast.visible = false
 	var dish := MeshInstance3D.new()
 	var dm := SphereMesh.new()
 	dm.radius = 1.05; dm.height = 1.1
@@ -308,6 +354,8 @@ func _build_site() -> void:
 	dish.scale = Vector3(1.0, 0.45, 1.0)
 	dish.position = Vector3(0.0, 24.5, -0.7)
 	root.add_child(dish)
+	if _mast_asset != null:
+		dish.visible = false
 	_beacon = MeshInstance3D.new()
 	var bm2 := SphereMesh.new()
 	bm2.radius = 0.30; bm2.height = 0.60
@@ -320,6 +368,8 @@ func _build_site() -> void:
 	_beacon.material_override = _beacon_mat
 	_beacon.position = Vector3(0.0, 24.5, -0.7)
 	root.add_child(_beacon)
+	if ResourceLoader.exists("res://assets/models/antidrone/pike_beacon.glb"):
+		_beacon.visible = false
 	# notice board
 	var board := MeshInstance3D.new()
 	var bbm := BoxMesh.new()
@@ -347,6 +397,12 @@ func _make_hunter(home: Vector3, i: int) -> void:
 	var node := Node3D.new()
 	node.position = home
 	add_child(node)
+	var names := ["hunter_drone_a", "hunter_drone_b", "hunter_drone_c"]
+	var asset := _asset(str(names[i % names.size()]), node, Vector3.ZERO, PI) if ResourceLoader.exists("res://assets/models/antidrone/%s.glb" % str(names[i % names.size()])) else null
+	if asset != null:
+		# The Claude hunter has its own red eye and rotor geometry. Keep the node for the chase logic.
+		_hunters.append({"node": node, "vel": Vector3.ZERO, "home": home, "phase": float(i) * 2.1})
+		return
 	var dark := StandardMaterial3D.new()
 	dark.albedo_color = Color(0.10, 0.11, 0.10)
 	dark.metallic = 0.3
@@ -407,4 +463,4 @@ func _save() -> void:
 	cf.save(SAVE)
 
 func stats() -> Dictionary:
-	return {"intro": intro_done, "jammer_down": jammer_down, "hunters": _hunters.size()}
+	return {"intro": intro_done, "jammer_down": jammer_down, "hunters": _hunters.size(), "assets": _asset_count}

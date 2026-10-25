@@ -8,6 +8,7 @@ extends Node3D
 ## clear of trees through CaseObjects.BOAT_LAUNCH_SPOT.
 
 var terrain: Terrain
+var _site_assets := 0
 
 const TOP_SPOT := Vector2(-436.0, 112.0)
 const WATER_SPOT := Vector2(-466.0, 112.0)
@@ -24,7 +25,7 @@ func setup(t: Terrain) -> void:
 	_build_trailer()
 	_build_sign()
 	_build_bollards()
-	print("boat launch: ramp ", TOP_SPOT, " to water ", WATER_SPOT)
+	print("boat launch: ramp ", TOP_SPOT, " to water ", WATER_SPOT, "  asset models=", _site_assets)
 
 func _try_site_model(root: Node3D, name: String, yaw: float) -> bool:
 	var path := "res://assets/models/sites/%s.glb" % name
@@ -38,6 +39,7 @@ func _try_site_model(root: Node3D, name: String, yaw: float) -> bool:
 		return false
 	inst.rotation.y = yaw
 	root.add_child(inst)
+	_site_assets += 1
 	return true
 
 func _build_parking() -> void:
@@ -45,6 +47,8 @@ func _build_parking() -> void:
 	var root := Node3D.new()
 	root.position = Vector3(c.x, terrain.height(c.x, c.y) + 0.05, c.y)
 	add_child(root)
+	if _try_site_model(root, "boat_launch_gravel_patch", 0.0):
+		return
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.55, 0.52, 0.45)
 	mat.albedo_texture = load("res://assets/textures/gravel_diff.jpg")
@@ -83,6 +87,7 @@ func _try_vehicle_model(root: Node3D, name: String, yaw: float) -> bool:
 		return false
 	inst.rotation.y = yaw
 	root.add_child(inst)
+	_site_assets += 1
 	return true
 
 ## The dive team and the lake wreck (lane/wreckvan): the high-detail vehicles now exist in the shared library.
@@ -101,6 +106,11 @@ func _build_wreck() -> void:
 	_try_vehicle_model(root, "anne_car_wreck_a", 0.7)
 
 func _build_ramp() -> void:
+	var rroot := Node3D.new()
+	rroot.position = Vector3(TOP_SPOT.x, terrain.height(TOP_SPOT.x, TOP_SPOT.y) + 0.06, TOP_SPOT.y)
+	add_child(rroot)
+	if _try_site_model(rroot, "boat_ramp", 0.0):
+		return
 	var steps := 9
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
@@ -163,6 +173,8 @@ func _build_dock() -> void:
 	var root := Node3D.new()
 	root.position = Vector3(-458.0, 77.25, 116.0)
 	add_child(root)
+	if _try_site_model(root, "boat_dock", 0.0):
+		return
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.36, 0.30, 0.23)
 	wood.roughness = 0.92
@@ -348,6 +360,13 @@ func _build_trailer() -> void:
 func _build_sign() -> void:
 	var p := Vector2(-414.0, 112.0)
 	var y := terrain.height(p.x, p.y)
+	var sroot := Node3D.new()
+	sroot.position = Vector3(p.x, y, p.y)
+	add_child(sroot)
+	if _try_site_model(sroot, "boat_launch_sign", 0.0):
+		return
+	if _try_site_model(sroot, "boat_launch_notice_board", 0.0):
+		return
 	var post := StandardMaterial3D.new()
 	post.albedo_color = Color(0.23, 0.20, 0.16)
 	post.roughness = 0.95
@@ -405,6 +424,11 @@ func _build_sign() -> void:
 	add_child(ri)
 
 func _build_bollards() -> void:
+	var broot := Node3D.new()
+	broot.position = Vector3(TOP_SPOT.x, terrain.height(TOP_SPOT.x, TOP_SPOT.y) + 0.10, TOP_SPOT.y)
+	add_child(broot)
+	if _try_site_model(broot, "boat_launch_bollards", 0.0):
+		return
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.27, 0.23, 0.18)
 	wood.roughness = 0.95

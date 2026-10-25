@@ -18,6 +18,7 @@ var _stats := {}
 var _car_heats: Array[Node3D] = []
 var _people: Array[CharacterActor] = []
 var _buildings: Array = []       # {pos: Vector2, w, d, h, yaw} for the lee of the village buildings
+var _asset_props := 0
 
 static func near_village(x: float, z: float, margin := 5.0) -> bool:
 	return BOUNDS.grow(margin).has_point(Vector2(x, z))
@@ -34,7 +35,7 @@ static func min_festival_gap() -> float:
 func setup(t: Terrain) -> void:
 	terrain = t
 	_build()
-	print("village: ", stats(), "  cemetery gap ", snappedf(min_cemetery_gap(), 0.1), " m")
+	print("village: ", stats(), "  assets=", _asset_props, "  cemetery gap ", snappedf(min_cemetery_gap(), 0.1), " m")
 
 func _build() -> void:
 	var stone := _tex("limestone", Color(0.82, 0.78, 0.68), 0.92, 0.24)
@@ -54,15 +55,15 @@ func _build() -> void:
 
 	# the north row, front doors toward the lane
 	_cottage(Vector2(358.0, 242.0), PI, 9.5, 8.0, 4.2, stone, slate, cream, glass, "BRAMBLE COTTAGE")
-	_cottage(Vector2(392.0, 243.0), PI, 8.5, 7.5, 4.0, cream, slate_warm, timber, glass, "")
-	_cottage(Vector2(426.0, 244.0), PI, 10.0, 8.0, 4.6, stone_dark, slate, cream, glass, "")
+	_cottage(Vector2(392.0, 243.0), PI, 8.5, 7.5, 4.0, cream, slate_warm, timber, glass, "", "town_bakery_a")
+	_cottage(Vector2(426.0, 244.0), PI, 10.0, 8.0, 4.6, stone_dark, slate, cream, glass, "", "town_police_house_a")
 	_cottage(Vector2(461.0, 245.0), PI, 8.0, 7.0, 3.9, brick, slate_warm, white, glass, "")
 
 	# the south row: the pub, the stores and the garage, with two cottages between
-	_cottage(Vector2(347.0, 296.0), 0.0, 9.0, 8.0, 4.3, cream, slate_warm, timber, glass, "")
+	_cottage(Vector2(347.0, 296.0), 0.0, 9.0, 8.0, 4.3, cream, slate_warm, timber, glass, "", "town_chip_shop_a")
 	_pub(Vector2(382.0, 299.0), 0.0, stone_dark, slate, timber, cream, glass, lamp)
 	_shop(Vector2(414.0, 301.0), 0.0, cream, slate, timber, glass)
-	_cottage(Vector2(443.0, 303.0), 0.0, 8.5, 7.5, 4.0, stone, slate, cream, glass, "")
+	_cottage(Vector2(443.0, 303.0), 0.0, 8.5, 7.5, 4.0, stone, slate, cream, glass, "", "town_village_hall_a")
 	_garage(Vector2(477.0, 306.0), 0.0, brick, slate, white, glass)
 
 	_green(Vector2(342.0, 274.0), slate_warm)
@@ -82,6 +83,14 @@ func _build() -> void:
 	_hedge(Vector2(458.0, 290.0), 0.0, 10.0)
 	_parked_car(Vector2(370.0, 282.0), 0.12, Color(0.22, 0.28, 0.32))
 	_parked_car(Vector2(430.0, 286.0), -0.08, Color(0.52, 0.48, 0.40))
+	# Halloway garage props from the shared story set
+	_prop("garage_workbench_a_cluttered", Vector2(468.0, 297.0), -1.4)
+	_prop("garage_tyre_stack_a", Vector2(483.0, 299.0), 0.3)
+	_prop("garage_fuel_pump_a", Vector2(474.0, 294.0), -0.2)
+	_prop("garage_engine_hoist_a", Vector2(461.0, 307.0), 1.2)
+	_prop("garage_toolbox_a", Vector2(472.0, 302.0), 0.0)
+	_prop("town_noticeboard_a", Vector2(401.0, 270.0), 0.0)
+	_prop("town_bin_a", Vector2(352.0, 282.0), 0.0)
 	# a gravel forecourt for the garage and the stores
 	_forecourt(Vector2(470.0, 294.0), 18.0, 9.0, _tex("gravel", Color(0.72, 0.68, 0.60), 0.97, 0.7))
 	_driveway(Vector2(414.0, 284.0), 5.0, 24.0, _tex("gravel", Color(0.68, 0.64, 0.56), 0.97, 0.8))
@@ -92,12 +101,16 @@ func _build() -> void:
 	_stats["trees"] = 1
 	_stats["people"] = _people.size()
 
-func _cottage(pos: Vector2, yaw: float, w: float, d: float, h: float, wall: StandardMaterial3D, roof: StandardMaterial3D, trim: StandardMaterial3D, glass: StandardMaterial3D, name: String) -> void:
+func _cottage(pos: Vector2, yaw: float, w: float, d: float, h: float, wall: StandardMaterial3D, roof: StandardMaterial3D, trim: StandardMaterial3D, glass: StandardMaterial3D, name: String, model_name := "") -> void:
 	_record_building(pos, w, d, h, yaw)
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
 	add_child(node)
+	if model_name != "" and _try_building_model(node, model_name, yaw):
+		_solid(node, Vector3(w, h, d), Vector3(0.0, h * 0.5, 0.0))
+		_inc("cottages")
+		return
 	_box(node, Vector3(w, h, d), Vector3(0.0, h * 0.5, 0.0), wall)
 	_solid(node, Vector3(w, h, d), Vector3(0.0, h * 0.5, 0.0))
 	_plinth(node, w, d, wall)
@@ -182,6 +195,16 @@ func _garage(pos: Vector2, yaw: float, wall: StandardMaterial3D, roof: StandardM
 	_footpath(node, Vector3(0.0, 0.02, -5.5), 3.0, 2.4)
 	_inc("garage")
 
+func _prop(name: String, pos: Vector2, yaw := 0.0) -> bool:
+	var node := Node3D.new()
+	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
+	node.rotation.y = yaw
+	add_child(node)
+	if _try_building_model(node, name, 0.0):
+		return true
+	node.queue_free()
+	return false
+
 func _record_building(pos: Vector2, w: float, d: float, h: float, yaw: float) -> void:
 	_buildings.append({"pos": pos, "w": w, "d": d, "h": h, "yaw": yaw})
 
@@ -242,6 +265,9 @@ func _bus_shelter(pos: Vector2) -> void:
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	add_child(node)
+	if _try_building_model(node, "town_bus_shelter_a", 0.0):
+		_inc("bus_shelter")
+		return
 	var wood := _mat(Color(0.20, 0.16, 0.12), 0.9)
 	var glass := _mat(Color(0.24, 0.30, 0.28), 0.2)
 	_box(node, Vector3(4.0, 0.12, 2.2), Vector3(0.0, 2.5, 0.0), wood)
@@ -256,6 +282,9 @@ func _post_box(pos: Vector2) -> void:
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	add_child(node)
+	if _try_building_model(node, "town_post_box_a", 0.0):
+		_inc("post_box")
+		return
 	var red := _mat(Color(0.56, 0.08, 0.06), 0.6)
 	var pole := MeshInstance3D.new()
 	var pm := CylinderMesh.new()
@@ -273,6 +302,9 @@ func _bench(pos: Vector2, yaw: float) -> void:
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	node.rotation.y = yaw
 	add_child(node)
+	if _try_building_model(node, "town_bench_a", 0.0):
+		_inc("bench")
+		return
 	var wood := _mat(Color(0.27, 0.19, 0.12), 0.9)
 	var iron := _mat(Color(0.13, 0.13, 0.12), 0.7)
 	_box(node, Vector3(1.8, 0.10, 0.48), Vector3(0.0, 0.48, 0.0), wood)
@@ -286,6 +318,15 @@ func _lamp(pos: Vector2, lamp_mat: StandardMaterial3D) -> void:
 	var node := Node3D.new()
 	node.position = Vector3(pos.x, terrain.height(pos.x, pos.y), pos.y)
 	add_child(node)
+	if _try_building_model(node, "town_lamp_post_a", 0.0):
+		var glow := OmniLight3D.new()
+		glow.position = Vector3(0.0, 4.5, 0.0)
+		glow.light_color = lamp_mat.albedo_color
+		glow.light_energy = 1.6
+		glow.omni_range = 7.0
+		node.add_child(glow)
+		_inc("lamp")
+		return
 	var iron := _mat(Color(0.12, 0.12, 0.11), 0.7)
 	var pole := MeshInstance3D.new()
 	var pm := CylinderMesh.new()
@@ -483,6 +524,7 @@ func _try_building_model(node: Node3D, name: String, _yaw: float) -> bool:
 		return false
 	inst.rotation.y = PI
 	node.add_child(inst)
+	_asset_props += 1
 	return true
 
 func _solid(parent: Node3D, sz: Vector3, pos: Vector3) -> void:

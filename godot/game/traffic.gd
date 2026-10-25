@@ -9,11 +9,11 @@ extends Node3D
 ## feel emptier than a traffic sim; a vehicle should be an event, not wallpaper.
 
 const TYPES := [
-	{"name": "hatchback", "id": "hatchback_a", "model": "res://assets/traffic/hatchback_a.glb", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 13.5, "colour": Color(0.62, 0.20, 0.16)},
-	{"name": "hatchback", "id": "hatchback_b", "model": "res://assets/traffic/hatchback_b.glb", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 12.0, "colour": Color(0.24, 0.32, 0.44)},
-	{"name": "pickup", "id": "pickup_a", "model": "res://assets/traffic/pickup_a.glb", "body": Vector3(1.85, 0.72, 4.8), "cab": Vector3(1.65, 0.62, 1.7), "cab_y": 0.86, "speed": 11.0, "colour": Color(0.70, 0.68, 0.60)},
-	{"name": "van", "id": "van_a", "model": "res://assets/traffic/van_a.glb", "body": Vector3(1.95, 1.35, 4.6), "cab": Vector3(1.80, 0.80, 1.2), "cab_y": 1.55, "speed": 10.0, "colour": Color(0.82, 0.82, 0.80)},
-	{"name": "tractor", "id": "tractor_a", "model": "res://assets/traffic/tractor_a.glb", "body": Vector3(1.55, 0.95, 3.2), "cab": Vector3(1.30, 1.10, 1.4), "cab_y": 1.45, "speed": 6.0, "colour": Color(0.36, 0.44, 0.20)},
+	{"name": "hatchback", "id": "hatchback_a", "model": "res://assets/models/vehicles/car_hatch_a.glb", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 13.5, "colour": Color(0.62, 0.20, 0.16)},
+	{"name": "hatchback", "id": "hatchback_b", "model": "res://assets/models/vehicles/car_hatch_b.glb", "body": Vector3(1.75, 0.62, 3.9), "cab": Vector3(1.55, 0.52, 1.9), "cab_y": 0.78, "speed": 12.0, "colour": Color(0.24, 0.32, 0.44)},
+	{"name": "pickup", "id": "pickup_a", "model": "res://assets/models/vehicles/pickup_a.glb", "body": Vector3(1.85, 0.72, 4.8), "cab": Vector3(1.65, 0.62, 1.7), "cab_y": 0.86, "speed": 11.0, "colour": Color(0.70, 0.68, 0.60)},
+	{"name": "van", "id": "van_a", "model": "res://assets/models/vehicles/van_a.glb", "body": Vector3(1.95, 1.35, 4.6), "cab": Vector3(1.80, 0.80, 1.2), "cab_y": 1.55, "speed": 10.0, "colour": Color(0.82, 0.82, 0.80)},
+	{"name": "tractor", "id": "tractor_a", "model": "res://assets/models/vehicles/tractor_a.glb", "body": Vector3(1.55, 0.95, 3.2), "cab": Vector3(1.30, 1.10, 1.4), "cab_y": 1.45, "speed": 6.0, "colour": Color(0.36, 0.44, 0.20)},
 ]
 
 var terrain: Terrain
