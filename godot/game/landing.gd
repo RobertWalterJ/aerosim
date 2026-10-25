@@ -10,6 +10,7 @@ signal settings_pressed
 signal controls_pressed
 signal quit_pressed
 signal look_chosen(hour: float, sky: int)
+signal mode_chosen(story: bool)
 
 # The field-kit accent (brass), matching Claude's UI direction, used for the one main action instead of cyan.
 const BRASS := Color(0.878, 0.671, 0.349)          # #E0AB59
@@ -24,11 +25,16 @@ var _title_base_top := 0.0
 var _fade_in: Array[CanvasItem] = []
 var _fade := 0.0
 var _t := 0.0
+var _story_mode := true
+var _story_btn: Button
+var _sandbox_btn: Button
+var _mode_note: Label
 
 func _init() -> void:
 	layer = 5          # under the pause menu (layer 10), over the video
 
-func build(drone_name: String) -> void:
+func build(drone_name: String, story_mode := true) -> void:
+	_story_mode = story_mode
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -126,11 +132,32 @@ func build(drone_name: String) -> void:
 		b.pressed.connect(func(): sig.emit())
 		row.add_child(b)
 
+	var mode_row := HBoxContainer.new()
+	mode_row.add_theme_constant_override("separation", 8)
+	menu.add_child(mode_row)
+	_story_btn = Button.new(); _story_btn.text = "Story"; _story_btn.toggle_mode = true
+	_story_btn.theme_type_variation = "Ghost"; _story_btn.custom_minimum_size = Vector2(0, 42)
+	_story_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_story_btn.add_theme_font_size_override("font_size", 17)
+	_story_btn.pressed.connect(func(): _set_mode(true))
+	_sandbox_btn = Button.new(); _sandbox_btn.text = "Free flight"; _sandbox_btn.toggle_mode = true
+	_sandbox_btn.theme_type_variation = "Ghost"; _sandbox_btn.custom_minimum_size = Vector2(0, 42)
+	_sandbox_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sandbox_btn.add_theme_font_size_override("font_size", 17)
+	_sandbox_btn.pressed.connect(func(): _set_mode(false))
+	mode_row.add_child(_story_btn); mode_row.add_child(_sandbox_btn)
+	_mode_note = Label.new()
+	_mode_note.add_theme_font_size_override("font_size", 13)
+	_mode_note.add_theme_color_override("font_color", MenuStyle.MUTED)
+	_mode_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	menu.add_child(_mode_note)
+
 	var q := Button.new(); q.text = "Quit"; q.theme_type_variation = "Danger"; q.custom_minimum_size = Vector2(0, 42)
 	q.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	q.add_theme_font_size_override("font_size", 16)
 	q.pressed.connect(func(): quit_pressed.emit())
 	menu.add_child(q)
+	_apply_mode()
 
 	# --- the corners ---------------------------------------------------------
 	var hint := Label.new(); hint.text = "Esc opens the menu while you fly."
@@ -163,6 +190,28 @@ func _process(delta: float) -> void:
 
 func set_drone_name(n: String) -> void:
 	if _drone_label: _drone_label.text = n
+
+func _set_mode(story: bool) -> void:
+	_story_mode = story
+	_apply_mode()
+	mode_chosen.emit(story)
+
+func set_story_mode(story: bool) -> void:
+	_story_mode = story
+	_apply_mode()
+
+func _apply_mode() -> void:
+	if _story_btn == null:
+		return
+	_story_btn.set_pressed_no_signal(_story_mode)
+	_sandbox_btn.set_pressed_no_signal(not _story_mode)
+	var on := Color(ON_BRASS)
+	_story_btn.add_theme_color_override("font_color", on if _story_mode else MenuStyle.TEXT)
+	_sandbox_btn.add_theme_color_override("font_color", on if not _story_mode else MenuStyle.TEXT)
+	if _mode_note != null:
+		_mode_note.text = ("Story: the investigation, the jobs and the festival. The valley owns its weather and clock."
+			if _story_mode else
+			"Free flight: take the valley weather and light into your hands. Time, storms and quick looks are yours.")
 
 # --- frame helpers -----------------------------------------------------------
 func _vignette() -> TextureRect:

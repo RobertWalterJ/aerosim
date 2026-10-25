@@ -9,6 +9,7 @@ build/
 !assets/world/lake_mask.png
 # tablet UI kit art is generated source-of-truth for the game; keep it tracked
 !assets/ui/tablet/**/*.png
+!assets/ui/tablet/**/*.woff2
 # phone app art (lane appui2) is generated source-of-truth too
 !assets/ui/*.png
 !assets/ui/icons/**/*.png
@@ -18,3 +19,5 @@ build/
 !assets/ui/thumbs/**/*.png
 # tablet OS / HUD / map art (lane osui) is generated source-of-truth too
 !assets/ui/osui/**/*.png
+# Claude avatar renders, stamps and fonts must survive the merge
+!assets/ui/avatar_*.png

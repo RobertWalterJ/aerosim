@@ -29,7 +29,7 @@ func start_landing() -> void:
 
 func start_rth(agl: float) -> void:
 	rth_height = maxf(RTH_HEIGHT, agl + 3.0)
-	state = State.RTH_CLIMB; message = "Returning to home"
+	state = State.RTH_CLIMB; message = "Returning to the launch site"
 
 ## One step. pos/vel in world metres, heading in radians (fc.heading), agl above the ground, home point (x, z),
 ## limits from the airframe's current flight mode. Returns Vector4(throttle, yaw, pitch, roll) or Vector4.INF for no control.
@@ -58,7 +58,7 @@ func update(pos: Vector3, vel: Vector3, heading: float, agl: float, home: Vector
 			var d := home - Vector2(pos.x, pos.z)
 			var dist := d.length()
 			if dist < 3.0:
-				state = State.RTH_LAND; message = "Landing at home"
+				state = State.RTH_LAND; message = "Landing at the launch site"
 				return Vector4(0, 0, 0, 0)
 			var speed := minf(vh * 0.8, dist * 0.45 + 1.0)
 			var v_des := d / dist * speed

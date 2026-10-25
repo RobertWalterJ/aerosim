@@ -349,3 +349,954 @@ The camera lane owns `sensor_pipeline.gd` and the sensor/isp/codec/bloom/meter/a
 - Taste question C4 (compression): the always-on chroma subsampling and banding are deliberately faint. Noticeable enough at full HD, or too clean / too dirty?
 - Taste question C5 (bloom): with the new knee, only above-white highlights bloom. Right amount on the sun and bright sky, or too little / too much?
 - **Grey patches in the sky**: the lens dirt layer I added used raw (uninterpolated) hash terms, which read as small rectangular blocks near the sun — that is fixed now (smooth value noise). The original patches B saw predate my dirt, so they are not this; the sensor flare (sun streak, halo, ghost) and the bloom chain are all smooth Gaussian/tent filters, so the cause is most likely in the sky shader or the bloom's upsampling of a sharp sun. This needs a visual check by Robert or Claude with a sun-in-frame shot to pin down.
+
+## DroneBudz phone notifications (lane/notify, session B, 2026-10-23)
+Owner's notes: the drone's own white warning line should not be the place where the world events are announced. It should feel like a real phone app: an iOS or Android style notification bundle pulling in like a message from a group of drone friends, saying when the fireworks start, that lightning is in the area, or that a tornado is on the ground, and it should look real.
+- **Where:** `game/phone_notes.gd` (class `PhoneNotes`, a CanvasLayer overlay), wired in `main.gd` (created next to the HUD, updated once a frame, three dev tokens), switched by Display > Overlay and sound > Phone messages, and fed by `game/weather_events.gd` (the note hook `set_notes` and one message per event start) and by the fireworks runtime notices in `main.gd`. No image assets: the app icon is drawn in code (green rounded chat square with a white quadcopter and an amber or red dot for weather or danger).
+- **The look:** a dark rounded card with a soft drop shadow at the top right of the screen, an icon at the left, the app name "DroneBudz" and a "now" stamp on the top row, the sender's name, the message, and "N more notifications" when messages are stacked. Older cards sit behind and slightly lower, scaled and dimmed, exactly like a phone notification bundle. Cards slide in from above in a quarter second, stay about ten seconds and fade. The whole bundle hides when the game is paused or the switch is off.
+- **The messages:** the group is "DroneBudz" with six friends (Maya, Tom, Riley, Jo, Sam, Alex). Events write plain texts: a show tonight at half past nine, the show starting, the show over, storm cells with lightning, a TORNADO on the ground in the meadow, a waterspout over the lake, a dust devil, hawks in the thermals, fog rolling over the lake, a snow squall. The white warning line is kept only for drone flight warnings such as "Strong wind" and "Storm nearby"; the show and event notices no longer use it.
+- **Triggers:** starting a show from the Weather tab sends the "tonight" text, the show runtime sends "starting" and "over", and the weather event runtime sends its own text when the event actually spawns (at most once every two minutes per event kind, so a re-spawned funnel does not spam). All of it is optional at the call site, so nothing breaks if the bundle is absent.
+- **Cost:** it is pure 2D UI, no textures, no extra draw passes beyond the card panels, one card per message, a handful of Label draw calls. It works in the Simple camera and on the mobile renderer. The card width follows the screen (34 to 36 percent, clamped 340 to 480 px), so it also reads on a phone portrait screen.
+- **Evidence (docs/realism/notify/):** 00 three notifications stacked in a bundle with "2 more notifications", 01 the storm warning, 02 the tornado warning with the red dot, 03 the show starting.
+- **Not verified:** the timing and the feel in motion (the stills show the settled bundle, not the slide in), a real phone in portrait, and whether the icons and the shade of green feel like a real app. Also nothing has been merged yet because session A is mid integration; this lane waits for Robert.
+- **A real icon would help:** the code-drawn drone glyph reads well at 44 px, but a proper app icon and a small group avatar (drawn by Claude as 2D PNGs, since this session does not make art) would sell the phone look. One [REQUEST CLAUDE] asks for them; the drawn icon stays as the fallback.
+- **Taste questions for Claude and the owner:**
+  - N1. The bundle sits at the top right, not top centre, so it does not fight the drone's own status line. Right corner, or should it be top centre like an iPhone?
+  - N2. The texts are plain and calm ("Storm cells are building over the valley") with the alarm only in the TORNADO one. Realistic, or should the storm and tornado messages be louder?
+  - N3. Cards stay about ten seconds and fade; a bundle of three stays about thirteen. Right, or too long?
+  - N4. "DroneBudz" with six friends and no avatars (only the app icon). Should each sender get a small face or initials?
+  - N5. Show texts say the show starts at half past nine; should the phone name the actual in-game clock time instead?
+
+## DroneBudz phone notifications, second pass: the real phone look (lane/notify, session B, 2026-10-23)
+Robert did not like the first pass: it read as a flat dark card, not a phone. This pass rebuilds it as a real iOS or Android notification, chosen in Display > Overlay and sound > Phone style.
+- **iPhone style (default):** a frosted glass card at the top centre of the screen. The "glass" is a new shader `game/shaders/phone_glass.gdshader` that takes the FPV picture behind the card through a BackBufferCopy, blurs it with nine taps (15 px), tints it dark, adds a faint fixed grain and a rim light, and masks itself to a 22 px rounded rectangle. On top of that: a 28 px app icon drawn in code, "DRONEBUDZ" in spaced small caps, a "now" stamp, a 34 px sender avatar in a coloured circle with the sender's initial, the sender in a semibold weight (a FontVariation with embolden 0.5), the message in grey and, when messages are grouped, "N more notifications". Older cards sit behind, 11 px lower and 2 percent smaller, dimmed, so the group reads like an iOS stack.
+- **Android style:** a Material style surface instead: nearly opaque (94 percent), a 28 px rounded corner, a small elevation shadow, the app icon and "DroneBudz • now" on the header row with a little expand chevron, the sender in bold and the message. No avatar, no glass blur, flatter and denser, as Material notifications are.
+- **Type and metrics:** no font files were added (the project has none); the system default sans is used with three FontVariation weights (regular, semibold embolden, spaced small caps), sizes 12 to 17, card width 33.5 to 35 percent of the screen clamped 360 to 470 px, margins 12 to 16, top offset 30 px. Both styles slide down from above over 0.34 s with an ease-out, hold about 10 s and fade, and the whole bundle hides when the game is paused or Phone messages is off.
+- **What changed from the first pass:** the first pass was a flat Panel with a separate square icon and no depth. The rebuild adds the blurred glass, iOS and Android variants, the sender avatar with its own colour, semibold sender, spaced small caps app name, top centre placement, the Android surface style, and the style switch. The app icon is still drawn in code (a green rounded square with a white quadcopter and an urgency dot), so there are still no image assets to merge.
+- **Cost:** one nine tap screen blur per card; up to four cards, but each is only about 430 x 130 px. The blur is a single shader pass per card, no extra textures. Still works in the Simple camera and on the mobile renderer (the BackBufferCopy is a canvas copy, no HDR passes).
+- **Evidence (docs/realism/notify/):** 00 the iPhone bundle of three with the glass blur and "2 more notifications", 01 the iPhone single storm warning at night, 02 the Android single storm warning, 03 the Android bundle of three. Older files in the folder are the first pass overwritten with the new shots.
+- **Not verified:** the blurred glass over a dark night scene with fireworks in frame, the slide in and the fade in motion (stills only), a real phone in portrait, and whether the blur cost is acceptable on the weakest supported phone. The lane is still unmerged: session A's integration comes first.
+- **Art still wanted:** the drawn icon reads as a small white quadcopter but a real DroneBudz app icon and a small group avatar would finish the look; the [REQUEST CLAUDE] for 256 px icon, three or four 96 px sender avatars is open and the drawn fallbacks stay until then.
+- **Taste questions for Robert and Claude:**
+  - N6. iPhone and Android are both implemented in one switch (default iPhone). Which should be the default, or should the style follow the touch device type?
+  - N7. iPhone card: frosted glass at 74 percent tint with a 15 px blur, and Android at 94 percent opaque. Is the glass too see through, too grey, or does it read as a real notification?
+  - N8. The iPhone card sits at the top centre, over the drone's own status line, and the stack spreads downward. Right position, or should it be lower / top right?
+  - N9. Sender avatars are coloured initials. Is that enough, or should real faces be requested as well?
+  - N10. "now" is fixed; should the stamp show the in-game clock instead (the show text already names half past nine)?
+
+## DroneBudz notifications, third pass: Android, full screen, and a notification centre (lane/notify, session B, 2026-10-23)
+Robert's note: keep the drone view full screen, make it the Android style he prefers, no extra phone furniture, but the screen should still read as a real phone showing notifications from a drone group, and the stacking should be handled properly: "there may need to be a notification centre or something". This pass does exactly that.
+- **Default is Android now**, iPhone is still selectable in Display > Overlay and sound > Phone style, but Android is the out-of-the-box look.
+- **Heads-up notification:** a Material surface card at the top of the screen (96.5 percent opaque, 28 px rounded, elevation shadow), with the small app icon and "DroneBudz", the timestamp "now", a semibold headline ("Riley: TORNADO ON THE GROUND"), the message, and the sender's coloured initial avatar as the large icon on the right, as Android messaging notifications do.
+- **Stacking:** while a card is showing, new messages group into the same card: the app row becomes "DroneBudz · 3 notifications", the card shows the latest message and gains the expand chevron. Only one heads-up card exists at a time, like Android, instead of several cards piling up. The whole history is kept for the notification centre.
+- **Notification centre:** tap the heads-up card or press N to open an Android shade style panel that slides down from the top: "Notifications" with a count, "DroneBudz" as the group, and every recent DroneBudz notification as its own rounded entry with sender avatar, sender and title in bold, the message, and the in-game clock time on the right. "Clear all" empties it; right-click an entry removes just that one; the X or a tap on the dimmed game behind closes it. It is the only other phone element on screen, and only while it is open.
+- **Nothing else phone related:** no status bar, no home indicator, no device frame, no lock screen. The gameplay fills the screen as before and the notification layer floats above it, so it reads as the phone's notifications over a real drone flight.
+- **What changed from the second pass:** Android is now the default, the grouped card with the notification count and the large avatar was added, the chevron now only appears for an actual group, and the notification centre was added (keyboard N or tap the card) with history, clock times, clear all and per-message dismissal. The iPhone glass style is unchanged and still selectable.
+- **Cost:** the heads-up card is one panel and a handful of labels with one shader; the shade is only built and shown on demand (a panel, a scroll list and one card per stored message, at most 24). No textures, works in the Simple camera and in the mobile renderer.
+- **Evidence (docs/realism/notify/):** 00 the Android grouped heads-up card ("3 notifications", tornado), 01 the single Android card (storm warning, no chevron), 02 the notification centre open with six messages, 03 the iPhone style still available in the menu.
+- **Not verified:** the group card and shade in motion, a real phone in portrait, and the shade's scroll on a small screen. The lane is still unmerged while session A's integration finishes.
+- **Taste questions for Robert:**
+  - N11. Is the grouped card ("DroneBudz · 3 notifications", latest message on top) the right Android behaviour, or should the head-up card show only the newest and leave the rest only in the centre?
+  - N12. The notification centre opens on tap or N. Is that discoverable enough, or should there be a tiny notification count somewhere on screen as a hint?
+  - N13. The centre shows every message with its in-game clock; keep the clock, or drop it and show only "now" on the latest?
+  - N14. Avatar as a coloured initial on the right is the large icon. Enough, or do you want real faces (the Claude request is still open)?
+  - N15. Should the centre also show the drone's own warnings (strong wind, link lost) or stay strictly the DroneBudz group chat?
+
+## How real phones handle this, and what the notification layer now copies (lane/notify, session B, 2026-10-23)
+Robert asked to note the way real apps and phone operating systems deal with multiple messages and keep a notification centre. Here is the model, and what of it is implemented in `game/phone_notes.gd`.
+- **Real Android behaviour being copied:**
+  1. A notification is a record owned by the app, with a channel (importance), a timestamp and a conversation thread, not just a floating banner.
+  2. Messages from the same conversation are grouped. A heads-up banner shows only the newest while the group is young; the group carries a summary ("DroneBudz · N notifications") and can be expanded to the individual notifications.
+  3. The heads-up banner is temporary, but the notification itself is not: after the banner times out it stays in the notification shade until the player dismisses it or clears it. It is not marked read by the banner going away.
+  4. The shade is the notification centre: the group summary, the expandable list of individual notifications, exact timestamps, per-notification dismissal, and a Clear all action. Dismissing one decrements the group count; clearing removes the group from the shade.
+  5. While anything is unread, a small persistent app indicator (the status bar icon on a phone) stays on screen after the banner has gone, with the count, and tapping it opens the centre.
+  6. New messages in the same thread update the existing group instead of stacking banners forever; the group count goes up and the newest preview changes.
+- **Implemented here:** each message is stored with a sender, title, body, urgency, id and the in-game clock time. The heads-up card is Material and grouped ("· N notifications", latest message, large avatar, expand chevron only for groups). The notification centre opens by tapping the card or pressing N, shows the DroneBudz group with a count, collapses to a summary with the latest line and expands to every message with its clock time, a dismiss X per message, right-click dismissal, and Clear all. A small persistent DroneBudz status pill with the unread count appears at the top right once the heads-up has gone, and opens the centre. Dismissing the heads-up with a right click removes only the banner, the notification stays in the centre. New messages while the centre is open update the group live. Nothing reappears after Clear all.
+- **Deliberately not copied (kept out because Robert does not want other phone furniture):** notification sounds and vibration (the drone audio is the event sound), do not disturb, per-app channel settings, notification actions (reply, mark read), snooze, lock screen, status bar clock/battery, home indicator, device frame, app drawer. The only phone surfaces on screen are the heads-up banner, the shade and the small status pill.
+- **Evidence:** docs/realism/notify/00 the grouped heads-up banner, 01 a single notification, 02 the notification centre expanded with six notifications, 03 the centre collapsed to the group summary, 04 the persistent status pill after the banner has gone.
+- **Questions that follow from this:**
+  - N16. Should the status pill show the unread count, or just the app icon like a real status bar icon?
+  - N17. Should the centre auto-expand the group when there are only one or two messages, and stay collapsed when there are many (current default is expanded)?
+  - N18. A right click on the heads-up banner dismisses only the banner and keeps the notification; is a swipe style gesture worth adding on touch, or is the current tap and keys enough?
+  - N19. Should Clear all also stop the status pill and any unread count immediately (it does now), or keep a "recent" history list like Android's notification history?
+
+## An inhabited valley and an in-game photo library (lane/notify, session B, 2026-10-23)
+Robert's direction: gameplay and story must not take away the sandbox. A player should be able to ignore all of it, pick any drone and just fly, but the valley should feel real, inhabited and worth exploring, at altitude and under the tree line. This first foundation pass builds the world side and the photo side; the story and jobs layer sits on top of it next.
+- **World life (`game/world_life.gd`):** the old farm is now in the valley, on a clearing the code finds from the terrain (open ground, low slope, away from the lake and the park): Claude's barn and silo, a Dutch windmill whose sails turn at a speed set by the live wind and which slowly yaws into the wind, a farm wind pump whose wheel turns, and a scatter of fallen planks and branches around the yard. It is scenery only: no collision changes, no objectives, no menu switch. Cost is about 8,000 triangles, all built once.
+- **Discoverable places:** nine named places (start pad, chapel, old graves, sunken lane, lake shore, firework barges, old farm, windmill, far railway). Flying within the radius finds one for the first time, and the low places only count when the drone is under the tree line (the lane at 22 m above the ground, the windmill at 35 m, the chapel at 60 m), so a pilot has a reason to come down low as well as to climb. First discovery sends a DroneBudz message from Riley with a line about the place. Discoveries are saved in `user://places.cfg` and shared with the photo library. A photo of a place also counts as finding it.
+- **Photo library (`game/photo_library.gd`):** the shutter no longer drops a bare PNG into a folder. Photos go into a managed in-game library under `user://gallery` with a thumbnail and a metadata record: in-game clock, weather and intensity, drone, lens, exposure, ISO, shutter, position, height above ground, and which named places were in frame. The Camera page has a Photo gallery action (G while paused) showing a grid of thumbnails; clicking one opens the photo large with all its metadata, a Delete control, and an "Export copy" that is the only way a photo leaves the game, and it goes to `user://exports`. The library is capped at 120 photos and survives restarts.
+- **Sandbox first:** nothing here is a mission or a requirement. The drone, plane, racing/cinema quads and the free flight are untouched; the farm is something to find, the places are something to find, and photos are simply yours. The next layer (story jobs, photo objectives, the channel) will be opt-in and will read this metadata rather than force anything.
+- **Evidence (docs/realism/worldlife/):** 00 the farm with the turning mill and the first-discovery DroneBudz message, 01 the photo gallery with three scenic shots, 02 a photo opened with its metadata (clock, weather, drone, exposure, height, places in frame). The test shots were taken at the farm from 70 m.
+- **Not verified:** the farm's exact clearing still has a tree partly in front of the barn from the south approach; the mill and pump animation in motion; the low-flying discoveries (lane and mill) were not flown end to end; Export copy was not exercised; and the photo metadata quality scoring (framing, distance) is recorded but not yet used by anything.
+- **Questions for Robert:**
+  - G1. The farm is scenery only for now. Should the barn and yard be somewhere the player can land, with a hint of a person or a light at dusk, or stay untouched?
+  - G2. Nine discovery places: enough for the valley, or do you want more, especially more low ones under the trees?
+  - G3. Should discoveries reward anything at all (a message, a note count), or stay purely as a list of places found?
+  - G4. Photos are now kept in the game. Is a gallery in the pause menu enough, or should it also be reachable from the DroneBudz app side (the phone notification centre) so it feels like the drone app's album?
+  - G5. The farm sits about 500 m south-east of the start pad. Is that the right sort of distance for somewhere to explore, or should it be further out?
+
+## Opt-in DroneBudz jobs and story foundation (lane/notify, session B, 2026-10-23)
+Robert's direction: the story and gameplay must not cost the sandbox. This pass adds a small optional jobs layer on top of the world and photo work, and it can be ignored entirely.
+- **Where:** `game/jobs.gd` (class `Jobs`, the job state, the photo checking and the Jobs page), wired in `main.gd` and `hud.gd` (Flight > DroneBudz jobs, the jobs page opened there or with J while paused; Display > Overlay and sound > Story and jobs Off/On). State persists in `user://story.cfg`.
+- **How a job arrives:** a DroneBudz message from one of the group, with the brief and a pointer to Flight > DroneBudz jobs. The Jobs page lists offers with Accept job or Not now, active jobs with their objectives, and completed jobs with the followers earned. There is no deadline or failure: leaving a job alone changes nothing.
+- **Three starter jobs:** Maya asks for the lake at golden hour, Riley asks for the chapel for the heritage page, and Jo asks for a firework burst during a night show. Each pays followers into the little channel and the next one opens when the previous is submitted.
+- **Photo objectives are real:** the photo library now emits a signal for every saved photo, and the job layer checks its metadata: the places in frame and their distance, the in-game clock, night or day, whether a fireworks show or a storm was running. A qualifying photo is attached to the objective and the friend replies; when every objective is ticked, Submit pays out and the next job arrives. The photo for an objective is shown as a thumbnail on the Jobs page.
+- **Sandbox guarantee:** the free flight, all five quads, the plane, the events, the courses, the photo gallery and the discoveries are untouched. The jobs switch off cleanly from the menu, and no job ever moves the drone, forces the camera or restricts where the player flies.
+- **Evidence (docs/realism/jobs/):** 00 the Jobs page with Maya's first offer, 01 the same job accepted with its objective ticked and Submit enabled. (The demo shot completes the objective directly; a real photo fills in the thumbnail.)
+- **Not verified:** a real photo completing an objective end to end in a normal flight (the matching code was exercised with the demo hook), the followers story across restarts, and the firework objective with a real night show.
+- **Questions for Robert:**
+  - J1. Are three starter jobs with followers the right first step, or should the story wait until the weather/event director can drive the jobs (storm chase, show coverage)?
+  - J2. Should the Jobs page live in the pause menu, or inside the DroneBudz app (opened from the phone notification centre) so the whole phone reads as one app?
+  - J3. Should a job ever fail or expire, or stay open forever as it does now?
+  - J4. Should the channel have a name separate from the group, and should followers unlock anything (gear, locations, cosmetics) or stay a score?
+  - J5. The first job asked for the lake at golden hour but the check only required the lake in frame within 900 m. Should the conditions be stricter (time of day, light, framing, subject size), or is "get the shot" enough for now?
+
+## Volumetric tornado and waterspout look (lane/notify, session B, 2026-10-23)
+Robert reviewed the first funnel and asked for the look in `SPEC-VORTEX-LOOK.md`: volumetric and made of countless particles, not a painted tube. I read all eight reference pictures (ref_12 to ref_19) first and rebuilt the visual stack; the wind field, the 22 m/s cap, the life cycle, the roar and the menu switches are unchanged.
+- **Funnel body (`game/funnel.gd`):** the solid tube shader is now only a very faint dark shell (alpha 0.05 to 0.14) to keep the interior dark. The look comes from three particle layers, all in local space under the moving funnel: 1,800 condensation wisps on logarithmic spiral paths descending from the cloud base (3 to 6 s lifetimes, 0.9 to 4 m sprites, grey, ragged edges), a 1,200 particle dark core column that gives the funnel its body, and 800 brighter droplets spiralling inside and just outside it. The profile changes with the stage: cone while it lowers, a wider wedge for a mature tornado, a thin bent rope as it dies, with the wisps' angular speed rising toward the narrow base.
+- **Cloud above it:** a new `vortex_cloud.gdshader` draws a wide, soft, slowly rotating dark cloud disc at the top of the column, lit from its rim, so the funnel visibly hangs from a storm base even when the sky hooks are quiet.
+- **Dust and debris:** the tornado dust skirt is now 3 to 5 times the funnel radius and uses much larger soft brown-grey billboards; 300 debris instances from `NewModels2.debris_pieces()` orbit at 0 to 200 m and tumble (MultiMesh, updated in GDScript, no collision). The waterspout keeps a mist cone and a bright inner spray ring, and the ring-on-the-water from the references is real water shading: a new global `g_spout` (foot xz, radius, strength) makes the lake shader draw concentric dark ripple rings, an inward spiral and a bright foam foot (session B owns the water shader).
+- **Life cycle:** tornado forms as a pendant, becomes a cone and then a wedge (100 to 190 s), ropes out over 22 to 40 s and fades, about 2.5 to 4.5 minutes; waterspout 2 to 3 minutes. A new dev token `vortexstage<0..3>` jumps the first funnel to pendant, touchdown, wedge or rope for the shots.
+- **Detail switch:** Weather > Events > Funnel detail Low/Normal/High scales the particle counts (Normal is the budget above; Low half, High 1.2), and a phone uses 700 wisps, 200 droplets, 300 core, 150 dust and 80 debris.
+- **Measured cost:** with a tornado active at Normal detail and the frame settled, `--print-fps` gave 53, 52, 52 fps in the last three samples, 52.3 fps average (19.1 ms) against a clean baseline of about 56 to 58 fps in earlier lanes, so the funnel costs about 2 ms on this PC. That is inside the 3 ms budget; the number is from a single run, not a table of several runs.
+- **Evidence (docs/realism/weather/vortex/):** 00 tornado from 400 m, 01 from 120 m, 02 a rope stage, 03 a pendant stage, 04 waterspout from the side, 05 the water patch from about 240 m above, 06 the tornado at dusk, 07 the frame-time run. The references I used for each are ref_13 and ref_14 for the tornado base and debris, ref_15 and ref_19 for the waterspout tube, ref_16 and ref_17 for the water rings, ref_18 for the rope.
+- **Honest comparison with the references:** this is a first volumetric pass, not a match. The refs are photographic; ours still reads lighter and hazier than the near-black reference columns, the debris pieces are hard to see at distance, and the wisps can look like a spray of dots rather than long streaming strands. The waterspout from above reads as a bright spray plume more than a defined tube. The dust skirt is there but thinner than ref_14.
+- **Not verified:** the look at High detail, the phone counts on a real phone, the funnel in rain (ref_14's rain streaks are session A's weather), and the rope shape at other camera angles.
+- **Questions for Robert:**
+  - V1. Is the volumetric direction right, and should I push the column darker and denser (more like ref_13/ref_14), or keep it softer?
+  - V2. Are the extra look stages (pendant, wedge, rope) working, or does the funnel need a longer life so the wedge lasts longer?
+  - V3. Should the debris pieces be bigger and more visible (planks and sheets like ref_14), or is the current subtlety right?
+  - V4. The cloud base disc is drawn by the funnel itself so it always has something above it; should it stay even when session A's storm cell is active, or hand off to the sky?
+  - V5. The waterspout water rings are the first use of the `g_spout` water hook. Strong enough, or more contrast?
+  - V6. The dust skirt is thinner than ref_14. Push it much denser and wider, or keep the budget for rain and debris?
+
+## The phone: home screen, app switcher and the DroneBudz apps (lane/notify, session B, 2026-10-23)
+Robert's direction: the DroneBudz should be a Discord-style server where a group of friends share and collaborate on their YouTube channel, with roles over time (an editor, a tech reviewer, a storm chaser); money and followers are the two metrics; the apps should be full screen, open from notifications, and be reachable from a home screen and app switcher.
+- **The phone (`game/phone_os.gd`):** Tab opens a full-screen phone with a status bar (in-game time, DroneBudz carrier line, signal and battery), a home screen with four apps, a dock with Home and Recents, and an app switcher showing the apps as cards. Esc closes an app or the phone. It sits under the gallery and jobs pages, so Photos and Jobs open on top of the phone and closing them returns to it. The game is deliberately not paused while the phone is open (a note says "Land to check the phone"); there is no forced pause and no gate on flying.
+- **DroneBudz chat (`game/chat_data.gd` and `game/chat_app.gd`):** a Discord-style server with five channels: #general, #weather, #clips, #tech and #jobs. Left is the server name, the channel list with unread counts and the player row with followers and money; right is the channel header and topic, then messages with avatars, names, crew roles, times, system events and the player's own posts, plus a working input box and Send. The player can type in any channel; the posts persist in `user://chat.json`, the seeds are rebuilt on load.
+- **The crew and their roles:** Maya runs the channel and edits, Alex is the tech reviewer, Tom is the storm chaser, Sam is the meteorologist, Riley is the park ranger who passes on heritage work, Jo handles events and festival bookings. The opening messages set up the channel's situation in their voices: 120 followers, a new props test, a storm week coming, a festival with press access, the chapel heritage job, and Maya telling the pilot to check #jobs for paid work.
+- **Money and followers:** the two metrics are now real and stored in `user://story.cfg`. Each job pays both (the lake 60 money and 35 followers, the chapel 45 and 30, the fireworks 140 and 80). The phone home screen and chat player row show both; the Studio app shows both as cards. Money has no sink yet; it is the pot for gear and travel.
+- **Events in the story:** accepting a job posts to #jobs as the player; a completed job posts a system message with the payout and follower gain; crossing 30, 60, 120 or 250 followers makes Maya post in #clips, and crossing 100, 250 or 500 money makes Alex post in #general. Jobs also keep posting their DroneBudz notifications as before.
+- **Studio (`game/studio_app.gd`):** the channel page: a banner and the crew line, the Followers, Money, Videos made and Photos kept cards, and a list of the videos the channel has made from completed jobs, plus buttons into the chat and the jobs board.
+- **Photos and Jobs as apps:** the Photos icon opens the existing in-game gallery and the Jobs icon opens the existing jobs board, over the phone.
+- **Notifications:** the notification shade now has an "Open DroneBudz" action that closes the shade and opens the phone straight into the chat, so a notification can become the app, as asked.
+- **Evidence (docs/realism/phone/):** 00 the home screen with 35 followers, $60 and the chat badge, 01 the DroneBudz chat in #general, 02 the #jobs channel with the player's accepted job and the payout event, 03 the Studio with 35 followers, $60 and one video, 04 the Recents app switcher.
+- **Not verified:** spending money, the home screen before any job (zero state is shown in earlier shots), the phone on a phone-sized viewport/couch play, switching apps with the mouse (the code paths were exercised via the tokens), and the notification "Open DroneBudz" action end to end.
+- **Questions for Robert:**
+  - P1. The phone is a full-screen overlay with Tab, a home screen and Recents. Is that the right way in, or should the notifications centre itself be the home screen?
+  - P2. The cast is Maya (editor), Alex (tech), Tom (storm chaser), Sam (weather), Riley (ranger) and Jo (events). Are those the six you want, or should some be renamed or replaced?
+  - P3. Should money buy something (props, batteries, travel to a location, a second drone) or just accumulate as a score for now?
+  - P4. Should the player be able to type freely in the chat (it works now), or should replies be canned options so the story stays on-script?
+  - P5. The chat seeds are a first week of the story. Do you want a chapter structure (a new set of messages each in-game day/week), and should some messages arrive as notifications over time?
+  - P6. Should the Studio be where videos are actually cut and published from photos/clips (needs a clip system), or stay a read-only channel page while the next work is the story director?
+  - P7. How literal should the Discord resemblance be: the current dark slate layout with channel list and message rows, or more of a phone-app look with a chat list first and then the conversation?
+
+## Camera roll uploads, the editor and VidTube Studio (lane/notify, session B, 2026-10-24)
+Robert's direction: the player uploads photos and videos from the camera roll to Discord; once an editor is a friend, they edit what the player uploads and the channel grows faster; before that the player publishes straight to an offbrand VidTube Studio app where followers, views, metrics and earnings live.
+- **Where:** the upload actions live in the photo detail page (`game/photo_library.gd`), the channel numbers, video list and editing logic in `game/jobs.gd`, the VidTube Studio page in `game/studio_app.gd` (the old Studio app is now VidTube Studio), chat attachments in `game/chat_data.gd` and `game/chat_app.gd`.
+- **Upload straight to VidTube:** a photo's detail page now has "Upload to VidTube Studio". It publishes a video record with an estimated quality from the photo metadata (the places in frame, night, fireworks, storm), then pays views, followers and money, posts the result to the notification centre, and appears in VidTube Studio's video list with its views, followers gained and money earned. The player's own upload is also posted to #clips as "You: Uploaded a clip to VidTube", with the photo attached as a thumbnail.
+- **The editor:** the first direct upload is how Maya becomes the pilot's editor friend: she messages #clips ("I am your editor now, send the next one in here and I will cut it"), and the photo detail page then enables "Send to Maya to edit". An edited upload publishes with roughly 2.3 times the views, twice the followers and 1.8 times the money, Maya posts the cut in #clips, and the video is marked "edited by Maya" in VidTube Studio. Until she is your editor, that button is deliberately disabled.
+- **The channel numbers:** `jobs.gd` now also stores views, a list of published videos (title, views, followers, money, edited flag, source photo) and the editor flag. Views and a little money tick over between flights (slower with few followers), so the channel feels alive. Studio shows Followers, Money, Videos and Views, the editor line, and every video with its numbers.
+- **Chat attachments:** messages can carry a photo id and the chat renders the thumbnail under the message, at a fixed 280 by 158 so the message column stays a chat, not a photo dump.
+- **Evidence (docs/realism/vidtube/):** 00 the photo detail with Upload to VidTube Studio and Send to Maya to edit (disabled while she is not yet the editor), 01 VidTube Studio with 44 followers, $78, 136 views, a direct upload and a Maya-edited cut, 02 #clips with the uploaded photo attached and Maya's "cut and published" reply.
+- **Not verified:** a real end-to-end click from the gallery (the actions were exercised through the dev tokens and the upload methods), the upload buttons with a photo taken after Maya is already the editor, and the tab/layout on a phone-sized viewport.
+- **Honest limits:** there is no video recording yet, so a "video" is a published still from the camera roll (a clip is the next thing to build); editing is instant, with no queue or delay; the editor friend request is automatic after the first upload rather than an accept flow; the passive view and money growth runs on real time, not in-game days; and money still has no sink.
+- **Questions for Robert:**
+  - U1. Should the editor offer be a proper friend request the player accepts (with a notification and a Crew tab), or is auto-friending after the first upload fine?
+  - U2. Should editing take in-game time (an hour or a day) and show the cut as "in the edit" in VidTube Studio, or stay instant?
+  - U3. Do you want actual video clips recorded from the drone (short captures with sound), so uploads are clips rather than stills with motion implied?
+  - U4. Should earnings be spendable now (gear, batteries, travel) and should unpaid gear progress against follower milestones?
+  - U5. Upload quality is estimated from the photo metadata. Should the player be shown the estimate before publishing (a star or reach preview), or keep it hidden as it is now?
+  - U6. Should the edited cut be a separate video in VidTube (it is now), or replace the direct upload as the same video with better numbers?
+
+## Country highways and lanes linking the places (lane/notify, session B, 2026-10-25)
+Robert asked for country highway roads linking some of the places, and for Claude to model rural farm fencing, fields, crops and hay. This pass is the roads; the model request is on the board.
+- **Three routes (`game/roads.gd`):** the valley highway from the start pad past the chapel and down to the farm (828 m), the lakeside lane from the farm round to the lake overlook (764 m), and the ridge road from the pad and the graves north to the far railway (1,695 m). Total 3.29 km, all laid on the terrain height.
+- **Look:** an asphalt ribbon with a dashed centre line and solid edge lines, two darker wheel tracks, grain and wear, and fraying into gravel and dirt at the edges; separate gravel shoulders with loose stone, dirt and grass creeping in at the outer lip. The shaders are `game/shaders/road_asphalt.gdshader` and `road_gravel.gdshader`, both procedural, no textures.
+- **Keep-off for the planting:** the routes are fixed and known before the world is planted, so `World` now skips any near tree, far tree or prop within the corridor (`Roads.near_road`). That gives the roads their cleared verges through the woods and stops a tree standing in the carriageway. The route plan is deliberately not a race track or a gate: the roads are scenery and a way to read the valley from low down.
+- **Evidence (docs/realism/roads/):** 00 the highway at ground level with its markings and shoulders, 01 the junction by the start pad from the air, 02 the valley highway arriving at the farm with the barn, silo and windmill, 03 the lakeside lane along the shore, 04 the ridge road cutting its cleared corridor through the woods, 05 the chapel road on the hill.
+- **Not verified:** grass growing through the asphalt (the grass pass is a separate system and the roads do not currently mask it; it was not visible in the aerial shots but may show at ground level close up), whether any world building or hedge stands in a carriageway (props within 7 m are skipped, larger layout buildings are not), and how the roads sit with the water at the lake overlook.
+- **Questions for Robert:**
+  - R1. Are there enough roads, or do you want a branch to the railway station, a farm driveway, and a loop at the lake car park?
+  - R2. Should the roads be driveable by a ground vehicle later, or stay scenery for the drone?
+  - R3. Are the road widths right (8 m valley and ridge, 5 m lane), and should the ridge road be a smaller lane rather than a highway?
+  - R4. Should there be cattle grids, signs, telegraph poles and fences along them (the fence and field props are in the Claude request), or keep them bare until those models arrive?
+  - R5. Do you want the roads visible in the minimap and as discovery places, or left off both?
+  - R6. Should the sunken lane and the old graves paths connect into the new road network, or stay separate?
+
+## Farm fields, crops, hay, fences and traffic on the roads (lane/notify, session B, 2026-10-27)
+Robert asked to keep growing a dynamic, rich playable environment and to add more asset jobs for Claude. This pass adds the working farm and life on the new roads, all in code as placeholders where Claude's models will land.
+- **Farmland (`game/farmland.gd`):** four fields around the farm. A 90 by 60 m corn field, an 80 by 52 m barley field, a 70 by 46 m alfalfa field and a 70 by 50 m hay meadow. Tilled soil is a terrain-conforming mesh with a procedural furrow shader; the crops are instanced crossed-quad stands (1,500 corn chunks, 1,729 barley, 1,540 alfalfa in this build), and the hay meadow has 14 round bales (some wrapped), a six-bale square stack and five loose bales in the farmyard. Post-and-rail fences run around each field (368 posts in all). The field rectangles are fixed and known before planting, so World now keeps trees, far trees and props out of them.
+- **Traffic (`game/traffic.gd`):** eight road users on a computer (four on a phone): hatchbacks, a pickup, a van and a slow tractor, in both directions on the valley highway, lakeside lane and ridge road. They follow the road centreline in their lane, turn their wheels, and their headlights come on at dusk and night; harmless scenery, no collisions, easily outpaced by any drone. `trafficdemo` is a dev token that lines them up for a look.
+- **Two new places and a new job:** the crossroads at the pad junction and the farm fields are now discoverable places (11 places in total). The fireworks job now leads to Riley's "Harvest postcard" job: photograph the farm fields (subject `fields`, within 600 m), paying 70 money and 55 followers. The crew chat mentions the harvest postcard and the new roads.
+- **Evidence (docs/realism/farmland/):** 00 the fields from the air with the valley highway and the farm, 01 the corn field close up with the barn and silo, 02 the hay meadow with bales and fence, 03 traffic on the valley highway near the junction.
+- **Honest limits:** these are placeholder crops, bales and fences; Claude's models will replace the meshes but the layout stays. Grass is not masked inside the fields, so some blades show through the tilled soil. The hay field's soil mesh is flat-shaded and reads as a brown patch from high up. Traffic has no collisions, no engine sounds, and the night headlights were not verified in a shot. The fields may overlap decorative world props near the farmyard.
+- **Questions for Robert:**
+  - F1. Are the field sizes and the corn/barley/alfalfa/hay mix right for the valley, and should there be a second farm or a bigger field further out?
+  - F2. Should the crops and hay be interactive at all (photographable subjects, job objectives, a harvest event), or stay scenery?
+  - F3. Is the traffic density right, and should vehicles stop or swerve when the drone flies low over the road, or keep their steady loop?
+  - F4. Do you want farm animals (cows, sheep, horses) as Claude models next, or keep the farm arable?
+  - F5. Should the fields be visible on the minimap and as discovery places (they are places now), or left as plain scenery?
+  - F6. Do you want a seasonal look (stubble in autumn, green in spring), or one permanent late-summer harvest look?
+
+## The crew have jobs of their own, and each gives different information (lane/notify, session B, 2026-10-28)
+Robert said he likes the idea of different friends in the chat having different roles, doing different things and giving the player different information. This pass gives each friend a live role in `game/crew.gd`.
+- **Who does what:** Sam is the meteorologist and gives the forecast (sky, clock, wind speed and direction, gusts, low cloud, flying advice). Tom is the storm chaser and gives storm and funnel warnings with a bearing, plus chase advice when the sky is quiet. Alex is the tech reviewer and gives gear advice based on the wind and light and the drone the pilot is actually flying (cinema drone in calm air, race quad or wing when it is strong, lens and battery advice in rain or dark). Riley is the park ranger and gives place hints, the bearing and distance of the next unfound place and its note. Jo is events and bookings and gives the job board (offers, accepted work, where to take it, followers and money). Maya is the editor and gives edit and channel feedback on the latest upload and what a cut would do for it.
+- **How the player asks:** the chat now has quick chips above the input: Weather?, Storm?, Gear?, Where to fly?, Jobs?, Edit?. Each posts the question as the player and the right friend answers in the same channel. Typed messages with weather/wind/forecast, storm/tornado/funnel, gear/drone/lens, where/place/fly, job/work/money or edit/video/upload words are routed to the same friends.
+- **They also speak up on their own:** `Crew.update` watches the live state. When the weather kind changes Sam posts a new forecast in #weather; when a funnel touches down Tom posts a warning; when a video is uploaded Maya posts edit feedback and Alex a gear note; when a place is discovered Riley posts the next hint. A slow rotation also has one of the six post something useful in their own channel about every 95 seconds, so the server keeps giving different information rather than one generic feed.
+- **Evidence (docs/realism/crew/):** 00 Sam and Tom in #weather with the forecast and the storm watch, 01 Alex in #tech with gear advice for the current drone and conditions, 02 Riley in #general with the next unfound place. The duplicate lines in the shots are from repeated dev-hook questions during testing; the chat now hides identical consecutive messages.
+- **Honest limits:** the text is generated from the live state, not from a language model, so it is informative but can repeat. There are no one-to-one DMs yet, no questions from the crew back to the player, and no role-specific menu apps. The chips always answer in the current channel rather than in the friend's own channel.
+- **Questions for Robert:**
+  - C1. Are the six roles right (Sam weather, Tom storms, Alex gear, Riley places, Jo work, Maya edits), and should any of them do more than talk, like run a repair or sell gear?
+  - C2. Should the friends ask the player questions (a little dialogue tree) or keep giving information on request?
+  - C3. Do you want one-to-one DMs with each friend, separate from the group channels?
+  - C4. Should the crew react to photos by name (Maya grading a shot, Alex talking about the lens) or stay on channel and jobs?
+  - C5. Should a friend ever be wrong or out of date (Sam's forecast drifting, Tom overhyping a storm) for flavour, or should the information always be reliable?
+  - C6. Should the player be able to mute a friend or a channel without turning off all notifications?
+
+## Potential, not promised numbers (lane/notify, session B, 2026-10-29)
+Robert asked that tasks stop promising a set number of followers up front. Instead the player should see that something has high potential for followers or views, and that a proper edit can lift it further.
+- **Jobs no longer advertise rewards.** Every job has a follower potential and a view potential, each written in words (low, moderate, high, very high), plus a line saying that a proper edit by Maya lifts both further. The fixed reward and money values are gone from the job data and the job cards.
+- **The payout is earned when it is published.** When every objective is ticked the card offers "Publish raw" and, once Maya is the editor friend, "Send to Maya (edited)". The actual result is computed at that moment from the job's potential, the quality of the photo the job was completed with (subjects, night, fireworks, storm), the current channel size and whether Maya cut it. An edited publish applies a 1.9x views, 1.6x followers and 1.5x money multiplier. The result is posted as a normal video in VidTube Studio and in the #jobs channel as views, followers and money so far, not as a promise beforehand.
+- **The camera roll shows potential too.** A photo's detail page now has a Reach potential line before uploading: what kind of views and followers it could get and whether Maya's edit could lift it. The upload buttons and the editor button no longer imply a fixed payout; the numbers only appear after publishing.
+- **Studio and the crew stay consistent:** completed jobs now become normal videos in the VidTube list (edited ones marked edited by Maya), and Maya's chat feedback talks about what a cut would do rather than a fixed figure.
+- **Evidence (docs/realism/potential/):** 00 a completed job showing follower and view potential plus Publish raw and Send to Maya (edited), 01 a photo's reach potential before upload with Send to Maya enabled, 02 the VidTube Studio after publishing, with dynamic views, followers and money for raw and edited videos.
+- **Honest limits:** potential is a word, not a range or a prediction, and the player never sees the formula. The publish estimate is based on photo metadata and the job's rating, so two shots from the same job can land differently. There is no separate money potential shown, only views and followers; money is derived from the result. The duplicate video rows in the Studio shot are from repeated test publishes.
+- **Questions for Robert:**
+  - N1. Are the four potential words (low, moderate, high, very high) enough, or do you want stars, a range, or a short description of why it is high?
+  - N2. Should the player see the potential before accepting a job, only after completing it, or both (it is both now)?
+  - N3. Should a raw publish always be clearly worse than an edited one, or should some jobs be fine raw so editing stays a choice rather than an obligation?
+  - N4. Should the same job be repeatable later with different results, or stay a one-off story job?
+  - N5. Do you want a money or gear potential line as well, or should money stay a consequence of views and followers?
+  - N6. Should the potential depend on the weather and time at the moment of the shot (a storm makes a high-view job even higher), or stay fixed per job?
+
+## The Lake Car, Phase 1 (lane/notify, session B, 2026-10-30)
+The first slice of the narrative plan is in the game. Constable Rennick joins the DroneBudz server, asks for photographs of an abandoned car by the lake, and the story grows through three evidence chapters. Chapters 3 to 5, the camp, the bus and the reunion, are next.
+- **Who and where (`game/story_arc.gd`, `game/chat_data.gd`):** Rennick is a new server contact with the role line "Provincial Police, Halloway" and a new #town channel for Halloway notices. She appears after the pilot publishes their first clip or finishes their first job. She honours the Story and jobs switch in the menu.
+- **The Casebook app (`game/casebook_app.gd`, `game/phone_os.gd`):** a fifth phone app showing the current case, Rennick's open request, the evidence progress and the full chapter trail with done, open and waiting states. It also has a button straight into #town. The phone home grid is now three columns.
+- **The chapters:** Chapter 0, A favour: two photographs of the blue estate within 80 m. Chapter 1, No plates: a close-up of the VIN or the tow sticker within 15 m. Chapter 2, The garage: two photographs of Voss and Son Motor Works within 90 m. Each chapter posts Rennick's request in #town, the crew reacts in their own channels, evidence delivered posts her reply and a notification, and the next chapter opens after three in game hours. After chapter 2 the case says the trail is open and the next part is still being written.
+- **The evidence objects (`game/case_objects.gd`):** placeholder blue estate on the lake's north shore and the Voss and Son garage on the spur off the ridge road. The car's shore point is found from the lake shape, the planting keeps clear around both landmarks, and both are harmless scenery with no collisions. A photo of either location tags the camera roll metadata with the case subject and the distance, and the casebook matches it. Claude's abandoned car and garage models will replace the placeholders.
+- **Persistence and pacing:** the case state lives in `user://story_lake_car.cfg` (chapter, evidence photo ids, done chapters, in game hours and next message time). It survives restarts, can be ignored without failing, and the officer's next message arrives after in game time, not real time. The dev tokens `storystart`, `storytown`, `storydeliver`, `storynext` and `casebook` cover the shots.
+- **Evidence (docs/realism/story/):** 00 Rennick's first messages in #town, 01 the Casebook with the active request and the chapter trail, 02 the Casebook with all three chapters done and the evidence thumbnails, 03 the camera roll shots and Rennick's evidence notification.
+- **Honest limits:** the car placeholder is small and hard to spot from the air, and the far north shore has a weak video link, so the evidence photos are blocky. The garage is a simple box shed. Chapters 3 to 5 are not built yet. There is no DM from Rennick, no private versus published evidence choice yet, and the crew's reactions are static messages rather than role-aware follow-ups. The case advances after three in game hours, which is easy to miss if the player does not use the clock menu.
+- **Questions for Robert:**
+  - S1. Is the three in game hour gap between chapters right, or should the officer come back on the next in game day?
+  - S2. Is Rennick's voice right in #town, or should she be warmer, drier or more formal?
+  - S3. Should the case also arrive as a one to one DM, or stay in the public #town channel?
+  - S4. Should the evidence choice (private for the police or public for VidTube) start now in chapter 2, or wait for the bus and reunion chapters?
+  - S5. The north shore is far and the video link is weak. Should the car be moved to a closer, more visible shore, or stay remote as a reason to fly the lake?
+  - S6. After chapter 2, should the next build go straight to the camp and the bus, or is there another case or clue you want first?
+
+## The Lake Car, Phase 2: the camp, the bus and the reunion (lane/notify, session B, 2026-11-02)
+The full six chapter arc is now in the game. The story starts after the first published clip or job and runs through the car, the VIN, the garage, the camp on the ridge, the festival bus and the reunion at the festival.
+- **Chapters 3 to 6 (`game/story_arc.gd`):** Lights on the ridge asks for photographs of the camp from at least 25 m, no people, and the officer says not to publish them. The man who fixed things asks for two photographs of the bus and one close detail of its festival lettering. The festival asks for two photographs of the bus at the festival field. Each chapter carries multiple evidence requirements, so a chapter is only complete when every requirement has enough photographs. The officer's replies, the crew beats in their channels and the notifications all follow the arc in the plan.
+- **The ending choice:** the case is not finished when the last photograph is delivered. The Casebook offers Publish with Maya's cut or Keep it private. Publishing sends the festival photograph through the normal editorial path, applies Maya's cut, adds a community fund payment, posts the result and reports views, followers and money in the Casebook. Keeping it private sends the fuel payment and the story stays with the crew and the town. Both close the file and the officer thanks the pilot.
+- **The evidence world (`game/case_objects.gd`):** the camp now exists on the ridge, with a tent, a tarp, a stove, a chair, a fire ring with a flickering warm light, tyre marks by the car and Biscuit the dog. The old festival bus exists in the garage yard, with windows, wheels, a warm interior light and HALLOWAY FESTIVAL lettering. When the last chapter begins the bus moves to the festival field beside the road, so the final photographs are of a different place and the world visibly changes between chapters. The planting keeps clear around the car, garage, camp and festival field.
+- **The Casebook:** shows every requirement with its own progress, evidence thumbnails for each requirement, the full six chapter trail, the ending choice and the closed-case result. The phone still has the five apps, with Casebook as the fifth.
+- **Pacing:** chapters still open three in game hours after the previous evidence. The story switch turns the officer off, the case waits if ignored, and nothing fails.
+- **Evidence (docs/realism/story/):** 04 the Casebook with the camp request, 05 the Casebook with the bus request and its two requirements, 06 the ending choice, 07 the closed case after publishing with the view and follower result, 08 the camp on the ridge in the world, 09 the bus at the festival field at dusk.
+- **Honest limits:** the camp, bus and dog are code placeholders until Claude's models arrive. The car remains hard to see from the air and the north shore video link is weak. The festival field has no crowd, bunting or parade animation, so the bus simply sits there; the parade happens in the writing. The ending choice has no livery or unique cosmetic reward yet, only money and the publication result. There is still no one to one DM and the crew's story reactions are fixed messages rather than role aware follow ups. The bus teleports to the festival field rather than driving there. The story still uses the existing photo evidence and publisher systems rather than a separate cut scene.
+- **Questions for Robert:**
+  - T1. Should the festival chapter be tied to the actual festival and fireworks show (the bus moves and the player films it during the show), or stay available whenever the chapter opens?
+  - T2. Should the bus drive from the garage to the festival field, with the player able to photograph it on the way, instead of appearing there?
+  - T3. Is the private versus publish choice the right ending, and should the private route give a different lasting reward such as a badge or livery?
+  - T4. Should the camp and bus be animated people places (Ellis visible at a distance, crew arriving, flags and bunting) or stay quiet for now?
+  - T5. Should the after-case state unlock Rennick as a recurring contact and small cases, or is the arc complete enough for now?
+  - T6. Where should the town itself fit next: a Halloway high street with the garage, police house and pub, or more valley evidence cases first?
+
+## Tornado look tweak and storm narrative plan (lane/notify, session B, 2026-11-03)
+A small visual pass on the funnel, and a design plan for weaving storms into the Halloway mystery.
+- **The look tweak (`game/shaders/vortex_wisp_draw.gdshader`, `vortex_wisp.gdshader`, `game/funnel.gd`):** wisp sprites are now stretched vertically (about 1.35x on the wisps, less on droplets) so the column reads as streaks rather than dots. The colour palettes are darker (wisps 0.46 grey, core 0.30), the alpha is a little stronger, the dust skirt is heavier and has 500 particles instead of 400, and the debris pieces are roughly twice the size. A new lightning term reads the existing `g_bolt` global in the draw shader and brightens the funnel for the duration of a flash, and lifts its alpha slightly. The particle count is unchanged, no new shader layer and no new draw calls.
+- **Evidence (docs/realism/weather/vortex/):** 08 the tweaked tornado from 400 m, 09 from 120 m, 10 at dusk. Compared with the previous pass the column is darker, the wisps read more as strands and the dust and debris are easier to see. It is still lighter and hazier than the photographic references, and at 400 m it is faint.
+- **What Claude is needed for:** not the funnel body, which is particles and shaders. Claude is needed for the things the storm leaves behind: debris pieces, storm damage, the buried shelter, the chapel bell, the old weather station and the storm archive. The full list and priorities are in `godot/docs/story/STORM-NARRATIVE.md` and on the board.
+- **Storm narrative plan:** `godot/docs/story/STORM-NARRATIVE.md` describes three threads that use the weather as the story clock and the thing that uncovers the town's past.
+  - After the storm: the buried shelter. A tornado scours a field and exposes a 1970s festival storm shelter with a storm diary, programmes and a drawing of the old funnel, linked to Ellis and Anne Voss. Two evidence chapters, a new place, the festival archive.
+  - The bell in the rain: a spooky episodic case. A chapel bell rings and a light moves against the wind during a storm; almost everything has an ordinary explanation, but the knotted bell rope does not.
+  - The storm glass: a quiet archive clue. An old barometer and record book mark every storm since 1974, and the marks line up with the festival and the buried shelter.
+- **How it would work:** WeatherEvents emits storm start, touchdown and clear signals; the story layer listens. There is no forced weather. Damage and shelter evidence is photographed after the storm; the bell and lights during the next storm. The Casebook gets a Storm watch card and #town and #weather carry the messages. Sam, Tom, Alex, Riley, Jo and Maya each have a storm part. The drone is never damaged and the story switch turns it all off.
+- **Honest limits:** this is a plan and a look tweak, not the storm case itself. No storm signals, storm cases or storm assets are implemented yet. The funnel still does not match the references at close range. The storm narrative leans on new Claude assets for the shelter and the bell.
+- **Questions for Robert:**
+  - ST1. Is the spooky but grounded tone right, with no supernatural confirmation, or should one thread stay genuinely unexplained?
+  - ST2. Should storm cases wait for a real storm, or can Rennick ask and the player start a storm from the menu?
+  - ST3. Should the storm cases sit between the Lake Car chapters, or come after the main arc as the first recurring cases?
+  - ST4. Is the 1974 festival shelter and the Anne Voss archive the right emotional link, or should the buried thing belong to different town history?
+  - ST5. Is a loose bell rope and a lantern enough for the spooky beat, or do you want a stronger unexplained image in the rain?
+  - ST6. Should the storm glass live in the pub, the garage or the police house?
+
+## The unknown account: a direct message thread that knows too much (lane/notify, session B, 2026-11-04)
+A new chat thread from an account called **Unknown** that messages the pilot directly in DroneBudz. The thread is deliberately ambiguous: it starts as a wrong number, becomes friendly, asks questions that go unanswered, then shows it knows more about the Lake Car investigation than a stranger should, and finally starts to question Constable Rennick.
+- **It starts as a mistake:** "hey. is this alex? the one with the drone?" and "sorry, wrong number. or wrong pilot." The pilot can reply or leave it.
+- **It becomes friendly:** the sender says they grew up out past the ridge, that the valley has not changed much, and that the videos make it look like the festival never stopped.
+- **It asks questions that may go unanswered:** what else the crew has the pilot flying for, whether the police are asking about the blue car, "you don't have to answer. i'm just working out who else is looking."
+- **It knows about the investigation:** the tow sticker, the camp by the railway, the file, and a 1974 connection. It says the constable does not tell the pilot everything and that she knew the garage before she knew the town.
+- **It sows doubt about Rennick:** why she came to Halloway, who called the case in, what she is really looking for, and "be careful what you send her. some people collect favours." After the case closes it asks about the shelter and says "ask her about the shelter. if she lies, you'll know."
+- **How it works:** a new direct message channel (`Unknown`, shown as DM) that stays hidden in the server until the first message arrives. It has its own grey avatar and an "unknown account" role. The messages are paced by in game hours and by how far the Lake Car story has gone, so the unknown cannot know about the camp before the pilot has found it. The player can reply in the channel, but the unknown does not answer on the spot; the thread continues when it decides to. Notifications arrive with the first messages. The thread saves to `user://unknown_thread.cfg` and stops when Story and jobs are off.
+- **Evidence (docs/realism/story/):** 10 the first wrong-number messages, 11 the questions about Rennick and the case, 12 the last message after the case closes.
+- **Honest limits:** the identity is intentionally unresolved. The unknown does not reply to the player's own messages yet, there is no branch where the player challenges or blocks them, and the thread has no effect on the main story or the officer's trust. The messages are not voiced and the timestamps are static from the chat clock.
+- **Possible identities for later (not decided):**
+  - Ellis's granddaughter or another relative, protective of him and suspicious of the police.
+  - A journalist from the next town who has been following the police and the festival story.
+  - Someone who used to live in Halloway and knows the 1974 shelter and the old festival.
+  - Someone connected to the police officer's past posting, which would make the doubt more personal.
+- **Questions for Robert:**
+  - UN1. Who should the unknown turn out to be, if anyone? Or should it stay unresolved?
+  - UN2. Should the player be able to ask Rennick about the unknown, and should that change her trust or the case?
+  - UN3. Should the unknown reply to the player's answers, or keep the one-sided, unsettling rhythm?
+  - UN4. Should there be a way to block or report the account, and what should that do to the thread?
+  - UN5. Is the doubt about Rennick a red herring (she is honest) or should there be a small secret she has kept from the pilot?
+  - UN6. Should the unknown thread continue into the storm cases and the shelter, or end when the Lake Car closes?
+
+## The endgame: the cabin, the ghost and the last flight (lane/notify, session B, 2026-11-05)
+The narrative now ends with the abandoned cabin, the 1980s police cruiser, the truth about Constable Rennick, the lost hiker Wren, the thermal camera and the credits.
+- **The truth:** Rennick died in the spring of 1984 on the abandoned plot north of the lake, answering a call about Anne Voss, who went missing on the stormy lake road. Her car was never found. A pilot had called in lights near the lake. The officer went out that evening and never came home. Her provincial cruiser is still outside the cabin. The Lake Car, the festival bus and Ellis's forty years of waiting now close around Anne.
+- **The unknown account:** Wren, a hiker, got lost in the storm and sheltered in the cabin. They found the cruiser and the case file and watched DroneBudz videos to work out where they were. Rennick's ghost borrowed their phone and the signal, which is why some messages knew too much and some sounded frightened. The last unknown message now points at the cabin lights in the storm.
+- **The last flight:** after the Lake Car case closes and the last unknown message arrives, the finale starts a storm, Rennick reveals she has been dead for forty years, and Alex fits the thermal camera. Ghost messages arrive at roughly 700 m, 420 m and the cabin. The cabin windows and porch light come on, Wren has already set out again, and their heat signature appears in the treeline. With the thermal camera on and the drone within about 105 m of Wren, the flight ends: the officer says thank you, Wren waves, the screen fades and the credits roll.
+- **The thermal camera (`game/thermal.gd`, `game/shaders/thermal.gdshader`):** a screen-space false-colour pass under the HUD, deep blue and purple cold, red and orange warm ground, white hot bodies, with scanlines, grain and a reticle. A heat sphere on Wren is only visible while it is on. T toggles it. It is installed by the finale. This is a house implementation: the other game's thermal camera code was not present in this workspace, so it can be swapped later if the other project's version is pointed to.
+- **The cabin and cruiser (`game/case_objects.gd`):** the abandoned cabin and the 1980s provincial cruiser are always in the world at the old plot north of the lake, so the pilot can discover them before the ending. The cabin has a porch, two windows, a bunk, a table, a case file and warm lights; the cruiser is a boxy white and dark saloon with a faded lightbar and fictional provincial lettering. They are code placeholders until Claude's models land.
+- **The ending (`game/ending.gd`):** full-screen fade to black, a short epilogue, the player's final follower, view, video and money counts, the credits and THE END. Escape leaves the game. The flight controls are not forced off, but the world is covered and the story is over.
+- **Story consistency:** Rennick's earlier physical lines are gone. Riley knocks on the garage door and goes up to the camp; the officer is a voice in the server from the start. The festival and Ellis ending stay as built. No gore, no body, no horror beat.
+- **Evidence (docs/realism/story/):** 13 the ghost reveal in #town, 14 the cabin and the cruiser in the storm, 15 the thermal search with Wren's heat signature, 16 the end credits.
+- **Asset plan:** `godot/docs/story/ENDGAME.md` for the design and `godot/docs/story/CLAUDE-ENDGAME-ASSETS.md` for the full Claude brief, plus the endgame request on the board. Priority 0 is the cabin, the 1984 cruiser, Wren, Rennick 1984 and ghost variants, the cabin interior and case, and the thermal pod. Priority 1 is Anne's submerged car, the lake buoys, the storm damage and the rescue props. Priority 2 is the epilogue recovery set and future-case props.
+- **Honest limits:** the cabin, cruiser, Wren and Rennick are code placeholders. The thermal camera is an approximation, not a simulation of real thermal optics. The ghost is only text; there is no apparition at the cabin yet. The finale auto-starts for an already-completed save and the ending does not yet offer a free-flight return or a restart. Anne's car is described but not visible in the lake. The ending credits are static text and a slow scroll, not a cinematic sequence. There is no save-state marker for the ending, so reloading a completed save will start the last flight again.
+- **Questions for Robert:**
+  - E1. Should the game end at the credits with Escape to desktop, or should there be a free-flight return after the ending?
+  - E2. Is the Anne Voss link to Ellis the right loop, or should the missing woman be someone separate?
+  - E3. Should the cabin and cruiser be discoverable from the start, or hidden until the ghost reveals them?
+  - E4. Should Wren be named in the chat before the reveal, or stay Unknown until the rescue?
+  - E5. Should the thermal camera be available in free flight after the story, or only during the last flight?
+  - E6. Do you want Rennick's ghost to appear at the cabin as a translucent figure, or stay a voice in the messages?
+
+## The interface pass: the valley field kit (lane/notify, session B, 2026-11-06)
+The phone, its apps and the HUD menus now share one visual language: a wet autumn valley field notebook rather than a cool sci-fi dashboard.
+- **One theme (`game/ui_theme.gd`):** deep pine and charcoal surfaces, warm paper text, brass for actions, moss for the crew and the channel, lake teal for weather and water, rust for VidTube, warm hairlines and cards. Buttons, primary and ghost actions, chips, channel rows, fields, scrollbars and cards all come from this theme.
+- **The phone (`game/phone_os.gd`, `game/phone_background.gd`):** a drawn valley wallpaper with slow topographic contours and a low brass sun, a new status bar, a clock and weather header, app tiles with tinted cards and captions, a field note card with weather, crew unread and the current case, a quiet dock and a proper app switcher with app cards, descriptions and open buttons. The wallpaper only shows on the home screen; every app gets a dark scrim for legibility.
+- **DroneBudz (`game/chat_app.gd`):** a moss server mark, grouped CHANNELS and DIRECT MESSAGES, brass selection, a channel header with topic and crew status, warm paper message avatars, small caps roles, photo frames with a warm hairline, ASK chips and a brass Send. System and job events are centred, quiet lines.
+- **VidTube Studio (`game/studio_app.gd`):** a rust channel banner, a channel mark, four metric cards with coloured edges, a clean uploads list with play tiles and edited or direct tags, and the editor line in the header. It reads like a small valley broadcaster, not a corporate dashboard.
+- **Casebook:** the same warm cards and brass case accent, with the request, evidence, chapter trail and ending choice fitting the new palette.
+- **Jobs and Photos:** the full-screen menus now use the shared theme, warm panel and title colours, and the brass-outline panels instead of cool grey chrome.
+- **HUD menus (`game/menu_style.gd`):** the old cyan accent is gone. Settings and the pause menu now use brass, warm cards, pine surfaces and the same type scale.
+- **Notifications (`game/phone_notes.gd`):** the DroneBudz mark is moss, the heads-up and shade cards are warm charcoal, and urgency stays amber and rust.
+- **Style guide:** `godot/docs/UI-STYLE.md` records the palette, type, components, app identities, dialogue rules and consistency rules for future screens.
+- **Evidence (docs/realism/phone/):** 10 home, 11 app switcher, 12 chat, 13 VidTube Studio, 14 Casebook, 15 Jobs, 16 gallery, 17 HUD menu.
+- **Honest limits:** this is a visual and consistency pass, not a full redesign of every screen. Jobs, Photos and Casebook still carry some older card copy and a handful of hard-coded label colours that the theme cannot reach; the notification shade keeps its Android layout. The home screen uses a lot of empty space on a wide monitor by design, but a narrower layout on mobile is untested. There is no custom font asset, so the type is the Godot fallback. The chat still shows duplicate adjacent messages from the earlier dedupe rule, which is a data issue, not a styling one.
+- **Questions for Robert:**
+  - UI1. Is the warm field-kit palette the right universe look, or do you want it darker and more nocturnal?
+  - UI2. Should the home screen field note card stay, or should the wallpaper and app grid have the screen to themselves?
+  - UI3. Should VidTube Studio go further with channel art, thumbnails and a viewer-facing page, or stay a clean dashboard?
+  - UI4. Do you want a custom typeface for the valley, or is the clean system font right for readability?
+  - UI5. Should the chat keep the Discord-like layout, or move to a more distinct DroneBudz layout?
+  - UI6. Should notifications use the Android heads-up style everywhere, or become a quieter in-universe radio message style?
+
+## Facade, the kit and the channel pot (lane/notify, session B, 2026-11-07)
+The money from jobs and favours now has somewhere to go. The channel pot shown in VidTube Studio is spent on the Facade classifieds, and the purchases become real kit.
+- **Small paid favours:** three new jobs, from Sam, Jo and Alex, sit beside the main job chain and pay a fixed favour fee on top of the normal payout: a lake reading for Sam, a chapel handbill for Jo and a field check for Alex. They use the existing photo objectives and do not block the story.
+- **Facade (`game/marketplace_app.gd`, `game/facade_catalog.gd`):** a sixth phone app and switcher card, the valley classifieds. The header is the channel pot; the market has search, All/Drones/Camera/Motors/Parts filters and listings with seller, place, condition and price. MugShot Motors sells the drone gear, Alex sells the honest parts. Buying calls `jobs.spend` on the same pot VidTube Studio shows, then adds the item to the kit. The Your kit tab lists every drone with a Fly button, fitted motors, camera add-ons and the battery. The VidTube Studio header also has a Spend on Facade button.
+- **The kit (`game/inventory.gd`):** the kit is saved to `user://facade_kit.cfg`. Fitted motors are applied when an airframe is built: 12 per cent more thrust and top end with a matching lift in the limits. The high-capacity battery adds 25 per cent to every airframe's capacity. The night vision module is owned once and switched with K in flight.
+- **New drones:** the Raptor Race is a six-cell 550 g race quad with no gimbal and a 40 m/s limit; the Night Owl is a quiet 480 g gimbal ship with a big pack. Both are bought on Facade and flown from the Your kit tab. They use the existing race and mini geometry as placeholders until Claude's models land.
+- **Night vision (`game/night_vision.gd`, `game/shaders/night_vision.gdshader`):** a green image-intensifier pass under the HUD, bought from MugShot Motors and toggled with K. It is an approximation, not true low-light optics.
+- **Prices and balance:** Raptor $220, Night Owl $180, night vision $90, battery $55, motors $55 to $120. Favours pay $30 to $40 plus the usual job payout, so a few favours buy the first part and several buy a drone. Existing saves keep their current money and the first three favours appear on fresh saves.
+- **Tested:** the real purchase path (money down, item added, kit updated), the owned state and Fly button, the kit tab, the night vision effect and switching to the Raptor. Evidence docs/realism/phone/18 home with Facade, 19 market, 20 owned Raptor and night vision, 21 kit, 22 night vision.
+- **Honest limits:** purchased Raptor and Night Owl are flown from the Your kit tab and do not yet appear in the HUD Drone tab, which still lists the six original airframes. The two new drones reuse the Race and Mini models, with no unique body or sound yet. Motor upgrades apply to the next time an airframe is built, not instantly to the one currently in the air. Night vision is keyboard only, with no mobile button or menu switch. There is no selling, trading, wishlist or saved search, and the favours are one-off rather than repeatable. The marketplace prices use the existing channel money, so the VidTube Studio balance is the only wallet.
+- **Questions for Robert:**
+  - M1. Should the Raptor and Night Owl appear in the HUD Drone tab as owned cards, and should the Drone tab become the main garage?
+  - M2. Are the prices right, or should the first drone be reachable after two or three favours rather than several?
+  - M3. Should the next add-ons be a zoom lens, ND filters, a louder/longer-range control link, or a searchlight?
+  - M4. Should Facade allow selling old gear and trading in drones?
+  - M5. Should favours be repeatable daily small work, or stay one-off story jobs?
+  - M6. Should the night vision camera get a mobile-friendly button and a menu switch, and should it be added to the HUD camera controls?
+
+## Return to Home now cuts the motors and recharges (lane/notify, session B, 2026-11-08)
+The RTH landing finishes at the pad, the motors stop, and the battery charges before the next mission.
+- **Motors off:** when the Return to Home landing completes, `quad.motor_cut` is set, the flight controller commands are zeroed, the props spin down and the OSD changes to DISARMED. The engine audio is quiet because the thrust and motor sound inputs are zeroed. This is a normal landed state, not a crash.
+- **Recharge:** a six second charge brings the battery back to full while the drone sits at home. A toast says the motors are off and charging, and another says the battery is full and ready for the next flight. The battery percentage in the OSD climbs during the charge.
+- **New mission:** pressing Takeoff after the charge clears the motor cut and starts a fresh takeoff. Pressing it while charging tells the pilot to wait. The takeoff button no longer starts a second takeoff or landing while one is already running.
+- **Safety:** manual landing and a normal spawn still reset the state; switching drones or resetting respawns with a full battery. Cancelling RTH before touchdown does not cut the motors. A crash or flat battery still needs a reset.
+- **Implementation:** `game/main.gd` has `_home_landed`, `_update_home_recharge` and a fallback `_check_home_landing`; `quad.gd` and `plane.gd` have `motor_cut`; the OSD gets `armed` as false while the motors are cut. `HOMELANDED` is a dev hook for checking the state.
+- **Evidence (docs/realism/rth/):** 00 motors off and charging, 01 battery full and ready.
+- **Honest limits:** only the RTH landing triggers the charge; a manual or auto landing away from home does not. The charge is abstracted to six seconds and there is no charger model or battery-swap animation. The RTH completion is detected from the autopilot state and the landed message, with a fallback on the state transition; the headless `apstest` is not a reliable check of the new landing notice. There is no audible charger sound yet.
+- **Questions for Robert:**
+  - RTH1. Should the charge also happen after a normal auto landing at home, or only after Return to Home?
+  - RTH2. Is six seconds the right charge time, or should it be faster or a battery-swap action?
+  - RTH3. Should the HUD show a clear CHARGING label and percentage, or is the DISARMED status and the toast enough?
+  - RTH4. Should Takeoff be blocked until full, or should the pilot be able to leave early on a partial battery?
+  - RTH5. Should the motors cut after a manual landing anywhere as well?
+
+## Story mode is the normal game (lane/notify, session B, 2026-11-09)
+The welcome screen now chooses between Story, the normal game, and Sandbox, the old creator mode. Story mode takes the god powers away from the player so the investigation, the jobs, the follower growth and the festival cannot be interrupted by a player-spawned tornado.
+- **Landing menu (`game/landing.gd`):** a MODE row with Story and Sandbox. Story is the default. Story shows a short note that the valley owns its weather and clock and hides the TIME AND WEATHER quick looks. Sandbox shows the quick looks and the old descriptions. The choice saves to `user://mode.cfg` and is restored at launch.
+- **HUD (`game/hud.gd`):** in Story mode the whole Weather settings page is replaced by a short read-only note; the Sky, Time, Wind, Fireworks and Events controls are hidden. In Sandbox mode the full page returns. Switching into Story mode clears every active weather event, stops fireworks and surprise shows and disables the event toggles, so nothing already running keeps going.
+- **What Story mode protects:** no player tornado, waterspout, thunderstorm, thermals, dust devil, fog bank, snow squall, surprise events, far traffic or kites; no fireworks show control; no quick time/weather looks on the landing screen. The story finale can still bring its own storm because that call is internal, not a player toggle.
+- **Not affected:** flying, camera, jobs, photo evidence, followers, money, the Casebook, the storm narrative's scripted weather, the festival writing and the ending. Courses, drone choice, camera settings and display settings remain.
+- **Evidence (docs/realism/modes/):** 00 Story landing, 01 Sandbox landing, 02 the read-only Story Weather page, 03 the full Sandbox Weather page.
+- **Honest limits:** Story mode locks the whole Weather page, so the optional fireworks job, which needs a night show, is only playable in Sandbox unless a show is scheduled by the story later. The mode can only be changed from the welcome screen, not from the pause menu. Existing saves default to Story on first launch after this change. Story mode does not stop natural weather or scripted storms; it only removes player control. The sandbox mode is still the only place to test events.
+- **Questions for Robert:**
+  - MODE1. Is separating Story and Sandbox on the welcome screen the right shape, or should the mode instead be a single "no player weather powers" switch in Settings?
+  - MODE2. Should Story mode keep the time and weather controls for photography, and only remove the severe events?
+  - MODE3. Should the fireworks show be allowed in Story for the optional fireworks job, or should the story schedule its own shows?
+  - MODE4. Should Sandbox turn story and jobs off entirely, or keep them as they are now?
+  - MODE5. Should the player be able to switch back to Sandbox from the pause menu, or only by returning to the welcome screen?
+
+## The tablet desktop (lane/notify, session B, 2026-11-10)
+The phone home is now a tablet-style desktop rather than a plain app grid, with a real public-domain aerial photograph and a warmer Android-like shell.
+- **Wallpaper:** `assets/ui/tablet_red_barn.jpg`, an aerial view of Mt. Toby Farm by Lance Cheung / USDA NRCS, public domain. The credit is on the home screen and in `assets/ui/TABLET-WALLPAPER-CREDIT.txt`. The image is overlaid with a warm dark scrim and a top shade so the text and icons read.
+- **Status and desktop:** an Android-like status bar with time, carrier, LTE, signal and battery; a large clock, date, story/sandbox mode line, followers and money; the app grid with six app icons; a field-note widget with a live wind compass dial and a live drone battery gauge; a dock with Home, Recents, DroneBudz, VidTube, Photos and Facade shortcuts; and the Put phone away action.
+- **Icons and dials (`game/tablet_icon.gd`, `game/tablet_dial.gd`):** app icons are now drawn as layered rounded tiles with soft highlights and shadows, each with its own glyph: a speech bubble and drone for DroneBudz, a play mark for VidTube, an aperture and valley for Photos, a clipboard for Jobs, a case folder for Casebook, a price tag for Facade. The Recents screen uses the same icons. The dials are a compass with a brass needle and a battery arc that reads the live drone pack, pushed from main with `set_battery`.
+- **Claude brief:** `docs/CLAUDE-TABLET-UI.md` asks for polished adaptive app icons, widget faces, separate dial needles, status-bar glyphs, Android toggles, sliders and an optional tablet frame. Board request posted. The current icons and dials are code-drawn placeholders.
+- **Evidence (docs/realism/tablet/):** 00 the tablet desktop, 01 Recents.
+- **Honest limits:** the icons and dials are code-drawn, not the final Claude asset set. The wallpaper is a real public-domain dairy farm aerial with a red barn in frame, not a dramatic close-up of one barn. The home screen is designed at 1280 x 720 and not yet checked at tablet portrait or 4:3. The dock icons are clipped slightly by the dock height at 720p. The status bar is cosmetic. There is no search bar or page-dot pager yet.
+- **Questions for Robert:**
+  - TAB1. Is the dairy-farm aerial right, or do you want a tighter drone photo of a single red barn?
+  - TAB2. Should the home show more Android-like furniture: a search pill, page dots and a quick-settings shade?
+  - TAB3. Should the tablet frame/bezel from Claude be used, or keep the UI edge-to-edge?
+  - TAB4. Should the app icons stay code-drawn if Claude's set does not match, or wait for the final set?
+  - TAB5. Should the field-note widget stay, or become a full weather widget with a forecast?
+
+## The night pasture: a thermal upgrade and the wolf (lane/notify, session B, 2026-11-11)
+The thermal camera is now a real progression item. Riley's night pasture favour teaches its use, and the last flight will not start without it.
+- **The favour:** after the Lake Car reaches chapter 3, Riley asks about sheep being taken from the west pasture. The player must buy the thermal camera module on Facade (Alex, $120), fit it, then fly the west pasture after dark with thermal on and find the wolf. The objective card guides the purchase and the search. On success Riley explains: a thin young wolf, no collar, taking the weakest sheep; the flock is moved to the home field and a proper night pen is planned. Nothing is shot and no gore is shown.
+- **The thermal camera:** a Facade camera add-on, owned and fitted through the same kit system as night vision. T toggles it, but only when the module is owned; without it the HUD says to buy one on Facade.
+- **The gate:** the final flight now refuses to start until the thermal camera is owned and the night pasture is complete. Rennick or Riley prompts the missing step in #town, and the finale waits for it. The auto-start timer does not spam prompts.
+- **The world (`game/wildlife_objects.gd`):** seven code-placeholder sheep in the hay field, a code-placeholder wolf at the treeline, and heat shells for both. The wolf is hidden until the thermal camera is fitted and the favour starts. The sheep are ordinary farm life and visible from the start. All are cleared from the world planting via the CaseObjects evidence spots.
+- **The mission state (`game/wildlife_case.gd`):** saved to `user://wildlife_case.cfg`, with Riley's chat messages, phone notices, objective card, thermal-marker visibility and a humane resolution. It is optional to the rest of the sandbox but required for the ending.
+- **Evidence (docs/realism/wildlife/):** 00 Riley's night pasture request, 01 the thermal pass over the pasture, 02 the solved favour.
+- **Asset plan:** `docs/CLAUDE-WILDLIFE-ASSETS.md` and the board request. Priority 0 is the wolf in four poses, white and cream sheep in grazing/standing/lamb/ram variants, the trough, hay rack, salt lick, wool on wire, wolf and sheep tracks, a timber night pen and a hand-painted advisory sign. Priority 1 is the sheep bell, hay bale, straw, feed bucket, fur tuft, field gate, farm lantern and a tracking-collar variant. Priority 2 is a sheepdog, farm pickup, collar tracker and shearing kit for later cases.
+- **Honest limits:** the sheep, wolf and pen are placeholders until Claude's models land. The thermal pass works in daylight as well as night; the writing says after dark but the check is thermal-on plus distance, so the player is not locked out by the clock. The wolf only has a heat signature, not an animated behaviour. The night pasture does not have its own Casebook entry; it lives in chat and the objective card. The mission is triggered by the main story chapter, not by a separate mission select. The camera must be bought with channel money; a player with no money cannot progress until they earn some, which is intentional but could be a wall.
+- **Questions for Robert:**
+  - W1. Is $120 the right price for the thermal camera, or should the night pasture provide a loaner and the purchase be optional?
+  - W2. Should the night pasture be skippable for the ending, with only the thermal camera required, or stay a hard gate?
+  - W3. Should the thermal pass be night-only, or stay flexible so players are never stuck waiting for the clock?
+  - W4. Should the wolf be relocated, collared or simply left alone in the resolution?
+  - W5. Should this become a proper Casebook side case with photographs, or stay a chat favour and objective? 
+
+## Representative clips, no video files (lane/notify, session B, 2026-11-12)
+The channel no longer pretends to store footage. Video mode now makes a small representative clip: a thumbnail, a duration, the flight metadata and a title. There is no video file, frame sequence or audio track.
+- **Clip library (`game/clip_library.gd`):** each recording is a 480x270 JPEG thumbnail plus a JSON record under `user://clips`. The cap is 80 clips and the oldest thumbnail is removed over the cap. The thumbnail is typically 20 to 50 KB; a clip costs that, not a minute of video.
+- **Recording:** in video mode the shutter starts the REC timer and stopping it captures one frame, writes the thumbnail, and shows a toast and phone notice. The full frame is not kept. The home screen shows an "N RUSHES" badge under the VidTube Studio icon.
+- **VidTube Studio:** a new RUSHES section shows the waiting clips as YouTube-like cards with thumbnail, title, duration and quality. Each card offers Maya cut or Raw, and Send all to Maya strings every waiting rush into one video with the best thumbnail, a clip count and a quality bonus. Published videos are listed newest first with real thumbnails, duration, clip count, edited/direct tags and views, followers and money.
+- **Jobs (`game/jobs.gd`):** `upload_clip` and `publish_rushes` publish the representative records; the editor bonus still lifts the numbers. Existing photo uploads and job videos still work and share the same card language.
+- **Player representation:** the clip is not playable. It is a card in the channel app: a still, a duration, a title and the story of Maya cutting it. The fiction is carried by the thumbnail and the rushes bag rather than a media file.
+- **Docs:** `docs/CLIP-REPRESENTATION.md` explains the rule, storage, player flow, limits and questions.
+- **Evidence (docs/realism/clips/):** 00 the rushes section with three clips, 01 after a Maya cut.
+- **Honest limits:** there is no playback, scrub, trim, custom thumbnail picker, multi-select or ordering. One thumbnail represents each clip. "Send all" uses one best thumbnail rather than a collage. Quality is a small formula, not a real edit score. The old photo upload path remains. The RUSHES section is hidden when empty.
+- **Questions for Robert:**
+  - CLIP1. Should a cut use a collage of the best three thumbnails instead of one?
+  - CLIP2. Should the player choose the thumbnail from a few captured frames?
+  - CLIP3. Should rushes be multi-select and ordered by the player before Maya cuts them?
+  - CLIP4. Should old jobs publish a thumbnail automatically from their qualifying photo?
+  - CLIP5. Should there be a short animated preview (a few frames) instead of a still, still without a video file?
+
+## Roads around the cemetery (lane/notify, session B, 2026-11-13)
+The old valley highway ran home to chapel to farm straight through the graves and the chapel, and the ridge road started inside the cemetery. Both have been replaced by a ring outside the walls.
+- **New routes (`game/roads.gd`):** valley highway from the east gate car park around the east and south walls to the farm; south gate lane from the valley to the south gate; east boundary lane from the east car park to the north gate; ridge road from the north gate to the garage and camp; cabin track branch; lakeside lane from the farm to the lake; festival lane; west boundary lane from the lakeside lane to the west gate. Eight routes, 3.61 km.
+- **Cemetery protection:** every asphalt centreline stays outside a 248 m square around the walled cemetery. The gate points are outside the walls. Inside, only the park's own gravel paths remain. The roads no longer pass through the chapel or the grave rows.
+- **Map:** the minimap draws the country roads as a dark line with a warm centre under the pale park paths, so the ring and the cemetery paths read together.
+- **Festival field:** moved out of the cemetery from (24, -96) to (300, 300), beside the new festival lane. The bus is no longer parked among the graves.
+- **Places linked:** east gate car park, south gate, north gate, west gate, farm, lake overlook, garage, camp, cabin and festival field. Home and chapel remain inside and are reached by the park paths, not by cars.
+- **Audit:** `Roads.audit()` checks every route sample against the 248 m square and prints `inside_cemetery: 0` at startup. This is the guard against a future route edit cutting through the graves again.
+- **Evidence (docs/realism/roads/):** 10 the ring around the untouched cemetery, 11 the home pad, park paths and minimap.
+- **Docs:** `docs/ROADS-PLAN.md` has the route table, gates, rationale, audit and limits.
+- **Honest limits:** only the east gate has the existing modelled car park with cars; south, north and west have no parking bays or bollards yet. The audit is a rectangle check on the road centreline, not a full geometric collision test against every grave and hedge. Road grades follow terrain and have not been checked for every vehicle angle. The west lane runs close to the outside wall and needs a final art check. The festival field has moved, so older screenshots or saves showing the old field are out of date. No new Claude asset is needed for the layout.
+- **Questions for Robert:**
+  - ROAD1. Is ending the asphalt at the gates the right feel, or should there be a short driveway into each gate?
+  - ROAD2. Should the south, north and west gates get small gravel car parks and bollards?
+  - ROAD3. Is the festival field at (300, 300) in the right place, or should it be somewhere else outside the cemetery?
+  - ROAD4. Should the chapel keep only the park path access, or get a service track around the outside and a short walking spur?
+  - ROAD5. Do you want road signs naming the gates, the farm, the lake and the ridge?
+
+## Story director and app screens audit (lane/notify, session B, 2026-11-14)
+Every app screen now exists, and the story director is a real system rather than a missing piece.
+- **Story director (`game/story_director.gd`):** reads StoryArc, UnknownThread, WildlifeCase, Finale and Ending, and exposes the current act, next step, thermal state, night pasture state and chapter line. It does not replace the arcs; it is the one player-facing route through them. The act is initialised on setup and updates in `_process`; the Casebook refreshes when the act changes.
+- **Player-facing screen:** the Casebook now opens with a STORY DIRECTOR card showing ACT, the next step, and THERMAL / NIGHT PASTURE / chapter status. Evidence `docs/realism/apps/00_story_director_casebook.jpg`.
+- **Video detail screen:** published videos and cuts now have a Details button that opens a detail card with the large thumbnail, title, duration, clip count, edited tag, views, followers, money and quality. Since there is no video file, the card states that it is a representative clip. Evidence `docs/realism/apps/01_video_detail.jpg`.
+- **Screens audit:** all six apps (DroneBudz, VidTube Studio, Photos, Jobs, Casebook, Facade), phone home and Recents, notifications, pause/settings, landing/mode select, thermal, night vision, last flight, night pasture and ending/credits are present. The full table and asset status are in `docs/APP-SCREENS-AUDIT.md`.
+- **Assets present:** public-domain tablet wallpaper, code-drawn app icons and dials, real photo and clip thumbnails, evidence photos, code-drawn HUD and notification icons, coloured initial avatars, and all the placeholder world props.
+- **Assets still needed:** final app icon set (existing tablet brief), illustrated portraits for Maya, Jo, Riley, Tom, Alex, Sam, Rennick, Unknown, You and Wren, Facade product tiles, Casebook act/evidence stamps, notification/channel badges, and optional video thumbnail overlays. New brief `docs/CLAUDE-APP-ASSETS.md` and board request.
+- **Honest limits:** placeholders remain until Claude's art lands. The director reads the arcs rather than owning them, so an arc bug can still surface in the act card. There is no act history log, no separate Settings app, no chat profile screen, and the Casebook request box can still show the last closed request after the case closes. The video detail is a still card, not playback. The director card lives in Casebook, not on the home screen.
+- **Questions for Robert:**
+  - APP1. Should the story director get its own app icon, or stay as the Casebook act card?
+  - APP2. Do you want a short act history in the director card, or only the current act and next step?
+  - APP3. Should the avatars be illustrated portraits, or stylised role badges with no faces?
+  - APP4. Should Facade product art be photography, illustration, or diagram-style?
+  - APP5. Do you want a video detail screen with a "play" animation even though there is no video file?
+
+## Boat launch and road realism (lane/notify, session B, 2026-11-15)
+### The boat launch
+- **Placement:** east shore of Halloway Lake, at `CaseObjects.BOAT_LAUNCH_SPOT` (-430, 112), at the end of a new `launch` lane off the lakeside lane. The ramp slopes from the gravel apron at about 84 m down to the water at 76 m over roughly 30 m at z 112, with a short timber dock north of the ramp.
+- **Placeholder assets (`game/boat_launch.gd`):** gravel parking apron with wheel-turn strips, concrete ramp with curbs and segment grooves, timber dock on posts with white floats and a cleat, a floating aluminium boat, an empty trailer with a second hull on the bunks, a two-post timber sign with the words HALLOWAY LAKE / BOAT LAUNCH, a life ring, and two bollards at the ramp head. No collisions.
+- **World integration:** the site is cleared through `CaseObjects.near_evidence`, is a named photo subject `boat_launch`, is included in the road raster mask so grass keeps off the gravel, and is linked by the new road route. The minimap picks up the road automatically.
+- **Assets still needed:** `docs/CLAUDE-BOAT-LAUNCH-ASSETS.md`. Priority 0 is the concrete ramp slab and curbs, gravel apron, timber dock with posts and floats, two-post sign, life ring, aluminium hull, outboard, trailer, winch and trailer hull. Priority 1 is bollards, wheel stops, rope, fuel tank, oar, marker, bin, notice board and gravel patches. Priority 2 is a tarp cover, tackle box, gate, weather post and damage decals.
+- **Evidence:** `docs/realism/boat_launch/00_boat_launch_aerial.jpg`, `01_boat_launch_ramp.jpg`.
+
+### The road realism pass
+- **Grass mask:** `Roads` now bakes a 1024 px mask of every asphalt and shoulder corridor plus the boat launch apron. The grass shader samples it and keeps the meadow off the carriageway, which was the biggest visual problem before this pass.
+- **Materials:** the road samples `asphalt_diff`, `asphalt_nor` and `asphalt_arm`; the shoulder samples the matching gravel maps. The meshes now carry tangents and terrain-following normals, so the normal maps and lighting work.
+- **Markings:** edge lines and a worn dashed centre line only on roads 6.5 m and wider. Narrow lanes are unmarked. Lines are wider and brighter but still worn.
+- **Shoulders:** the outer lip sinks below the terrain; the gravel shader adds stones, ruts, grass and wetness at the edge.
+- **Delineator posts:** white posts with red reflectors every 60 m on both sides of the wider roads, built as multi-meshes.
+- **Rain:** the weather's wetness value is forwarded to the asphalt and gravel shaders; wet roads darken and pick up a little reflection on the wheel tracks.
+- **Evidence:** `docs/realism/roads/12_road_surface_and_posts.jpg`, `13_wet_road.jpg`, `14_clean_shoulder.jpg`.
+- **Docs:** `docs/ROADS-REALISM.md`; route notes in `docs/ROADS-PLAN.md`.
+- **Honest limits:** asphalt and gravel maps tile visibly at extreme close range; no standing puddles or spray; no camber, banking or deformation; no guardrails, chevrons or road signs yet; the grass mask edge is coarse at 1024 px over 4 km; traffic leaves no tyre marks or dust; wet roads do not change grip. The boat launch is placeholder geometry until Claude's assets land, and the launch lane is unmarked narrow asphalt rather than gravel.
+- **Questions for Robert:**
+  - BOAT1. Is the launch on the right shore, and is the ramp slope and dock position right?
+  - BOAT2. Should the launch lane turn to gravel for the last stretch, or stay asphalt to the apron?
+  - BOAT3. Should the launch get a small wooden gate and a parking fee/notice board?
+  - ROADR1. Do you want road signs, chevrons and gate markers next, or are the delineator posts enough?
+  - ROADR2. Should the wider roads get a yellow centre line, or stay white?
+  - ROADR3. Do you want visible puddles and wet tyre tracks in rain, or is the darkening enough?
+  - ROADR4. Should the narrow lanes become gravel roads with a different surface, rather than unmarked asphalt?
+
+## Road signs, speed limits and junction control (lane/notify, session B, 2026-11-15)
+- **Stop signs (`game/road_signs.gd`):** eight stop signs on the minor approaches to the main junctions, each on the right of the approaching traffic and facing it: south lane to the valley highway, festival lane to the valley highway, both ends of the east lane, lakeside lane at the farm, launch lane, cabin track and west lane. Each has a white stop line across the approach.
+- **Speed limits:** each route has a `speed_limit` in mph in `roads.gd` and a speed plate at its entry. Valley and ridge 40, east lane 30, lakeside 25, south and west lanes 20, cabin track 15, festival and launch lanes 10.
+- **Junction warnings:** yellow diamond warning signs before the south-lane, east-gate and west-lane junctions.
+- **Fingerpost:** a green two-post direction board at the east gate car park pointing to Halloway Lake.
+- **Traffic:** `traffic.gd` caps each vehicle at 85 percent of its route speed limit, so the signs and the traffic share the same numbers.
+- **Visuals:** code-built octagonal stop plates with white rims, white speed plates with black lettering, yellow warning diamonds, a green fingerpost and galvanised posts. Signs are on the right side and face the oncoming driver.
+- **Evidence:** `docs/realism/road_signs/00_stop_sign.jpg`, `01_speed_limit.jpg`, `02_east_gate_signs.jpg`.
+- **Asset brief:** `docs/CLAUDE-ROAD-SIGNS-ASSETS.md` asks for final stop face and back, six speed faces (10, 15, 20, 25, 30, 40), junction and crossroad warnings, a blank fingerpost with separate arms, posts, brackets, gate boards, end-of-limit, parking, boat launch, chevrons, narrow bridge, steep hill, mirror and wear decals.
+- **Honest limits:** signs are scenery and traffic does not actually stop at the stop signs. There is one speed plate at each route entry, not a full sign schedule. The lettering is Label3D placeholder text, not final reflective sign faces. Speed units are mph but the HUD and flight speeds are metric, so the two are not explicitly explained in-game. The fingerpost only points to the lake. No school, animal, bend, narrow bridge or gate signs yet.
+- **Questions for Robert:**
+  - SIGN1. Are the current speed limits right, and should they be shown in mph or km/h?
+  - SIGN2. Should traffic actually stop and give way at the junctions, or are the signs enough?
+  - SIGN3. Do you want more junction warnings, chevrons and gate name boards next?
+  - SIGN4. Should the sign style stay British rural, American rural, or a made-up Halloway blend?
+  - SIGN5. Should there be a school, farm vehicle or animal warning near the farm and the sheep pasture?
+
+## The cemetery gateway, location signs and turnoffs (lane/notify, session B, 2026-11-15)
+- **Big cemetery sign:** `game/landmark_signs.gd` puts an 8.2 m gateway board on two stone pillars at the east gate turnoff, with HALLOWAY CEMETERY and CHAPEL / WAR MEMORIAL / EAST GATE on both faces. Smaller HALLOWAY CEMETERY gate boards stand at the south, north and west gates.
+- **Other location and business signs:** Toby Farm, Voss and Son Motor Works, Halloway Lake, the festival field, the ridge camp, the old cabin, the boat launch and the chapel. The signs are two-sided where traffic can approach from either direction. Code placeholder boards and Label3D lettering until Claude's art arrives.
+- **Turnoffs and approaches:** new short routes now connect the road network to the actual places. The four cemetery gates have their own driveways from the east car park, south lane, north lane and west lane. Toby Farm has a driveway from the valley and lake junction. The boat launch and festival already had lanes; the cabin, camp, garage and lake are served by the existing ridge and lake roads.
+- **Road audit:** the cemetery rectangle check now uses the actual wall line at 238 m rather than the old 248 m margin, so the gate driveways can reach the gate without being reported as road inside the cemetery. The audit still reports zero centreline samples inside the walls.
+- **Traffic:** the smallest driveways and field spurs are excluded from the vehicle route pool, so traffic stays on the real roads rather than looping around 10 m gate drives.
+- **Visual fixes:** sign labels are pushed 0.12 to 0.14 m in front of the plates to stop z-fighting at distance, and the big gateway lettering is higher resolution than the first pass.
+- **Evidence:** `docs/realism/location_signs/00_cemetery_gateway.jpg`, `01_cemetery_gateway_back.jpg`, `02_garage_sign.jpg`.
+- **Asset brief:** `docs/CLAUDE-LOCATION-SIGNS-ASSETS.md` asks for the stone gateway, gate boards, farm, garage, lake, festival, camp, cabin, boat launch and chapel boards, posts, arrows and weathering.
+- **Honest limits:** the gateway is still placeholder board-and-pillar geometry, not a designed cemetery entrance. Lettering is Label3D rather than painted or printed board faces. The farm, camp and cabin signs are visible but not yet checked against every approach angle. The signs are two-sided but the boards are simple boxes. There is no lighting on the big gateway. The east car park is still the only car park with parked cars; the other gate driveways end without formal bays.
+- **Questions for Robert:**
+  - LOC1. Is the big cemetery gateway in the right place, and should it arch over the driveway or sit beside it?
+  - LOC2. Should the gate boards at the south, north and west gates stay, or only the east gateway have a sign?
+  - LOC3. Should the farm sign say TOBY FARM or another name?
+  - LOC4. Should Voss and Son, the festival, the camp and the cabin have larger signs, or stay modest roadside boards?
+  - LOC5. Should the location signs be lit or reflective for night approaches?
+
+## Intersections, markings and flashing red beacons (lane/notify, session B, 2026-11-15)
+- **Five rural red beacons (`game/intersection_signals.gd`):** east gate, south junction, Toby Farm junction, north gate and west junction. Each has two 6.5 m timber poles, a cable between them, a yellow diamond backplate, a dark housing with a top visor, red lenses on both faces and a red OmniLight. Lens and light flash together, about 0.68 seconds on and 0.67 off. Poles and housings remain when the flash is switched off.
+- **Pause switch:** Display > World > Intersection beacons toggles the flash and the red light, satisfying the rule that every effect has a switch.
+- **Junction markings:** the asphalt shader now samples a 1024 px junction mask built in `roads.gd`; painted edge and centre lines fade through the junction apron instead of running straight across. Every stop sign has a white stop bar, and the busier approaches have STOP AHEAD warning diamonds.
+- **Signage:** the existing junction warning diamonds, stop signs and speed plates remain; the new stop-ahead signs sit on the south lane, east lane, farm approach and cabin approach.
+- **Evidence:** `docs/realism/intersections/00_beacon_at_night.jpg`, `01_east_gate_beacon.jpg`, `02_south_junction.jpg`, `03_stop_ahead.jpg`.
+- **Docs:** `docs/INTERSECTIONS.md`; art brief `docs/CLAUDE-INTERSECTION-ASSETS.md`.
+- **Honest limits:** traffic does not stop for the beacons or stop signs; there is no signal controller, queue detection or give-way logic. The beacon is a single red lamp, not a full three-colour signal. Wires are straight boxes, not catenary curves, and do not sway. Lenses are emissive spheres, not fresnel glass. Stop bars are flat white boxes and do not wear. The junction mask is a 1024 px raster, so the line fade edge is coarse. STOP AHEAD signs are Label3D placeholders. There are no street-name blades yet.
+- **Questions for Robert:**
+  - INT1. Are five beacons the right number, or should more or fewer junctions have one?
+  - INT2. Should they flash together or alternate across the valley?
+  - INT3. Should the cable sag like a real span and sway in the wind?
+  - INT4. Should STOP AHEAD be on every stop approach, or only the busier ones?
+  - INT5. Should any junction become a full three-colour signal, or is flashing red the ceiling for this valley?
+  - INT6. Should street-name blades be added at the main junctions?
+
+## Junction cleanup: no more road spaghetti (lane/notify, session B, 2026-11-15)
+- **The problem:** every route was drawn as an independent asphalt ribbon with its own shoulders. Where routes met, the ribbons overlapped into dark wedges, the shoulders crossed, and the short gate, farm and festival spurs produced long narrow tongues that read as spaghetti. The earlier circular junction patch made it worse by looking like a small roundabout.
+- **Shader clipping:** the asphalt and gravel shaders now sample the junction mask and discard fragments inside the apron. No route ribbon or shoulder is drawn across the crossing.
+- **Junction aprons:** `roads.gd` builds one paved apron per junction from the convex hull of the approaching carriageway corners. It is a single asphalt patch shaped by the roads that actually meet, not a circle and not stacked ribbons.
+- **Spurs removed:** the east, south, north and west gate asphalt driveways, the Toby Farm drive and the festival lane were taken out of the route network. They were the main source of the tongues. The main lanes still approach the gates, and the east gate has its car park. The gates are reached by the lanes, the car park and the park paths. The farm and festival stay as signed destinations off the main road rather than extra asphalt stubs. The boat launch lane remains because it is a real access.
+- **Traffic:** the route pool only uses the through roads, so vehicles do not loop around tiny driveways.
+- **Cemetery guard:** the audit still uses the actual wall line at 238 m and reports `inside_cemetery: 0`; no road centreline crosses the cemetery.
+- **Evidence:** `docs/realism/roads/15_junction_clean_east.jpg`, `16_junction_clean_south.jpg`, `17_junction_clean_farm.jpg`; the intersection beacon evidence was retaken at `docs/realism/intersections/`.
+- **Honest limits:** the junction aprons are simple convex polygons, not full kerbed junction geometry. The gates and farm do not have asphalt right up to their thresholds any more; the approach is lane, car park or park path. The hull shape can still look a little faceted from the air. The junction mask is a 1024 px raster. There are no painted turn arrows, stop-ahead road text or lane-use markings. The boat launch lane is still a short stub.
+- **Questions for Robert:**
+  - JUNC1. Is removing the little gate and farm asphalt spurs the right trade for clean junctions, or do you want proper gravel driveways built as separate meshes later?
+  - JUNC2. Should the junction aprons be smaller, larger, or shaped with visible kerbs?
+  - JUNC3. Should the farm and festival get a proper signed entrance road from the main road in a later pass?
+  - JUNC4. Should the gates have a gravel apron and parking bay just outside the wall?
+
+## The old cabin track, blocked way and cave (lane/notify, session B, 2026-11-15)
+- **No cabin highway:** the asphalt `cabin` route, its speed plate, stop sign and stop-ahead sign were removed. The cabin is no longer connected to the country highway network.
+- **Old dirt and gravel track (`game/cabin_track.gd`):** a narrow 3.4 m track from the ridge road pull-off at (45, -760) through (-76, -789), (-158, -806) and (-206, -813) to the cabin at (-250, -820). It has two worn ruts, no markings, no shoulders and no asphalt. The surface is a visible dirt ribbon with a path texture, unshaded so it reads in dull weather.
+- **Obstructions:** two fallen trees lie across the track (at -76 and -158) and two rockfalls cover the way (-206 and -232). They are code-built trunks, roots, branches and boulders; no collisions, but they read as a blocked way from the air and the cabin approach.
+- **Cave entrance (`CaseObjects.CAVE_SPOT` -292, -806):** a broken rock outcrop with a boulder arch, a dark mouth, a bare rock apron and an old CAVE / KEEP OUT board. It is west of the cabin, oriented toward it, and is a named photo subject `cave_entrance`.
+- **World integration:** the track and cave clear trees through `CabinTrack.near_track` and `CaseObjects.near_evidence`; the track corridor is stamped into the road grass mask so the old way is not swallowed by the meadow. It is not in the road network, so traffic never uses it.
+- **Evidence:** `docs/realism/cabin_track/00_dirt_track.jpg`, `01_fallen_tree.jpg`, `02_cave_entrance.jpg`.
+- **Asset brief:** `docs/CLAUDE-CABIN-TRACK-ASSETS.md` covers the dirt strip and ruts, two fallen trees, two rockfalls, the outcrop and dark mouth, cave apron, warning board, puddle, leaf drift, old gate and wear details.
+- **Honest limits:** the track is a simple unshaded ribbon with ruts, not individual gravel stones. The fallen trees and rocks are code primitives. The cave is a rock cluster around a dark box mouth, not a modelled cave interior. It is hard to see the cave mouth from directly above because it faces the cabin. The track still starts on the asphalt ridge road at a pull-off, but from there it is dirt and gravel, not highway. There are no tyre-mark or walk-through interactions.
+- **Questions for Robert:**
+  - CAB1. Is the dirt track route the right length and line, or should it curve differently through the trees?
+  - CAB2. Should the fallen trees and rockfalls be solid collisions for a future on-foot mode, or stay scenery?
+  - CAB3. Should the cave be a simple exterior entrance, or eventually a walkable interior?
+  - CAB4. Should there be a small parking pull-off at the ridge end of the track?
+  - CAB5. Should the cave connect to the Lake Car story, or stay an optional place to photograph?
+
+## Road grounding and modular pavement markings (lane/notify, session B, 2026-11-15)
+- **Grounding:** the asphalt ribbon was lowered from 140 mm to 55 mm above the sampled ground and rebuilt with three vertices across (left edge, crown, right edge) instead of two. Each vertex follows the real terrain, so the road cannot bridge a rise in the middle and hover. A vertical edge skirt drops from each asphalt edge to the ground, and the shoulder outer lip still sinks into the grass.
+- **Separate markings:** the asphalt shader no longer paints edge or centre lines. `roads.gd` builds them as separate meshes at real-world sizes: a 120 mm edge line, inset 0.55 m, and 120 mm centre dashes in a 3 m paint / 9 m gap rhythm. The paint sits 100 mm above the datum, follows the terrain at each vertex and stops 11 m short of the junction aprons. The road shader line flags are now zero.
+- **Articulation:** the marking builder uses the actual route samples, so each piece follows the curve and the measured terrain. The paint material is a plain white placeholder, ready to be swapped for Claude's `mark_*` meshes or decals.
+- **Evidence:** `docs/realism/roads/18_modular_markings.jpg`, `19_road_edge_grounding.jpg`.
+- **Asset brief:** `docs/CLAUDE-ROAD-SURFACE-ASSETS.md` asks for seamless asphalt PBR sets (worn/faded/patched/wet), a modular marking kit with exact widths, 3/9 dashes, stop bars, arrows and curves, shoulder and junction transitions, and full channel/pivot/tiling documentation. The current photographic 2048 asphalt and 1024 gravel sheets are placeholders.
+- **Honest limits:** the asphalt and gravel textures still tile visibly at extreme close range and are not authored seamless PBR sets yet. The marking mesh is a simple white material; no worn paint decals, arrows or faded edge variants are in the engine yet. The road crown is a simple three-vertex profile, not a surveyed camber. Edge skirts are flat dark faces, not textured kerbs. The road still does not have puddles, wet tyre marks or deformation.
+- **Questions for Robert:**
+  - SURF1. Do you want a single seamless asphalt set or separate worn, patched and wet variants?
+  - SURF2. Should the final markings be separate meshes, alpha decals or both?
+  - SURF3. Should the default centre line be white or yellow?
+  - SURF4. Should the wider roads get a 3 m paint / 9 m gap dash, or a shorter village-style rhythm?
+  - SURF5. Should the road get a visible crown/camber and textured edge skirt in the next pass?
+
+## Photoreal vehicles: the fleet is still placeholder (lane/notify, session B, 2026-11-15)
+Owner note: the point is photorealism. The current cars are code-built boxes with wheels and emissive lamp blocks. They are not acceptable as final vehicles, and no amount of code polish makes a box photoreal. The vehicle art must be modelled and textured by Claude.
+- **What is wired now:** `game/traffic.gd` has model paths for `assets/traffic/hatchback_a.glb`, `hatchback_b.glb`, `pickup_a.glb`, `van_a.glb` and `tractor_a.glb`. If a file exists, the code instantiates it, finds wheel nodes named `wheel_*`, spins them around local X, finds StandardMaterial3D materials named `headlight` for the dusk glow, and orients the vehicle with local -Z forward. If the file is missing, the old box placeholder stays. GATE PASS (vehicles) covers the fallback and the new hook.
+- **The brief:** `docs/CLAUDE-VEHICLE-ASSETS.md` is the full request. Priority 0 is the five right-hand-drive moving vehicles plus parked cars. Priority 1 is the hero story fleet: the abandoned Lake Car (1980s blue estate), the festival bus (faded single-decker) and the police cruiser (1980s provincial car). Priority 1 also covers the farm trailer and farm truck. Priority 2 adds variation, dirt overlays, wiper and indicator details.
+- **The realism requirements in the brief:** real dimensions and wheelbase, panel gaps and bevels, separate glass, visible interiors, rubber and brake detail, plates, lights, mirrors, wipers, underbody, dirt and stone chips, PBR albedo/normal/roughness/AO, LOD0/1/2, 4K hero textures and 2K fleet textures. No real logos, no gore, no weapons.
+- **Orientation contract:** metres, Y up, origin at the ground under the vehicle centre, local -Z forward, local X wheel axle, wheel nodes `wheel_fl`, `wheel_fr`, `wheel_rl`, `wheel_rr`, headlight materials named exactly `headlight`.
+- **What is not done:** no vehicle model has been delivered yet. The traffic still looks like boxes in the game. Parked cars, the Lake Car, the festival bus and the police cruiser are still code placeholders. There are no interiors, no LODs, no authored PBR textures and no wheel animation on the placeholder that resembles real rolling.
+- **Evidence:** the gate shot `vehicles_*` only proves the fallback and the model hook. It is not photoreal evidence.
+- **Questions for Robert:**
+  - VEH1. Should the valley drive on the left with right-hand-drive cars, as the brief assumes?
+  - VEH2. Should the fleet keep the current five types, or add an estate, a flatbed and a livestock truck?
+  - VEH3. Are the fictional plates and the period details for the Lake Car, bus and cruiser right?
+  - VEH4. Should parked cars and story vehicles share the same LOD/material kit, or be separate hero assets?
+  - VEH5. Should the traffic have engine and tyre audio once the models land?
+
+## Launch sites and the map app (lane/notify, session B, 2026-11-15)
+- **Why:** the drone was flying every chapter from the cemetery home pad even when the story was at the lake, the farm or the north cabin. That made the valley feel small. The pilot can now drive the kit to a roadside launch site, and the map makes the distance and the choice visible.
+- **Launch sites (`game/launch_sites.gd`):** nine sites: home, east gate car park, north gate pull-off, Toby Farm gate, boat launch, Voss and Son yard, ridge trailhead, ridge camp and festival field. Each has a position, a facing yaw, a short description and a saved id.
+- **Map app (`game/map_app.gd`):** the seventh app on the phone home screen. It draws a schematic road atlas from the real road paths, the cemetery, the western lake and a 100 m grid, then pins the sites. The current and suggested sites are highlighted, the list puts the current site first, and each card shows distance and approximate drive time. Pressing Drive here sends the travel request to `main.gd`.
+- **Travel behaviour:** the drone must be on the ground. The map app says to land if it is flying. On a successful move the app closes, the drone is unpacked at the new site, the HUD minimap home marker moves and a toast names the site. The new site is saved in `user://launch_site.cfg`. The battery is refreshed by the travel and launch.
+- **Mission staging:** the map suggests the lake site for the car chapter, the garage for the VIN, the camp for the camp beat and the festival for the bus. Riley's night pasture suggests Toby Farm gate. The last flight hard-requires the ridge trailhead or the north gate pull-off: `finale.gd` will not start until the kit is staged there, and Rennick tells the player to drive up. This is the implied travel between story elements.
+- **Return to Home** now returns to the current launch site, not the old home pad. The RTH and landing messages say launch site. The minimap home marker follows the site.
+- **Evidence:** `docs/realism/launch_sites/00_map.jpg`, `01_map_home.jpg`.
+- **Docs:** `docs/LAUNCH-SITES.md`.
+- **Honest limits:** the drive is implied; there is no animation or time passing. The map is schematic, not the live minimap, and the lake shape is approximate. The drive time and distance are straight-line estimates, not routed. The sites have no dedicated pad, windsock or parked kit prop yet. Every site is available from the start; only the last flight is hard-staged. The site save is separate from the story save, and travel refreshes the battery.
+- **Questions for Robert:**
+  - SITE1. Should the sites stay open from the start, or unlock as the story reaches each place?
+  - SITE2. Should there be a small physical pad, windsock or parked kit prop at each launch site?
+  - SITE3. Should travel take in-game time and cost a small fee, or stay instant and free?
+  - SITE4. Should every story chapter hard-require its suggested launch site, or stay a soft highlight like now?
+  - SITE5. Should the map show the roads' names and the story waypoints, or stay a clean road atlas?
+
+## Side-job failure states and excellent outcomes (lane/notify, session B, 2026-11-15)
+- **Only optional jobs:** the DroneBudz side jobs can now fail. The Lake Car story, Riley's wolf favour and the last flight are untouched; no story chapter can be failed by a photograph.
+- **Three failure modes:** too close to a keep-clear subject fails the job immediately, with the contact calling in the jobs channel and a note. Too far away or a subject clipped at the frame edge gives a retake warning; three warnings for the same objective pull the job. The jobs page shows pulled jobs in red with the reason.
+- **Requirements on jobs:** chapel jobs keep 18 m and 15 m clear of the graves; fields jobs keep 30 m clear of stock; the new mill job keeps 14 m clear of the sails and must stay within 90 m. Lake jobs have a 900 m range and a frame requirement. Each objective card and offer card shows the keep-clear, range and frame line.
+- **New mill job:** Jo's "The mill in detail" is offered after the harvest postcard. It is the clearest close-but-safe job: too close and the estate pulls it, too far and the sails are a speck, off-centre and the frame is clipped.
+- **Excellent grade:** a photo gets the excellent grade when every subject is well inside the frame, the distance is in the sweet band and quality holds up. The contact says it is better than the brief, Maya comments in the channel, the payout gets a 25 money bonus and extra followers, and the video record carries the grade. A valid but weak shot still publishes with a smaller payout and a disappointed client line; that grade is poor, not a failure.
+- **Frame metadata:** `world_life.gd` and `case_objects.gd` now add `frame`, `frame_margin` and `screen_r` to every named subject in the photo metadata. `jobs.gd` uses those fields for the frame check, the retake count and the excellent grade.
+- **Persistence:** failed ids, reasons and retake counts are saved in `user://story.cfg` with the rest of the jobs state.
+- **Evidence:** `docs/realism/jobs/00_pulled_job.jpg`, `docs/realism/jobs/01_offer_requirements.jpg`.
+- **Docs:** `docs/JOBS-FAILURES.md`.
+- **Honest limits:** a subject entirely outside the frame cannot be attributed to the job, so that photo is ignored rather than counted as a miss. Fully out-of-frame failures need an on-screen or post-shot frame check. Retake counts persist with no abandon button. Pulled jobs never come back; there is no retry offer, appeal or failure fee. The excellent threshold is simple constants, not a full photographic score. Client messages are canned, not generated from the actual frame. No story mission uses these failure states.
+- **Questions for Robert:**
+  - JOBF1. Should a pulled job ever come back as a retry, or stay pulled?
+  - JOBF2. Should the player get an on-screen distance and framing guide while shooting a job?
+  - JOBF3. Should out-of-frame photos count as a miss when the pilot is near the subject but did not include it?
+  - JOBF4. Should excellent work get money, followers, a client review or a new job lead?
+  - JOBF5. Should the story's optional favour ever use these failure states, or stay failure-free?
+
+## Grass no longer pokes through the roads (lane/notify, session B, 2026-11-15)
+- **Problem:** at close range, blades appeared to grow out of the asphalt and the shoulder. The grass mask was 1024 px over the 4 km terrain, so each pixel was about 4 m, and the shader only began to fade blades at a mask value of 0.20 to 0.55. A root just outside the mask could lean a tall blade over the carriageway.
+- **Fix:** `Roads.MASK_N` is now 2048 px, about 2 m per pixel. The road corridor is painted 5.5 m wider than the carriageway plus shoulder instead of 3 m. The grass shader now fades from 0.02, so any partial mask value counts, not a soft half-mask. The combination keeps the roots far enough back that a tall blade cannot reach the asphalt, and a root right at the edge is removed.
+- **Scope:** the same mask covers the asphalt, shoulders, junction aprons, boat launch apron and old cabin dirt track. Litter and flowers use the same road mask.
+- **Evidence:** `docs/realism/roads/20_grass_edge_clear.jpg`, a close view of the road edge with no blades through the asphalt.
+- **Honest limits:** this is a texture-grid exclusion, not per-blade collision. Grass still exists on the verge and the bare corridor is wider than before. The mask is still 2 m per pixel, so a very close inspection of the exact mown edge is soft. There is no separate stubble or trampled edge. The mask is 4 MB in memory at 2048 L8.
+- **Question for Robert:** GRASS1. Should the verge stay this wide and bare, or should there be a shorter trampled edge strip closer to the asphalt?
+
+## Road landing collider (lane/notify, session B, 2026-11-15)
+- **Problem:** the drone sometimes appeared to pass through the asphalt and land inside it. The drone has no rigid-body collision; it samples `ground_h` at the four corners of its body, and `main.gd` was pointing that at the bare terrain. The asphalt ribbon is 0.06 m above the terrain, the junction aprons are 0.20 m above it and the old cabin track is 0.24 m above it, so the body could stop at the terrain while the road surface was still above it.
+- **Fix:** `Roads` now bakes a 2048 px road-top field beside the grass mask. It holds 0.06 m on asphalt, 0.20 m on junction aprons and 0.24 m on the old cabin track. `Roads.surface_height(x, z)` samples the field and adds it to the terrain. `main.gd` feeds that into both the quad and the plane as `ground_h`. The grass mask and the road-top field are built together.
+- **Verified:** on the valley highway at (286, 180) the terrain is 131.143, the surface is 131.203 and the delta is 0.060. Off the road at (250, 240) both are 133.499, delta 0.000. A drone placed on the asphalt reports 0.010 m above the sampled surface. Dev hooks `roadtest` and `roadland` reproduce these numbers.
+- **Scope:** asphalt, junction aprons and the old cabin dirt track. Shoulders still follow the terrain. The road top field is 4 MB at 2048 L8.
+- **Honest limits:** this is height sampling, not a generated collision mesh. There is no side collision, no skid response and no landing-gear contact shape. The field is about 2 m per pixel at the road edge. It fixes landing penetration but not a drone flying sideways through the thin edge skirt.
+- **Question for Robert:** ROADCOL1. Should the shoulders also be raised to the road edge, or stay a soft terrain blend?
+
+## Phone OS app shell and Casebook pass (lane/notify, session B, 2026-11-15)
+- **System shell:** every app now sits inside a tablet shell. A persistent 38 px status bar stays at the top, the app area is inset from the top and bottom, and a persistent bottom bar carries Home, the current app name, Recents and Put away. Home still has its own dock and wallpaper; apps no longer own the physical top and bottom of the screen.
+- **Casebook rewrite:** the flat single sheet is now a real case-file proxy. The constabulary app bar shows the case number and status; a 272 px case-file rail holds the file identity, four section tabs (Overview, Evidence, Chapters, Contacts) and the assigned-officer card; the reading pane is a scrolling page with cards, a progress bar, evidence photo tiles, a chapter timeline and contact rows. The closure choice lives in the same structure. Back returns home; Open #town goes to DroneBudz.
+- **App hooks for Claude:** `UniverseUI.app_icon()`, `UniverseUI.avatar()` and `UniverseUI.case_art()` load optional PNGs from `assets/ui/` and fall back to the drawn placeholders. The launcher uses the app icon hook, Chat and Casebook use the avatar hook, and Casebook uses the evidence and closed stamps when those files exist.
+- **UX:** both Home and Put away are always visible in an app; Recents is one tap; the Casebook tabs keep their own scroll state; contacts are a directory rather than a list of links; evidence is a register with progress and thumbnails.
+- **Docs:** `docs/CLAUDE-PHONE-APP-UI-PASS.md` is the follow-up Claude brief. It asks for the still-missing adaptive app icons, the portrait set, the Casebook paper and evidence kit, status and navigation glyphs, job requirement badges, map paper and pins, app banners and empty states, and an OFL UI and typewriter font family. `docs/UI-STYLE.md` now records the tablet app shell.
+- **Evidence:** `docs/realism/phone_ui/00_home.jpg`, `01_casebook_overview.jpg`, `02_casebook_evidence.jpg`, `03_casebook_contacts.jpg`, `04_chat.jpg`.
+- **Honest limits:** the visual finish still depends on Claude's asset drop; the icons, portraits, paper and stamps are drawn placeholders today. Casebook section state is not preserved while the phone is closed beyond the selected tab, and the evidence register has no zoom or file-detail viewer. The bottom bar has no app-specific actions. There are no gestures beyond the buttons. The UI is a 1280-wide tablet layout, not a responsive phone layout.
+- **Questions for Robert:**
+  - UIAPP1. Should Recents show live app previews, or stay a card list with an Open action?
+  - UIAPP2. Should Casebook get a photo zoom and file-detail view?
+  - UIAPP3. Should the system bar show real signal and battery state, or stay a quiet decoration?
+  - UIAPP4. Should the app shell use the requested OFL font family and paper texture when Claude delivers them?
+  - UIAPP5. Should Home and Put away be the only persistent navigation, or should each app also have a visible app back?
+
+## Kit, the DroneBudz support contact (lane/notify, session B, 2026-11-15)
+- **Contact:** Kit, a new DroneBudz direct message with the role DroneBudz support. Kit is a person in the server, not a tutorial overlay. The chat sidebar treats Kit as a direct message, and Kit's body text is rendered word by word so the guide language can be coloured.
+- **Story-mode only:** `game/guide_coach.gd` sends tips only when `hud.story_mode` is on. It never pauses, scores, fails or gates anything. Every tip is saved in `user://guide_tips.cfg` and is sent once.
+- **Opening and follow-ups:** four seconds after the case starts, Kit explains Tab, DroneBudz, Casebook, Jobs, Facade and Home. If the tablet is not opened after 18 seconds, Kit sends the Home-screen follow-up. If the tablet is opened but DroneBudz is not, Kit sends the app follow-up after 20 seconds. If only #general is read, Kit points at #town, #clips and #jobs after 24 seconds. A tip that asks for an action gets one follow-up, then Kit stops.
+- **Story beats:** act 1 points at Casebook; act 2 explains evidence framing; a job offer explains Jobs and the keep-clear rule; Riley's night pasture with no thermal module explains Facade, Cameras, the channel pot and Your kit; a closed case explains the Map, Ridge trailhead or North gate pull-off and Drive here; the ending choice points back at Casebook; the first photo explains the shutter and Photos; the flight controls explain Takeoff, Land, Return, Esc, Tab and the movement keys.
+- **Colour language:** amber `#E0AB59` for keys and controls (Tab, Drive here, Takeoff), moss `#74A87A` for apps and channels (DroneBudz, Jobs, Facade, Casebook, #town), lake teal `#5C959F` for places inside an app (Home, Overview, Cameras, Ridge trailhead). Punctuation is attached to the previous coloured word so it does not float.
+- **Notifications:** every tip also posts through PhoneNotes, never a modal. Chat unread counts still work.
+- **Evidence:** `docs/realism/guide/00_kit_welcome.jpg`.
+- **Docs:** `docs/GUIDE-CONTACT.md`; `CLAUDE-PHONE-APP-UI-PASS.md` now asks for `avatar_kit.png`, a support portrait and a guide badge.
+- **Honest limits:** Kit reads the phone's current app and chat channel, not every input. The follow-up timers are real seconds, not in-game time. Players who ignore the story will not see the later story-beat tips. The text is canned, not generated from the player's exact frame or position. Kit's portrait is still a coloured initial until Claude delivers `avatar_kit.png`.
+- **Questions for Robert:**
+  - KIT1. Should Kit stay a separate support contact, or be folded into an existing crew member?
+  - KIT2. Should follow-ups wait longer, or arrive sooner?
+  - KIT3. Should Kit also speak in the other story threads, or stay in the direct message?
+  - KIT4. Should the colour language be optional for colour-blind players, with underlines as a second cue?
+  - KIT5. Should Kit ever offer a manual "show me how" choice in the bottom bar?
+
+## The slow end wash, the A24 card, the walk and the cabin forest (lane/notify, session B, 2026-11-15)
+- **The ending:** `game/ending.gd` is rebuilt. The old 1.2 s black fade and credit scroll are gone. Over eight seconds a screen-space post shader in `game/shaders/end_wash.gdshader` blurs the valley, desaturates it, lifts it toward warm paper and adds a slow vignette and grain. `SensorPipeline.set_cinematic_blur()` pushes the actual depth of field far past the normal lens underneath it. The HUD and the notification bundle disappear.
+- **The card:** from seven seconds the black A24-style card arrives in slow beats: A HALLOWAY VALLEY STORY, THE LAKE CAR, AFTER THE STORM, three short lines, THE END and a thank-you. It holds after THE END and clears at 22 seconds. Evidence: `docs/realism/ending/00_end_wash.jpg`, `01_end_card.jpg`.
+- **The walk:** after the card the player is on foot near the drone. Mouse rotates the camera, WASD walks, and clicking the drone brings the flight controls back. A small amber marker sits over the drone and the bottom hint names the three actions. The drone is put on the ground at the place the story ended. Escape no longer quits the end card.
+- **Saved completion:** `StoryArc.mark_completed()` writes `completed=true` to `user://story_lake_car.cfg` as the wash begins. On a later launch the case stays closed and the valley is the sandbox again.
+- **Cabin forest:** `World._plant_cabin_forest()` adds a 14 to 70 m ring of extra conifer and broadleaf trees around the cabin, up to about 620 attempts. It leaves a 12 m cabin clearing, skips the roads, dirt track and other evidence, and adds the trunks to the collision grid. The last flight is now under the treeline. Evidence: `docs/realism/cabin_forest/00_cabin_forest.jpg`.
+- **Docs:** `docs/ENDING.md`; `ROADS-REALISM.md` notes the forest.
+- **Honest limits:** the wash is a screen-space shader plus a pushed depth of field, not a physical lens. The card is code typography, not a designed film plate. The walk is a free camera, not a character: no footstep collision, body, animation or interactions beyond clicking the drone. The world is frozen while walking. The drone marker and click test are simple screen-space checks. The walk camera can start inside a building or a tree if the ending lands there. The end text is fixed and does not use the player's stats or choice. The forest ring is extra trees, not a new terrain biome.
+- **Questions for Robert:**
+  - END1. Is the 22-second card too long or too short?
+  - END2. Should the end card use the player's stats, photos or ending choice?
+  - END3. Should the walk have a visible body and footstep collision?
+  - END4. Should the world keep living during the walk, or stay frozen and quiet?
+  - END5. Should the cabin forest also close the clearing completely behind the last flight, so the cabin is only visible between the trunks?
+
+## Harlan Pike, the anti-drone ridge, the farm audit and the early cemetery beat (lane/notify, session B, 2026-11-15)
+- **The character:** Harlan Pike, a freeman-on-the-land who never appears in the chat himself. Rennick, Riley and Alex know of him: a manifesto called The Unbound Valley, a jammer mast, a shotgun and three hunter drones. Rennick has had him warned off three investigations.
+- **Introduction:** at act 2, before the last flight, Rennick, Riley and Alex post the warning. The intro is saved in `user://anti_drone.cfg`.
+- **The jammer:** `game/anti_drone.gd` builds a trailer, mast, dish, red beacon, manifesto board and three hunters at `JAMMER_SPOT` (-260, -807), in a 24 m clearing in the new cabin forest. Before the last flight the jammer forces the drone back to the launch site after about 2.6 seconds in its 235 m field. The HUD flashes a red LINK FAILING warning.
+- **The break:** `Finale.start()` calls `AntiDrone.jammer_down_now()`. The beacon goes dark, the mast stays standing for now, and Rennick, Riley and Alex post that the mast came down and the hunters are still up.
+- **The final flight:** the three hunters chase at about 13.2 m/s and turn slowly; a racing quad can outrun them, a slow drone cannot. A hunter within 2.9 m forces the drone back to the launch site, with a warning and no lost save. Below 15 m AGL inside a 92 m shotgun ring, the player is warned and forced back after about 2.2 seconds. The final objective now says to keep high and fast.
+- **Farm and cemetery:** `Farmland.min_cemetery_gap()` reports the nearest field edge to the cemetery wall. The alfalfa field is closest at about 195 m; the other fields are farther. No crop, fence, bale or tree instance enters the cemetery. Evidence: `docs/realism/farm/00_farm_layout.jpg`; docs/FARM-CEMETERY-LAYOUT.md; `farmland:` startup line now includes the gap.
+- **Early cemetery beat:** the general seed now has Alex asking why the pilot circles the cemetery, Sam telling him to lay off because the pilot's uncle just passed and it gives him some peace with the chapel and the old stones, and Maya telling them to leave him be.
+- **Docs and briefs:** `docs/ANTI-DRONE-RIDGE.md`, `docs/CLAUDE-ANTI-DRONE-ASSETS.md`, `docs/FARM-CEMETERY-LAYOUT.md`. Evidence: `docs/realism/anti_drone/00_pike_ridge.jpg`, `docs/realism/farm/00_farm_layout.jpg`.
+- **Honest limits:** the hunters are distance-chasing props, not a flight AI; they do not avoid trees or each other. The jammer is a radius timer, not a radio simulation. The shotgun is a low-altitude timer, not a shooter with a projectile. A forced return is a respawn at the current launch site, not a damaged drone. Pike has no direct messages, portrait or dialogue. The site is code geometry until Claude's assets land. The farm fields are simple rotated rectangles, not surveyed land.
+- **Questions for Robert:**
+  - PIKE1. Should the jammer field be tighter around the cabin or cover more of the ridge?
+  - PIKE2. Should a hunter hit damage the airframe or just force a return?
+  - PIKE3. Should the shotgun warning have a visible shooter and muzzle flash?
+  - PIKE4. Should Pike ever appear in a direct message, or stay off the chat entirely?
+  - PIKE5. Should the early cemetery beat mention the uncle by name, or stay vague?
+  - FARM1. Are the current field positions and sizes right, or should the farm move farther from the cemetery?
+## Halloway village, the town/cemetery split and the asset placement audit (lane/notify, session B, 2026-11-15)
+- **The town exists now:** `game/village.gd` builds Halloway village east of the park, separate from the cemetery. Bounds x330 to x512, z226 to z318; the nearest village bound is 92 m east of the cemetery corner and the nearest building is farther. The cemetery wall, chapel, memorials and graves are untouched.
+- **The lane:** the village lane is a real `Roads` route from the south lane junction (286, 260) east to (455, 276), width 5 m, 15 mph. Grass is masked from it, traffic can use it, and it is on the minimap and the Map app.
+- **The buildings:** nine buildings on two rows. North row: Bramble Cottage (358, 242), stone cottage (392, 243), stone cottage (426, 244), brick cottage (461, 245). South row: cottage (347, 296), The Hollow Crown pub (382, 299), Halloway Stores (414, 301), cottage (443, 303), Halloway Garage (477, 306). The green is at (342, 274) with the real oak asset, two benches, a ring and a label. Phone box, bus shelter, post box, three lamps, hedges, gravel driveways, a garage forecourt and two parked cars.
+- **Placement audit:** the bus shelter, post box and lamps were moved off the road and off cottage gardens. The village does not overlap the festival field (nearest building about 47 m east of the festival bus), the farm fields or the cemetery. World clears trees from the village bounds before planting. `Village.min_cemetery_gap()` reports 92 m; `Farmland.min_cemetery_gap()` remains about 195 m.
+- **Map and launch:** the Map app bounds were extended east, the village outline and label are drawn, and a tenth launch site `village` at (438, 268) lets the pilot drive the kit to the green.
+- **Look:** cottage walls now use limestone, rubble, brick, barnwood and silocrete textures; roofs are slate prisms; windows are dark glass; the green oak is the real tree asset; two parked cars and a gravel forecourt/ driveways add life. The temporary pavement slabs were removed because they read as floating.
+- **Evidence:** docs/realism/village/00_village_aerial.jpg, 01_village_street.jpg, 02_village_cemetery.jpg. Docs VILLAGE-LAYOUT.md, CLAUDE-VILLAGE-ASSETS.md; location-sign brief updated with sign_village; LAUNCH-SITES.md now ten sites.
+- **Honest limits:** the buildings are code-built textured boxes with prism roofs, flat window boxes and simple signs, not final architecture. There are no interiors, collisions, chimney smoke, night lighting beyond the lamp material, bespoke road markings or pavements. The village is a small valley village, not a town with a high street. The final models and textures are requested in CLAUDE-VILLAGE-ASSETS.md.
+- **Questions for Robert:**
+  - VILL1. Is the village far enough east of the cemetery, or should it move another 50 to 100 m?
+  - VILL2. Are nine buildings enough, or should the street get a short terrace and a village hall?
+  - VILL3. Should the pub be The Hollow Crown, or do you have another name?
+  - VILL4. Should the village have a war memorial, a church or a school, or keep those in the cemetery?
+  - VILL5. Should the village lane carry traffic, or stay a quiet no-through lane?
+  - VILL6. Should the pavements come back as proper kerbed footways once Claude's modular set lands?
+## In-world HUD, NAV waypoints and camera attachment buttons (lane/notify, session B, 2026-11-15)
+- **The out-of-world objective cards are gone:** the finale top-of-screen objective card and the night-pasture objective card no longer draw. They are replaced by friend messages/phone notes and the flight app's NAV waypoint.
+- **NAV strip:** the HUD now shows a small amber strip at the bottom centre, `NAV  ·  CABIN  ·  520 m`, with the distance updating in flight. The minimap draws the same target as an amber dot, clamped to the rim with a line when the target is off the thumbnail.
+- **The last flight:** Rennick's `#town` messages and phone notes carry the route; the NAV target points to the cabin, then to the heat signature after the cabin arrival. The target is cleared when Wren is found.
+- **The night pasture:** Riley's `#general` messages and phone note carry the favour; the NAV target points to the wolf after the thermal camera is fitted. It is cleared when the pasture is solved.
+- **Camera attachment buttons:** when the thermal module is owned, the flight screen gains a `THERMAL · T` button which becomes `THERMAL ON · T` while the thermal pass is on. When night vision is owned, a `NIGHT · K` button sits below it. Both are real buttons wired to the same toggles as the keys. The thermal camera also shows `THERMAL CAMERA · T` on its badge.
+- **Source-tagged notices:** the HUD notice line now has a small source tag above the text: DRONE OS, CAMERA, SKYSYNC, DRONEBUDZ, FACADE, LINK, VIDTUBE. The exported-photo notice no longer exposes a Windows filesystem path.
+- **Photo and job notifications:** the camera, weather, job, courses, marketplace and anti-drone notices now name the app that owns them rather than appearing as generic dialogue.
+- **Evidence:** docs/realism/hud/00_nav_waypoint.jpg, 01_thermal_attachment.jpg, 02_camera_notice.jpg. Docs HUD-IN-WORLD.md.
+- **Honest limits:** the NAV strip is straight-line distance, not routing around terrain, the jammer or no-fly land; the minimap target is a heading-up thumbnail marker, not a 3D world beacon. The attachment buttons are plain buttons, not a camera tray with lens choices; thermal and night vision are the only add-ons with a flight-screen control. Source tags are text, not app icons. The phone notification banner can still cover the top strip for a few seconds; the NAV strip sits at the bottom. The old objective code remains as hidden debug state and draws nothing.
+- **Questions for Robert:**
+  - HUD1. Should the NAV strip show a bearing arrow or turn hint as well as distance?
+  - HUD2. Should the player be able to clear the NAV target, or should the current story beat always own it?
+  - HUD3. Should the thermal and night buttons sit in one camera tray, or stay as a top-right stack?
+  - HUD4. Should the source line use app icons as well as names?
+  - HUD5. Should the phone notification banner move so it never covers the top of the flight screen?
+## Thermal camera realism and heat readings (lane/notify, session B, 2026-11-15)
+- **The image:** the thermal shader now uses a white-hot palette with air/water deep indigo, cold ground purple to maroon, warm surfaces red to orange, body cores yellow to white and engines white. Green and blue surfaces are masked down so autumn foliage and water do not read as heat. The small-sensor grain, scanlines, vignette and reticle are kept.
+- **The scale:** a bottom-centre legend in `game/thermal.gd` reads WHITE-HOT / RELATIVE SCALE with AIR 8, GROUND 12, BODY 37 and ENGINE 90+ swatches. This gives every white or orange pixel a reference.
+- **Heat shells:** `game/thermal_heat.gd` owns invisible heat shells that only display with the thermal camera. A person is a warm coat torso, hot head and hot hands. An animal is a body capsule with a hotter head. A vehicle is a hot engine, warm cabin and hot exhaust; the body stays cold. The shells are magenta/red colour codes the shader decodes, so daylight brightness no longer decides temperature.
+- **Who has heat:** traffic vehicles, both village parked cars, the sheep flock, the wolf, Wren and Biscuit the dog. The abandoned Lake Car deliberately has none.
+- **Synchronised:** `main._sync_thermal_heat()` switches the shells with the camera every 0.15 s; the wildlife and finale code also keeps their own markers in step. The camera, HUD and story now agree.
+- **Evidence:** docs/realism/thermal/00_wren.jpg, 01_sheep.jpg, 02_scale.jpg. Docs THERMAL-CAMERA.md.
+- **Honest limits:** the camera is a screen-space false-colour shader plus colour-coded shells, not a radiometer or a real temperature buffer. The scale labels are approximate relative references, not measured temperatures. Heat shells use no depth test so a body can show through thin foliage for fairness; that is not physical. The models are code placeholders. There is no gain, contrast, lens or emissivity control. The base ground temperature still comes from screen luminance tuned to the autumn palette.
+- **Questions for Robert:**
+  - TH1. Is white-hot right, or should the palette be black-hot or ironbow?
+  - TH2. Should the scale show measured-looking temperatures or stay relative?
+  - TH3. Should heat show through trees, or be occluded and make the search harder?
+  - TH4. Should the thermal camera have a gain or contrast control on the flight screen?
+  - TH5. Should cars show engine heat only while moving, or also when parked?
+## Message voice and point of view pass (lane/notify, session B, 2026-11-15)
+- **The rule:** no character refers to themselves in the third person. A friend's note is written in their own voice. App notices can be third person because the app is the sender.
+- **Rennick:** the last-flight note now reads "Hey, buddy. I appreciate everything you have done for me. I have one more ask: fly north to the old cabin and find Wren. Please." The old text was "The constable has one more favour." The first case note is "I am new at the Halloway detachment..." not "The new constable would like a word." The evidence note is "I have the photographs." not "Rennick has the photographs."
+- **Riley:** the night-pasture note now says "Finish the night pasture first, then the last flight. I need to know what is taking my sheep." It used to be a note from Rennick saying "Finish Riley's favour first."
+- **Trailhead and cabin:** Rennick's notes now say "I need you to start the last flight from there" and "I cannot see them from here". Ghost notes are titled "A message" instead of "Rennick", which removes the "Rennick: Rennick" notification banner.
+- **Jobs:** all job-pulled and too-close notes are first person from the contact, e.g. "I called. You went right over the graves..." instead of "Riley called..." The new-job and ready-to-send notes no longer append flight-app instructions to the contact's voice. The Maya note is "I am your editor now..." not "Maya is now your editor... she will edit it."
+- **Place discoveries:** these come from the DroneBudz app, not from Riley. The old note said "You found the railway..." from Riley, which read like an app guide in the ranger's mouth.
+- **Roles:** Rennick's chat role is Halloway Valley Constabulary, matching the Casebook. Sam's Casebook role is METEOROLOGIST, matching #weather.
+- **Grammar:** "The Pike jammer is off us now" is now "Pike's jammer is off us now. His hunter drones are not."
+- **Evidence:** docs/realism/messages/00_town_voice.jpg. Docs MESSAGE-VOICE.md.
+- **Honest limits:** this is a manual string pass, not a dialogue system. App and Casebook status text remains third person on purpose. Rennick is she in the Unknown account and the Casebook, but the case file does not otherwise state a gender. Older dynamic messages already saved in user://chat.json are not rewritten. The player's own messages are whatever they typed.
+- **Questions for Robert:**
+  - MSG1. Is Rennick's "hey, buddy" right, or should she stay formal?
+  - MSG2. Should Rennick be she, he or they in third-person references?
+  - MSG3. Should job failure notices come from the contact's chat, the app, or both?
+  - MSG4. Should place discoveries stay app notices or become Riley's messages again?
+  - MSG5. Should the player be able to answer these notes, or are one-way notifications enough?
+## UX/UI review and Claude model audit (lane/notify, session B, 2026-11-15)
+- **Claude agent review:** `docs/REVIEW-CLAUDE-2026-11-15.md`. The verified result is that **none of the 13 `CLAUDE-*` briefs has been delivered**: roughly 450-480 named files, zero present. The only model loader hook in the game is `game/traffic.gd:52-53`; the UI has code fallback hooks in `game/ui_theme.gd`; the village has a texture hook only. `docs/MODEL-STATUS.md` is the short production status. Do not tell Robert the models are done.
+- **Tablet home cleaned:** real USDA photo credit moved to the welcome screen, the mode line is `FIELD KIT · weather station online`, latitude is `52°N`, status is `LINK · <battery>` instead of fake `LTE 100%`, and the clock/battery update inside apps. Unread badges cap at `9+`.
+- **Welcome screen:** `Sandbox` is `Free flight`; copy is in-universe; the thermal and night camera buttons were showing on the welcome screen and are now hidden by `landing_mode` in `hud.gd`.
+- **Casebook:** a closed file no longer shows the last open request; the overview shows archived evidence totals. The Evidence tab archives by chapter and no longer shows a stale `0 / 2` request. Contact `Message` buttons now route to `#town`, the Unknown DM, or `#general` correctly. Wren changes to `FOUND` after the story completes. `chat_requested` now carries the person key.
+- **Story beats:** the duplicate chapter beats came from posting at both `_begin` and `_complete`; removed the `_begin` post. Old saved chat still has the duplicates.
+- **Notifications:** app ownership added to `PhoneNotes.post_text`/`_add`/`_header`; DroneBudz, VidTube and Facade get their own names and icons; titles no longer repeat the sender when the sender is the app; the pill follows the latest app. The shade is still one mixed group, not per-app sections.
+- **Messages:** ghost notes unique titles; job notes from VidTube not the contact; job failure lines are normal chat rows; Riley note says thermal camera not `T`; Jo says jobs board not `Flight >`; `money` as unit changed to `$` in touched strings; Studio metric is `POT`.
+- **Keyboard guide:** Tab, T, K, N, G and J labelled; it previously omitted six documented controls.
+- **Escape:** inside a tablet app, Esc now returns Home first; a second Esc closes the tablet. This matches `UI-STYLE.md`.
+- **Honest leftovers:** models are absent; notification grouping is partial; `AeroSim` is still the welcome title; `$` in a British-leaning valley is a product choice; dialogs are only tested at 1280x720; old user:// messages are not rewritten; a normal playthrough should show evidence thumbnails rather than the test save's "no longer in the camera roll".
+- **Evidence:** `docs/realism/ui_review/00-04`; `docs/UX-UI-REVIEW-2026-11-15.md`.
+## Character pass: stand, walk, sit, skin and the cast (lane/notify, session B, 2026-11-15)
+- **One actor system:** `game/character_actor.gd` is a `CharacterBody3D` built from primitives, root at the feet, capsule r 0.25 h 1.58 centred at 0.79 (bottom on the sole line). It has a stand/idle pose, a closed-route walk with opposite arm swing and knee bend, and a seat pose driven by a `seat_height` contract.
+- **Wren:** the old five-primitive capsule is replaced by the actor. Wren is a rich-brown-skinned hiker in a mustard coat, crop hair, backpack, height scale 0.98. The old body had no arms.
+- **Village cast:** eight named villagers, all nine skin tones used once: Ifeoma Okafor (deep brown), Wren (rich brown), Grace Adeyemi (warm brown), Hana Sato (golden tan), Arthur Bell (light tan), Priya Nair (olive), Daniel Whitlock (fair), Mei Lin (east asian light), Ravi Patel (south asian medium). Heights 1.58-1.78 m. This is ordinary rural casting, not costume: jobs and clothes carry character.
+- **Sitting:** the bench's real seat surface is 0.53 m; the actor now reads it and puts the hips 2 cm above it. Daniel Whitlock sits on the bench in the village, and a debug `sitshot` renders the anchor.
+- **Colliders:** buildings, benches, hedges, phone box, post box, parked cars and bus shelter now have static boxes. The terrain still has no physics collider; `_settle_ground()` samples `Terrain.height()` each physics tick. Character-vs-character collision is still off.
+- **Thermal:** the `ThermalHeat.person` shells are resized to the actor; Wren's double 0.98 scale is fixed. Villagers build heat shells and `Village.set_thermal_heat()` is called from `main._sync_thermal_heat()`, so village people and cars light up.
+- **Skin shader:** `CharacterActor.skin_material()` uses a noise albedo/roughness map, roughness 0.50, specular 0.38. Forward+ uses Godot's real subsurface scattering with tone-scaled strength; Mobile/Compatibility uses the backlight fallback, because Godot 4.7 SSS is Forward+ only. Facial albedo and thickness maps are still missing.
+- **Agent brief:** `docs/CLAUDE-CHARACTER-BRIEF-2026-11-15.md` (rig, 22 bones, 15 clips, LODs, materials, casting, checklist). **The character GLBs and clips are still not delivered.** The placeholder walk scuffs because it has no stance lock; do not call it final.
+- **Evidence:** `docs/realism/characters/00-05`; `docs/CHARACTER-SYSTEM.md`.
+## Gate car parks and pedestrian paths (lane/notify, session B, 2026-11-15)
+- **Owner decision:** the road ends at a car park at each cemetery gate; a pedestrian path goes through the gate into the park. A car park with bollards is the intended language.
+- **Implementation:** `game/roads.gd` now owns `GATE_LOTS` and `_build_gate_parking()`. South, north and west get small gravel pads (16x10, 16x10 and 10x16 m); east reuses the existing world car park and gets only the path/bollards/sign. Each pad has white bay lines, shallow kerbs, a P / PEDESTRIAN PATH sign, four bollards on the gate side with a 2.4 m gap, and a short asphalt driveway from the route end. The pedestrian path crosses the wall line through the gate; the road audit remains `inside_cemetery: 0`.
+- **Mask:** pads, paths and driveways are stamped into `Roads.road_mask` and the surface-offset image, so grass does not grow through the car park or path.
+- **Launch sites:** `south_gate` and `west_gate` are new map/launch sites; the north pull-off moved to the north car park at (28,-246). East gate remains at (264,58).
+- **ROAD1-5 decisions:** asphalt ends at the pad; yes to three new pads and bollards; festival field stays at (300,300); chapel stays footpath-only with no vehicle service track; gate boards stay and each pad gets a P/path sign.
+- **Honest limits:** the pads are visual ground surfaces, not rigid-body colliders; bollards and P signs are code placeholders, not Claude sign models; the east pad is existing world art and was not rebuilt; no parked cars are added to the new pads yet.
+- **Evidence:** `docs/realism/roads/12_gate_car_park.jpg`.
+## Rig pass 2: joints, walk, sit and the finale wave (lane/notify, session B, 2026-11-15)
+- **Joints:** `CharacterActor` now has hip -> thigh -> knee -> shin -> ankle -> shoe on each leg, and shoulder -> upper arm -> elbow -> forearm -> wrist -> hand on each arm. The shoe sole is at the root line; the capsule bottom is on that line.
+- **Walk:** hip swing drives the legs, the knee bends on the back swing, arms counter-swing, torso counter-rotates, and the ankles cancel the leg angles so the feet stay level. It remains a procedural placeholder, not a stance-locked clip.
+- **Sit:** bench seat surface is read through `seat_height`; hips sit 2 cm above it; thighs 1.30 rad forward/down, knees -1.50 rad, ankles 0.20 rad. The result is flat feet and hips on the seat rather than a straight-legged fold.
+- **End beat:** `Finale._found()` now makes Wren face the camera and wave via `CaseObjects.wave_hiker()`. The wave is a dedicated actor state used only at the find. Rennick is still a message ghost, not a visible extra figure.
+- **Visible people:** the eight small village actors plus Wren remain; no crowd is added. The user said the objective is not many ambient people, and this pass does not add more.
+- **Limits:** no IK/foot plant; no baked animation; no production skeleton or skin maps; Rennick, the festival crowd and the delivered character set are still absent.
+## First Blender model: the Lake Car (lane/notify, session B, 2026-11-15)
+- **Built in Blender 4.2.3**, headless, by `tools/blender/build_lake_car.py`; output `assets/story/lake_car.glb` (350 KB) and preview `docs/realism/models/lake_car_preview.png`.
+- **Model:** a low-poly 1980s five-door estate, faded navy with bleached roof, roof rack, right-hand-drive dash/seats/wheel, glass, wheels with named pivots `wheel_fl/fr/rl/rr`, head/tail lamp meshes, rust/algae, fictional plate `HY 84 AV`, and an evidence tag. Origin ground-centre, Blender front +Y exporting to glTF local -Z.
+- **Wiring:** `CaseObjects._build_car()` checks `res://assets/story/lake_car.glb` and instantiates it, keeping the code box car as fallback. Evidence position, radius, photos, story state and thermal marker are unchanged. Gate PASS (lakecar).
+- **Honest limits:** untextured material-colour model, no normal/albedo/roughness maps, no LOD1/LOD2, no collision proxy, simplified interior. This is one file of the roughly 450–480 in the 13 briefs; the traffic fleet, village, wildlife, anti-drone set, boat launch, cabin track, signs, road surface and characters remain.
+- **Why this one first:** the Lake Car is the title object of the story and one of the three worst model gaps named in the Claude review.
+## Modelling backlog continuation (lane/notify, session B, 2026-11-15)
+- **Lake Car:** modelled from scratch in Blender 4.2.3; source `tools/blender/build_lake_car.py`, asset `assets/story/lake_car.glb`, preview `docs/realism/models/lake_car_preview.png`. Loaded by `CaseObjects._build_car()` with the code car as fallback.
+- **Traffic P0:** copied the five Blender vehicle GLBs from the shared vehicle library into `assets/traffic/`: hatchback A/B, pickup, van, tractor. `traffic.gd` already pointed at those paths and now takes the model branch. They render (evidence `traffic_fleet.jpg`) but the current loader does not drive armature wheels or light slots; `VehicleAssets` is the proper driver.
+- **Wildlife P0:** copied sheep_b, ram_a, lamb_a and wolf_a GLBs into `assets/models/animals/`; `WildlifeObjects._load_animal_model()` uses them for the flock and wolf, with the code animals as fallback. Static direct load; no animal clips/LOD driver yet. Evidence `wildlife_models.jpg`.
+- **Story vehicles:** copied and wired `festival_bus_restored.glb` and `cruiser_1984_a.glb` through `CaseObjects._try_story_model()`. The cabin GLB is copied but not wired; the cabin still uses the code placeholder and its scripted lights.
+- **Scope honesty:** the shared AeroSim checkout has 453 model GLBs (301.8 MB); this pass integrated the assets that match current code paths rather than dumping the whole library blindly. Remaining: village set, anti-drone set, boat launch, cabin track, signs, road-surface kit, people/character GLBs, traffic variants and the rest of the story/endgame sets. No claim that the full modelling backlog is done.
+- **Gates:** `GATE PASS (lakecar)`, `GATE PASS (models2)`, `GATE PASS (models3)`.
+## Modelling backlog: village and cabin (lane/notify, session B, 2026-11-15)
+- **Village:** the pub, shop and garage now use shared Blender models (`town_pub_a`, `town_shop_a`, `garage_shell_a`) through `Village._try_building_model()`, with the existing footprint colliders and code fallback. Six cottages and all street furniture remain code.
+- **Cabin:** the abandoned cabin shell now uses `cabin_abandoned_a_broken_roof.glb` through `CaseObjects._try_story_model()`; `_cabin_asset_lights()` re-adds the porch and two interior lights so the finale's light sequence still works. The code cabin remains the fallback.
+- **Evidence:** `docs/realism/models/village_buildings.jpg`; docs `VILLAGE-BLENDER-IMPORT.md` and updated `STORY-VEHICLES-BLENDER-IMPORT.md`. Gates `models4`, `models5`.
+- **Remaining:** the shared AeroSim checkout contains 453 model GLBs; this pass integrated the ones with existing code hooks (traffic, wildlife, story vehicles, cabin, three village buildings) plus the new Lake Car. Cottages, anti-drone set, boat launch, cabin track, signs, road surfaces, people/character GLBs, traffic variants and the rest of the story/endgame set are still outstanding.
+## Android OS UI pass (lane/notify, session B, 2026-11-15)
+- **DSH Session A review:** `docs/ANDROID-OS-UI-SPEC-2026-11-15.md` (534 lines); the Lead implementation summary is `docs/ANDROID-UI-PASS-2026-11-15.md`.
+- **Real kit:** the 215-file tablet UI kit is in `assets/ui/tablet/` (real 512/128/64/44 app icons, frame, status glyphs, controls, dials, polish, Inter). `TabletIcon` now loads the real icons; Inter is the phone/tablet font; `UniverseUI` is on a Material dark palette.
+- **System chrome:** status bar has real signal/Wi-Fi/battery glyphs and percentage; `LINK · %` regression removed; carrier text removed; device-frame overlay with aspect guard; bottom nav uses 48 px back/home/recents/put-away icon buttons.
+- **Launcher:** 5-column 64 px app grid, one-line labels, no category captions; dock has five icon-only apps; page dots; wallpaper scrim reduced to 18%.
+- **Notifications:** `PhoneNotes` raised from layer 20 to 34 above `PhoneOS`; shade uses the UI theme and Inter; added a Quick Settings row (Wi-Fi, Bluetooth, DND, Battery saver) with kit status icons.
+- **Limits:** no Map kit icon (falls back to code); no app drawer/page 2; QS tiles are visual only; 16:9 frame disabled on 16:10; fixed-pixel layout not fully `u`-scaled; wallpaper 1024x683; dials still code-drawn; apps are Material-coloured but not Material components.
+- **Gate:** `GATE PASS (androidui)`; evidence `docs/realism/android_os/00-03`.
+## Full Blender model library staged (lane/notify, session B, 2026-11-15)
+- Copied the complete shared Blender model library from the sibling AeroSim checkout into `godot/assets/models/`: **455 GLB files, 313.5 MB**, including people, story/endgame, camp, storm, halloway/town, sites, wildlife, animals, drones and vehicles. The custom Lake Car and five traffic GLBs remain in `assets/story/` and `assets/traffic/`.
+- This closes the physical model-file gap for the Claude briefs. It does **not** mean every category is wired: current code still uses placeholders for most village cottages, the anti-drone ridge, boat launch, cabin track, signs, road-surface kit, most people/character GLBs and many story/endgame props.
+- Import of the full library completed in 219.7 s with exit 0. The shared library has no dedicated anti-drone jammer/hunter set, so that brief still has no asset source.
+- Next integration priority: people/character GLBs (Wren/Rennick crowd), then village cottages/furniture, boat launch, cabin track, signs and storm/story sets.
+## Claude backlog finish pass (lane/notify, session B + Session A Pro, 2026-11-15)
+- **Model library:** complete shared Blender library staged in `assets/models/` (455 GLBs + people texture sidecars), plus custom Lake Car and five traffic GLBs.
+- **Characters:** `PeopleAssets`/`PeopleFace`/ghost shader copied in; Wren now uses the rigged Blender `wren.glb` with a rich-brown skin-tone pass and the real `wave_up` clip at the finale; the code actor remains the fallback. The eight ambient villagers still use `CharacterActor`.
+- **Sites:** Blender boat hull and trailer wired in `boat_launch.gd`; Blender fallen trees and rockfalls wired in `cabin_track.gd`.
+- **Android OS UI:** Session A Pro finished the remaining UI on commit `aa60d40`: generated Map icon, size-picked 44/64/128 icon exports, kit dial faces/needles/fills, real app drawer with live search, HUD tablet/bell touch entry, u/inset pass, Material nav/QS glyphs. `GATE PASS (task4b)` on the final tree. Evidence `docs/realism/android_ui/00-05`.
+- **Still not wired:** anti-drone set (no shared assets exist), village cottages/furniture, full boat-launch prop set, cabin-track cave/sign set, road signs, most people/character actors (only Wren), traffic armature/LOD driving, many story/endgame interiors and props. The physical files are present where the shared library has them.
+- **Commits:** `aa60d40` UI, `65918fb` people textures, `fa18081` Wren doc, `a1aa04a` Wren, `2a9798d` boat/cabin, `f5b7762` full library. All local; not pushed.
+## Playtest pass: player name, story audit and story fixes (lane/notify, session B, 2026-11-15)
+- **Player profile:** new `game/player_profile.gd` saves `user://profile.cfg` with a callsign, detects the computer account name as a suggestion (Windows USERNAME, USER/LOGNAME elsewhere), ignores generic machine names, and only saves/uses a real name with explicit opt-in. Welcome screen has callsign + opt-in checkbox + editable first name; callsign appears in DroneBudz, Casebook contacts, Rennick's greeting and the ending. Optional real first name appears as one festival volunteer in the final chapter.
+- **Story audit:** read-only report `docs/STORY-AUDIT-2026-11-15.md`; test report `docs/STORY-TEST-2026-11-15.md`; player-name doc `docs/PLAYER-NAME-SYSTEM.md`.
+- **Blockers fixed:** anti-drone is now ticked and `jammer_down_now()` is called at finale start; the five 3-hour chapter waits have a Casebook **Wait for Rennick to call back** button; Unknown-thread delays are bypassed in Story mode using the chapter gate; finale auto-start refuses after `story.is_completed()`; StoryDirector has a completed state and a launch-site next step; story/jobs toggle persists.
+- **Text/sequence fixes:** Unknown says 1984 not 1974; the tow sticker is introduced only when the close-up chapter asks; final chapter says "ready to close" not closed; Casebook hides Wren until the story knows about Wren and no longer routes Wren to the Unknown DM; `StoryArc.on_photo` refuses completions while story/jobs is off.
+- **Verification:** chapter sequence 0→5, publish, unknown beats 0→5, finale start, wait button screenshot; `GATE PASS (storyprofile3)`; commit `fc09722`.
+- **Save caution:** tests used backups under `%APPDATA%\Godot\app_userdata\`; the live save at the end of testing is the test state, not necessarily the player's pre-test completed save.
+## Presence rules: no close-up humans, spooked animals, sparse traffic (lane/notify, session B, 2026-11-15)
+- **Humans:** the eight village actors are built but never rendered; their conversations and presence stay in DroneBudz. Wren is the only world human; her Blender model is hidden inside 48 m and found by thermal signature at the designed search distance. A human model must never be inspectable close-up.
+- **Animals:** sheep spook at 58 m (flee 4.6 m/s, hidden inside 25 m); the wolf spooks at 85 m (flee 7.2 m/s, hidden inside 30 m). Heat signatures travel with the models. This keeps the thermal story readable from a respectful distance.
+- **Traffic:** reduced to three moving vehicles on desktop and two on mobile; a moving vehicle should be an event, not wallpaper.
+- **Evidence:** `docs/PRESENCE-RULES.md`; close-range shots show the flock scattering and Wren hidden at 41 m. Gate `presence` passed; commit `de27f28`.
+- **Save caveat:** story/profile tests still left the live save in a test state; preserve/restore is a user decision.
+## Thermal car correction (lane/notify, session B, 2026-11-15)
+- **Parked and abandoned cars are now cold in the thermal camera.** The village parked cars no longer get `ThermalHeat.vehicle()` shells; the lake car, festival bus and cabin cruiser already had none. Moving traffic remains the only source of engine/cabin/exhaust heat shells.
+- There is no residual-heat timer; if a recently parked car should stay warm later, it needs an explicit short-lived heat state, not a permanent shell.
+- Evidence: `spook`/`cold_parked` thermal screenshot in `%LOCALAPPDATA%\Temp\shots`; `GATE PASS (coldcars)`; commit `9b4760b`.
+## Camera, night and launch audit (lane/notify, session B, 2026-11-15)
+- **Render order:** video layer 1; NightVision 8; ThermalCamera 9; HUD 10; PhoneOS 28; PhoneNotes 34; Ending 60; loading 100. Thermal/night are lower CanvasLayers using `hint_screen_texture`, so the HUD is not tinted/scanlined/false-coloured. Evidence `docs/realism/cameras/thermal_hud.png` and `night_vision.png`.
+- **Night:** night ambient floor and sky background now follow the moon; moonless/overcast nights are much darker. Night vision gain adapts to darkness and remains below the HUD. Added `moonless` dev hook for the low-light test.
+- **Drone lights:** per-airframe profiles: cinema/cinewhoop soft film light, Night Owl flood, Raptor/race narrow spot, mini/freestyle general, wing landing light. HUD Drone light switch and toast name the type.
+- **Launch audit:** map lists all 12 sites; travel refuses airborne armed flight, updates launch site/yaw/minimap, respawns kit, closes phone and toasts. Tested map → Festival field → North gate pull-off. Fixed overlapping map pin labels with greedy placement and leader lines.
+- **Gates:** `GATE PASS (cameraaudit)`; commit `a89d3f8`; evidence under `docs/realism/cameras/`.
+- **Open limits:** all sites unlocked from start; move is implied not driven; map is a schematic; no-moon test is a dev hook, not a UI preset.
+## Thermal traces and Pike laser (lane/notify, session B, 2026-11-15)
+- **GroundTraces:** thermal-only paired human footprints from the invisible village cast and Wren (55 s), animal hoof marks from sheep/wolf (42 s), and two tyre strips from moving traffic (32 s). Hidden in normal view, shown only when thermal is on, sampled near the drone, fade and free themselves, 280-trace cap.
+- **Pike laser:** an armed drone within 118 m of the mast gets a red laser line; after lock the camera feed burns red-white (~1.5 s) below the HUD, with a CAMERA BURN warning. Holding within 58 m forces a return. The laser is disabled when the jammer drops for the finale.
+- **Evidence:** `docs/GROUND-TRACES-AND-LASER.md`, `docs/realism/cameras/traces_vehicle_heat.png`, `traces_village_heat.png`, `laser_burn.png`; `GATE PASS (traceslaser)`; commit `b2d9877`.
+## Player renamed Lou (lane/notify, session B, 2026-11-15)
+- The player character is now **Lou** everywhere: DroneBudz identity (`You · Lou`, `LO` avatar), Casebook pilot card, Rennick greeting, ending note and chat references. The welcome screen name field is fixed to Lou.
+- `PlayerProfile.PLAYER_NAME` is the single source; old profile callsigns are ignored/migrated on load. Computer-account detection and the optional real name remain unchanged for the one festival volunteer.
+- References in ChatData were changed from generic pilot phrasing to Lou where they point at the player.
+- `GATE PASS (lou)`; commit `4718519`; screenshot evidence `lou_landing.png`, `lou_phonechat.png`.
+## Latest Claude asset integration (lane/notify, session B, 2026-11-15)
+- Pulled the latest Claude-authored art from `AeroSim` main and the active lanes: rebuilt people (Wren, Rennick, 19 story characters) and the latest PeopleAssets/ghost shader, avatar portraits for DroneBudz/Casebook, the latest vehicle library including Anne Voss wreck and police dive van, latest animal GLBs, drone material textures, and the village plinth fix.
+- The dive van and lake wreck are placed at the boat launch; avatars are live in the phone and Casebook; village cottages get ground plinths; animal models try their idle/graze clips.
+- This is an **asset integration**, not a full `main` merge: our story/profile/thermal/UI systems stay. The high-end `VehicleAssets` runtime (armatures, doors, LOD/wreck shaders) and `AnimalHerd` are still in other lanes and not merged.
+- Evidence `docs/realism/models/claude_avatars_chat.png`; docs `CLAUDE-ASSET-INTEGRATION.md`; `GATE PASS (claudequality2)`; commits `56cf2dc`, `100425e`.
+## Rennick death realization (lane/notify, session B, 2026-11-15)
+- `Finale.start()` no longer reveals Rennick's death. She directs Lou to the cabin normally.
+- At the cabin approach, `CaseObjects.show_rennick_ghost()` places the latest `rennick_1984_ghost_a` model by the cruiser; it fades with distance and hides inside the 48 m human keep-out.
+- `_arrive_cabin()` starts a timed realization: "You are looking straight through me", "You really cannot see me", "I have been dead since that storm", then she composes herself and directs the thermal search for Wren. Cabin lights/Wren heat are revealed only after that.
+- Dev hook `finalerealize`; `GATE PASS (rennickreveal)`; commit `24918b6`; doc `docs/RENNICK-REVEAL.md`.
+## Traffic road logic (lane/notify, session B, 2026-11-15)
+- Traffic samples the road centreline and offsets to the **right of travel** by `route width * 0.25`, so opposite directions pass with a proper gap.
+- Sparse plan: two town vehicles in opposite directions plus one **night-only** highway vehicle on desktop; one town + one highway on mobile. The night highway car has two real `SpotLight3D` headlights and emissive lamps; the town pair remains in daylight.
+- Right-hand lane helper `Roads.width(id)`; the hidden day highway car is skipped by thermal trace sources; traffic remains collision-free and loop-based.
+- Doc `docs/TRAFFIC-ROAD-LOGIC.md`; `GATE PASS (trafficlogic)`; commit `188739d`.
+## Ghost epilogue (lane/notify, session B, 2026-11-15)
+- After the end card, `Main._on_ending_free()` starts `GhostFlight` instead of the old immediate free walk. HUD/phone/notes/ending hide; a cold glitch overlay (`ghost_glitch.gdshader`) opens from black with `SIGNAL LOST · RECONNECTING`.
+- Ghost drift is a collision-free fast camera (WASD, mouse, Space/C, Shift) rendered through its own SubViewport because the main viewport has 3D disabled by the sensor pipeline.
+- At 90 s the camera turns to the cemetery; a warm beacon over the sleeping body + small drone appears; click/Esc wakes. The drone is placed at the body and the existing post-story walk resumes.
+- Body area kept clear by `CaseObjects.GHOST_BODY_SPOT`. Hooks `ghostdemo`, `ghostworld`, `ghostwake`; `GATE PASS (ghostepilogue)`; doc `docs/GHOST-EPILOGUE.md`.
+## Phone app availability/download/load (lane/notify, session B, 2026-11-15)
+- `PhoneOS` now gates apps: DroneBudz/Photos/Jobs/Map always; VidTube Studio after first photo/clip; Casebook and Facade when the Rennick story starts.
+- A newly available app runs a one-time `DOWNLOADING` panel (1.15 s) before it appears on home/dock/drawer; first open of Casebook/Map/Studio/Facade shows a short `OPENING` panel. Direct/debug `_open_app()` bypasses the launcher gate.
+- Hooks `appdownload`, `appload`; `GATE PASS (appavailability)`; doc `docs/APP-AVAILABILITY.md`.
+## Wind shelter under canopy and buildings (lane/notify, session B, 2026-11-15)
+- `Wind.drive` now reads the woodland cover at the drone itself and a local ring, not just upwind; village cottages/pub/shop/garage and the story cabin/garage/camp/festival/boat-launch register shelter sources.
+- Full shelter cuts mean wind up to 68%, turbulence up to 62%, gust puffs up to 55% and eddy torque up to 62%, so a Mini can hold a stable hover under the treeline and a cinema drone shakes much less behind buildings. Relief fades between 7 m and 34 m AGL.
+- Dev hook `shelterprobe`; probe: village shelter .58 / turb .22 / wind .2, forest shelter 1.0 / turb .13 / wind .2 versus open .0/.35/.4. `GATE PASS (windshelter)`; commit `ff9b21d`; doc `docs/WIND-SHELTER.md`.
+## Wolf close-range behaviour (lane/notify, session B, 2026-11-15)
+- Removed the old `WOLF_HIDE`/`SHEEP_HIDE` model disappearance. Animals stay visible when the drone closes.
+- Wolf states: wary >42 m; hostile warning (faces drone, slow step) 42-10 m; after 10 m or 2.2 s it flees at 8.8 m/s; calms after 140 m. Toasts and Riley copy explain it. Heat and traces follow the animal.
+- Dev hook `wolfclose`; `wolfclose end` shows `state=flee visible=true`; `GATE PASS (wildlifeclose)`; doc `docs/WILDLIFE-CLOSE.md`.
+## Night vision, moonlight, fireworks and laser (lane/notify, session B, 2026-11-15)
+- Moon is now a real directional light with phase/elevation/cloud scaling; `_moonless_test` removes it and `_night_dark` drives sensor exposure and NV. NV gets `moon_light`/`night_dark`, subtracts a black floor and adds grain, so a moonless scene stays dark and a moonlit one shows real detail.
+- `SensorPipeline.burst_uvs()` exposes firework screen positions; `NightVision.set_scene()` adds a hot core/halo/wash at those UVs, so a burst overwhelms the intensifier from the flash point.
+- Pike laser is now an opaque warm-white full-frame camera blind above NV for 2.2 s, with HUD readable; `laserdemo` hook. `GATE PASS (nightflash)`; commit `e331bc0`; doc `docs/NIGHT-VISION-LASER.md`.
+## Long-lived thermal ground history (lane/notify, session B, 2026-11-15)
+- `GroundTraces` is now a thermal **history**, not a seconds-long effect. Human prints up to 6 h, animal prints 5 h, tyre tracks 8 h; brightness decays with `pow(1 - age/life, 2.15)` so fresh marks are bright, one-hour marks are clear, several-hour marks are faint scars.
+- It keeps up to 20,000 sparse records and renders at most 520 meshes near the drone (430 m). Leaving an area frees meshes, not history; returning recreates aged marks. Tracks are laid with the thermal camera off too; the thermal layer only controls visibility.
+- Tyre history is one 20 m strip per wheel per 18 m to stay cheap. `stats` now reports records/live traces. `GATE PASS (thermaltraces)`; doc updated.
+## Rennick's search recollections (lane/notify, session B, 2026-11-15)
+- After the realization and the first Wren direction, Rennick keeps sending timed beats while the player searches: cabin lights/winter night, snowed in for days, trapped/fire, sleeping after the fire died, storm stillness, hearing nothing until the hiker, the hiker's phone and unexplained contact with Lou, realising the time passed, refusing to dwell on her own plight until Wren is safe, and a final "keep looking".
+- `_search_beats` in `finale.gd`; 2.1 s spacing; stops on found. `GATE PASS (rennickrecollect)`; doc `docs/RENNICK-REVEAL.md`.
+## Shared asset integration slice (lane/notify, session B, 2026-11-15)
+- Wired the high-story asset categories: village now loads town bakery/police house/chip shop/village hall plus benches, lamps, bus shelter, post box, noticeboard, bin and garage props (21 asset models); Pike loads 13 site assets + 3 hunter GLBs and a mast wreck on jammer-down; boat launch loads 9 site models (gravel, ramp, dock, sign/notice, bollards); cabin track loads 14 cave/track models; traffic now uses the latest vehicle GLBs (hatch A/B, pickup, van, tractor).
+- All code fallbacks remain. Counts are in the runtime logs (`village assets=21`, `pike site assets: 13 / hunters=3`, `boat launch asset models=9`, `cabin track asset models=14`).
+- `GATE PASS (assetslicefinal)`; commit `99ad41a`; doc `docs/ASSET-INTEGRATION-SLICE-2026-11-15.md`.
+- Still not wired: signs/road surfaces (no matching received art found), Claude drone GLBs / DroneView, VehicleAssets runtime, AnimalHerd runtime, story/endgame interiors, clean Pike mast close-up.
+## Shared asset integration round 2 (lane/notify, session B, 2026-11-15)
+- Claude drone GLBs now drive the visible Raptor and Night Owl (`DroneView` loads `raptor_race_a.glb` / `nightowl_a.glb`, centres the model, collects `prop_fl/fr/rl/rr` for the existing motor animation, falls back to code geometry). Evidence `65_raptor_glb.png`.
+- Story/endgame props loaded into CaseObjects: Lake Car evidence (tow sticker, VIN plate, police tape, cone), cabin interior set + bed/chair/lantern/radio/map/case file, camp chair/cooler/firewood/fire ring/stove, cruiser lightbar/plate/old kit. Runtime `story assets=19`.
+- `GATE PASS (assetslice3)`; commit `199ab0b`; doc `docs/ASSET-INTEGRATION-SLICE-2026-11-15.md`.
+- Still open: clean Pike mast close-up, signs/road surfaces (no matching received sign art found), VehicleAssets/AnimalHerd runtimes, remaining interiors and full 453-file accounting.
+## Shared asset integration round 3 (lane/notify, session B, 2026-11-15)
+- Festival/storm props added through CaseObjects: stage, banner, bunting, flags, barrier, lamp string, sign; storm branch, plank, roof sheet, lantern. Story assets now **32**.
+- `town_sign_halloway_a` at the village entrance (assets=22); `pike_warning_sign` at the ridge (assets=14 + 3 hunters). Pike mast verified at (-260.0, 133.7624, -807.7).
+- `GATE PASS (assetslice4)`; commit `8415e19`; evidence `67_pike_verify.png`, `68_festival_assets.png`; doc updated.
+- Still open: VehicleAssets runtime, AnimalHerd runtime, road-surface art, some signs, remaining interiors and full 453-file accounting. Goal remains active/incomplete.

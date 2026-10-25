@@ -15,6 +15,8 @@ signal weather_changed(w: Dictionary)
 signal gimbal_changed(pitch_rad: float)
 signal lens_changed(lens: String)
 signal photo_requested
+signal gallery_requested
+signal jobs_requested
 signal takeoff_land_requested
 signal rth_requested
 signal ev_changed(ev: float)
@@ -36,9 +38,13 @@ signal wind_fx_changed(effects: bool, shake: bool)   # wind lane: "Wind effects 
 signal fireworks_changed(show: int)                  # session B: "Fireworks show" in the Weather tab
 signal surprise_changed(on: bool)                    # session B: "Surprise shows"
 signal birds_changed(on: bool)                       # session B: Display > Graphics "Birds"
+signal attachment_requested(id: String)              # a camera add-on button on the flight screen
+signal phone_requested                               # touch entry: open or close the in-game tablet
+signal notes_requested                               # touch entry: open or close the notification shade
 signal sky_quality_changed(i: int)                   # sky lane: cloud raymarch quality
 
 const WEATHER_FILE := "user://weather.cfg"
+const MODE_FILE := "user://mode.cfg"
 const DEFAULT_WEATHER := {"wind": 1.0, "gust": 0.45, "from": 250.0, "sun": 14.0, "sky": 0, "intensity": 0.6, "clock_mode": 0, "clock_speed": 0, "date": 0, "hour": 16.0, "lowcloud": 0, "lowcloud_h": 300.0}
 const PRESETS := [["Still", 0.0, 0.0], ["Calm", 1.0, 0.45], ["Light", 3.0, 0.65], ["Breezy", 5.0, 0.85], ["Strong", 7.5, 1.0]]
 const COMPASS := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
@@ -74,6 +80,14 @@ var simple_on := false
 var landing_mode := false          # the welcome screen is up: the flight controls stay hidden
 var lens_rain_k := 0.6             # how much rain gathers on the lens: 0 off, 0.6 light, 1.0 natural
 var sound_on := true
+## session B: the DroneBudz jobs and story layer are opt-in; Off leaves the whole sandbox exactly as it is.
+var story_on := true
+## session B: 0 low, 1 normal, 2 high funnel detail (particle counts for the tornado and waterspout).
+var funnel_detail := 1
+## session B: the phone-style DroneBudz notifications for world events (game/phone_notes.gd). Off hides all of them.
+var phone_notes := true
+## session B: 0 iPhone style, 1 Android style (Android is the default; Robert picked it)
+var phone_style := 1
 var listening := 2
 var sound_vol := 0.8
 var wind_fx := true                # wind lane: the drone wobbles, drifts and works harder in gusts
@@ -83,9 +97,15 @@ var surprise_shows := false        # session B: a show starts by itself on a few
 var birds_on := true               # session B: the flocks over the valley
 ## session B: extreme-weather events and the ring course. game/weather_events.gd reads this dictionary every frame;
 ## any extra keys it adds are harmless. "course" 0 off, 1 easy, 2 lake run, 3 tree slalom, 4 photograph.
+var beacons_on := true   # session B: the flashing red beacons over the junctions (Display > Intersection beacons)
 var events := {"waterspout": false, "tornado": false, "thunderstorm": false, "thermals": false,
 	"dustdevil": false, "fogbank": false, "snowsquall": false, "surprise": false,
 	"far_traffic": false, "park_life": false, "course": 0}
+## Story mode is the normal game: the valley owns the weather and the clock. Sandbox mode is chosen on the welcome
+## screen and gives the old god powers back (weather events, quick looks and the event toggles).
+var story_mode := true
+var _weather_sandbox: VBoxContainer
+var _story_note: Label
 var sky_quality := 1               # sky lane: cloud quality 0 low, 1 medium, 2 high
 
 var minimap: MiniMap
@@ -93,6 +113,8 @@ var minimap: MiniMap
 var _root: Control
 var _back_btn: RoundButton
 var _gear_btn: RoundButton
+var _phone_btn: Button
+var _notes_btn: Button
 var _mode_btn: RoundButton
 var _tl_btn: RoundButton
 var _rth_btn: RoundButton
@@ -101,7 +123,13 @@ var _pv_btn: RoundButton
 var _shutter: ShutterButton
 var _gimbal: VSlider
 var _toast: Label
+var _toast_source: Label
 var _toast_tween: Tween
+var _nav_panel: PanelContainer
+var _nav_label: Label
+var nav_pos := Vector3.INF
+var nav_name := ""
+var _attach_btns := {}
 var _flash: ColorRect
 var _crash_box: VBoxContainer
 var _crash_label: Label
@@ -119,6 +147,7 @@ var _slider_labels := {}
 func _ready() -> void:
 	layer = 10
 	_load_weather()
+	_load_mode()
 	_root = Control.new()
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -133,6 +162,35 @@ func _box(bg: Color, border: Color = Color(1, 1, 1, 0.22), radius: int = 12, mar
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = bg; sb.border_color = border; sb.set_border_width_all(1); sb.set_corner_radius_all(radius); sb.set_content_margin_all(margin)
 	return sb
+
+## A 40 dp glass disc with a kit glyph: the flight-screen touch entries for the tablet and the notification shade.
+func _hud_glyph_button(icon_path: String, tip: String, cb: Callable) -> Button:
+	var b := Button.new()
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = tip
+	b.size = Vector2(40, 40)
+	var tex: Texture2D = null
+	if ResourceLoader.exists(icon_path):
+		tex = load(icon_path) as Texture2D
+	if tex != null:
+		b.icon = tex
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 22)
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.05, 0.06, 0.08, 0.46)
+	bg.set_corner_radius_all(20)
+	bg.set_border_width_all(1)
+	bg.border_color = Color(1, 1, 1, 0.34)
+	var hover := bg.duplicate() as StyleBoxFlat
+	hover.bg_color = Color(0.10, 0.12, 0.16, 0.66)
+	var press := bg.duplicate() as StyleBoxFlat
+	press.bg_color = Color(0.32, 0.36, 0.42, 0.62)
+	b.add_theme_stylebox_override("normal", bg)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", press)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.pressed.connect(cb)
+	return b
 
 func _grabber(radius: int, col: Color) -> ImageTexture:
 	var n := radius * 2 + 2
@@ -174,11 +232,19 @@ func _make_theme() -> Theme:
 func _build_flight_hud() -> void:
 	_back_btn = RoundButton.new("back", 40); _back_btn.pressed.connect(func(): set_paused(true)); _root.add_child(_back_btn)
 	_gear_btn = RoundButton.new("gear", 40); _gear_btn.pressed.connect(func(): set_paused(true)); _root.add_child(_gear_btn)
+	# Touch entry for the tablet and its notifications. Until now the phone was keyboard-only (Tab) and the shade
+	# keyboard-only (N), which made both unreachable on a real tablet. These sit beside the pause glyph and are hidden
+	# while the pause menu is up.
+	_phone_btn = _hud_glyph_button("res://assets/ui/tablet/glyphs/nav_phone.png", "Tablet", func(): phone_requested.emit())
+	_root.add_child(_phone_btn)
+	_notes_btn = _hud_glyph_button("res://assets/ui/tablet/glyphs/nav_bell.png", "Notifications", func(): notes_requested.emit())
+	_root.add_child(_notes_btn)
 	_mode_btn = RoundButton.new("N", 52); _mode_btn.label = "Mode"; _mode_btn.pressed.connect(cycle_mode); _root.add_child(_mode_btn)
 	_tl_btn = RoundButton.new("takeoff", 52); _tl_btn.label = "Takeoff"; _tl_btn.pressed.connect(func(): takeoff_land_requested.emit()); _root.add_child(_tl_btn)
 	_rth_btn = RoundButton.new("home", 52); _rth_btn.label = "Return"; _rth_btn.pressed.connect(func(): rth_requested.emit()); _root.add_child(_rth_btn)
 	_view_btn = RoundButton.new("eye", 52); _view_btn.label = "View"; _view_btn.pressed.connect(func(): set_chase(not chase)); _root.add_child(_view_btn)
 	_pv_btn = RoundButton.new("camera", 44); _pv_btn.pressed.connect(toggle_photo_video); _root.add_child(_pv_btn)
+	_build_attachment_buttons()
 	_shutter = ShutterButton.new(80); _shutter.pressed.connect(func(): photo_requested.emit()); _root.add_child(_shutter)
 	minimap = MiniMap.new(150); _root.add_child(minimap)
 	# the gimbal: the data overlay draws the scale; this invisible slider sits over it to take the touch
@@ -197,6 +263,16 @@ func _build_flight_hud() -> void:
 	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast.modulate.a = 0.0
 	_root.add_child(_toast)
+	_toast_source = Label.new()
+	_toast_source.add_theme_font_size_override("font_size", 10)
+	_toast_source.add_theme_color_override("font_color", Color(0.86, 0.72, 0.42))
+	_toast_source.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_toast_source.add_theme_constant_override("outline_size", 3)
+	_toast_source.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_source.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast_source.modulate.a = 0.0
+	_root.add_child(_toast_source)
+	_build_nav_panel()
 	# photo flash
 	_flash = ColorRect.new()
 	_flash.color = Color(1, 1, 1, 0)
@@ -223,6 +299,78 @@ func _build_flight_hud() -> void:
 	rb.pressed.connect(func(): reset_requested.emit())
 	_crash_box.add_child(rb)
 
+# ------------------------------------------------------------------ camera add-ons and navigation
+func _build_attachment_buttons() -> void:
+	for id in ["thermal", "night"]:
+		var b := Button.new()
+		b.visible = false
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_size_override("font_size", 12)
+		b.pressed.connect(func(): attachment_requested.emit(str(id)))
+		_root.add_child(b)
+		_attach_btns[id] = b
+
+func set_attachment_state(id: String, available: bool, on: bool, label: String, key: String) -> void:
+	var b: Button = _attach_btns.get(id)
+	if b == null:
+		return
+	b.visible = available and not paused and not landing_mode
+	if not available:
+		return
+	b.text = "%s%s  ·  %s" % [label, " ON" if on else "", key]
+	b.tooltip_text = ("Turn off " + label.to_lower()) if on else ("Turn on " + label.to_lower())
+	var sb := _box(Color(0.10, 0.12, 0.10, 0.88), Color(0.72, 0.62, 0.34) if on else Color(1, 1, 1, 0.22), 8, 7)
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", _box(Color(0.16, 0.18, 0.14, 0.92), Color(0.86, 0.74, 0.42), 8, 7))
+	b.add_theme_stylebox_override("pressed", sb)
+	b.add_theme_color_override("font_color", Color(0.98, 0.82, 0.46) if on else Color(0.82, 0.86, 0.82))
+
+func _build_nav_panel() -> void:
+	_nav_panel = PanelContainer.new()
+	_nav_panel.visible = false
+	_nav_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := _box(Color(0.06, 0.08, 0.09, 0.82), Color(0.72, 0.62, 0.34, 0.75), 9, 6)
+	_nav_panel.add_theme_stylebox_override("panel", sb)
+	_nav_label = Label.new()
+	_nav_label.add_theme_font_size_override("font_size", 12)
+	_nav_label.add_theme_color_override("font_color", Color(0.96, 0.88, 0.68))
+	_nav_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_nav_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_nav_panel.add_child(_nav_label)
+	_root.add_child(_nav_panel)
+
+## A waypoint in the flight app, not a game instruction box. The minimap and the nav strip both carry it.
+func set_nav_target(pos: Vector3, label: String) -> void:
+	nav_pos = pos
+	nav_name = label
+	if minimap != null:
+		minimap.nav_target = Vector2(pos.x, pos.z)
+		minimap.nav_name = label
+	if _nav_panel != null:
+		_nav_panel.visible = true
+	_update_nav()
+
+func clear_nav_target() -> void:
+	nav_pos = Vector3.INF
+	nav_name = ""
+	if minimap != null:
+		minimap.nav_target = Vector2.INF
+		minimap.nav_name = ""
+	if _nav_panel != null:
+		_nav_panel.visible = false
+
+func _update_nav() -> void:
+	if _nav_panel == null or not _nav_panel.visible:
+		return
+	var d := 0.0
+	if minimap != null:
+		d = Vector2(nav_pos.x, nav_pos.z).distance_to(Vector2(minimap.drone.x, minimap.drone.z))
+	_nav_label.text = "NAV   ·   %s   ·   %d m" % [nav_name, int(round(d))]
+
+func _process(_delta: float) -> void:
+	if _nav_panel != null and _nav_panel.visible:
+		_update_nav()
+		_nav_panel.position = Vector2((get_viewport().get_visible_rect().size.x - _nav_panel.size.x) * 0.5, get_viewport().get_visible_rect().size.y - 150.0)
 func _place(c: Control, pos: Vector2, d: float) -> void:
 	c.position = pos
 	if c.size != Vector2(d, d):
@@ -243,6 +391,15 @@ func layout_for(frame: Rect2) -> void:
 	var cy := frame.position.y + frame.size.y * 0.5
 	_place(_back_btn, Vector2(frame.position.x + 4.0 * u, frame.position.y - 2.0 * u), 40.0 * u)
 	_place(_gear_btn, Vector2(minf(frame.end.x, vp.x) - 44.0 * u, frame.position.y - 2.0 * u), 40.0 * u)
+	# Tablet and notification touch entries. They sit in the right-hand utility column under the camera add-ons, not
+	# beside the pause glyph: the pause row shares the OSD top bar with the ISO/EV/WB readout, and two more discs there
+	# covered the camera data. Under the add-ons they are clear of the OSD, the gimbal scale and the shutter.
+	var util_x := minf(frame.end.x, vp.x) - 168.0 * u
+	var util_y := frame.position.y + bar + 84.0 * u
+	_place(_phone_btn, Vector2(util_x, util_y), 40.0 * u)
+	_place(_notes_btn, Vector2(util_x + 46.0 * u, util_y), 40.0 * u)
+	_phone_btn.visible = not paused and not landing_mode
+	_notes_btn.visible = not paused and not landing_mode
 	var step := 82.0 * u
 	var y0 := top + 4.0 * u
 	_place(_mode_btn, Vector2(left, y0), 52.0 * u)
@@ -256,20 +413,29 @@ func layout_for(frame: Rect2) -> void:
 	_gimbal.size = Vector2(44.0 * u, frame.size.y * 0.44)
 	_gimbal.position = Vector2(frame.end.x - 48.0 * u, frame.position.y + frame.size.y * 0.28)
 	_toast.size = Vector2(vp.x, 36.0)
-	_toast.position = Vector2(0, frame.position.y + bar + 6.0 * u)
+	_toast.position = Vector2(0, frame.position.y + bar + 18.0 * u)
+	_toast_source.size = Vector2(vp.x, 14.0)
+	_toast_source.position = Vector2(0, frame.position.y + bar + 4.0 * u)
+	for id in _attach_btns:
+		var b: Button = _attach_btns[id]
+		b.size = Vector2(154.0 * u, 30.0 * u)
+		b.position = Vector2(right - 168.0 * u, frame.position.y + bar + (8.0 + (34.0 if id == "night" else 0.0)) * u)
 	_crash_box.position = Vector2(vp.x * 0.5 - 160.0, vp.y * 0.5 - 10.0)
 	_flash.size = vp
 
 # ------------------------------------------------------------------ notices and state shown on the buttons
 ## A short notice under the top bar, like "Returning to home".
-func toast(text: String, warn := false) -> void:
+func toast(text: String, warn := false, source := "DRONE OS") -> void:
 	_toast.text = text
 	_toast.add_theme_color_override("font_color", Color(1, 0.72, 0.35) if warn else Color.WHITE)
+	_toast_source.text = source.to_upper()
 	if _toast_tween != null and _toast_tween.is_valid(): _toast_tween.kill()
 	_toast.modulate.a = 1.0
+	_toast_source.modulate.a = 1.0
 	_toast_tween = create_tween()
 	_toast_tween.tween_interval(2.2)
 	_toast_tween.tween_property(_toast, "modulate:a", 0.0, 0.6)
+	_toast_tween.parallel().tween_property(_toast_source, "modulate:a", 0.0, 0.6)
 
 func flash_photo() -> void:
 	_flash.color = Color(1, 1, 1, 0.75)
@@ -449,6 +615,10 @@ func _build_flight_tab() -> void:
 	# the run, never counted down on screen.
 	_heading(p, "Courses")
 	_choice(p, "Ring course", Courses.NAMES, func(): return int(events.get("course", 0)), func(i): events["course"] = i)
+	# session B: the optional story and jobs layer, fed by the DroneBudz group
+	_heading(p, "DroneBudz")
+	_action(p, "DroneBudz jobs", func(): jobs_requested.emit())
+	_sub(p, "Optional photo jobs from the group. Take one when you want the work.")
 
 func _build_drone_tab() -> void:
 	var p := _page("Drone")
@@ -528,47 +698,56 @@ func _gslider(parent: Control, title: String, lo: float, hi: float, step: float,
 
 func _build_weather_tab() -> void:
 	var p := _page("Weather")
-	_heading(p, "Sky")
-	_choice(p, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
-	_slider(p, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
-	_choice(p, "Low cloud layer", ["Off", "Thin", "Thick"], func(): return int(weather["lowcloud"]), func(i): weather["lowcloud"] = i; _weather_edited())
-	_slider(p, "lowcloud_h", "Low cloud height", 150.0, 600.0, 10.0)
-	_heading(p, "Time of day")
-	_choice(p, "Clock", ["Real clock", "Set the time"], func(): return int(weather["clock_mode"]), func(i): weather["clock_mode"] = i; _weather_edited())
-	_slider(p, "hour", "Hour of day (moving this sets the time)", 0.0, 23.99, 0.05)
+	_story_note = Label.new()
+	_story_note.text = "STORY  ·  The valley owns its weather and its clock. The investigation, the jobs and the festival set the pace. To choose the sky, the time and the storms, select Free flight on the welcome screen."
+	_story_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_story_note.add_theme_font_size_override("font_size", 16)
+	_story_note.add_theme_color_override("font_color", MenuStyle.MUTED)
+	p.add_child(_story_note)
+	var c := VBoxContainer.new()
+	c.add_theme_constant_override("separation", 8)
+	p.add_child(c)
+	_weather_sandbox = c
+	_heading(c, "Sky")
+	_choice(c, "Conditions", WeatherSystem.NAMES, func(): return int(weather["sky"]), func(i): weather["sky"] = i; _weather_edited())
+	_slider(c, "intensity", "Intensity (rain, snow, fog)", 0.0, 1.0, 0.01)
+	_choice(c, "Low cloud layer", ["Off", "Thin", "Thick"], func(): return int(weather["lowcloud"]), func(i): weather["lowcloud"] = i; _weather_edited())
+	_slider(c, "lowcloud_h", "Low cloud height", 150.0, 600.0, 10.0)
+	_heading(c, "Time of day")
+	_choice(c, "Clock", ["Real clock", "Set the time"], func(): return int(weather["clock_mode"]), func(i): weather["clock_mode"] = i; _weather_edited())
+	_slider(c, "hour", "Hour of day (moving this sets the time)", 0.0, 23.99, 0.05)
 	_sliders["hour"].value_changed.connect(func(_x: float): if int(weather["clock_mode"]) != 1: weather["clock_mode"] = 1; _weather_edited())
-	_choice(p, "Time passes", ["Real time", "Fast (a minute a second)", "Frozen"], func(): return int(weather["clock_speed"]), func(i): weather["clock_speed"] = i; _weather_edited())
-	_choice(p, "Date", ["Today", "Spring (21 Mar)", "Summer (21 Jun)", "Autumn (22 Sep)", "Winter (21 Dec)"], func(): return int(weather["date"]), func(i): weather["date"] = i; _weather_edited())
-	_heading(p, "Wind")
-	var seg := HFlowContainer.new(); seg.add_theme_constant_override("h_separation", 8); p.add_child(seg)
+	_choice(c, "Time passes", ["Real time", "Fast (a minute a second)", "Frozen"], func(): return int(weather["clock_speed"]), func(i): weather["clock_speed"] = i; _weather_edited())
+	_choice(c, "Date", ["Today", "Spring (21 Mar)", "Summer (21 Jun)", "Autumn (22 Sep)", "Winter (21 Dec)"], func(): return int(weather["date"]), func(i): weather["date"] = i; _weather_edited())
+	_heading(c, "Wind")
+	var seg := HFlowContainer.new(); seg.add_theme_constant_override("h_separation", 8); c.add_child(seg)
 	for pr in PRESETS:
 		var b := Button.new(); b.text = pr[0]; b.custom_minimum_size = Vector2(0, 50)
 		b.pressed.connect(func(): weather["wind"] = pr[1]; weather["gust"] = pr[2]; _weather_edited())
 		seg.add_child(b)
-	_slider(p, "wind", "Wind speed", 0.0, 10.0, 0.1)
-	_slider(p, "gust", "Gusts", 0.0, 1.0, 0.01)
-	_slider(p, "from", "Wind comes from", 0.0, 359.0, 1.0)
-	# wind lane: how the wind treats the drone and the picture
-	_choice(p, "Wind effects on the drone", ["Off", "Natural"], func(): return 1 if wind_fx else 0, func(i): wind_fx = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
-	_choice(p, "Camera shake", ["Off", "Natural"], func(): return 1 if cam_shake else 0, func(i): cam_shake = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
-	_heading(p, "Fireworks")
-	# session B: a show over the lake. Off stops a running show; the other three start one.
-	_choice(p, "Fireworks show", Fireworks.SHOW_NAMES, func(): return fireworks_show, func(i): fireworks_show = i; fireworks_changed.emit(i))
-	_choice(p, "Surprise shows", ["Off", "On"], func(): return 1 if surprise_shows else 0, func(i): surprise_shows = i == 1; surprise_changed.emit(surprise_shows))
-	# session B: the extreme-weather events. Each one is off until the player starts it, and Off stops it at once.
-	_heading(p, "Events")
-	_sub(p, "Weather you can start yourself. Nothing here can damage the drone.")
-	_event_toggle(p, "Waterspout over the lake", "waterspout")
-	_event_toggle(p, "Tornado", "tornado")
-	_event_toggle(p, "Thunderstorm", "thunderstorm")
-	_event_toggle(p, "Thermals", "thermals")
-	_event_toggle(p, "Dust devil", "dustdevil")
-	_event_toggle(p, "Fog bank", "fogbank")
-	_event_toggle(p, "Snow squall", "snowsquall")
-	_event_toggle(p, "Far traffic", "far_traffic")
-	_event_toggle(p, "Kites and flag", "park_life")
-	_event_toggle(p, "Surprise events", "surprise")
-	_action(p, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
+	_slider(c, "wind", "Wind speed", 0.0, 10.0, 0.1)
+	_slider(c, "gust", "Gusts", 0.0, 1.0, 0.01)
+	_slider(c, "from", "Wind comes from", 0.0, 359.0, 1.0)
+	_choice(c, "Wind effects on the drone", ["Off", "Natural"], func(): return 1 if wind_fx else 0, func(i): wind_fx = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
+	_choice(c, "Camera shake", ["Off", "Natural"], func(): return 1 if cam_shake else 0, func(i): cam_shake = i == 1; wind_fx_changed.emit(wind_fx, cam_shake))
+	_heading(c, "Fireworks")
+	_choice(c, "Fireworks show", Fireworks.SHOW_NAMES, func(): return fireworks_show, func(i): fireworks_show = i; fireworks_changed.emit(i))
+	_choice(c, "Surprise shows", ["Off", "On"], func(): return 1 if surprise_shows else 0, func(i): surprise_shows = i == 1; surprise_changed.emit(surprise_shows))
+	_heading(c, "Events")
+	_sub(c, "Weather you can start yourself. Nothing here can damage the drone.")
+	_choice(c, "Funnel detail", ["Low", "Normal", "High"], func(): return funnel_detail, func(i): funnel_detail = i)
+	_event_toggle(c, "Waterspout over the lake", "waterspout")
+	_event_toggle(c, "Tornado", "tornado")
+	_event_toggle(c, "Thunderstorm", "thunderstorm")
+	_event_toggle(c, "Thermals", "thermals")
+	_event_toggle(c, "Dust devil", "dustdevil")
+	_event_toggle(c, "Fog bank", "fogbank")
+	_event_toggle(c, "Snow squall", "snowsquall")
+	_event_toggle(c, "Far traffic", "far_traffic")
+	_event_toggle(c, "Kites and flag", "park_life")
+	_event_toggle(c, "Surprise events", "surprise")
+	_action(c, "Reset weather", func(): weather = DEFAULT_WEATHER.duplicate(); _weather_edited())
+	_apply_mode_ui()
 
 func _build_camera_tab() -> void:
 	var p := _page("Camera")
@@ -585,6 +764,10 @@ func _build_camera_tab() -> void:
 	_choice(p, "Depth of field", ["Off", "Natural", "Cinematic"], func(): return dof_mode, func(i): dof_mode = i; dof_changed.emit(i))
 	_choice(p, "Focus", ["Auto (tap the picture to pick a spot)", "Manual"], func(): return 1 if manual_focus else 0, func(i): manual_focus = i == 1; focus_changed.emit(manual_focus, _mf_metres(mf_ring)))
 	_gslider(p, "Manual focus distance", 0.0, 1.0, 0.01, func(): return mf_ring, func(x): mf_ring = x; focus_changed.emit(manual_focus, _mf_metres(x)), func(v): return "Infinity" if _mf_metres(v) > 1000.0 else ("%.1f m" % _mf_metres(v) if _mf_metres(v) < 10.0 else "%d m" % int(round(_mf_metres(v)))))
+	# session B: the photos themselves, kept in the game rather than dumped into a folder
+	_heading(p, "Gallery")
+	_action(p, "Photo gallery", func(): gallery_requested.emit())
+	_sub(p, "Photos stay in the game gallery with their time, weather and settings. Export copy there is the only way one leaves.")
 
 func _mf_metres(ring: float) -> float:
 	return 1.0 / maxf((1.0 - ring) * 2.0, 1e-6)
@@ -619,6 +802,9 @@ func _build_display_tab() -> void:
 	_heading(p, "Overlay and sound")
 	_choice(p, "Data overlay", ["On", "Off"], func(): return 0 if osd_on else 1, func(i): osd_on = i == 0; osd_changed.emit(osd_on))
 	_choice(p, "Sound", ["On", "Off"], func(): return 0 if sound_on else 1, func(i): sound_on = i == 0; sound_changed.emit(sound_on))
+	_choice(p, "Phone messages", ["Off", "On"], func(): return 0 if phone_notes else 1, func(i): phone_notes = i == 0)
+	_choice(p, "Phone style", ["Android", "iPhone"], func(): return 0 if phone_style == 1 else 1, func(i): phone_style = 1 if i == 0 else 0)
+	_choice(p, "Story and jobs", ["Off", "On"], func(): return 1 if story_on else 0, func(i): story_on = i == 1; _save_mode())
 	_choice(p, "Listening position", ["Ground (the pilot)", "Onboard microphone", "Cinematic mix"], func(): return listening, func(i): listening = i; listening_changed.emit(i))
 	_gslider(p, "Volume", 0.0, 1.0, 0.05, func(): return sound_vol, func(x): sound_vol = x; volume_changed.emit(x), func(v): return "%d%%" % int(round(v * 100.0)))
 	_heading(p, "Performance")
@@ -633,6 +819,8 @@ func _build_display_tab() -> void:
 	_choice(p, "Camera effects", ["Full sensor look", "Simple (phone safe)"], func(): return 1 if simple_on else 0, func(i): simple_on = i == 1; simple_changed.emit(simple_on))
 	_choice(p, "Drifting leaves and dust", ["On", "Off"], func(): return 0 if ambient_on else 1, func(i): ambient_on = i == 0; ambient_changed.emit(ambient_on))
 	_choice(p, "Birds", ["On", "Off"], func(): return 0 if birds_on else 1, func(i): birds_on = i == 0; birds_changed.emit(birds_on))
+	_heading(p, "World")
+	_choice(p, "Intersection beacons", ["On", "Off"], func(): return 0 if beacons_on else 1, func(i): beacons_on = i == 0)
 	_heading(p, "Screen")
 	_action(p, "Full screen", func():
 		var m := DisplayServer.window_get_mode()
@@ -669,7 +857,7 @@ func _sync() -> void:
 ## Welcome screen on or off: the flight controls are hidden while it is up.
 func set_landing(on: bool) -> void:
 	landing_mode = on
-	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _crash_box]:
+	for c in [_back_btn, _gear_btn, _phone_btn, _notes_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _toast_source, _nav_panel, _crash_box] + _attach_btns.values():
 		(c as CanvasItem).visible = not on and not paused
 
 ## Open the settings page on a tab (0 Flight, 1 Drone, 2 Weather, 3 Camera, 4 Display, 5 Controls).
@@ -686,7 +874,7 @@ func set_paused(on: bool) -> void:
 	if _quit_btn: _quit_btn.text = "Exit game"
 	_menu_dim.visible = on
 	# the settings page covers the flight screen the way an app's settings page does
-	for c in [_back_btn, _gear_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _crash_box]:
+	for c in [_back_btn, _gear_btn, _phone_btn, _notes_btn, _mode_btn, _tl_btn, _rth_btn, _view_btn, _pv_btn, _shutter, _gimbal, minimap, _toast, _toast_source, _nav_panel, _crash_box] + _attach_btns.values():
 		(c as CanvasItem).visible = not on and not landing_mode
 	if on: _sync()
 	pause_changed.emit(on)
@@ -707,3 +895,37 @@ func _save_weather() -> void:
 	var cf := ConfigFile.new()
 	for k in weather: cf.set_value("weather", k, weather[k])
 	cf.save(WEATHER_FILE)
+
+func _load_mode() -> void:
+	var cf := ConfigFile.new()
+	if cf.load(MODE_FILE) != OK:
+		story_mode = true
+		_save_mode()
+		return
+	story_mode = bool(cf.get_value("mode", "story", true))
+	story_on = bool(cf.get_value("mode", "story_on", true))
+
+func _save_mode() -> void:
+	var cf := ConfigFile.new()
+	cf.set_value("mode", "story", story_mode)
+	cf.save(MODE_FILE)
+
+## Story mode is the curated game: no player weather or storm powers. Sandbox gives the old controls back.
+func set_story_mode(on: bool) -> void:
+	story_mode = on
+	if on:
+		for k in events.keys():
+			if k != "course":
+				events[k] = false
+		fireworks_show = 0
+		surprise_shows = false
+		fireworks_changed.emit(0)
+		surprise_changed.emit(false)
+	_save_mode()
+	_apply_mode_ui()
+
+func _apply_mode_ui() -> void:
+	if _story_note != null:
+		_story_note.visible = story_mode
+	if _weather_sandbox != null:
+		_weather_sandbox.visible = not story_mode

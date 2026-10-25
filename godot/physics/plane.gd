@@ -18,6 +18,7 @@ var prev_pos := Vector3.ZERO
 var prev_quat := Quaternion.IDENTITY
 var cmd := PackedFloat64Array([0.5, 0.0, 0.0, 0.0])
 var armed := true
+var motor_cut := false
 var crashed := false
 var crash_reason := ""
 var ground_contact := false
@@ -95,7 +96,7 @@ func reset(x: float, y: float, z: float, yaw: float) -> void:
 	s[0] = x; s[1] = y; s[2] = z
 	s[6] = 0.0; s[7] = sin(yaw / 2.0); s[8] = 0.0; s[9] = cos(yaw / 2.0)
 	prev_pos = Vector3(x, y, z); prev_quat = Quaternion(0, s[7], 0, s[9])
-	armed = true; crashed = false; crash_reason = ""; cmd.fill(0.0)
+	armed = true; motor_cut = false; crashed = false; crash_reason = ""; cmd.fill(0.0)
 	battery.soc = 1.0; battery.update(0.0, 0.0)
 
 func position() -> Vector3: return Vector3(s[0], s[1], s[2])
@@ -207,7 +208,7 @@ func step(dt: float) -> void:
 	rho = 1.225 * exp(-maxf(s[1], 0.0) / 8500.0)
 	_gh0 = ground_h.call(s[0], s[2])
 	_gn = ground_n.call(s[0], s[2])
-	if not armed: cmd.fill(0.0)
+	if not armed or motor_cut: cmd.fill(0.0)
 	cmd[0] = clampf(cmd[0], 0.0, 1.0)
 	# RK4
 	var k1 := _k[0]; var k2 := _k[1]; var k3 := _k[2]; var k4 := _k[3]

@@ -38,7 +38,7 @@ void start() {
 		float rr = radius * (1.05 + 0.8 * sqrt(r2));
 		p += vec3(cos(a) * rr, 0.2 + 2.5 * r3, sin(a) * rr);
 		v = vec3(cos(a), 0.0, sin(a)) * (2.5 + 4.5 * r4) + vec3(0.0, 0.8 + 2.2 * r5, 0.0);
-		size = 2.2 + 5.0 * r6;
+		size = 4.0 + 9.0 * r6;
 	} else if (mode == 2) {
 		// orbiting debris: leaves and twigs circling the base, climbing a little
 		float a = r1 * 6.2831853;

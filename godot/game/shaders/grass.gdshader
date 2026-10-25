@@ -34,6 +34,7 @@ uniform float uCanopySpan = 1200.0;
 uniform vec4 uDesire[8];
 uniform int uDesireN = 0;
 uniform sampler2D uPathT : filter_linear, repeat_disable;     // r = distance to the nearest path in 8 m units, 512 m square
+uniform sampler2D uRoadMask : filter_linear, repeat_disable;   // white where the country road and its bare shoulder run
 
 varying vec3 vCol;
 varying float vShade;
@@ -93,6 +94,12 @@ void vertex() {
 	vec2 puv = (wxz + 256.0) / 512.0;
 	if (puv.x > 0.001 && puv.y > 0.001 && puv.x < 0.999 && puv.y < 0.999) pd = textureLod(uPathT, puv, 0.0).r * 8.0;
 	keep *= uLitter < 0.5 ? smoothstep(1.8, 2.0, pd) : 1.0;              // nothing grows on the asphalt or the kerb (leaves still blow there)
+	// the country roads are newer than the park paths: keep the meadow off the carriageway and its bare shoulder
+	vec2 ruv = wxz / uSize + 0.5;
+	if (ruv.x > 0.0 && ruv.y > 0.0 && ruv.x < 1.0 && ruv.y < 1.0) {
+		float road = textureLod(uRoadMask, ruv, 0.0).r;
+		keep *= 1.0 - smoothstep(0.20, 0.55, road);
+	}
 	float verge = 1.0 - smoothstep(2.0, 2.9, pd);                        // the gravel verge: sparse and short
 	float wear = uLitter < 0.5 ? desire_at(wxz) * (1.0 - cv.r) : 0.0;
 	float open_lawn = cv.b * (1.0 - cv.r);

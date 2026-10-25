@@ -46,12 +46,57 @@ var _hour_write_t := 0.0
 var _moon_el := -20.0
 var _moon_dir := Vector3(0, -1, 0)
 var _moon_illum := 0.5
+var _moon_f := 0.0
+var _night_dark := 0.0
 var _daylight := 1.0
 var _last_wet_applied := -1.0
 var snow_fx: GPUParticles3D
 var snow_mat: ParticleProcessMaterial
 var ambient: AmbientParticles     # drifting leaves, dust motes and rotor-wash debris
 var hud: Hud
+var phone_notes: PhoneNotes        # session B: the DroneBudz phone notification bundle (game/phone_notes.gd)
+var world_life: WorldLife          # session B: the farm, turning mill and discoverable places (game/world_life.gd)
+var photo_library: PhotoLibrary    # session B: the in-game photo gallery (game/photo_library.gd)
+var jobs: Jobs                     # session B: the opt-in DroneBudz jobs and story layer (game/jobs.gd)
+var clips: ClipLibrary             # session B: representative thumbnails from video mode (game/clip_library.gd)
+var chat_data: ChatData            # session B: the DroneBudz Discord-style server (game/chat_data.gd)
+var phone_os: PhoneOS              # session B: the in-game phone with its apps (game/phone_os.gd)
+var guide: GuideCoach              # session B: Kit, the DroneBudz support contact and story-mode tips
+var anti_drone: AntiDrone          # session B: Harlan Pike, the north ridge jammer and hunter drones
+var case_objects: CaseObjects      # session B: the Lake Car evidence landmarks (game/case_objects.gd)
+var ground_traces: GroundTraces  # session B: thermal-only recent footprints and tyre tracks
+var story: StoryArc                # session B: the Lake Car story arc (game/story_arc.gd)
+var unknown_thread: UnknownThread  # session B: the unknown direct message thread (game/unknown_thread.gd)
+var thermal: ThermalCamera         # session B: the heat camera for the last flight (game/thermal.gd)
+var night_vision: NightVision      # session B: the Facade night vision add-on (game/night_vision.gd)
+var _moonless_test := false        # dev hook: force a moonless night for the low-light check
+var inventory: Inventory           # session B: the pilot's bought kit (game/inventory.gd)
+var wildlife_objects: WildlifeObjects  # session B: the sheep and the wolf in the west pasture
+var wildlife: WildlifeCase         # session B: Riley's night tracking favour and the thermal tutorial
+var launch_sites: LaunchSites       # session B: where the kit is parked and where the next flight starts
+var launch_pos := Vector2(-18.0, 36.0)
+var launch_yaw := 150.0
+var director: StoryDirector        # session B: the one player-facing route through all the story arcs
+var finale: Finale                 # session B: the cabin, the ghost and Wren (game/finale.gd)
+var ending: Ending                 # session B: the credits and the end of the story (game/ending.gd)
+var ghost_flight: GhostFlight      # session B: the ghost drift after the card (game/ghost_flight.gd)
+var ghost_on := false
+var end_sequence := false         # session B: the slow end wash and the end card
+var end_walk := false             # session B: free look and walk after the card, before flying again
+var _end_cam_pos := Vector3.ZERO
+var _end_yaw := 0.0
+var _end_pitch := -0.08
+var _end_marker: MeshInstance3D
+var roads: Roads                   # session B: the country highways and lanes linking the places (game/roads.gd)
+var boat_launch: BoatLaunch        # session B: the Halloway Lake boat launch at the end of the launch lane
+var cabin_track: CabinTrack        # session B: the dirt and gravel track, fallen trees, rockfall and cave
+var road_signs: RoadSigns          # session B: stop signs, speed limits and junction warnings
+var landmark_signs: LandmarkSigns  # session B: the cemetery gateway and the place and business signs
+var intersection_signals: IntersectionSignals  # session B: the flashing red beacons over the junctions
+var farmland: Farmland             # session B: the farm fields, crops, bales and fences (game/farmland.gd)
+var village: Village               # session B: Halloway village, east of the cemetery (game/village.gd)
+var traffic: Traffic               # session B: traffic on the country roads (game/traffic.gd)
+var crew: Crew                     # session B: the six friends, each giving the pilot different information (game/crew.gd)
 var osd: Osd
 var sensor: SensorPipeline
 var autopilot := AutoPilot.new()
@@ -89,6 +134,11 @@ var landing: Landing
 var _landing_on := false
 var _landing_t := 0.0
 var _herd: AnimalHerd = null         # dev hook: `herd<distance>_<name>+...` a grazing herd that flees the drone
+var _home_charging := false
+var _charge_t := 0.0
+var _charge_done := false
+var _prev_auto_state := AutoPilot.State.NONE
+const RECHARGE_SECONDS := 6.0
 
 ## The welcome screen: the valley behind a slowly circling camera, with a short menu. Fly starts the flight.
 func _show_landing() -> void:
@@ -99,8 +149,11 @@ func _show_landing() -> void:
 	if sticks: sticks.enabled = false
 	landing = Landing.new()
 	add_child(landing)
-	landing.build(str(af["name"]))
+	landing.build(str(af["name"]), hud.story_mode)
 	landing.fly_pressed.connect(_start_flight)
+	landing.mode_chosen.connect(func(story: bool):
+		hud.set_story_mode(story)
+		landing.set_story_mode(story))
 	landing.drone_pressed.connect(func(): hud.set_paused(true); hud.open_tab(1))
 	landing.settings_pressed.connect(func(): hud.set_paused(true); hud.open_tab(3))
 	landing.controls_pressed.connect(func(): hud.set_paused(true); hud.open_tab(5))
@@ -131,6 +184,33 @@ func _apply_simple(on: bool) -> void:
 	hud.toast("Plain camera" if on else "Full sensor camera")
 
 ## The drone's shadow is sized to this airframe.
+## The light fitted to the current airframe. Cinema = soft film light; Night Owl = flood; racers = narrow spot;
+## wing = landing light. The HUD "Drone light" switch still turns it on and off.
+func _apply_drone_light_profile() -> void:
+	if drone_light == null:
+		return
+	var profile := {
+		"range": 70.0, "angle": 30.0, "energy": 14.0, "colour": Color(1.0, 0.96, 0.88), "atten": 0.5,
+	}
+	match airframe_id:
+		"cinema":
+			profile = {"range": 58.0, "angle": 48.0, "energy": 9.0, "colour": Color(1.0, 0.93, 0.82), "atten": 0.65}
+		"cinewhoop":
+			profile = {"range": 52.0, "angle": 52.0, "energy": 8.0, "colour": Color(1.0, 0.94, 0.84), "atten": 0.68}
+		"nightowl":
+			profile = {"range": 120.0, "angle": 38.0, "energy": 26.0, "colour": Color(0.82, 0.90, 1.0), "atten": 0.42}
+		"raptor", "race":
+			profile = {"range": 78.0, "angle": 18.0, "energy": 20.0, "colour": Color(0.96, 0.98, 1.0), "atten": 0.45}
+		"wing":
+			profile = {"range": 105.0, "angle": 24.0, "energy": 15.0, "colour": Color(1.0, 0.95, 0.86), "atten": 0.5}
+		"freestyle":
+			profile = {"range": 72.0, "angle": 28.0, "energy": 16.0, "colour": Color(1.0, 0.96, 0.88), "atten": 0.5}
+	drone_light.spot_range = float(profile["range"])
+	drone_light.spot_angle = float(profile["angle"])
+	drone_light.light_energy = float(profile["energy"])
+	drone_light.light_color = profile["colour"]
+	drone_light.spot_attenuation = float(profile["atten"])
+
 func _after_drone_built() -> void:
 	if terrain: drone_shadow.setup(af, terrain)
 
@@ -175,7 +255,13 @@ func _ready() -> void:
 	Grass.add_globals()
 	Fireworks.add_globals()        # session B: the burst light colour that the smoke and the lake read (g_fire)
 	await _build_world()
-	af = Airframes.make(airframe_id)
+	inventory = Inventory.new()
+	inventory.setup()
+	launch_sites = LaunchSites.new()
+	launch_sites.setup()
+	launch_pos = launch_sites.pos()
+	launch_yaw = launch_sites.yaw()
+	af = inventory.apply_airframe(Airframes.make(airframe_id), airframe_id)
 	if airframe_id == "wing":
 		quad = FPVPlane.new(af)                       # plane lane: fixed wing (physics/plane.gd)
 		fc = PlaneController.new(af, quad)
@@ -204,13 +290,22 @@ func _ready() -> void:
 	cam.near = 0.03; cam.far = 26000.0; cam.fov = 84.0; cam.current = true
 	hud = Hud.new()
 	add_child(hud)
+	# session B: the phone-style DroneBudz notification bundle for world events (shows, storms, tornadoes, fog).
+	# It is a UI overlay only and is switched from Display > Overlay and sound > Phone messages.
+	phone_notes = PhoneNotes.new()
+	add_child(phone_notes)
+	phone_notes.setup(hud)
 	hud.pause_changed.connect(func(p: bool): paused = p or _landing_on; if sticks: sticks.release_all(); sticks.enabled = not p and not _landing_on; osd.visible = not p and not _landing_on)
 	hud.reset_requested.connect(spawn)
 	hud.drone_picked.connect(switch_drone)
 	hud.mode_changed.connect(func(m: String): fc.mode = m; fc.reset_state())
 	hud.camera_changed.connect(func(c: bool): chase = c)
 	hud.weather_changed.connect(apply_weather)
-	hud.light_changed.connect(func(on: bool): drone_light.visible = on)
+	hud.light_changed.connect(func(on: bool):
+		drone_light.visible = on
+		if on:
+			var light_name := "Floodlight" if airframe_id == "nightowl" else ("Film light" if airframe_id in ["cinema", "cinewhoop"] else "Drone light")
+			hud.toast(light_name + " on", false, "CAMERA"))
 	hud.grass_changed.connect(func(on: bool): grass.visible = on)
 	hud.ambient_changed.connect(func(on: bool): ambient.set_enabled(on))
 	hud.simple_changed.connect(_apply_simple)
@@ -269,10 +364,24 @@ func _ready() -> void:
 	add_child(fireworks)
 	fireworks.setup(terrain, home)
 	fireworks.set_sensor(sensor)   # session B: bursts flash the lens and nudge the exposure
-	hud.fireworks_changed.connect(func(i: int): fireworks.request_show(i))
+	hud.fireworks_changed.connect(func(i: int):
+		fireworks.request_show(i)
+		if i != 0 and phone_notes: phone_notes.post("show_soon")   # session B: a DroneBudz text before the show
+	)
 	hud.surprise_changed.connect(func(on: bool): fireworks.surprise_on = on)
 	fireworks.show_ended.connect(func(): hud.fireworks_show = 0; hud._sync())
-	fireworks.toast.connect(func(t: String): hud.toast(t))
+	# session B: show notices go to the phone notification bundle, not the white warning line
+	fireworks.toast.connect(func(t: String):
+		if phone_notes and t.begins_with("The show is starting"):
+			phone_notes.post("show_start")
+		elif phone_notes and t.begins_with("The show is over"):
+			phone_notes.post("show_over")
+		elif t.begins_with("A fireworks show"):
+			if phone_notes: phone_notes.post("show_start")
+			hud.toast(t)
+		else:
+			hud.toast(t)
+	)
 	fireworks.night_needed.connect(func():
 		hud.weather["hour"] = 21.5
 		hud.weather["clock_mode"] = 1
@@ -291,21 +400,125 @@ func _ready() -> void:
 	weather_events = WeatherEvents.new()
 	add_child(weather_events)
 	weather_events.setup(terrain, wind, hud, wx, sensor, birds)
+	weather_events.set_notes(phone_notes)   # session B: event notices arrive as DroneBudz phone messages
+	# session B: the inhabited valley (farm, turning mill, discoverable places) and the in-game photo library.
+	# Both are passive: they add life and discovery without touching the sandbox or forcing any objective.
+	world_life = WorldLife.new()
+	add_child(world_life)
+	world_life.setup(terrain, wind)
+	world_life.notes = phone_notes
+	photo_library = PhotoLibrary.new()
+	add_child(photo_library)
+	photo_library.setup(hud, world_life)
+	hud.gallery_requested.connect(func(): photo_library.open_gallery())
+	# session B: the opt-in jobs and story layer, fed by the photo metadata. Ignoring it changes nothing in the sandbox.
+	jobs = Jobs.new()
+	add_child(jobs)
+	jobs.setup(hud, photo_library, phone_notes)
+	clips = ClipLibrary.new()
+	add_child(clips)
+	clips.setup()
+	jobs.set_clips(clips)
+	photo_library.photo_saved.connect(jobs.on_photo)
+	hud.jobs_requested.connect(func(): jobs.open_page())
+	# session B: the phone. The chat server is the story spine; the phone hosts the apps (chat, studio, photos, jobs).
+	chat_data = ChatData.new()
+	jobs.set_chat(chat_data)
+	photo_library.jobs = jobs
+	photo_library.chat = chat_data
+	# session B: the crew each have their own job and their own information for the pilot
+	crew = Crew.new()
+	crew.setup(chat_data, hud, jobs, world_life, weather_events, photo_library)
+	# session B: the Lake Car story. Rennick appears after the first published clip or finished job.
+	story = StoryArc.new()
+	add_child(story)
+	story.setup(hud, chat_data, jobs, phone_notes, photo_library, case_objects)
+	photo_library.photo_saved.connect(story.on_photo)
+	# session B: the unknown account that starts as a wrong number and slowly knows too much
+	unknown_thread = UnknownThread.new()
+	add_child(unknown_thread)
+	unknown_thread.setup(chat_data, phone_notes, hud, story)
+	# session B: the final flight. Thermal camera, the storm search, the ghost and the credits.
+	thermal = ThermalCamera.new()
+	add_child(thermal)
+	night_vision = NightVision.new()
+	add_child(night_vision)
+	# session B: the west pasture, the sheep and the wolf, and the thermal-camera tutorial favour
+	wildlife_objects = WildlifeObjects.new()
+	add_child(wildlife_objects)
+	wildlife_objects.setup(terrain)
+	wildlife_objects.wolf_hostile.connect(func():
+		if hud != null:
+			hud.toast("The wolf has turned to face the drone. It is warning you away, not attacking yet.", false, "WILDLIFE"))
+	wildlife_objects.wolf_broke_away.connect(func():
+		if hud != null:
+			hud.toast("The wolf has broken away into the trees. It is still there; let it go.", false, "WILDLIFE"))
+	if ground_traces != null:
+		ground_traces.set_animal_source(wildlife_objects)
+	wildlife = WildlifeCase.new()
+	add_child(wildlife)
+	wildlife.setup(hud, chat_data, phone_notes, story, inventory, thermal, wildlife_objects)
+	ending = Ending.new()
+	add_child(ending)
+	ending.setup(jobs)
+	ending.began.connect(_on_ending_began)
+	ending.card_finished.connect(_on_ending_free)
+	ghost_flight = GhostFlight.new()
+	add_child(ghost_flight)
+	ghost_flight.setup(terrain)
+	ghost_flight.finished.connect(_on_ghost_finished)
+	finale = Finale.new()
+	add_child(finale)
+	finale.setup(hud, chat_data, phone_notes, story, unknown_thread, case_objects, weather_events, thermal, ending, inventory, wildlife, launch_sites)
+	director = StoryDirector.new()
+	add_child(director)
+	director.setup(hud, story, unknown_thread, wildlife, inventory, finale, ending, launch_sites)
+	phone_os = PhoneOS.new()
+	add_child(phone_os)
+	phone_os.setup(hud, jobs, photo_library, chat_data, crew, story, inventory, clips, director, roads, launch_sites, finale, wildlife)
+	phone_os.fly_drone.connect(switch_drone)
+	phone_os.travel_requested.connect(travel_to_site)
+	# HUD touch entry: the phone and the notification shade are reachable without a keyboard now.
+	hud.phone_requested.connect(func(): if phone_os != null: phone_os.toggle())
+	hud.notes_requested.connect(func(): if phone_notes != null: phone_notes.toggle_shade())
+	guide = GuideCoach.new()
+	add_child(guide)
+	guide.setup(hud, chat_data, phone_notes, phone_os, story, director, wildlife, inventory, photo_library, jobs, finale)
+	anti_drone = AntiDrone.new()
+	add_child(anti_drone)
+	anti_drone.setup(hud, chat_data, phone_notes, story, director, finale, quad, terrain)
+	anti_drone.forced_return.connect(_on_anti_return)
+	finale.anti_drone = anti_drone
+	# a notification's "Open DroneBudz" button goes straight into the chat app
+	phone_notes.app_requested.connect(func(app: String):
+		phone_os.open()
+		phone_os._open_app(app))
 	await _stage("Almost ready", 0.97)
 	hud.minimap.bake(terrain)
-	hud.minimap.home = home
+	hud.minimap.home = launch_pos
 	var pl: Array[PackedVector2Array] = []
 	for p in terrain.layout["paths"]:
 		var pts := PackedVector2Array()
 		for q in p["pts"]: pts.append(Vector2(q[0], q[1]))
 		pl.append(pts)
 	hud.minimap.paths = pl
+	var rp: Array[PackedVector2Array] = []
+	for id in roads.paths:
+		var pts2 := PackedVector2Array()
+		for q in roads.paths[id]:
+			pts2.append(q)
+		rp.append(pts2)
+	hud.minimap.roads = rp
 	apply_weather(hud.weather, true)   # snap at start-up so the game begins at the saved weather
 	spawn()
 	drone_shadow.setup(af, terrain)
 	if sensor.simple:
 		env.tonemap_mode = Environment.TONE_MAPPER_FILMIC; env.glow_enabled = true; env.glow_intensity = 0.25; env.glow_bloom = 0.02
+	if hud != null:
+		hud.attachment_requested.connect(_on_attachment_requested)
+		_sync_attachments()
 	_loaded = true
+	if hud != null: hud.set_story_mode(hud.story_mode)
 	if q_arg == "" and not _apstest and not _selftest and not "nolanding" in OS.get_cmdline_user_args(): _show_landing()
 	if _load_layer: _load_layer.queue_free()
 	_make_drone_pictures()
@@ -321,6 +534,7 @@ func _build_world() -> void:
 	RenderingServer.global_shader_parameter_add("g_storm", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # storm cell: x = anchor x, y = anchor z, z = strength (session B hangs the funnel here)
 	RenderingServer.global_shader_parameter_add("g_bolt", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, -1.0, 0.0, 0.0))   # lightning bolt: xyz direction, w strength (session B's bolts)
 	RenderingServer.global_shader_parameter_add("g_sky_dark", RenderingServer.GLOBAL_VAR_TYPE_FLOAT, 0.0)   # other effects darken the sky
+	RenderingServer.global_shader_parameter_add("g_spout", RenderingServer.GLOBAL_VAR_TYPE_VEC4, Vector4(0.0, 0.0, 0.0, 0.0))   # xz waterspout foot, radius, strength for the water rings
 	var dev_args := OS.get_cmdline_user_args()
 	terrain = Terrain.new()
 	add_child(terrain)
@@ -328,20 +542,61 @@ func _build_world() -> void:
 	await _stage("Shaping the ground", 0.18)
 	terrain.build()
 	await _stage("Planting the trees", 0.3)
+	CaseObjects.prepare(terrain)   # session B: clear the planting around the Lake Car evidence landmarks
 	world = World.new()
 	add_child(world)
 	world.build(terrain, touch_dev)
 	home = world.home
+	# session B: the country highways and lanes, laid on the ground after the trees so the cleared corridor reads
+	roads = Roads.new()
+	add_child(roads)
+	roads.setup(terrain)
+	road_signs = RoadSigns.new()
+	add_child(road_signs)
+	road_signs.setup(terrain, roads)
+	landmark_signs = LandmarkSigns.new()
+	add_child(landmark_signs)
+	landmark_signs.setup(terrain, roads)
+	intersection_signals = IntersectionSignals.new()
+	add_child(intersection_signals)
+	intersection_signals.setup(terrain, hud)
+	# session B: the farm fields (placeholder planting until Claude's models) and the traffic on the new roads.
+	farmland = Farmland.new()
+	add_child(farmland)
+	farmland.setup(terrain)
+	village = Village.new()
+	add_child(village)
+	village.setup(terrain)
+	traffic = Traffic.new()
+	add_child(traffic)
+	traffic.setup(terrain, roads, hud)
+	# session B: the physical evidence landmarks for the Lake Car story
+	case_objects = CaseObjects.new()
+	add_child(case_objects)
+	case_objects.setup(terrain)
+	# the lee of buildings and the cabin gives the same relief as the canopy: low, close air is calmer
+	wind.add_shelter_source(Callable(village, "shelter_at"))
+	wind.add_shelter_source(Callable(case_objects, "shelter_at"))
+	ground_traces = GroundTraces.new()
+	add_child(ground_traces)
+	ground_traces.setup(terrain, village, traffic, case_objects)
 	var lake := Lake.new()
 	add_child(lake)
 	lake.build(terrain)
+	# session B: the boat launch at the end of the lakeside lane
+	boat_launch = BoatLaunch.new()
+	add_child(boat_launch)
+	boat_launch.setup(terrain)
+	cabin_track = CabinTrack.new()
+	add_child(cabin_track)
+	cabin_track.setup(terrain)
 	var hills := FarHills.new()
 	add_child(hills)
 	hills.build(terrain)
 	await _stage("Growing the grass", 0.7)
 	grass = Grass.new()
 	add_child(grass)
-	if not "nograss" in dev_args: grass.build(terrain, "low" if OS.has_feature("mobile") else "high", world.exclusions, home)
+	if not "nograss" in dev_args: grass.build(terrain, "low" if OS.has_feature("mobile") else "high", world.exclusions, home, roads.road_mask)
 	# sun, sky and atmosphere
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -503,6 +758,8 @@ func _update_celestial() -> void:
 	sun.light_temperature = 3300.0 + 1200.0 * smoothstep(5.0, 22.0, _sun_el) + 1500.0 * smoothstep(22.0, 60.0, _sun_el)
 	var phase := Solar.moon_phase(_unix + (_clock - 12.0) * 3600.0)
 	_moon_illum = Solar.moon_illumination(phase)
+	if _moonless_test:
+		_moon_illum = 0.0
 	var mp := Solar.moon_position(_doy, _clock, phase, _utc_off)
 	_moon_el = mp.x
 	_moon_dir = Solar.direction(mp.x, mp.y)
@@ -518,7 +775,14 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	sun.shadow_opacity = clampf(0.25 + 3.0 * float(c["sun"]), 0.0, 1.0)
 	# the moon: its light scales with how much of it is lit and how high it stands, and cloud dims it
 	var moon_f := _moon_illum * smoothstep(-2.0, 8.0, _moon_el) * (1.0 - _daylight)
-	moon.light_energy = 0.14 * pow(_moon_illum, 1.3) * smoothstep(-2.0, 8.0, _moon_el) * (1.0 - _daylight) * (0.25 + 0.75 * float(c["sun"]))
+	_moon_f = moon_f
+	_moon_illum = 0.0 if _moonless_test else _moon_illum
+	# real moonlight is weak but directional: enough to pick out the grass, trees and roofs without turning night into day
+	moon.light_energy = 0.34 * pow(_moon_illum, 1.3) * smoothstep(-2.0, 8.0, _moon_el) * (1.0 - _daylight) * (0.25 + 0.75 * float(c["sun"]))
+	_night_dark = clampf((1.0 - _daylight) * (1.0 - clampf(_moon_f * 1.45, 0.0, 1.0)), 0.0, 1.0)
+	var sensor_night := sensor
+	if sensor_night != null:
+		sensor_night.night_dark = _night_dark
 	moon.visible = moon.light_energy > 0.002
 	sun.visible = _sun_el > -3.0
 	var night_amb := 0.012 + 0.10 * moon_f
@@ -583,7 +847,7 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 	_lens_water = move_toward(_lens_water, clampf(rain * 1.0, 0.0, 0.55) if rain > 0.03 else 0.0, delta * (0.25 if rain > 0.03 else 0.03))
 	sensor.rain_lens = (_lens_water * hud.lens_rain_k + _low_cloud_inside * 0.18) if not chase else 0.0
 	# the air the lens moves through: the drone's velocity against the wind, in the camera's own axes (the drops follow it)
-	sensor.lens_wash = clampf(_wash_now * 1.6 + 0.3 * fc.thrust_fraction(), 0.0, 1.0) if quad.armed else 0.0
+	sensor.lens_wash = clampf(_wash_now * 1.6 + 0.3 * fc.thrust_fraction(), 0.0, 1.0) if (quad.armed and not quad.motor_cut) else 0.0
 	var rel_air: Vector3 = cam.global_transform.basis.inverse() * (quad.velocity() - _wind_now)
 	sensor.lens_air = Vector3(-rel_air.x, -rel_air.y, maxf(-rel_air.z, 0.0)) if _air_test == Vector3.ZERO else _air_test
 	rain_fx.amount_ratio = clampf(rain, 0.05, 1.0)
@@ -601,35 +865,38 @@ func _apply_weather_state(delta: float, snap := false) -> void:
 # ------------------------------------------------------------------ flight
 func spawn() -> void:
 	autopilot.cancel()
+	_home_charging = false
+	_charge_t = 0.0
+	_charge_done = false
 	if hud and hud.minimap: hud.minimap.clear_trail()
-	var y := terrain.height(home.x, home.y) + 0.04
-	quad.reset(home.x, y, home.y, deg_to_rad(150.0))
+	var y := terrain.height(launch_pos.x, launch_pos.y) + 0.04
+	quad.reset(launch_pos.x, y, launch_pos.y, deg_to_rad(launch_yaw))
 	if airframe_id == "wing":
 		# hand launch: 3 m up, 10 m/s along the nose, nose up 10 degrees; the controller climbs gently for 3 s
 		# ground roll: on the grass, nose level, no speed; the pilot throttles up to lift off
-		var hd := deg_to_rad(150.0)
+		var hd := deg_to_rad(launch_yaw)
 		if hud and hud.plane_launch == 1:
 			var ql := Quaternion(Vector3.UP, hd)
-			quad.s[1] = terrain.height(home.x, home.y) + 0.2
+			quad.s[1] = terrain.height(launch_pos.x, launch_pos.y) + 0.2
 			quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
 			quad.s[3] = 0.0; quad.s[4] = 0.0; quad.s[5] = 0.0
 		else:
 			var ql := Quaternion(Vector3.UP, hd) * Quaternion(Vector3.RIGHT, deg_to_rad(10.0))
-			quad.s[1] = terrain.height(home.x, home.y) + 3.0
+			quad.s[1] = terrain.height(launch_pos.x, launch_pos.y) + 3.0
 			quad.s[6] = ql.x; quad.s[7] = ql.y; quad.s[8] = ql.z; quad.s[9] = ql.w
 			var fwd := ql * Vector3(0, 0, -1)
 			quad.s[3] = fwd.x * 10.0; quad.s[4] = fwd.y * 10.0; quad.s[5] = fwd.z * 10.0
-	fc.reset_state(); fc.mode = hud.mode if hud else "N"; fc.heading = deg_to_rad(150.0)
+	fc.reset_state(); fc.mode = hud.mode if hud else "N"; fc.heading = deg_to_rad(launch_yaw)
 	if airframe_id == "wing" and hud and hud.plane_launch == 1:
 		fc.set_ground_roll()
-	_cam_yaw = deg_to_rad(150.0)
+	_cam_yaw = deg_to_rad(launch_yaw)
 	_apply_pose()
 	drone_node.reset_physics_interpolation()
 	if hud: hud.show_crash("")
 
 func switch_drone(id: String) -> void:
 	airframe_id = id
-	af = Airframes.make(id)
+	af = inventory.apply_airframe(Airframes.make(id), id) if inventory != null else Airframes.make(id)
 	quad.set_airframe(af)
 	fc.set_airframe(af)
 	drone_view.build(af)
@@ -640,6 +907,26 @@ func switch_drone(id: String) -> void:
 	hud.show_gimbal(af["hasGimbal"])
 	spawn()
 
+## The map app's travel button. The drone has to be on the ground; the kit is then driven to the new site and unpacked.
+func travel_to_site(site_id: String) -> void:
+	if launch_sites == null or quad == null:
+		return
+	var p: Vector3 = quad.position()
+	var agl := p.y - terrain.height(p.x, p.z)
+	if quad.armed and agl > 0.4:
+		if phone_os != null and phone_os._map_app != null:
+			phone_os._map_app.set_status("Land the drone before driving to a new launch site.", true)
+		return
+	if not launch_sites.set_active(site_id):
+		return
+	var s := launch_sites.current()
+	launch_pos = s["pos"]
+	launch_yaw = float(s["yaw"])
+	hud.minimap.home = launch_pos
+	spawn()
+	if phone_os != null:
+		phone_os.close()
+	hud.toast("Drove the kit to " + str(s["name"]) + ". Ready at the new launch site.")
 func _read_sticks() -> Vector4:
 	# x = throttle, y = yaw, z = pitch, w = roll, each -1..1
 	var th := 0.0; var yw := 0.0; var pt := 0.0; var rl := 0.0
@@ -686,6 +973,15 @@ func _apply_pose() -> void:
 
 func _process(delta: float) -> void:
 	if quad == null or not _loaded: return
+	if ghost_on: return
+	_attach_sync += delta
+	if _attach_sync > 0.4:
+		_attach_sync = 0.0
+		_sync_attachments()
+	_thermal_sync += delta
+	if _thermal_sync > 0.15:
+		_thermal_sync = 0.0
+		_sync_thermal_heat()
 	if _gallery_cam:
 		return
 	# Q and E tilt a gimbal camera smoothly while held: it speeds up, then eases to a stop when released
@@ -696,6 +992,39 @@ func _process(delta: float) -> void:
 		gimbal_pitch = clampf(gimbal_pitch + _gimbal_rate * delta, deg_to_rad(-90.0), deg_to_rad(20.0))
 		hud.set_gimbal_value(gimbal_pitch)
 	_tick_clock(delta)
+	if phone_os != null and quad != null:
+		phone_os.set_battery(quad.battery.soc)   # the tablet's battery dial reads the drone pack
+	if not paused:
+		_update_home_recharge(delta)   # after a Return to Home landing: props stopped, battery charging
+	_check_home_landing()
+	if jobs != null and not paused:
+		jobs.tick(delta)   # session B: the channel keeps earning views and money between flights
+	if guide != null and not paused:
+		guide.update(delta)   # session B: Kit story-mode tips and nudges
+	if traffic != null and hud != null:
+		traffic.update(delta, float(hud.weather.get("hour", 12.0)), paused)   # session B: life on the roads
+	if roads != null and hud != null:
+		roads.set_wetness(float(hud.weather.get("wet", 0.0)))   # session B: rain darkens and polishes the asphalt
+	if crew != null and not paused:
+		crew.update(delta)   # session B: the crew react to weather, storms, uploads and discoveries
+	if story != null and not paused:
+		story.update(delta)  # session B: the Lake Car story, in game hours
+	if unknown_thread != null and not paused:
+		unknown_thread.update(delta)   # session B: the unknown account's direct messages
+	if wildlife != null and not paused:
+		wildlife.update(delta, quad.position())   # session B: the night pasture thermal favour
+	if wildlife_objects != null and not paused:
+		wildlife_objects.update(delta, quad.position())   # animals spook and run from a close drone
+	if ground_traces != null and not paused:
+		ground_traces.update(delta, quad.position())   # thermal-only recent footprints and tyre tracks
+	if case_objects != null:
+		case_objects.update_hiker(quad.position())   # never show a close-up human model
+	if finale != null and not paused:
+		finale.update(delta, quad.position())   # session B: the last flight, the storm search and the ending
+	if anti_drone != null and not paused:
+		anti_drone.update(delta)   # session B: Pike's jammer field, laser and hunters
+	if director != null:
+		director.update(delta)   # session B: the act and next step for the Casebook
 	_celestial_t -= delta
 	if _celestial_t <= 0.0:
 		_celestial_t = 0.25
@@ -748,7 +1077,7 @@ func _process(delta: float) -> void:
 		lit_dir = _moon_dir; lit_k = 0.3 * float(wx.cur["sun"]) * _moon_illum * (1.0 - _daylight)
 	var head_y := atan2(-(q * Vector3(0, 0, -1)).x, -(q * Vector3(0, 0, -1)).z)
 	drone_shadow.update(pos, head_y, lit_dir, lit_k)
-	drone_view.update_props(quad.s, sim_time, quad.armed)
+	drone_view.update_props(quad.s, sim_time, quad.armed and not quad.motor_cut)
 	# precipitation follows the camera
 	snow_fx.global_position = cam.global_position + Vector3(0, 12, 0)
 	rain_fx.global_position = cam.global_position + Vector3(0, 16, 0)
@@ -756,15 +1085,20 @@ func _process(delta: float) -> void:
 	snow_mat.direction = Vector3(wdir.x, -1.0, wdir.z).normalized()
 	_apply_weather_state(delta)
 	_update_sensor_and_osd(delta)
-	ambient.update(delta, cam, wind.toward() * wind.speed, wind.gust, _sun_el, _sun_dir, _daylight, wx, quad.position(), quad.armed, _wash_now, float(af["armD"]))
+	ambient.update(delta, cam, wind.toward() * wind.speed, wind.gust, _sun_el, _sun_dir, _daylight, wx, quad.position(), quad.armed and not quad.motor_cut, _wash_now, float(af["armD"]))
 
 	if fireworks: fireworks.update(delta, cam, quad.position(), _sun_el, _clock, _doy, paused)   # session B: the show clock
+	if night_vision != null:
+		night_vision.set_scene(sensor, _moon_f, _night_dark)
 	if birds: birds.update(delta, cam, quad.position(), wind, wx, _sun_el, _daylight, _doy, paused)   # session B: the flocks
 	if weather_events: weather_events.update(delta, cam, quad.position(), quad.velocity(), _sun_el, _daylight, paused)   # session B: events and courses
 	if _herd: _herd.threat = quad.position()   # session A: the animals flee the drone
+	if phone_notes: phone_notes.update(delta, paused)   # session B: the DroneBudz notification bundle
+	if world_life: world_life.update(delta, quad.position(), paused)   # session B: mill turning and place discovery
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _loaded: return
+	if ghost_on: return
 	if not (event is InputEventKey and event.pressed and not event.echo): return
 	match event.keycode:
 		KEY_MINUS: sensor.ev_comp = clampf(sensor.ev_comp - 0.33, -3.0, 3.0)
@@ -772,12 +1106,64 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_L: hud.toggle_lens()
 		KEY_V: hud.listening = (hud.listening + 1) % 3; audio.set_perspective(hud.listening); hud.toast("Sound: " + audio.perspective_name())
 		KEY_H: osd.show_osd = not osd.show_osd
+		KEY_N: phone_notes.toggle_shade()   # session B: open or close the phone notification centre
+		KEY_TAB: if phone_os != null: phone_os.toggle()   # session B: the in-game phone home screen
+		KEY_G: if hud.paused: photo_library.toggle()   # session B: photo gallery from the menu
+		KEY_J: if hud.paused: jobs.toggle()   # session B: DroneBudz jobs page from the menu
+		KEY_T: _toggle_thermal()
+		KEY_K: _toggle_night()
 		KEY_R: spawn()
 		KEY_C: hud.set_chase(not chase)
 		KEY_M: hud.cycle_mode()
 		KEY_Q, KEY_E:
 			if not af["hasGimbal"]: hud.toast("This drone's camera is fixed. Pick the Gimbal Mini or the Cinema drone to tilt it.")
 
+# ------------------------------------------------------------------ thermal heat shells
+func _sync_thermal_heat() -> void:
+	if _heat_debug:
+		return
+	var on := thermal != null and thermal.is_on()
+	if case_objects != null:
+		case_objects.set_thermal_marker(on)
+	if wildlife_objects != null:
+		wildlife_objects.set_thermal_markers(on)
+	if traffic != null:
+		traffic.set_thermal_heat(on)
+	if village != null:
+		village.set_thermal_heat(on)
+	if ground_traces != null:
+		ground_traces.set_thermal(on)
+# ------------------------------------------------------------------ camera add-ons on the flight screen
+func _toggle_thermal() -> void:
+	if inventory != null and inventory.has_addon("thermal_camera") and thermal != null:
+		thermal.install()
+		thermal.toggle()
+		hud.toast("Thermal camera " + ("ON" if thermal.is_on() else "OFF"), false, "CAMERA")
+	else:
+		hud.toast("No thermal module fitted. The Facade listing has one.", true, "CAMERA")
+	_sync_attachments()
+
+func _toggle_night() -> void:
+	if inventory != null and inventory.has_addon("night_vision") and night_vision != null:
+		night_vision.toggle()
+		hud.toast("Night vision " + ("ON" if night_vision.is_on() else "OFF"), false, "CAMERA")
+	else:
+		hud.toast("No night vision module fitted. The Facade listing has one.", true, "CAMERA")
+	_sync_attachments()
+
+func _on_attachment_requested(id: String) -> void:
+	match id:
+		"thermal": _toggle_thermal()
+		"night": _toggle_night()
+
+var _attach_sync := 0.0
+var _thermal_sync := 0.0
+var _heat_debug := false
+func _sync_attachments() -> void:
+	if hud == null or inventory == null:
+		return
+	hud.set_attachment_state("thermal", inventory.has_addon("thermal_camera"), thermal != null and thermal.is_on(), "THERMAL", "T")
+	hud.set_attachment_state("night", inventory.has_addon("night_vision"), night_vision != null and night_vision.is_on(), "NIGHT", "K")
 # ------------------------------------------------------------------ screenshot helper for development
 func _screenshot_mode(arg: String) -> void:
 	var parts := arg.split(",")
@@ -799,6 +1185,10 @@ func _screenshot_mode(arg: String) -> void:
 			var av := c.substr(3).split("_")
 			if av.size() == 3: _air_test = Vector3(float(av[0]), float(av[1]), float(av[2]))
 		if c == "simple": hud.simple_on = true; _apply_simple(true)
+		if c == "moonless":
+			_moonless_test = true
+			_update_celestial()
+			_apply_weather_state(0.0, true)
 		if c.begins_with("clock"):     # test hook: freeze the clock at that hour (clock7.5), on the date picked with date1..4
 			hud.weather["hour"] = float(c.substr(5)); hud.weather["clock_mode"] = 1; hud.weather["clock_speed"] = 2; apply_weather(hud.weather, true); print("sun el ", snappedf(_sun_el, 0.1), " az ", snappedf(_sun_az, 0.1), " moon el ", snappedf(_moon_el, 0.1), " illum ", snappedf(_moon_illum, 0.01), " dir ", _moon_dir)
 		if c.begins_with("date"):
@@ -872,6 +1262,8 @@ func _screenshot_mode(arg: String) -> void:
 			weather_events.debug_event("waterspout")
 		elif c == "tornado":
 			weather_events.debug_event("tornado")
+		elif c.begins_with("vortexstage"):
+			weather_events.debug_stage(int(c.substr(11)))
 		elif c == "dustdevil":
 			weather_events.debug_event("dustdevil")
 		elif c == "storm":          # dev: the B2 thunderstorm cell (the sky storm hooks are session A's)
@@ -888,6 +1280,655 @@ func _screenshot_mode(arg: String) -> void:
 			weather_events.debug_event("park")
 		elif c.begins_with("course"):
 			weather_events.debug_course(int(c.substr(6)))
+		elif c == "notifyapps":    # session B dev hook: notifications owned by different apps
+			phone_notes.debug_clear()
+			phone_notes.post_text("Rennick", "The cabin", "Wren is on foot east of the cabin. Use the thermal camera and search the trees.", 0)
+			phone_notes.post_text("VidTube", "Your shot is live", "The channel is at 154 followers and 399 views from this one.", 0)
+			phone_notes.post_text("Facade", "Order ready", "The thermal camera is in your kit. Fit it before the next flight.", 0)
+			phone_notes.debug_shade()
+		elif c == "notesdemo":     # session B dev hook: a bundle of three DroneBudz notifications
+			phone_notes.debug_demo()
+		elif c == "notesios":
+			hud.phone_style = 0
+		elif c == "notesandroid":
+			hud.phone_style = 1
+		elif c == "notesstorm":
+			phone_notes.debug_one("storm")
+		elif c == "notesshade":     # session B dev hook: fill the notification centre and open it
+			phone_notes.debug_shade()
+		elif c == "notesshadefold":
+			phone_notes.debug_shade(true)
+		elif c == "notesempty":
+			phone_notes.debug_clear()
+		elif c == "farm":     # session B dev hook: look at the old farm and its turning mill from the south
+			var fp := world_life.farm_pos
+			var fpx := fp.x
+			var fpz := fp.z + 120.0
+			var fpy := terrain.height(fpx, fpz) + 70.0
+			quad.reset(fpx, fpy, fpz, 0.0)
+			var whf: float = float(af["omegaMax"]) * sqrt(1.0 / float(af["twr"]))
+			for i in 4:
+				quad.s[13 + i] = whf
+				quad.cmd[i] = whf
+			fc.heading = 0.0
+			gimbal_pitch = deg_to_rad(-8.0)
+			_apply_pose()
+		elif c == "phototest":     # session B dev hook: take three photos and open the gallery
+			_phototest = true
+		elif c == "photodetail":     # session B dev hook: open the newest photo's detail
+			_photodetail = true
+		elif c == "discoverall":
+			world_life.debug_discover_all()
+		elif c == "jobsopen":     # session B dev hook: the DroneBudz jobs page
+			jobs.open_page()
+		elif c == "jobsdemo":     # session B dev hook: accept a job, complete it with the newest photo, open the page
+			jobs.debug_demo()
+		elif c == "jobfail":      # session B dev hook: pull a job for the failure-state page
+			jobs.debug_fail("windmill", "too_close")
+		elif c == "jobsreset":    # session B dev hook: clear the pulled-job state
+			jobs.debug_clear_failures()
+		elif c == "jobsoffer":    # session B dev hook: show one job offer with its requirements
+			jobs.debug_offer("windmill")
+		elif c == "jobsofferreset":  # session B dev hook: remove the debug offer
+			jobs.debug_remove_offer("windmill")
+		elif c == "jobsedit":     # session B dev hook: complete and publish the current job with Maya's edit
+			jobs.debug_demo()
+			var act: Array = jobs.active_list()
+			if not act.is_empty():
+				jobs.submit(str(act[act.size() - 1]["id"]), true)
+			jobs.close_page()
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "roadtest":     # session B dev hook: compare the road collider with the bare terrain
+			var rx := 286.0
+			var rz := 180.0
+			var ox := 250.0
+			var oz := 240.0
+			if roads != null:
+				print("ROADTEST on-road: terrain %.3f surface %.3f delta %.3f" % [terrain.height(rx, rz), roads.surface_height(rx, rz), roads.surface_height(rx, rz) - terrain.height(rx, rz)])
+				print("ROADTEST off-road: terrain %.3f surface %.3f delta %.3f" % [terrain.height(ox, oz), roads.surface_height(ox, oz), roads.surface_height(ox, oz) - terrain.height(ox, oz)])
+		elif c == "roadland":     # session B dev hook: leave the drone on the highway surface
+			var rx := 286.0
+			var rz := 180.0
+			var ry := roads.surface_height(rx, rz) + 0.01 if roads != null else terrain.height(rx, rz) + 0.01
+			quad.reset(rx, ry, rz, deg_to_rad(180.0))
+			quad.motor_cut = true
+			_cam_yaw = deg_to_rad(180.0)
+			_apply_pose()
+			print("ROADLAND position %.3f %.3f %.3f, terrain %.3f, surface %.3f, and %.3f m above the surface" % [quad.position().x, quad.position().y, quad.position().z, terrain.height(rx, rz), roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz), quad.position().y - (roads.surface_height(rx, rz) if roads != null else terrain.height(rx, rz))])
+		elif c == "phone":        # session B dev hook: the phone home screen
+			phone_os.open()
+		elif c == "appdownload":   # session B dev hook: force a fresh download of the Casebook and Facade
+			phone_os.open()
+			phone_os._app_installed["casebook"] = false
+			phone_os._app_installed["market"] = false
+			phone_os._sync_apps()
+		elif c == "appload":       # session B dev hook: the first-open app loading panel
+			phone_os.open()
+			phone_os._app_loaded.erase("map")
+			phone_os._launch_app("map")
+		elif c == "phonedrawer":  # session B dev hook: the Android app drawer with its search pill
+			phone_os.open()
+			phone_os._show_drawer()
+		elif c == "guidetip":     # session B dev hook: force Kit tip and open the DM
+			if guide != null:
+				guide.debug_tip("welcome")
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("guide")
+		elif c.begins_with("guidetip="):
+			if guide != null:
+				guide.debug_tip(c.substr(9))
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("guide")
+		elif c == "phonemap":     # session B dev hook: the valley map app
+			phone_os.open()
+			phone_os._open_app("map")
+		elif c.begins_with("travel="):   # session B dev hook: drive the kit to a launch site
+			travel_to_site(c.substr(7))
+		elif c == "phonechat":    # session B dev hook: straight into the DroneBudz chat
+			phone_os.open()
+			phone_os._open_app("chat")
+		elif c == "phonestudio":  # session B dev hook: the channel studio app
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "phonerecents": # session B dev hook: the app switcher
+			phone_os.open()
+			phone_os._show_switcher()
+		elif c == "phonestory":   # session B dev hook: finish the first job so chat, money, followers and events are populated
+			jobs.debug_demo()
+			jobs.submit("lake")
+			jobs.close_page()
+			phone_os.open()
+			phone_os._open_app("chat")
+		elif c == "phonejobs":    # session B dev hook: the chat open on the jobs channel
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("jobs")
+		elif c == "vidtube":      # session B dev hook: the VidTube Studio app
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "homelanded":  # session B dev hook: put the drone at home, cut the motors and watch the battery charge
+			var hy := terrain.height(home.x, home.y) + 0.04
+			quad.reset(home.x, hy, home.y, deg_to_rad(150.0))
+			quad.battery.soc = 0.2
+			_home_landed()
+		elif c == "landingstory": # session B dev hook: the welcome screen in Story mode
+			hud.set_story_mode(true)
+			_show_landing()
+		elif c == "landingsandbox":  # session B dev hook: the welcome screen in Sandbox mode
+			hud.set_story_mode(false)
+			_show_landing()
+		elif c == "storyweather":  # session B dev hook: the Weather settings tab in Story mode
+			hud.set_story_mode(true)
+			hud.set_paused(true)
+			hud.open_tab(2)
+		elif c == "sandboxweather":  # session B dev hook: the Weather settings tab in Sandbox mode
+			hud.set_story_mode(false)
+			hud.set_paused(true)
+			hud.open_tab(2)
+		elif c == "clipdemo":     # session B dev hook: create three representative rushes and open Studio
+			for i in 3:
+				clips.add_clip(sensor.capture(), _photo_meta(), 8.0 + float(i) * 4.0)
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "clipeditdemo": # session B dev hook: cut the rushes into a single video
+			for i in 2:
+				clips.add_clip(sensor.capture(), _photo_meta(), 10.0 + float(i) * 3.0)
+			jobs.publish_rushes(true)
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "videodetail": # session B dev hook: the latest published video's detail screen
+			phone_os.open()
+			phone_os._open_app("studio")
+			phone_os._studio_app.refresh()
+			phone_os._studio_app._open_video(jobs.last_video())
+		elif c == "casebook_evidence":
+			phone_os.open()
+			phone_os._open_app("casebook")
+			phone_os._casebook_app._set_tab("evidence")
+		elif c == "casebook_chapters":
+			phone_os.open()
+			phone_os._open_app("casebook")
+			phone_os._casebook_app._set_tab("chapters")
+		elif c == "casebook_contacts":
+			phone_os.open()
+			phone_os._open_app("casebook")
+			phone_os._casebook_app._set_tab("contacts")
+		elif c == "director":    # session B dev hook: the Casebook with the story director act card
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "market":      # session B dev hook: the Facade marketplace
+			phone_os.open()
+			phone_os._open_app("market")
+		elif c == "marketkit":   # session B dev hook: the owned kit, with a couple of purchases
+			jobs.add_money(1000)
+			for iid in ["drone_raptor", "night_vision", "motor_mini", "battery"]:
+				inventory.add_purchase(FacadeCatalog.item(str(iid)))
+			phone_os.open()
+			phone_os._open_app("market")
+			phone_os._marketplace_app.debug_tab("kit")
+		elif c == "marketcheck":  # session B dev hook: buy one item through the real purchase path
+			jobs.add_money(500)
+			phone_os.open()
+			phone_os._open_app("market")
+			phone_os._marketplace_app._buy(FacadeCatalog.item("night_vision"))
+			print("marketcheck: money=", jobs.money(), " kit=", inventory.stats())
+		elif c == "marketbuy":   # session B dev hook: the market after a Raptor and the night vision have been bought
+			jobs.add_money(1000)
+			for iid in ["drone_raptor", "night_vision", "motor_raptor"]:
+				inventory.add_purchase(FacadeCatalog.item(str(iid)))
+			phone_os.open()
+			phone_os._open_app("market")
+		elif c == "nightvisiondemo":  # session B dev hook: the night vision add-on switched on
+			if not inventory.has_addon("night_vision"):
+				inventory.add_purchase(FacadeCatalog.item("night_vision"))
+			night_vision.set_on(true)
+		elif c == "wildlife":       # session B dev hook: the night pasture with the thermal camera fitted
+			story.debug_jump(2)
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			wildlife.debug_start()
+			thermal.set_on(true)
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("general")
+		elif c == "wildlifecomplete":  # session B dev hook: finish the night pasture
+			story.debug_jump(2)
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			wildlife.debug_complete()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("general")
+		elif c == "wildlifeworld":    # session B dev hook: the night pasture from the air, thermal fitted
+			story.debug_jump(2)
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			wildlife.debug_start()
+			thermal.set_on(true)
+		elif c == "raptorflight":     # session B dev hook: fly the bought Raptor
+			if not inventory.owns_drone("raptor"):
+				inventory.add_purchase(FacadeCatalog.item("drone_raptor"))
+			switch_drone("raptor")
+		elif c == "trafficdemo":  # session B dev hook: line the traffic up on the valley highway
+			traffic.debug_line_up()
+		elif c == "crewdemo":     # session B dev hook: ask every friend once and open the weather channel
+			crew.ask("weather", "weather")
+			crew.ask("storm", "weather")
+			crew.ask("gear", "tech")
+			crew.ask("spot", "general")
+			crew.ask("jobs", "jobs")
+			crew.ask("edit", "clips")
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("weather")
+		elif c == "crewtech":     # session B dev hook: ask Alex about gear
+			crew.ask("gear", "tech")
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("tech")
+		elif c == "crewjobs":     # session B dev hook: ask Jo about the board
+			crew.ask("jobs", "jobs")
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("jobs")
+		elif c == "casebook":     # session B dev hook: the Casebook app
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storystart":   # session B dev hook: start the Lake Car and open the casebook
+			story.debug_start()
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storytown":    # session B dev hook: start the Lake Car and open #town
+			story.debug_start()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("town")
+		elif c == "storydeliver": # session B dev hook: mark the current evidence delivered
+			story.debug_deliver()
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storynext":    # session B dev hook: force the waiting chapter to begin
+			story.debug_next()
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storycamp":    # session B dev hook: jump to the camp chapter
+			story.debug_jump(3)
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storybus":     # session B dev hook: jump to the bus chapter
+			story.debug_jump(4)
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storyfinish":  # session B dev hook: finish the case and show the ending choice
+			story.debug_run_all()
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "storypublish": # session B dev hook: finish and publish with Maya's cut
+			story.debug_run_all()
+			story.make_choice("publish")
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "unknownstart": # session B dev hook: start the unknown direct message thread
+			unknown_thread.debug_start()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("unknown")
+		elif c == "unknownnext":  # session B dev hook: post the next unknown message
+			unknown_thread.debug_next()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("unknown")
+		elif c == "unknowndoubt": # session B dev hook: jump to the questions about Rennick
+			story.debug_run_all()
+			unknown_thread.debug_jump(4)
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("unknown")
+		elif c == "unknownfinal": # session B dev hook: the last unknown message after a private ending
+			story.debug_run_all()
+			story.make_choice("private")
+			unknown_thread.debug_jump(5)
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("unknown")
+		elif c == "finalestart":  # session B dev hook: start the ghost reveal and the storm
+			finale.debug_start()
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("town")
+		elif c == "wolfclose":      # session B dev hook: approach the wolf closely for the hostile-then-flee behaviour
+			wildlife_objects.show_wolf()
+			var wp: Vector3 = wildlife_objects.wolf_position()
+			var cp := Vector3(wp.x + 8.0, terrain.height(wp.x + 8.0, wp.z + 8.0) + 2.5, wp.z + 8.0)
+			var to_wolf := wp - cp
+			quad.reset(cp.x, cp.y, cp.z, atan2(-to_wolf.x, -to_wolf.z))
+			gimbal_pitch = deg_to_rad(-18.0)
+			_apply_pose()
+			if hud != null:
+				hud.toast("Wolf close: the animal should face the drone, then break away without vanishing.", false, "WILDLIFE")
+			print("wolfclose start=", wildlife_objects.wolf_state())
+			for i in 150:
+				await get_tree().process_frame
+			print("wolfclose end=", wildlife_objects.wolf_state())
+		elif c == "shelterprobe":   # session B dev hook: read the shelter at the village and in the forest
+			wind.speed = 8.0
+			wind.gust = 0.8
+			var vp := Vector3(382.0, 0.0, 306.0)
+			vp.y = terrain.height(vp.x, vp.z) + 2.0
+			quad.reset(vp.x, vp.y, vp.z, 0.0)
+			for i in 4:
+				wind.drive(quad, terrain, vp, 2.0, 0.1)
+			print("village buildings=", village._buildings.size())
+			print("shelter village=", snappedf(wind.shelter, 0.01), " turb=", snappedf(wind.turb, 0.01), " wind=", snappedf(quad.wind.length(), 0.1))
+			var fp := Vector3.ZERO
+			var found := false
+			for x in range(-460, 460, 20):
+				for z in range(-460, 460, 20):
+					if terrain.cover_at(float(x), float(z)).x > 0.85:
+						fp = Vector3(float(x), terrain.height(float(x), float(z)) + 2.0, float(z))
+						found = true
+						break
+				if found:
+					break
+			if found:
+				quad.reset(fp.x, fp.y, fp.z, 0.0)
+				for i in 4:
+					wind.drive(quad, terrain, fp, 2.0, 0.1)
+				print("shelter forest=", snappedf(wind.shelter, 0.01), " turb=", snappedf(wind.turb, 0.01), " wind=", snappedf(quad.wind.length(), 0.1), " pos=", fp)
+		elif c == "ghostdemo":      # session B dev hook: the ghost drift, reveal compressed to a few seconds
+			_start_ghost_flight(true)
+		elif c == "ghostworld":     # session B dev hook: ghost camera with the overlay off, for a camera sanity check
+			_start_ghost_flight(true)
+			ghost_flight.debug_overlay_visible(false)
+		elif c == "ghostwake":      # session B dev hook: skip the drift and wake immediately
+			_start_ghost_flight(true)
+			ghost_flight.debug_wake()
+		elif c == "finalerealize": # session B dev hook: the Rennick realization sequence, not yet bypassed
+			finale.debug_realization()
+		elif c == "finalecabin":  # session B dev hook: the cabin, Wren on foot and thermal on
+			finale.debug_cabin()
+		elif c == "cabinworld":   # session B dev hook: the cabin and the cruiser in the storm, normal camera
+			finale.debug_start()
+		elif c == "heatdebug":    # session B dev hook: heat shells without the thermal pass
+			finale.debug_thermal_view()
+			thermal.set_on(false)
+			var hp := CaseObjects.SEARCH_SPOT
+			quad.reset(hp.x, terrain.height(hp.x, hp.y + 10.0) + 3.0, hp.y + 10.0, 0.0)
+			_apply_pose()
+			_heat_debug = true
+			var hm := ThermalHeat.material(ThermalHeat.BODY)
+			var hs := MeshInstance3D.new()
+			var ss := SphereMesh.new(); ss.radius = 3.0; ss.height = 6.0
+			hs.mesh = ss; hs.material_override = hm
+			var sp := CaseObjects.SEARCH_SPOT
+			var cam_fwd := -cam.global_transform.basis.z
+			hs.position = cam.global_position + cam_fwd * 8.0
+			add_child(hs)
+			case_objects.set_thermal_marker(true)
+			wildlife_objects.set_thermal_markers(true)
+			traffic.set_thermal_heat(true)
+		elif c == "wildmodels":    # session B dev hook: the Blender sheep and wolf in daylight
+			var spw: Vector3 = wildlife_objects.first_sheep_position()
+			quad.reset(spw.x + 10.0, terrain.height(spw.x + 10.0, spw.z + 10.0) + 6.0, spw.z + 10.0, deg_to_rad(45.0))
+			gimbal_pitch = deg_to_rad(-18.0)
+			_apply_pose()
+		elif c == "thermalsheep":  # session B dev hook: thermal on, standing off the flock
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			wildlife.debug_start()
+			thermal.set_on(true)
+			var sp2 := wildlife_objects.first_sheep_position()
+			quad.reset(sp2.x, terrain.height(sp2.x, sp2.z) + 14.0, sp2.z, 0.0)
+			gimbal_pitch = deg_to_rad(-82.0)
+			_apply_pose()
+		elif c == "gatepark":       # session B dev hook: spawn at the south gate car park
+			print("gatepark roads: ", roads.stats(), " audit: ", roads.audit())
+			travel_to_site("south_gate")
+			quad.reset(34.0, terrain.height(34.0, 260.0) + 18.0, 260.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-32.0)
+			_apply_pose()
+		elif c == "villageshot":    # session B dev hook: the village street and its people
+			quad.reset(420.0, terrain.height(420.0, 292.0) + 2.0, 292.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-4.0)
+			_apply_pose()
+		elif c == "wrenshot":       # session B dev hook: Wren on foot at the treeline
+			case_objects.show_hiker()
+		elif c == "wrenshow":       # session B dev hook: show Wren without moving the camera
+			case_objects.show_hiker()
+		elif c == "wrenvillage":    # session B dev hook: a close, flat check of the Wren actor
+			case_objects.show_hiker()
+			case_objects._hiker.position = Vector3(360.0, terrain.height(360.0, 274.0), 274.0)
+			case_objects._hiker.rotation.y = 0.0
+			quad.reset(360.0, terrain.height(360.0, 280.0) + 1.8, 280.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-8.0)
+			_apply_pose()
+		elif c == "peopleclose":    # session B dev hook: a close check of the village cast
+			quad.reset(356.0, terrain.height(356.0, 278.0) + 1.7, 282.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-4.0)
+			_apply_pose()
+		elif c == "sitshot":        # session B dev hook: a seated actor on a real bench anchor
+			village._bench(Vector2(38.0, -744.0), 0.0)
+			var sitter = village._people[6]
+			sitter.route.clear()
+			sitter.position = Vector3(38.0, terrain.height(38.0, -744.0), -744.0)
+			sitter.rotation.y = 0.0
+			sitter.seated = true
+			sitter._set_pose("sit")
+		elif c == "walkshot":       # session B dev hook: a walking actor in front of the default camera
+			var walker = village._people[0]
+			walker.route.clear()
+			walker.route.append(Vector3(34.0, terrain.height(34.0, -744.0), -744.0))
+			walker.route.append(Vector3(46.0, terrain.height(46.0, -744.0), -744.0))
+			walker.route_index = 0
+			walker.position = walker.route[0]
+			walker.rotation.y = PI
+			walker.set_physics_process(true)
+		elif c == "wrenspawnthermal": # session B dev hook: Wren thermal signature in front of the default camera
+			case_objects.show_hiker()
+			var sp4 := Vector3(38.0, 0.0, -746.0)
+			sp4.y = terrain.height(sp4.x, sp4.z)
+			case_objects._hiker.position = sp4
+			case_objects._hiker.rotation.y = PI
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			thermal.set_on(true)
+		elif c == "castline":       # session B dev hook: a close line of the village cast for the skin and scale check
+			var cast_x := 34.0
+			for i in mini(4, village._people.size()):
+				var person = village._people[i]
+				person.route.clear()
+				person.seated = false
+				person._set_pose("stand")
+				person.position = Vector3(cast_x, terrain.height(cast_x, -744.0), -744.0)
+				person.rotation.y = PI
+				person.set_physics_process(false)
+				cast_x += 2.2
+		elif c == "nolink":         # session B dev hook: disable the video-link macroblocking for a clean model shot
+			hud.link_fx = false
+			if sensor != null:
+				sensor.link_effects = false
+		elif c == "trafficmodels":  # session B dev hook: the five Blender traffic GLBs in a row
+			var names := ["hatchback_a", "hatchback_b", "pickup_a", "van_a", "tractor_a"]
+			var base: Vector3 = quad.position()
+			var q: Quaternion = quad.attitude()
+			var fwd: Vector3 = q * Vector3(0, 0, -1)
+			fwd.y = 0.0
+			fwd = fwd.normalized()
+			var side := Vector3(-fwd.z, 0.0, fwd.x)
+			for i in names.size():
+				var mpath := "res://assets/traffic/%s.glb" % names[i]
+				if ResourceLoader.exists(mpath):
+					var ps := load(mpath) as PackedScene
+					if ps != null:
+						var car := ps.instantiate() as Node3D
+						var p: Vector3 = base + fwd * 12.0 + side * (-8.0 + float(i) * 4.0)
+						p.y = terrain.height(p.x, p.z)
+						car.position = p
+						add_child(car)
+			print("trafficmodels placed in front of camera")
+		elif c == "trafficnight":   # session B dev hook: the night highway car and its headlights, seen head-on
+			traffic.update(1.0 / 60.0, 23.0, false)
+			var tv: Dictionary = traffic.debug_night_vehicle()
+			if not tv.is_empty():
+				var tp: Vector3 = tv["pos"]
+				var tf: Vector3 = tv["fwd"]
+				var cp := tp + tf * 22.0 + Vector3(tf.z, 0.0, -tf.x) * 8.0
+				var look := (tp - cp).normalized()
+				quad.reset(cp.x, terrain.height(cp.x, cp.z) + 3.0, cp.z, atan2(-look.x, -look.z))
+				gimbal_pitch = deg_to_rad(-7.0)
+				_apply_pose()
+				traffic.debug_freeze(true)
+				print("trafficnight pos=", tp, " visible=", tv["visible"])
+		elif c == "trafficcar":     # session B dev hook: a Blender traffic vehicle close up
+			var tp: Vector3 = traffic.first_vehicle_position()
+			print("trafficcar pos=", tp)
+			quad.reset(tp.x + 6.0, terrain.height(tp.x + 6.0, tp.z + 6.0) + 5.0, tp.z + 6.0, deg_to_rad(45.0))
+			gimbal_pitch = deg_to_rad(-12.0)
+			_apply_pose()
+		elif c == "lakecar":        # session B dev hook: the Blender Lake Car at the north shore
+			var lp: Vector3 = case_objects._items[0]["pos"]
+			quad.reset(lp.x + 8.0, terrain.height(lp.x + 8.0, lp.z + 8.0) + 8.0, lp.z + 8.0, deg_to_rad(45.0))
+			gimbal_pitch = deg_to_rad(-22.0)
+			_apply_pose()
+			print("lakecar: car=", lp, " quad=", quad.position())
+
+		elif c == "wrenwave":       # session B dev hook: the end-beat Wren wave in front of the default camera
+			case_objects.show_hiker()
+			var spw := Vector3(38.0, 0.0, -746.0)
+			spw.y = terrain.height(spw.x, spw.z)
+			case_objects._hiker.position = spw
+			case_objects.wave_hiker()
+			case_objects.face_hiker_towards(Vector3(38.0, spw.y + 1.7, -752.0))
+		elif c == "wrenspawn":      # session B dev hook: Wren in front of the default camera
+			case_objects.show_hiker()
+			var sp3 := Vector3(38.0, 0.0, -746.0)
+			sp3.y = terrain.height(sp3.x, sp3.z)
+			case_objects._hiker.position = sp3
+			case_objects._hiker.rotation.y = PI
+		elif c == "wrenhigh":       # session B dev hook: Wren from a safe look-down height
+			case_objects.show_hiker()
+			case_objects._hiker.position = Vector3(360.0, terrain.height(360.0, 274.0), 274.0)
+			case_objects._hiker.rotation.y = 0.0
+			quad.reset(360.0, terrain.height(360.0, 278.0) + 5.0, 278.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-22.0)
+			_apply_pose()
+		elif c == "peoplehigh":     # session B dev hook: the village cast from a safe look-down height
+			quad.reset(356.0, terrain.height(356.0, 282.0) + 5.0, 282.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-22.0)
+			_apply_pose()
+		elif c == "wrennear":       # session B dev hook: Wren at eye level, a few metres away
+			case_objects.show_hiker()
+			case_objects._hiker.position = Vector3(360.0, terrain.height(360.0, 274.0), 274.0)
+			case_objects._hiker.rotation.y = 0.0
+			quad.reset(360.0, terrain.height(360.0, 274.0) + 1.7, 278.0, deg_to_rad(0.0))
+			gimbal_pitch = deg_to_rad(-2.0)
+			_apply_pose()
+		elif c == "thermalvillage":  # session B dev hook: thermal on, looking at the village parked cars
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			thermal.set_on(true)
+			quad.reset(430.0, terrain.height(430.0, 272.0) + 2.0, 272.0, deg_to_rad(180.0))
+			_apply_pose()
+		elif c == "thermalon":     # session B dev hook: fit and switch on the thermal camera without moving the camera
+			if inventory != null and not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			if thermal != null:
+				thermal.install()
+				thermal.set_on(true)
+		elif c == "thermalcars":  # session B dev hook: thermal on, behind the first traffic vehicle
+			if not inventory.has_addon("thermal_camera"):
+				inventory.add_purchase(FacadeCatalog.item("thermal_camera"))
+			thermal.install()
+			traffic.debug_line_up()
+			thermal.set_on(true)
+			var vp2 := traffic.first_vehicle_position()
+			quad.reset(vp2.x, terrain.height(vp2.x, vp2.z + 14.0) + 5.0, vp2.z + 14.0, 0.0)
+			_apply_pose()
+		elif c == "thermalwren":  # session B dev hook: thermal on, close to Wren at the treeline
+			finale.debug_thermal_view()
+			var wp := CaseObjects.SEARCH_SPOT
+			quad.reset(wp.x, terrain.height(wp.x, wp.y) + 14.0, wp.y, 0.0)
+			gimbal_pitch = deg_to_rad(-82.0)
+			_apply_pose()
+		elif c == "tracedebug":   # session B dev hook: a large thermal footprint on the ground ahead
+			var tdq: Vector3 = -get_viewport().get_camera_3d().global_transform.basis.z
+			tdq.y = 0.0
+			tdq = tdq.normalized()
+			ground_traces.debug_spawn_at(quad.position() + tdq * 8.0)
+		elif c == "thermalview":  # session B dev hook: thermal camera on, search still live
+			finale.debug_thermal_view()
+		elif c == "endingdemo":   # session B dev hook: the fade and the credits
+			finale.debug_found()
+		elif c == "hudtoast":      # session B dev hook: a camera app notice
+			hud.toast("Photo taken", false, "CAMERA")
+		elif c == "laserdemo":     # session B dev hook: Pike laser camera burn, for the blind-frame check
+			anti_drone.debug_laser_burn()
+		elif c == "pikezone":      # session B dev hook: drop into the jammer field
+			var jp := Vector2(-260.0, -807.0)
+			quad.reset(jp.x, terrain.height(jp.x, jp.y) + 8.0, jp.y, deg_to_rad(0.0))
+			_apply_pose()
+		elif c == "endingcabin":   # session B dev hook: put the ending at the cabin for review
+			var cp: Vector3 = case_objects.cabin_world_pos()
+			quad.reset(cp.x, terrain.height(cp.x, cp.z) + 18.0, cp.z, deg_to_rad(200.0))
+			_apply_pose()
+			finale.debug_found()
+			if ending != null:
+				ending.debug_time(22.1)
+		elif c == "endingwash":   # session B dev hook: the blur and wash before the card
+			finale.debug_found()
+			if ending != null:
+				ending.debug_time(6.0)
+		elif c == "endingcard":   # session B dev hook: jump to the end card over the washed world
+			finale.debug_found()
+			if ending != null:
+				ending.debug_time(17.5)
+		elif c == "endingfree":   # session B dev hook: jump to the free walk after the card
+			finale.debug_found()
+			if ending != null:
+				ending.debug_time(22.1)
+		elif c == "storyprivate": # session B dev hook: finish and keep the story private
+			story.debug_run_all()
+			story.make_choice("private")
+			phone_os.open()
+			phone_os._open_app("casebook")
+		elif c == "uploaddemo":   # session B dev hook: upload the newest photo straight to VidTube
+			var pid := -1
+			var meta: Dictionary = {}
+			if photo_library.count() > 0:
+				var rec: Dictionary = photo_library.photos()[-1]
+				pid = int(rec.get("id", -1))
+				meta = rec.get("meta", {})
+			jobs.upload_photo(pid, meta, false)
+			phone_os.open()
+			phone_os._open_app("studio")
+		elif c == "editdemo":     # session B dev hook: Maya edits the newest photo and publishes it
+			if not jobs.editor_friend():
+				jobs._editor = true
+			var pid2 := -1
+			var meta2: Dictionary = {}
+			if photo_library.count() > 0:
+				var rec2: Dictionary = photo_library.photos()[-1]
+				pid2 = int(rec2.get("id", -1))
+				meta2 = rec2.get("meta", {})
+			jobs.upload_photo(pid2, meta2, true)
+			phone_os.open()
+			phone_os._open_app("chat")
+			phone_os._chat_app.open("clips")
+		elif c == "notestorm":
+			phone_notes.debug_one("storm")
+		elif c == "notetornado":
+			phone_notes.debug_one("tornado")
+		elif c == "noteshow":
+			phone_notes.debug_one("show_start")
 		elif c == "fwwall":     # dev: one burst of every type in a row, to judge the shapes
 			fireworks.test_wall(quad.position(), quad.attitude() * Vector3(0.0, 0.0, -1.0), quad.attitude() * Vector3(1.0, 0.0, 0.0))
 		elif c.begins_with("fwburst"):
@@ -956,6 +1997,20 @@ func _screenshot_mode(arg: String) -> void:
 					break
 	await get_tree().create_timer(0.1).timeout
 	for i in frames: await get_tree().process_frame
+	if _phototest:     # the frame has rendered by now, so the capture is the picture the player would take
+		for k in 3:
+			var pimg := sensor.capture()
+			if pimg:
+				photo_library.capture(pimg, _photo_meta())
+		photo_library.open_gallery()
+		_phototest = false
+		await get_tree().process_frame
+		await get_tree().process_frame
+	if _photodetail:
+		photo_library.open_detail_first()
+		_photodetail = false
+		await get_tree().process_frame
+		await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)
 	print("saved ", path)
@@ -963,6 +2018,28 @@ func _screenshot_mode(arg: String) -> void:
 	print("camera: exposure %.2f iso %d shutter 1/%d over %.2f meanlog %.2f burstwash %.3f" % [sensor.exposure, sensor.iso_shown, int(round(1.0 / maxf(sensor.shutter_shown, 1e-6))), sensor._over, sensor._mean_log, sensor._burst_wash])
 	print("birds: ", birds.stats())
 	print("weather events: ", weather_events.stats())
+	print("phone notes: ", phone_notes.stats())
+	print("world life: ", world_life.stats())
+	print("photo library: ", photo_library.stats())
+	print("jobs: ", jobs.stats())
+	print("phone: ", phone_os.stats())
+	print("channel: ", {"views": jobs.views(), "videos": jobs.videos().size(), "editor": jobs.editor_friend()})
+	print("roads: ", roads.stats())
+	print("road signs: ", road_signs.stats())
+	print("landmark signs: ", landmark_signs.stats())
+	print("intersection signals: ", intersection_signals.stats())
+	print("boat launch: placed at ", CaseObjects.BOAT_LAUNCH_SPOT)
+	print("cabin track: placed at ", CaseObjects.CABIN_SPOT)
+	print("farmland: ", farmland.stats())
+	print("traffic: ", traffic.stats())
+	if ground_traces != null: print("ground traces: ", ground_traces.stats())
+	print("crew: ", crew.stats())
+	print("story: ", story.stats())
+	print("unknown: ", unknown_thread.stats())
+	print("kit: ", inventory.stats())
+	print("clips: ", clips.stats())
+	print("wildlife: ", wildlife.stats())
+	print("director: ", director.stats())
 	print("bird voices played: ", audio.voices_played())
 	var peaks := []
 	for bn in ["Master", "Ground", "Onboard", "Ambient", "Birds", "FireworksG", "FireworksM"]:
@@ -994,6 +2071,8 @@ func _run_selftest() -> void:
 	get_tree().quit()
 
 var _gallery_cam := false
+var _phototest := false
+var _photodetail := false
 
 ## Development view: every tree variant and a row of cemetery pieces, close up, to judge the models.
 func _build_gallery() -> void:
@@ -1086,7 +2165,7 @@ func _update_sensor_and_osd(delta: float) -> void:
 		"gimbalDeg": rad_to_deg(gimbal_pitch) if af["hasGimbal"] else rad_to_deg(float(af["camTilt"])),
 		"histogram": sensor.histogram, "lensName": sensor.lens_info()["name"], "airframe": af["name"],
 		"audio": audio.perspective_name() if audio.enabled else "off", "fps": int(_fps), "crashed": quad.crash_reason if (quad.crashed or not quad.armed) else "",
-		"armed": quad.armed, "touch": DisplayServer.is_touchscreen_available(), "mission": [],
+		"armed": quad.armed and not quad.motor_cut, "touch": DisplayServer.is_touchscreen_available(), "mission": [],
 		"windMs": _wind_now.length(), "windLevel": "", "homeBearing": atan2(home.x - dpos.x, -(home.y - dpos.z)), "stopHit": 0.0, "aero": "",
 	}
 	hud.show_crash(osd.t["crashed"])
@@ -1095,7 +2174,8 @@ func _update_sensor_and_osd(delta: float) -> void:
 	audio.strain_in(wind.turb, wind.burst, float(af["omegaMax"]), float(af["twr"]), int(af["nBlades"]))   # wind lane: motor strain sound
 	var om := PackedFloat64Array([quad.s[13], quad.s[14], quad.s[15], quad.s[16]])
 	var cov_f := terrain.cover_at(dpos.x, dpos.z).x
-	audio.update({"omega": om, "blades": af["nBlades"], "thrust": clampf(fc.thrust_fraction() ** 0.5, 0.0, 1.0), "vz": quad.s[4], "jerk": quad.ang_accel.length(), "vrs": quad.vrs,
+	var thrust_now := 0.0 if quad.motor_cut else clampf(fc.thrust_fraction() ** 0.5, 0.0, 1.0)
+	audio.update({"omega": om, "blades": af["nBlades"], "thrust": thrust_now, "vz": quad.s[4], "jerk": quad.ang_accel.length(), "vrs": quad.vrs,
 		"air_speed": (quad.velocity() - _wind_now).length(), "drone_pos": dpos, "drone_vel": quad.velocity(), "agl": agl, "wash": _wash_now,
 		"wind": Vector2(_canopy_wind.x, _canopy_wind.z).length(), "conifer": clampf(0.3 + 0.7 * cov_f, 0.0, 1.0), "gust": wind.gust}, delta)
 	hud.set_airborne(agl > 0.4)
@@ -1113,7 +2193,11 @@ func _autopilot_sticks(st: Vector4, p: Vector3, agl: float) -> Vector4:
 		autopilot.cancel("Assisted flight needs Normal or Sport mode")
 	else:
 		var lim: Dictionary = af["limits"]["S" if fc.mode == "S" else "N"]
-		var cmd := autopilot.update(p, quad.velocity(), fc.heading, agl, home, float(lim["vH"]), float(lim["vUp"]))
+		var was_home_land := autopilot.state == AutoPilot.State.RTH_LAND
+		var cmd := autopilot.update(p, quad.velocity(), fc.heading, agl, launch_pos, float(lim["vH"]), float(lim["vUp"]))
+		if was_home_land and autopilot.state == AutoPilot.State.NONE and autopilot.message == "Landed":
+			_home_landed()
+			autopilot.message = ""   # the home landing has its own notice
 		var rth := autopilot.state in [AutoPilot.State.RTH_CLIMB, AutoPilot.State.RTH_FLY, AutoPilot.State.RTH_LAND]
 		if rth and maxf(maxf(absf(st.x), absf(st.y)), maxf(absf(st.z), absf(st.w))) > 0.25:
 			autopilot.cancel("Return to home cancelled")
@@ -1130,8 +2214,15 @@ func _takeoff_or_land() -> void:
 		hud.toast("Reset the drone first", true); return
 	if autopilot.state == AutoPilot.State.TAKEOFF or autopilot.state == AutoPilot.State.LAND:
 		autopilot.cancel("Cancelled"); return
+	if _home_charging:
+		hud.toast("Recharging at home. " + ("Ready in a moment." if not _charge_done else ""), false)
+		return
 	if agl > 0.4: autopilot.start_landing()
-	else: autopilot.start_takeoff()
+	else:
+		# a new mission starts from a charged, motor-off drone at home
+		quad.motor_cut = false
+		_charge_done = false
+		autopilot.start_takeoff()
 	if fc.mode == "M": hud.set_mode("N")
 
 func _toggle_rth() -> void:
@@ -1146,22 +2237,309 @@ func _toggle_rth() -> void:
 	if fc.mode == "M": hud.set_mode("N")
 	autopilot.start_rth(agl)
 
+func _make_end_marker() -> void:
+	if _end_marker != null:
+		return
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.025
+	mesh.bottom_radius = 0.055
+	mesh.height = 3.2
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.95, 0.78, 0.42, 0.55)
+	mat.emission_enabled = true
+	mat.emission = Color(0.95, 0.70, 0.30)
+	mat.emission_energy_multiplier = 1.4
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_end_marker = MeshInstance3D.new()
+	_end_marker.mesh = mesh
+	_end_marker.material_override = mat
+	_end_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_end_marker.visible = false
+	add_child(_end_marker)
+## The Pike ridge put the drone back at the launch site. Nothing is permanently lost; the flight can be tried again.
+func _on_anti_return(reason: String) -> void:
+	if end_sequence or end_walk:
+		return
+	match reason:
+		"jammer":
+			hud.toast("Harlan Pike's jammer dropped the link. The drone returned to " + launch_sites.name() + ".", true, "LINK")
+		"shotgun":
+			hud.toast("Pike fired on the drone. It returned to " + launch_sites.name() + ". Stay high and keep moving.", true, "LINK")
+		_:
+			hud.toast("A Pike hunter drone struck the airframe. The drone returned to " + launch_sites.name() + ". Fly faster.", true, "LINK")
+	spawn()
+# ------------------------------------------------------------------ the end card and the free walk
+func _on_ending_began() -> void:
+	end_sequence = true
+	end_walk = false
+	if quad != null:
+		quad.motor_cut = true
+		quad.armed = false
+		quad.cmd.fill(0.0)
+	if phone_os != null:
+		phone_os.close()
+	if hud != null:
+		hud.visible = false
+	if osd != null:
+		osd.visible = false
+	if phone_notes != null:
+		phone_notes.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if story != null:
+		story.mark_completed()
+
+func _on_ending_free() -> void:
+	if ghost_flight != null:
+		_start_ghost_flight()
+	else:
+		_begin_post_story_walk()
+
+func _start_ghost_flight(debug_fast := false) -> void:
+	end_sequence = false
+	end_walk = false
+	ghost_on = true
+	if ending != null:
+		ending.hide_prompt()
+		ending.visible = false
+	if hud != null:
+		hud.visible = false
+	if osd != null:
+		osd.visible = false
+	if phone_notes != null:
+		phone_notes.visible = false
+	if phone_os != null:
+		phone_os.close()
+	if quad != null and ghost_flight != null:
+		ghost_flight.begin(cam, quad.position(), _end_yaw, debug_fast)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+func _on_ghost_finished() -> void:
+	ghost_on = false
+	if quad != null and ghost_flight != null:
+		var p: Vector3 = ghost_flight.wake_position()
+		quad.reset(p.x, terrain.height(p.x, p.z) + 0.35, p.z, _end_yaw)
+		quad.armed = false
+		quad.motor_cut = true
+		quad.cmd.fill(0.0)
+	_begin_post_story_walk()
+
+func _begin_post_story_walk() -> void:
+	end_sequence = false
+	end_walk = true
+	if sensor != null:
+		sensor.set_cinematic_blur(0.0)
+		sensor.set_focus_overlay(false)
+	if quad != null:
+		var fwd: Vector3 = quad.attitude() * Vector3(0.0, 0.0, -1.0)
+		_end_yaw = atan2(-fwd.x, -fwd.z)
+		# the drone is put down at the place the story ended, so the walk starts around a real object
+		var p: Vector3 = quad.position()
+		quad.reset(p.x, terrain.height(p.x, p.z) + 0.3, p.z, _end_yaw)
+		quad.armed = false
+		quad.motor_cut = true
+		_apply_pose()
+		var back := Vector3(sin(_end_yaw), 0.0, cos(_end_yaw))
+		_end_cam_pos = quad.position() + back * 4.5
+		_end_cam_pos.y = terrain.height(_end_cam_pos.x, _end_cam_pos.z) + 1.7
+		var to_drone: Vector3 = (quad.position() + Vector3(0.0, 0.6, 0.0) - _end_cam_pos).normalized()
+		_end_yaw = atan2(-to_drone.x, -to_drone.z)
+		_end_pitch = asin(clampf(to_drone.y, -0.95, 0.95))
+	if hud != null:
+		hud.visible = false
+	if osd != null:
+		osd.visible = false
+	if phone_notes != null:
+		phone_notes.visible = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _update_end_walk(delta: float) -> void:
+	var basis := Basis(Vector3.UP, _end_yaw)
+	var dir := Vector3.ZERO
+	if Input.is_key_pressed(KEY_W):
+		dir -= basis.z
+	if Input.is_key_pressed(KEY_S):
+		dir += basis.z
+	if Input.is_key_pressed(KEY_A):
+		dir -= basis.x
+	if Input.is_key_pressed(KEY_D):
+		dir += basis.x
+	if dir.length_squared() > 0.0:
+		_end_cam_pos += dir.normalized() * 4.2 * delta
+	var ground := terrain.height(_end_cam_pos.x, _end_cam_pos.z) + 1.7
+	_end_cam_pos.y = maxf(_end_cam_pos.y, ground)
+	var eye := Basis(Vector3.UP, _end_yaw) * Basis(Vector3.RIGHT, _end_pitch)
+	cam.global_transform = Transform3D(eye, _end_cam_pos)
+	cam.fov = 68.0
+	if drone_view != null:
+		drone_view.visible = true
+		drone_view.set_fpv(false)
+
+func _try_end_click() -> void:
+	if quad == null or cam == null:
+		return
+	var p: Vector3 = quad.position() + Vector3(0.0, 0.55, 0.0)
+	if cam.is_position_behind(p):
+		return
+	var sp := cam.unproject_position(p)
+	var centre := get_viewport().get_visible_rect().size * 0.5
+	if sp.distance_to(centre) < 105.0:
+		_resume_after_ending()
+
+func _resume_after_ending() -> void:
+	end_walk = false
+	end_sequence = false
+	if ending != null:
+		ending.hide_prompt()
+	if quad != null:
+		var p: Vector3 = quad.position()
+		var gy := terrain.height(p.x, p.z) + 0.25
+		quad.reset(p.x, gy, p.z, _end_yaw)
+		quad.armed = true
+		quad.motor_cut = false
+		quad.crashed = false
+		quad.crash_reason = ""
+		quad.cmd.fill(0.0)
+		if fc != null:
+			fc.reset_state()
+			fc.heading = _end_yaw
+		_cam_yaw = _end_yaw
+		_apply_pose()
+		drone_node.reset_physics_interpolation()
+	if sensor != null:
+		sensor.set_focus_overlay(true)
+	if hud != null:
+		hud.visible = true
+		hud.toast("Back in the air. The valley is open.")
+	if phone_notes != null:
+		phone_notes.visible = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func _input(event: InputEvent) -> void:
+	if ghost_on:
+		return
+	if not end_walk:
+		return
+	if event is InputEventMouseMotion:
+		_end_yaw -= event.relative.x * 0.0035
+		_end_pitch = clampf(_end_pitch - event.relative.y * 0.0025, -1.15, 1.15)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_try_end_click()
+## The RTH landing finished at home: cut the motors and start the battery charging for the next mission.
+func _home_landed() -> void:
+	if _home_charging:
+		return
+	quad.motor_cut = true
+	quad.cmd.fill(0.0)
+	_home_charging = true
+	_charge_t = 0.0
+	_charge_done = false
+	if hud != null:
+		hud.toast("At the launch site. Motors off. Recharging for the next flight.")
+
+## Fallback for the RTH-LAND to NONE transition, in case a frame misses the autopilot message.
+func _check_home_landing() -> void:
+	var ap_now := autopilot.state
+	if _prev_auto_state == AutoPilot.State.RTH_LAND and ap_now == AutoPilot.State.NONE and not _home_charging and quad != null:
+		var p: Vector3 = quad.position()
+		if p.y - terrain.height(p.x, p.z) < 0.35:
+			_home_landed()
+	_prev_auto_state = ap_now
+
+## While the drone sits at home with the motors cut, bring the battery back up over a few seconds.
+func _update_home_recharge(delta: float) -> void:
+	if not _home_charging:
+		return
+	if quad == null or quad.crashed:
+		_home_charging = false
+		return
+	var p: Vector3 = quad.position()
+	var agl := p.y - terrain.height(p.x, p.z)
+	if agl > 0.35:
+		_home_charging = false
+		return
+	_charge_t += delta
+	quad.battery.soc = clampf(quad.battery.soc + delta / RECHARGE_SECONDS, 0.0, 1.0)
+	if quad.battery.soc >= 0.999:
+		quad.battery.soc = 1.0
+		_home_charging = false
+		_charge_done = true
+		quad.battery.update(0.0, 0.0)
+		if hud != null:
+			hud.toast("Battery full. Ready for the next flight.")
+
+## A short duration for the HUD and the clip toast.
+func _clip_time(sec: float) -> String:
+	return "%02d:%02d" % [int(sec) / 60, int(sec) % 60]
+
 ## The shutter: a photo saves the finished video frame; in video mode it starts and stops a recording indicator.
 func _shutter_pressed() -> void:
 	if hud.video_mode:
-		recording = not recording; _rec_time = 0.0
-		hud._shutter.recording = recording; hud._shutter.queue_redraw()
-		hud.toast("Recording" if recording else "Recording saved")
+		if not recording:
+			recording = true
+			_rec_time = 0.0
+			hud._shutter.recording = true
+			hud._shutter.queue_redraw()
+			hud.toast("Recording clip. Stop to save a representative thumbnail, not a video file.")
+		else:
+			recording = false
+			_rec_time = maxf(_rec_time, 0.4)
+			var dur := _rec_time
+			hud._shutter.recording = false
+			hud._shutter.queue_redraw()
+			var img := sensor.capture()
+			var rec: Dictionary = {}
+			if clips != null:
+				rec = clips.add_clip(img, _photo_meta(), dur)
+			if rec.is_empty():
+				hud.toast("Clip could not be saved", true)
+			else:
+				hud.toast("Clip saved: %s  ·  VidTube Studio > Rushes" % _clip_time(dur))
+				if phone_notes != null:
+					phone_notes.post_text("VidTube", "Clip saved", "A %s clip is waiting in VidTube Studio. Maya can cut the rushes into a video." % _clip_time(dur), 0)
+			_rec_time = 0.0
 		return
 	var img := sensor.capture()
 	hud.flash_photo()
 	if img == null:
 		hud.toast("Photo taken"); return
-	DirAccess.make_dir_recursive_absolute("user://photos")
-	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace("T", "_")
-	var path := "user://photos/AeroSim_%s.png" % stamp
-	img.save_png(path)
-	hud.toast("Photo saved")
+	# session B: the photo goes into the in-game gallery with its metadata. Nothing is written to the player's
+	# Downloads or Pictures; Export copy in the gallery is the only way a photo leaves the game.
+	if photo_library != null:
+		photo_library.capture(img, _photo_meta())
+	else:
+		hud.toast("Photo taken")
+
+## The facts a photo carries into the gallery and, later, into photo objectives.
+func _photo_meta() -> Dictionary:
+	var p: Vector3 = quad.position()
+	var agl: float = p.y - terrain.height(p.x, p.z)
+	var clock := "21:00"
+	if hud != null:
+		var hour := float(hud.weather.get("hour", 21.0))
+		clock = "%02d:%02d" % [int(hour) % 24, int((hour - floorf(hour)) * 60.0) % 60]
+	var weather_name := ""
+	var weather_i := 0.0
+	if wx != null:
+		weather_name = str(WeatherSystem.NAMES[wx.kind])
+		weather_i = wx.intensity
+	var subjects: Array = []
+	if world_life != null:
+		# only places that are actually close and large in the frame count as in the photo, not the whole horizon
+		for s in world_life.subjects_in_frame(cam):
+			if float(s.get("dist", 9999.0)) < 700.0 and float(s.get("size", 0.0)) > 14.0:
+				subjects.append(s)
+	if case_objects != null:
+		for s in case_objects.subjects_in_frame(cam):
+			subjects.append(s)
+	return {"clock": clock, "weather": weather_name, "weather_i": weather_i,
+		"pos": [p.x, p.y, p.z], "agl": agl, "drone": hud.airframe_id if hud != null else "drone",
+		"lens": hud.lens if hud != null else "standard", "exposure": sensor.exposure,
+		"iso": sensor.iso_shown, "shutter": sensor.shutter_shown, "subjects": subjects,
+		"night": _sun_el < 0.0,
+		"fireworks": fireworks != null and bool(fireworks.stats().get("running", false)),
+		"storm": weather_events != null and bool(weather_events.stats().get("storm", false))}
 
 var _apstest := false
 

@@ -31,6 +31,10 @@ var sky_life: SkyLife
 var funnels: Array[Funnel] = []
 var _motes: Array[GPUParticles3D] = []
 var _storm := {}
+## session B: the phone notification bundle (game/phone_notes.gd). Optional: all posts are guarded.
+var notes: PhoneNotes
+var _noted := {}
+var _noted_t := {}
 var _thermal_centres: Array[Vector3] = []
 var _thermal_emitters: Array[GPUParticles3D] = []
 var _fog: MeshInstance3D
@@ -108,6 +112,10 @@ func setup(t: Terrain, w: Wind, h: Hud, weather: WeatherSystem, sen: SensorPipel
 		if not hud.events.has(k):
 			hud.events[k] = false
 	courses.set_course(int(hud.events.get("course", 0)))
+
+## Session B: give the event runtime the phone notification bundle. Optional; posts are guarded when it is null.
+func set_notes(n: PhoneNotes) -> void:
+	notes = n
 
 func _process(_d: float) -> void:
 	pass   # main.gd calls update once a frame
@@ -315,6 +323,9 @@ func update(delta: float, cam: Camera3D, drone_pos: Vector3, drone_vel: Vector3,
 		courses.update(delta, drone_pos, drone_vel, cam_pos)
 	if sky_life:
 		sky_life.update(delta, cam, wind, daylight, sun_el)
+	# the waterspout's water patch and the exposure dip that goes with a dark funnel or storm
+	_update_spout_global()
+	_update_exposure(cam_pos)
 	_update_sky_globals()
 
 func _read_events() -> void:
@@ -377,15 +388,29 @@ func _spawn_funnel(kind: int) -> Funnel:
 	add_child(f)
 	if kind == Funnel.WSPOUT:
 		var p := _lake_point()
-		f.setup(kind, Vector3(p.x, Lake.LEVEL, p.y), terrain, _roar)
+		f.setup(kind, Vector3(p.x, Lake.LEVEL, p.y), terrain, _roar, int(hud.funnel_detail) if hud else 1)
 	else:
 		# the open meadow: start upwind of the park, away from the lake and the graves
 		var start := Vector3(HOME.x - 260.0 + _rng.randf_range(-80.0, 80.0), 0.0, HOME.y - 180.0 + _rng.randf_range(-80.0, 80.0))
 		start.y = terrain.height(start.x, start.z)
-		f.setup(kind, start, terrain, _roar)
+		f.setup(kind, start, terrain, _roar, int(hud.funnel_detail) if hud else 1)
 	f.start()
 	funnels.append(f)
+	# a DroneBudz text when one of the events starts (not again for a repeated spawn of the same event)
+	var kind_name := "waterspout" if kind == Funnel.WSPOUT else ("tornado" if kind == Funnel.TORNADO else "dustdevil")
+	_note(kind_name)
 	return f
+
+## Post one event message to the phone bundle, at most once every two minutes per event kind.
+func _note(kind: String) -> void:
+	if notes == null:
+		return
+	var now := Time.get_ticks_msec() / 1000.0
+	if float(_noted_t.get(kind, -999.0)) + 120.0 > now:
+		return
+	_noted_t[kind] = now
+	_noted[kind] = true
+	notes.post(kind)
 
 func _lake_point() -> Vector2:
 	var centre := Vector2(-690.0, 100.0)
@@ -414,9 +439,8 @@ func _start_storm() -> void:
 	_rain_mat.set_shader_parameter("centre", _storm["anchor"])
 	_rain_mat.set_shader_parameter("radius", 320.0)
 	_rain_mat.set_shader_parameter("height", 900.0)
-	# the warning to the player only once per storm
-	if hud != null:
-		hud.toast("A thunderstorm is building over the valley.")
+	# the warning to the player: a DroneBudz text now, not the white warning line
+	_note("storm")
 
 func _end_storm() -> void:
 	_storm = {}
@@ -472,7 +496,7 @@ func _tick_storm(delta: float, cam_pos: Vector3, drone_pos: Vector3) -> void:
 	if dstorm < 420.0 and float(_storm.get("next_warn", 0.0)) <= _time:
 		_storm["next_warn"] = _time + 25.0
 		if hud != null:
-			hud.toast("Storm nearby. The air is rough.")
+			hud.toast("Storm nearby. The air is rough.", false, "SKYSYNC")
 
 func _pilot_pos() -> Vector3:
 	return Vector3(HOME.x, terrain.height(HOME.x, HOME.y) + 1.7, HOME.y)
@@ -509,8 +533,7 @@ func _set_thermals(on: bool) -> void:
 		_thermal_emitters.append(e)
 	if birds:
 		birds.thermal_centres = _thermal_centres
-	if hud != null:
-		hud.toast("Thermals are rising over the meadow. Watch the hawks.")
+	_note("thermals")
 
 func _make_motes(at: Vector3) -> GPUParticles3D:
 	var mat := ShaderMaterial.new()
@@ -568,8 +591,7 @@ func _fog_event(kind: String, on: bool, tint: Color, width: float, height: float
 		_fog_mat.set_shader_parameter("seed", _rng.randf() * 40.0)
 		_fog.visible = true
 		_place_fog()
-		if hud != null:
-			hud.toast("A bank of mist is drifting over the lake." if kind == "fogbank" else "A snow squall is moving across the valley.")
+		_note(kind)
 	elif not on and _fog_kind == kind:
 		_fog_kind = ""
 		if _fog: _fog.visible = false
@@ -612,8 +634,7 @@ func _surprise() -> void:
 		hud.events["dustdevil"] = true
 	else:
 		hud.events["thunderstorm"] = true
-	if hud != null:
-		hud.toast("The weather is changing.")
+	# the event itself will send its own DroneBudz text when it spawns; no white warning line here
 
 # ------------------------------------------------------------------ wind fields
 func _funnel_wind(pos: Vector3) -> Vector3:
@@ -668,11 +689,47 @@ func _update_sky_globals() -> void:
 		RenderingServer.global_shader_parameter_set("g_sky_dark", 0.0)
 		_sky_owned = false
 
+## Dev hook for the look shots: jump the first funnel to a stage of its life (0 pendant, 1 cone/touchdown, 2 wedge, 3 rope).
+func debug_stage(i: int) -> void:
+	for f in funnels:
+		if not f.alive() or (f.kind != Funnel.TORNADO and f.kind != Funnel.WSPOUT):
+			continue
+		var ages := [f.form_time * 0.5, f.form_time * 1.05, f.form_time + f.mature_time * 0.5, f.form_time + f.mature_time + f.rope_time * 0.55]
+		f.age = float(ages[clampi(i, 0, 3)])
+		return
+
 func _cloud_funnel() -> Funnel:
 	for f in funnels:
 		if f.alive() and (f.kind == Funnel.TORNADO or f.kind == Funnel.WSPOUT):
 			return f
 	return null
+
+## The waterspout water patch: the water shader reads g_spout = foot x, foot z, radius, strength.
+func _update_spout_global() -> void:
+	var sp: Funnel = null
+	for f in funnels:
+		if f.alive() and f.kind == Funnel.WSPOUT:
+			sp = f
+			break
+	if sp != null:
+		RenderingServer.global_shader_parameter_set("g_spout", Vector4(sp.anchor.x, sp.anchor.z, sp.base_width * 0.5, sp.strength))
+	else:
+		RenderingServer.global_shader_parameter_set("g_spout", Vector4(0.0, 0.0, 0.0, 0.0))
+
+## The camera's exposure dips as a dark funnel or the storm shaft fills the view (session A's event_dim hook).
+func _update_exposure(cam_pos: Vector3) -> void:
+	if sensor == null or not sensor.has_method("event_dim"):
+		return
+	var dip := 0.0
+	for f in funnels:
+		if f.alive():
+			var d := Vector2(cam_pos.x - f.anchor.x, cam_pos.z - f.anchor.z).length()
+			dip = maxf(dip, clampf(1.0 - d / 700.0, 0.0, 1.0) * f.strength * 0.7)
+	if bool(_storm.get("active", false)):
+		var a: Vector3 = _storm["anchor"]
+		var d2 := Vector2(cam_pos.x - a.x, cam_pos.z - a.z).length()
+		dip = maxf(dip, clampf(1.0 - d2 / 1400.0, 0.0, 1.0) * float(_storm["strength"]) * 0.45)
+	sensor.event_dim(dip)
 
 func _tick_pending(delta: float) -> void:
 	var keep: Array = []

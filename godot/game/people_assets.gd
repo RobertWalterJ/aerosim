@@ -354,6 +354,18 @@ static func _tinted(m: StandardMaterial3D, tint: Color) -> StandardMaterial3D:
 ## source material and per figure, so each ghost can fade on its own. With no source (or one without a texture) the
 ## shader still gives a plain pale figure. If the living file is used instead of the ghost file, the albedo is drained
 ## by the shader's tint only, so prefer rennick_1984_ghost.glb.
+## A per-instance skin tone pass for story characters: deep rich brown or light tan without rebuilding the GLB.
+static func tint_skin(root: Node, tone: Color) -> void:
+	for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+		if mi.mesh == null:
+			continue
+		for s in mi.mesh.get_surface_count():
+			var m := mi.get_active_material(s)
+			if m is StandardMaterial3D and String(m.resource_name).begins_with("skin"):
+				var t := (m as StandardMaterial3D).duplicate() as StandardMaterial3D
+				t.albedo_color = (m as StandardMaterial3D).albedo_color * tone
+				t.subsurf_scatter_strength = 0.20
+				mi.set_surface_override_material(s, t)
 static func ghost_material(src: Material = null) -> ShaderMaterial:
 	if _ghost == null:
 		_ghost = ShaderMaterial.new()

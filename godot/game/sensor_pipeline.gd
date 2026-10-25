@@ -17,6 +17,8 @@ const SHADER_DIR := "res://game/shaders/"
 
 var lens := "standard"
 var ev_comp := 0.0
+## 0 = normal exposure, 1 = a moonless night where the camera must not simply lift the world into daylight.
+var night_dark := 0.0
 var _over := 0.0
 var _log_e := 0.0                    # log2 exposure the camera has adapted to
 var _mean_log := -2.9                # latest metered mean log luminance of the scene
@@ -61,6 +63,24 @@ func event_dim(strength: float) -> void:
 
 ## A firework burst seen by this camera: a short lens flash, a streak and a ghost, and it nudges the auto exposure.
 ## `strength` 0..1.6 (a big shell is about 1.0). The effect fades over about 1.2 s. Called from game/fireworks.gd.
+## The active firework bursts as screen-space flash sources, for the night-vision intensifier. Each entry is
+## {uv: Vector2, k: strength, c: Colour}; off-screen bursts are omitted.
+func burst_uvs() -> Array:
+	var out: Array = []
+	if camera == null:
+		return out
+	for i in BURST_N:
+		if _burst_k[i] <= 0.001:
+			continue
+		var p: Vector2 = _project(_burst_p[i])
+		if p.x < -1.8 or p.x > 1.8 or p.y < -1.8 or p.y > 1.8:
+			continue
+		out.append({"uv": p * 0.5 + Vector2(0.5, 0.5), "k": _burst_k[i], "c": _burst_c[i]})
+	return out
+
+func burst_wash() -> float:
+	return _burst_wash
+
 func burst_glare(world_pos: Vector3, colour: Color, strength: float) -> void:
 	var slot := 0
 	var weakest := 1e9
@@ -326,7 +346,7 @@ func process_frame(dt: float, time: float, ang_vel_cam: Vector3, vibration: floa
 	# the camera's exposure follows the metered scene, slowly: it opens up quickly in the dark, and is slow to stop down
 	# when bright light arrives, so the picture stays washed out for a moment before it settles. Worked out here, not in a shader.
 	_event_dim += (_event_dim_target - _event_dim) * (1.0 - exp(-minf(dt, 0.1) / 1.5))
-	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt - 0.35 * minf(bwash, 1.2) - 1.2 * _event_dim, log(0.1) / log(2.0), log(1.6) / log(2.0))
+	var tgt := clampf(log(0.13) / log(2.0) - _mean_log + ev_comp - 0.8 * _sun_amt - 0.35 * minf(bwash, 1.2) - 1.2 * _event_dim - 1.55 * night_dark, log(0.1) / log(2.0), log(1.6) / log(2.0))
 	var tau := 0.9 if tgt < _log_e else 0.45
 	_log_e += (tgt - _log_e) * (1.0 - exp(-minf(dt, 0.1) / tau))
 	_over = clampf((_log_e - tgt) / 1.5, 0.0, 1.0)     # how far the picture is still over-exposed: the haze lasts only while it is
@@ -502,6 +522,7 @@ var box_uv := Vector2.ZERO          # where the box is, in the video frame: -1..
 var subject_held := false           # a tapped subject is being kept in focus
 var subject_uv := Vector2.ZERO      # where that subject is in the frame now
 var dof_blur_px := 0.0              # blur radius at infinity in scene pixels (readout)
+var cinematic_blur := 0.0            # the ending pushes the lens past subtle and into a wash of blur
 signal focus_message(text: String)  # short notes for the pilot ("Focus returned to centre")
 var _subject_world := Vector3.ZERO
 var _acquiring := true              # the box is up: hunting, or locked and about to fade
@@ -521,6 +542,18 @@ var _last_airframe := ""
 var _box: Control
 var _terrain: Object
 var _world: Object
+
+## The ending deliberately overdoes the focus. Normal flight never touches this.
+func set_cinematic_blur(amount: float) -> void:
+	cinematic_blur = clampf(amount, 0.0, 1.0)
+
+## The free walk after the story does not want an autofocus box and a readout floating over the valley.
+func set_focus_overlay(on: bool) -> void:
+	if _box != null:
+		_box.visible = on
+	if not on:
+		focus_shown = false
+		box_alpha = 0.0
 
 func _setup_dof() -> void:
 	_dof_attr = CameraAttributesPractical.new()
@@ -724,6 +757,15 @@ func update_focus(dt: float, terrain: Object, world: Object, airframe_id: String
 		_dof_attr.dof_blur_near_enabled = true
 		_dof_attr.dof_blur_near_distance = near_b
 		_dof_attr.dof_blur_near_transition = maxf(near_b - near_e, 0.01)
+	if cinematic_blur > 0.001:
+		# Everything outside a narrow strip is soft, and the strip itself is soft too. This is not a correct lens.
+		_dof_attr.dof_blur_amount = 0.16 * cinematic_blur
+		_dof_attr.dof_blur_far_enabled = true
+		_dof_attr.dof_blur_far_distance = 0.35
+		_dof_attr.dof_blur_far_transition = 0.6
+		_dof_attr.dof_blur_near_enabled = true
+		_dof_attr.dof_blur_near_distance = 0.12
+		_dof_attr.dof_blur_near_transition = 0.2
 	if _dof_debug and _frame % 30 == 0:
 		print("dof: mode %d %s focus %.2f m (target %.2f) %s, f %.1f mm f/%.1f c %.3f mm, H %.2f m, light %.2f, blur at infinity %.2f px, size %.2f px (cap %.1f), far %s %.1f..%.1f, near %.2f..%.2f, probe %d us" % [dof_mode, "MF" if manual_focus else "AF", s, 1.0 / _af_target, "locked" if focus_locked else "hunting", f_mm, n, c_max, hyper_m, light, a_px, kk, cap_px, "on" if far_on else "off", far_b, far_e, near_e, near_b, _af_us])
 

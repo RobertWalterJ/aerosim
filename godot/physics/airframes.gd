@@ -91,6 +91,38 @@ static func make(id: String) -> Dictionary:
 					"S": {"vH": 22.0, "bank": 35 * DEG, "vUp": 8.0, "vDown": 6.0, "yawRate": 1.6, "kv": 1.2},
 				},
 			}
+		"raptor":
+			return {
+				"id": "raptor", "name": "Raptor Race", "blurb": "550 g. Six cells, race motors and no gimbal. The fastest thing on the board.",
+				"mass": 0.55, "armD": 0.08, "I": Vector3(2.0e-3, 3.8e-3, 2.0e-3),
+				"R": 0.0635, "sigma": 0.21, "a": 5.0, "Cd0": 0.02, "nBlades": 3, "Jr": 8e-6, "kH": 0.01,
+				"twr": 14.0, "omegaMax": 3500.0, "tauUp": 0.013, "tauDown": 0.008, "motorEff": 0.83,
+				"cells": 6, "capacityAh": 1.2, "rInt": 0.022,
+				"dragCd": Vector3(0.9, 1.0, 0.8), "dragA": Vector3(0.005, 0.016, 0.007),
+				"hasGimbal": false, "camTilt": 40 * DEG, "camOffset": Vector3(0, 0.01, -0.06),
+				"ratesRc": 0.98, "ratesSuper": 0.78, "ratesExpo": 0.12,
+				"gain": {"rateP": 52.0, "rateI": 34.0, "rateD": 0.009, "yawP": 40.0, "attP": 12.0},
+				"limits": {
+					"N": {"vH": 22.0, "bank": 34 * DEG, "vUp": 10.0, "vDown": 8.0, "yawRate": 2.4, "kv": 3.0},
+					"S": {"vH": 40.0, "bank": 48 * DEG, "vUp": 20.0, "vDown": 12.0, "yawRate": 3.4, "kv": 1.8},
+				},
+			}
+		"nightowl":
+			return {
+				"id": "nightowl", "name": "Night Owl", "blurb": "480 g. A quiet gimbal ship with a big pack. Made for the hour after dark.",
+				"mass": 0.48, "armD": 0.08, "I": Vector3(1.2e-3, 2.2e-3, 1.2e-3),
+				"R": 0.0635, "sigma": 0.18, "a": 5.0, "Cd0": 0.02, "nBlades": 2, "Jr": 5e-6, "kH": 0.01,
+				"twr": 3.6, "omegaMax": 2300.0, "tauUp": 0.04, "tauDown": 0.026, "motorEff": 0.80,
+				"cells": 4, "capacityAh": 2.2, "rInt": 0.035,
+				"dragCd": Vector3(1.1, 1.2, 1.0), "dragA": Vector3(0.007, 0.02, 0.01),
+				"hasGimbal": true, "camTilt": 0.0, "camOffset": Vector3(0, -0.012, -0.07),
+				"ratesRc": 0.6, "ratesSuper": 0.58, "ratesExpo": 0.25,
+				"gain": {"rateP": 26.0, "rateI": 15.0, "rateD": 0.012, "yawP": 19.0, "attP": 9.0},
+				"limits": {
+					"N": {"vH": 14.0, "bank": 26 * DEG, "vUp": 5.0, "vDown": 3.5, "yawRate": 1.3, "kv": 2.2},
+					"S": {"vH": 23.0, "bank": 38 * DEG, "vUp": 8.0, "vDown": 6.0, "yawRate": 2.0, "kv": 1.2},
+				},
+			}
 		_:
 			return {
 				"id": "mini", "name": "Gimbal Mini", "blurb": "249 g. Light and easy, with a steady gimbal camera. A good place to start.",

@@ -24,6 +24,7 @@ global uniform float g_snow;
 global uniform vec4 g_fire;
 global uniform vec4 g_fx;          // x cloud shadows, y tree colour variety, z water detail off
 global uniform vec4 g_water;       // the haze/sky colour the lake mirrors, set from the fog colour every frame
+global uniform vec4 g_spout;       // x = waterspout foot x, y = foot z, z = foot radius, w = strength (SPEC-VORTEX-LOOK)
 
 uniform float uLevel = 76.0;       // Lake.LEVEL
 uniform sampler2D uHeight : filter_nearest, repeat_disable;
@@ -102,6 +103,27 @@ void fragment() {
 	float foam_n = vn(wp.xz * 1.7 + vec2(g_time * 0.22, -g_time * 0.16));
 	float foam = clamp(band * (0.35 + 0.65 * breath) * (0.50 + 0.70 * foam_n), 0.0, 1.0) * detail;
 	foam += (1.0 - smoothstep(0.0, 0.18, depth)) * 0.8 * detail;
+
+	// a waterspout's foot stirs the water (SPEC-VORTEX-LOOK): a round patch of concentric dark rings and an inward
+	// spiral, spreading out 5 to 10 times the funnel width, with a bright foam ring right at the base
+	if (g_spout.w > 0.002 && detail > 0.5) {
+		vec2 sc = g_spout.xy;
+		float sr = max(g_spout.z, 2.0);
+		float sd = length(wp.xz - sc);
+		float reach = 1.0 - smoothstep(sr * 2.0, sr * 6.0, sd);
+		float rings = 0.5 + 0.5 * sin(sd * 0.42 - g_time * 1.1);
+		float ring_k = smoothstep(0.30, 0.95, rings) * reach * g_spout.w;
+		float ang = atan(wp.z - sc.y, wp.x - sc.x);
+		float spiral = 0.5 + 0.5 * sin(ang * 2.0 + sd * 0.35 + g_time * 0.6);
+		vec2 dir = (wp.xz - sc) / max(sd, 0.1);
+		vec3 ring_n = normalize(vec3(dir.x * ring_k * 0.60 + cos(ang) * spiral * 0.18 * g_spout.w,
+			1.0,
+			dir.y * ring_k * 0.60 + sin(ang) * spiral * 0.18 * g_spout.w));
+		n = normalize(mix(n, ring_n, clamp(ring_k + g_spout.w * 0.35 * reach, 0.0, 1.0) * 0.85));
+		water = mix(water, water * 0.50, ring_k * 0.85);
+		float foot = (1.0 - smoothstep(sr * 0.8, sr * 1.7, sd)) * smoothstep(sr * 0.18, sr * 0.5, sd) * g_spout.w;
+		foam = clamp(foam + foot * (0.55 + 0.45 * rings), 0.0, 1.0);
+	}
 
 	ALBEDO = mix(water, foam_col, clamp(foam, 0.0, 1.0) * 0.9);
 	ROUGHNESS = mix(mix(0.045, 0.16, w), 0.45, clamp(foam, 0.0, 1.0));
