@@ -158,7 +158,7 @@ func _start() -> void:
 		var greet := "Afternoon. I am Constable Rennick, new at the Halloway detachment. This is a favour, not a case yet. Is one of you the pilot with the drone?"
 		var pilot_name := PlayerProfile.display_name()
 		if pilot_name != "" and pilot_name != "Pilot":
-			greet = "Afternoon, %s. I am Constable Rennick, new at the Halloway detachment. This is a favour, not a case yet. Are you the pilot with the drone?" % pilot_name
+			greet = "Afternoon, %s. I am Constable Rennick, new at the Halloway detachment. This is a favour, not a case yet. I hear you are the pilot with the drone?" % pilot_name
 		chat.post(CHANNEL, "Rennick", greet)
 	_begin(0)
 	if notes != null and not _start_notified:

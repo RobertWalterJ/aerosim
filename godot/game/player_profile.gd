@@ -13,6 +13,7 @@ extends RefCounted
 ## names (user, admin, owner, guest) are ignored, and only the first name is offered as a callsign.
 
 const SAVE := "user://profile.cfg"
+const PLAYER_NAME := "Lou"
 const MAX_CALLSIGN := 24
 const MAX_REAL_NAME := 40
 const GENERIC := ["user", "admin", "administrator", "owner", "guest", "default", "pc", "computer", "root"]
@@ -33,8 +34,8 @@ static func ensure_loaded() -> void:
 		callsign = _clean_callsign(str(cf.get_value("pilot", "callsign", "")))
 		real_name = _clean_real_name(str(cf.get_value("pilot", "real_name", "")))
 		use_real_name = bool(cf.get_value("pilot", "use_real_name", false))
-	if callsign == "":
-		callsign = _suggest_callsign()
+	# The player character is always Lou. Old profile callsigns are migrated away from on load.
+	callsign = PLAYER_NAME
 	if real_name == "":
 		real_name = detected_name
 
@@ -50,11 +51,9 @@ static func save() -> void:
 		cf.set_value("pilot", "real_name", "")
 	cf.save(SAVE)
 
-static func set_callsign(value: String) -> void:
+static func set_callsign(_value: String) -> void:
 	ensure_loaded()
-	callsign = _clean_callsign(value)
-	if callsign == "":
-		callsign = "Pilot"
+	callsign = PLAYER_NAME
 	save()
 
 static func set_real_name(value: String) -> void:
@@ -71,16 +70,10 @@ static func set_use_real_name(on: bool) -> void:
 
 static func display_name() -> String:
 	ensure_loaded()
-	return callsign
+	return PLAYER_NAME
 
 static func initials() -> String:
-	ensure_loaded()
-	var bits := callsign.split(" ", false)
-	if bits.is_empty():
-		return "YOU"
-	if bits.size() == 1:
-		return bits[0].substr(0, 2).to_upper()
-	return (bits[0].substr(0, 1) + bits[bits.size() - 1].substr(0, 1)).to_upper()
+	return "LO"
 
 static func has_computer_name() -> bool:
 	ensure_loaded()
@@ -98,10 +91,7 @@ static func festival_character_name() -> String:
 
 ## A short callsign for a line where a character addresses the pilot directly. Falls back to the old "pilot" wording.
 static func address() -> String:
-	ensure_loaded()
-	if callsign == "" or callsign == "Pilot":
-		return "pilot"
-	return callsign
+	return PLAYER_NAME
 
 static func _detect_computer_name() -> String:
 	for key in ["USERNAME", "USER", "LOGNAME"]:

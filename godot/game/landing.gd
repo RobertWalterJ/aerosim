@@ -85,22 +85,23 @@ func build(drone_name: String, story_mode := true) -> void:
 	_mode_desc.add_theme_font_size_override("font_size", 12)
 	_mode_desc.add_theme_color_override("font_color", MenuStyle.MUTED)
 	col.add_child(_mode_desc)
-	# the pilot identity: callsign always edited here; the computer name is only a suggestion
+	# the player character is Lou; the computer name is only used for the optional festival character
 	PlayerProfile.ensure_loaded()
 	var pilot_head := Label.new(); pilot_head.text = "PILOT"
 	pilot_head.add_theme_font_size_override("font_size", 11); pilot_head.add_theme_color_override("font_color", MenuStyle.ACCENT)
 	col.add_child(pilot_head)
 	var name_row := HBoxContainer.new(); name_row.add_theme_constant_override("separation", 8)
-	var name_label := Label.new(); name_label.text = "Callsign"; name_label.custom_minimum_size = Vector2(72, 0); name_label.add_theme_color_override("font_color", MenuStyle.MUTED)
+	var name_label := Label.new(); name_label.text = "Name"; name_label.custom_minimum_size = Vector2(72, 0); name_label.add_theme_color_override("font_color", MenuStyle.MUTED)
 	name_row.add_child(name_label)
 	_callsign_edit = LineEdit.new()
-	_callsign_edit.text = PlayerProfile.callsign
-	_callsign_edit.placeholder_text = "What should the crew call you?"
+	_callsign_edit.text = "Lou"
+	_callsign_edit.editable = false
+	_callsign_edit.focus_mode = Control.FOCUS_NONE
+	_callsign_edit.placeholder_text = "Lou"
 	_callsign_edit.max_length = PlayerProfile.MAX_CALLSIGN
 	_callsign_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_callsign_edit.custom_minimum_size = Vector2(0, 38)
-	_callsign_edit.tooltip_text = "Used in the DroneBudz chat, the Casebook and the credits."
-	_callsign_edit.text_changed.connect(func(value: String): PlayerProfile.set_callsign(value))
+	_callsign_edit.tooltip_text = "The player character is Lou."
 	name_row.add_child(_callsign_edit)
 	col.add_child(name_row)
 	_real_name_check = CheckBox.new()

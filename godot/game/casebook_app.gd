@@ -499,7 +499,7 @@ func _contacts_view() -> void:
 	var wren_known := story != null and story.started and (story.chapter >= 5 or wren_found)
 	PlayerProfile.ensure_loaded()
 	var people := [
-		{"key": "you", "name": PlayerProfile.display_name(), "role": "PILOT  ·  YOU", "note": "The one flying the drone. This file is written from the pilot side."},
+		{"key": "you", "name": PlayerProfile.display_name(), "role": "PILOT  ·  YOU", "note": "The one flying the drone. This file is written from Lou's side."},
 		{"key": "rennick", "name": "Constable Rennick", "role": "CASE OFFICER", "note": "Halloway Valley Constabulary. Keeps the file by the phone and the notes short."},
 		{"key": "wren", "name": "Wren", "role": "FOUND" if wren_found else "MISSING HIKER", "note": "Found east of the cabin. The file is closed and Wren is safe." if wren_found else "Last seen north of the cabin. The reason the file is still open."},
 		{"key": "riley", "name": "Riley", "role": "PARK RANGER", "note": "Knows the pasture, the flock and every track on the ridge."},
