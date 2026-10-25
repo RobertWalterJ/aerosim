@@ -1215,3 +1215,9 @@ Owner note: the point is photorealism. The current cars are code-built boxes wit
 - **Text/sequence fixes:** Unknown says 1984 not 1974; the tow sticker is introduced only when the close-up chapter asks; final chapter says "ready to close" not closed; Casebook hides Wren until the story knows about Wren and no longer routes Wren to the Unknown DM; `StoryArc.on_photo` refuses completions while story/jobs is off.
 - **Verification:** chapter sequence 0→5, publish, unknown beats 0→5, finale start, wait button screenshot; `GATE PASS (storyprofile3)`; commit `fc09722`.
 - **Save caution:** tests used backups under `%APPDATA%\Godot\app_userdata\`; the live save at the end of testing is the test state, not necessarily the player's pre-test completed save.
+## Presence rules: no close-up humans, spooked animals, sparse traffic (lane/notify, session B, 2026-11-15)
+- **Humans:** the eight village actors are built but never rendered; their conversations and presence stay in DroneBudz. Wren is the only world human; her Blender model is hidden inside 48 m and found by thermal signature at the designed search distance. A human model must never be inspectable close-up.
+- **Animals:** sheep spook at 58 m (flee 4.6 m/s, hidden inside 25 m); the wolf spooks at 85 m (flee 7.2 m/s, hidden inside 30 m). Heat signatures travel with the models. This keeps the thermal story readable from a respectful distance.
+- **Traffic:** reduced to three moving vehicles on desktop and two on mobile; a moving vehicle should be an event, not wallpaper.
+- **Evidence:** `docs/PRESENCE-RULES.md`; close-range shots show the flock scattering and Wren hidden at 41 m. Gate `presence` passed; commit `de27f28`.
+- **Save caveat:** story/profile tests still left the live save in a test state; preserve/restore is a user decision.
